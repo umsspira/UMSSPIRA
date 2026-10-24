@@ -66,9 +66,7 @@ export class ObservedApplicationController {
     @UploadedFiles() files?: UploadedDocument[] | UploadedDocument,
     @Body() body?: ReplaceDocumentInput,
   ) {
-    const file = Array.isArray(files)
-      ? files.find((f) => f.fieldname === 'file' || f.fieldname === 'archivo') || files[0]
-      : (files as UploadedDocument | undefined);
+    const file = Array.isArray(files) ? files[0] : (files as UploadedDocument | undefined);
     const data = await this.observedApplicationService.replaceDocument(
       applicationId,
       file!,
