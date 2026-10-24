@@ -96,6 +96,7 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
     updateDraft: jest.fn(),
     publishDraft: jest.fn(),
     register: jest.fn(),
+    assertCancellable: jest.fn(),
     cancelPublished: jest.fn(),
     saveCover: jest.fn(),
     removeCover: jest.fn(),

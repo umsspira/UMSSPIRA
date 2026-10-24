@@ -14,6 +14,7 @@ import {
 } from '../../domain/policies/event.policy';
 import type { InactiveEvent, RetiredEvent } from '../../domain/entities/event';
 import { toEvent } from '../translators/event.translator';
+import { assertRegistrationCancellable } from '../../domain/policies/event-registration.policy';
 
 const eventInclude = { usuario: { select: { nombre: true } } };
 
@@ -218,6 +219,24 @@ export class PrismaEventsRepository implements EventsRepository {
       }
       throw error;
     }
+  }
+
+  async assertCancellable(userId: string, registrationId: string, now: Date): Promise<void> {
+    const registration = await this.prisma.inscripcionEvento.findFirst({
+      where: { id: registrationId, id_usuario: userId },
+      select: { estado: true, evento: { select: { fecha_fin: true } } },
+    });
+    if (!registration) {
+      throw new BusinessRuleError(
+        'missing',
+        'EVENT_REGISTRATION_NOT_FOUND',
+        'No se encontró la inscripción solicitada',
+      );
+    }
+    assertRegistrationCancellable(
+      { status: registration.estado, endDate: registration.evento?.fecha_fin ?? null },
+      now,
+    );
   }
 
   async inactive(ownerId: string, now: Date): Promise<InactiveEvent[]> {
