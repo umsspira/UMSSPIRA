@@ -1,13 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   ObservedApplicationDetail,
+  ReplaceObservedDocumentResponse,
   UpdateObservedDataResponse,
 } from '../../domain/entities/observed-application';
 import {
   OBSERVED_APPLICATION_PORT,
   type ObservedApplicationPort,
 } from '../ports/observed-application.port';
-import type { UpdateObservedDataUseCaseInput } from '../contracts/registration-inputs';
+import type {
+  UpdateObservedDataUseCaseInput,
+  UploadedDocument,
+} from '../contracts/registration-inputs';
 
 @Injectable()
 export class ObservedApplicationService {
@@ -27,5 +31,12 @@ export class ObservedApplicationService {
     input: UpdateObservedDataUseCaseInput,
   ): Promise<UpdateObservedDataResponse> {
     return this.repository.updateObservedApplication(applicationId, input);
+  }
+  async replaceDocument(
+    applicationId: string,
+    file: UploadedDocument,
+    documentType?: string,
+  ): Promise<ReplaceObservedDocumentResponse> {
+    return this.repository.replaceDocument(applicationId, file, documentType);
   }
 }

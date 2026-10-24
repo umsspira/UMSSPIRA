@@ -1,12 +1,18 @@
+import { randomBytes, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
+import { validateDocument } from '../../domain/policies/document.policy';
 import type {
   ObservedApplicationDetail,
+  ReplaceObservedDocumentResponse,
   UpdateObservedDataResponse,
 } from '../../domain/entities/observed-application';
 import type { ObservedApplicationPort } from '../../application/ports/observed-application.port';
-import type { UpdateObservedDataUseCaseInput } from '../../application/contracts/registration-inputs';
+import type {
+  UpdateObservedDataUseCaseInput,
+  UploadedDocument,
+} from '../../application/contracts/registration-inputs';
 
 @Injectable()
 export class PrismaObservedApplicationRepository implements ObservedApplicationPort {
@@ -207,6 +213,106 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           message: emailChanged
             ? 'Datos actualizados. Debe verificar su nueva dirección de correo electrónico.'
             : 'Datos actualizados correctamente',
+        };
+      },
+      { timeout: 15000 },
+    );
+  }
+  async replaceDocument(
+    applicationId: string,
+    file: UploadedDocument,
+    documentType?: string,
+  ): Promise<ReplaceObservedDocumentResponse> {
+    if (!file || !file.buffer) {
+      throw new BusinessRuleError(
+        'invalid',
+        'DOCUMENT_REQUIRED',
+        'Adjunta un documento de respaldo',
+      );
+    }
+
+    const mime = validateDocument(file.originalname, file.buffer);
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM solicitud WHERE id = ${applicationId}::uuid FOR UPDATE`;
+
+        const row = await tx.solicitud.findUnique({
+          where: { id: applicationId },
+          include: {
+            documento_respaldo: true,
+          },
+        });
+
+        if (!row || (row.estado !== 'OBSERVED' && row.estado !== 'OBSERVADA')) {
+          throw new BusinessRuleError(
+            'missing',
+            'APPLICATION_NOT_FOUND',
+            'La solicitud no existe o no está disponible',
+          );
+        }
+
+        if (row.id_documento_respaldo) {
+          await tx.documentoRespaldo.update({
+            where: { id: row.id_documento_respaldo },
+            data: { es_valido: false },
+          });
+        }
+
+        const cleanName = file.originalname
+          .replaceAll('\\', '/')
+          .split('/')
+          .pop()
+          .replace(/[\x00-\x1f\x7f]/g, '')
+          .slice(0, 255);
+
+        const draftHolder = await tx.borradorRegistro.create({
+          data: {
+            token_hash: randomBytes(32).toString('hex'),
+            datos: {},
+            expira_en: new Date(Date.now() + 3650 * 24 * 3600 * 1000),
+            correo_verificado: true,
+          },
+        });
+
+        const fileId = randomUUID();
+
+        const newArchivo = await tx.archivoRegistro.create({
+          data: {
+            id: fileId,
+            id_borrador: draftHolder.id,
+            tipo_documento: documentType ?? 'DOCUMENTO_IDENTIDAD',
+            nombre: cleanName,
+            mime,
+            contenido: new Uint8Array(file.buffer),
+            size_bytes: file.buffer.length,
+          },
+        });
+
+        const newDoc = await tx.documentoRespaldo.create({
+          data: {
+            ruta_storage: newArchivo.id,
+            tamanio_mb: Math.ceil(file.buffer.length / 1048576),
+            fecha_creacion: new Date(),
+            es_valido: true,
+          },
+        });
+
+        await tx.solicitud.update({
+          where: { id: applicationId },
+          data: {
+            id_documento_respaldo: newDoc.id,
+            fecha_actualizacion: new Date(),
+          },
+        });
+
+        return {
+          id: applicationId,
+          documentoId: newDoc.id,
+          nombre: cleanName,
+          tipoDocumento: documentType ?? 'DOCUMENTO_IDENTIDAD',
+          sizeBytes: file.buffer.length,
+          message: 'Documento de respaldo reemplazado correctamente',
         };
       },
       { timeout: 15000 },
