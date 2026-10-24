@@ -367,7 +367,7 @@ describe('PrismaObservedApplicationRepository', () => {
   });
 
   describe('submitCorrection', () => {
-    it('entrega la correccion, crea snapshot en version, cambia a PENDING e invalida el token', async () => {
+    it('entrega la correccion, crea snapshot en version, cambia a PENDIENTE e invalida el token', async () => {
       const { repository, tx } = createRepo({
         application: {
           id: applicationId,
@@ -381,7 +381,7 @@ describe('PrismaObservedApplicationRepository', () => {
 
       const response = await repository.submitCorrection(applicationId, { expectedVersion: 2 });
 
-      expect(response.estado).toBe('PENDING');
+      expect(response.estado).toBe('PENDIENTE');
       expect(response.version).toBe(3);
       expect(tx.solicitudVersion.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({
@@ -391,7 +391,7 @@ describe('PrismaObservedApplicationRepository', () => {
       }));
       expect(tx.solicitud.update).toHaveBeenCalledWith({
         where: { id: applicationId },
-        data: expect.objectContaining({ estado: 'PENDING' }),
+        data: expect.objectContaining({ estado: 'PENDIENTE' }),
       });
       expect(tx.tokenSubsanacion.updateMany).toHaveBeenCalledWith({
         where: { id_solicitud: applicationId, usado: false },

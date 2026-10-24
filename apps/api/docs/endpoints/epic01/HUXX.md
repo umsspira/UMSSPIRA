@@ -405,7 +405,7 @@ El documento anterior se desvincula de la solicitud actual y se marca `es_valido
 {
   "data": {
     "id": "uuid",
-    "estado": "PENDING",
+    "estado": "PENDIENTE",
     "version": 3,
     "message": "Corrección entregada exitosamente"
   }

@@ -412,7 +412,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
         await tx.solicitud.update({
           where: { id: applicationId },
           data: {
-            estado: 'PENDING',
+            estado: 'PENDIENTE',
             fecha_actualizacion: new Date(),
           },
         });
@@ -429,7 +429,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
 
         return {
           id: applicationId,
-          estado: 'PENDING',
+          estado: 'PENDIENTE',
           version: currentVersion + 1,
           message: 'Corrección entregada exitosamente',
         };

@@ -153,7 +153,7 @@ describe('ObservedApplicationController', () => {
     it('ejecuta la entrega exitosamente y retorna el resultado', async () => {
       const mockResult = {
         id: 'app-123',
-        estado: 'PENDING',
+        estado: 'PENDIENTE',
         version: 3,
         message: 'Corrección entregada exitosamente',
       };
