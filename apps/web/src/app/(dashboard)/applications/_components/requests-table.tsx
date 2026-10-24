@@ -21,7 +21,7 @@ export function hoursSince(iso: string, now: number = Date.now()): number {
 
 // Solo una solicitud pendiente puede estar vencida (CA-04.1).
 export function isOverdue(item: BoardItem, now: number = Date.now()): boolean {
-  return item.status === 'PENDIENTE' && hoursSince(item.submittedAt, now) > OVERDUE_HOURS;
+  return item.status === 'PENDIENTE' && now - new Date(item.submittedAt).getTime() > OVERDUE_HOURS * 3_600_000;
 }
 
 function formatSentDate(iso: string): string {

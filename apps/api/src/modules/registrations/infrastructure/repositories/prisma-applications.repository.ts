@@ -33,6 +33,17 @@ export function scopedApplication(actor: ActorContext, id?: string): Prisma.Soli
   };
 }
 
+// La bandeja normaliza estados históricos en inglés; sus consultas deben hacer lo mismo.
+export function applicationStatusFilter(status: string): Prisma.SolicitudWhereInput {
+  const aliases: Record<string, string[]> = {
+    PENDIENTE: ['PENDIENTE', 'PENDING'],
+    APROBADA: ['APROBADA', 'APPROVED'],
+    OBSERVADA: ['OBSERVADA', 'OBSERVED'],
+    RECHAZADA: ['RECHAZADA', 'REJECTED'],
+  };
+  return { estado: { in: aliases[status] ?? [status], mode: 'insensitive' } };
+}
+
 @Injectable()
 export class PrismaApplicationsRepository implements ApplicationsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -97,8 +108,8 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
       });
     }
     const overdue: Prisma.SolicitudWhereInput = {
-      estado: 'PENDIENTE',
-      fecha_creacion: { lt: new Date(Date.now() - 48 * 3600000) },
+      ...applicationStatusFilter('PENDIENTE'),
+      fecha_creacion: { lt: urgentCutoff(new Date()) },
     };
     const period = query.period
       ? resolveApplicationPeriod(
@@ -110,7 +121,7 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
         const where: Prisma.SolicitudWhereInput = {
       AND: [
         scopedApplication(actor),
-        ...(query.status ? [{ estado: query.status }] : []),
+        ...(query.status ? [applicationStatusFilter(query.status)] : []),
         ...(detailFilters.length ? [{ detalle_solicitud: { is: { AND: detailFilters } } }] : []),
         ...(query.age === 'over48'
           ? [overdue]
@@ -123,13 +134,13 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     // Primero pendientes antiguos; luego expedientes dictaminados recientes.
     const [total, pending] = await this.prisma.$transaction([
       this.prisma.solicitud.count({ where }),
-      this.prisma.solicitud.count({ where: { AND: [where, { estado: 'PENDIENTE' }] } }),
+      this.prisma.solicitud.count({ where: { AND: [where, applicationStatusFilter('PENDIENTE')] } }),
     ]);
     const offset = (query.page - 1) * query.pageSize;
     const pendingRows =
       offset < pending
         ? await this.prisma.solicitud.findMany({
-            where: { AND: [where, { estado: 'PENDIENTE' }] },
+            where: { AND: [where, applicationStatusFilter('PENDIENTE')] },
             include: applicationInclude,
             orderBy: [{ fecha_creacion: 'asc' }, { id: 'asc' }],
             skip: offset,
@@ -140,7 +151,7 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     const otherRows =
       remaining > 0
         ? await this.prisma.solicitud.findMany({
-            where: { AND: [where, { estado: { not: 'PENDIENTE' } }] },
+            where: { AND: [where, { NOT: applicationStatusFilter('PENDIENTE') }] },
             include: applicationInclude,
             orderBy: [{ fecha_creacion: 'desc' }, { id: 'asc' }],
             skip: Math.max(0, offset - pending),
@@ -161,9 +172,9 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     const today = todayRange(now);
     const [receivedToday, pending, urgent, resolved] = await this.prisma.$transaction([
       this.prisma.solicitud.count({ where: { AND: [scope, { fecha_creacion: today }] } }),
-      this.prisma.solicitud.count({ where: { AND: [scope, { estado: 'PENDIENTE' }] } }),
+      this.prisma.solicitud.count({ where: { AND: [scope, applicationStatusFilter('PENDIENTE')] } }),
       this.prisma.solicitud.count({
-        where: { AND: [scope, { estado: 'PENDIENTE', fecha_creacion: { lt: urgentCutoff(now) } }] },
+        where: { AND: [scope, { ...applicationStatusFilter('PENDIENTE'), fecha_creacion: { lt: urgentCutoff(now) } }] },
       }),
       // Una solicitud con varios dictámenes el mismo día se cuenta una sola vez.
       this.prisma.dictamen.findMany({
