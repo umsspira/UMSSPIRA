@@ -221,8 +221,43 @@ export class PrismaEventsRepository implements EventsRepository {
     }
   }
 
+  async cancelRegistration(userId: string, registrationId: string, now: Date): Promise<void> {
+    await this.prisma.$transaction(
+      async (tx) => {
+        await this.assertCancellableWith(tx, userId, registrationId, now);
+        const result = await tx.inscripcionEvento.updateMany({
+          where: {
+            id: registrationId,
+            id_usuario: userId,
+            estado: 'CONFIRMADA',
+            evento: { is: { fecha_fin: { gt: now } } },
+          },
+          data: { estado: 'CANCELADA' },
+        });
+        // Revalidar al escribir impide dos cancelaciones aunque ambas lecturas sean válidas.
+        if (result.count !== 1) {
+          throw new BusinessRuleError(
+            'conflict',
+            'EVENT_REGISTRATION_NOT_CANCELLABLE',
+            'La inscripción ya no está disponible para cancelación',
+          );
+        }
+      },
+      { timeout: 15000 },
+    );
+  }
+
   async assertCancellable(userId: string, registrationId: string, now: Date): Promise<void> {
-    const registration = await this.prisma.inscripcionEvento.findFirst({
+    await this.assertCancellableWith(this.prisma, userId, registrationId, now);
+  }
+
+  private async assertCancellableWith(
+    client: Prisma.TransactionClient | PrismaService,
+    userId: string,
+    registrationId: string,
+    now: Date,
+  ): Promise<void> {
+    const registration = await client.inscripcionEvento.findFirst({
       where: { id: registrationId, id_usuario: userId },
       select: { estado: true, evento: { select: { fecha_fin: true } } },
     });

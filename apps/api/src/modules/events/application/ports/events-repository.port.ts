@@ -15,6 +15,7 @@ export interface EventsRepository {
   publishDraft(ownerId: string, id: string): Promise<Event>;
   register(userId: string, eventId: string): Promise<EventRegistration>;
   assertCancellable(userId: string, registrationId: string, now: Date): Promise<void>;
+  cancelRegistration(userId: string, registrationId: string, now: Date): Promise<void>;
   inactive(ownerId: string, now: Date): Promise<InactiveEvent[]>;
   retire(ownerId: string, id: string, now: Date): Promise<RetiredEvent>;
   cancelPublished(ownerId: string, id: string): Promise<Event>;
