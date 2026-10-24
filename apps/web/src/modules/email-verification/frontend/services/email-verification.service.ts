@@ -51,6 +51,7 @@ export class EmailVerificationService {
         },
         body: JSON.stringify({
           registrationId: payload.sessionToken,
+          email: payload.email,
           code: payload.code,
         }),
       });
@@ -60,7 +61,7 @@ export class EmailVerificationService {
       if (!response.ok) {
         const detail = readApiError(data, 'El código ingresado no es correcto. Intenta nuevamente');
         const errorMsg = detail.message;
-        if (response.status === 410 || detail.code === 'OTP_EXPIRED') {
+        if (response.status === 410 || detail.code === 'CODE_EXPIRED') {
           return {
             success: false,
             isExpired: true,
@@ -68,7 +69,7 @@ export class EmailVerificationService {
           };
         }
 
-        if (response.status === 429 || detail.code === 'MAX_ATTEMPTS_EXCEEDED') {
+        if (response.status === 429 || detail.code === 'CODE_ATTEMPTS_EXCEEDED') {
           return {
             success: false,
             maxAttemptsExceeded: true,
@@ -113,6 +114,7 @@ export class EmailVerificationService {
         },
         body: JSON.stringify({
           registrationId: payload.sessionToken,
+          email: payload.email,
         }),
       });
 
@@ -132,7 +134,7 @@ export class EmailVerificationService {
         message: 'Código reenviado con éxito',
         maskedEmail: resData?.maskedEmail,
         cooldownSeconds: resData?.resendAvailableInSeconds || 30,
-        expiresInSeconds: resData?.expiresInSeconds || 300,
+        expiresInSeconds: resData?.expiresInSeconds || 600,
       };
     } catch {
       return {

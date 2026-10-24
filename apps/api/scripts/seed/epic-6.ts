@@ -31,7 +31,7 @@ export const disponibilidades: Array<Prisma.DisponibilidadMentorCreateManyInput 
     {
       id: '66200000-0000-4000-8000-000000000001',
       id_mentor: DEMO_IDS.mentor,
-      estado: 'AVAILABLE',
+      estado: 'DISPONIBLE',
       hora_inicio: new Date('1970-01-01T18:00:00Z'),
       hora_fin: new Date('1970-01-01T20:00:00Z'),
       fecha_creacion: new Date(),

@@ -44,7 +44,7 @@ describe('graduates-report-service', () => {
 
     const result = await fetchGraduatesReportPdf('verified');
 
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/reports/graduates/pdf?status=APPROVED');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/reports/graduates/pdf?status=APROBADA');
     expect(result.fileName).toBe('reporte-titulados-verificados-20261001.pdf');
     expect(result.file).toBeInstanceOf(Blob);
   });
@@ -55,7 +55,7 @@ describe('graduates-report-service', () => {
     await fetchGraduatesReportPdf('observed', 'c2a5d8b3-4e6f-4a7b-9c8d-1e2f3a4b5c6d');
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      '/api/v1/reports/graduates/pdf?status=OBSERVED&careerId=c2a5d8b3-4e6f-4a7b-9c8d-1e2f3a4b5c6d',
+      '/api/v1/reports/graduates/pdf?status=OBSERVADA&careerId=c2a5d8b3-4e6f-4a7b-9c8d-1e2f3a4b5c6d',
     );
   });
 

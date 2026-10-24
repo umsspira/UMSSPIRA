@@ -73,7 +73,7 @@ it("reenvía PATCH con su cuerpo y conserva la respuesta sin contenido", async (
     "http://frontend/api/v1/mentorship/availability",
     {
       method: "PATCH",
-      body: JSON.stringify({ availabilityStatus: "PAUSED" }),
+      body: JSON.stringify({ availabilityStatus: "EN_PAUSA" }),
       headers: { "Content-Type": "application/json" },
     },
   );

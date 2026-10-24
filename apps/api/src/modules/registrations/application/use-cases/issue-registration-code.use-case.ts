@@ -6,17 +6,22 @@ import {
 } from '../../domain/policies/registration.policy';
 import type { RegistrationRepository } from '../ports/registration-repository.port';
 import type { RegistrationSecurity } from '../ports/registration-security.port';
-
 export class IssueRegistrationCodeUseCase {
   constructor(
     private readonly repository: RegistrationRepository,
     private readonly security: RegistrationSecurity,
   ) {}
-
-  async execute(token: string) {
+  async execute(token: string, expectedEmail?: string) {
     const hash = this.security.hash('draft', token);
     const draft = await this.repository.findDraft(hash);
     assertOpenDraft(draft);
+    if (expectedEmail && expectedEmail !== draft.data.correo) {
+      throw new BusinessRuleError(
+        'conflict',
+        'EMAIL_CHANGED',
+        'El correo cambió. Vuelve al resumen',
+      );
+    }
     const code = this.security.code();
     const mail = this.security.seal({
       to: draft.data.correo,
@@ -27,6 +32,7 @@ export class IssueRegistrationCodeUseCase {
       hash,
       this.security.hash('otp', token + ':' + code),
       mail,
+      draft.data.correo,
     );
     if (result === 'verified') {
       throw new BusinessRuleError(

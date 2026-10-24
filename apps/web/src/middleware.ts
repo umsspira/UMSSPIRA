@@ -4,7 +4,14 @@ import { decideAccess, LOGIN_PATH } from './modules/auth/frontend/services/route
 const VALID_ROLES = new Set(['administrador', 'empresa', 'titulado']);
 const API_URL = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
+
+
 export async function middleware(request: NextRequest) {
+  // HU-10: el enlace de corrección se valida con el token, no con la sesión
+  if (request.nextUrl.pathname.startsWith('/applications/correct/')) {
+    return NextResponse.next();
+  }
+
   const path = request.nextUrl.pathname;
   const isReport = path === '/reports' || path.startsWith('/reports/');
   // Sprint 2 T4.1: las encuestas son privadas para el rol titulado.

@@ -26,6 +26,6 @@ export class RenewActivationUseCase {
           '. Vence en 24 horas. El código anterior queda invalidado.',
       }),
     );
-    return { notificationStatus: 'QUEUED', expiresInSeconds: 86400 };
+    return { notificationStatus: 'EN_COLA', expiresInSeconds: 86400 };
   }
 }

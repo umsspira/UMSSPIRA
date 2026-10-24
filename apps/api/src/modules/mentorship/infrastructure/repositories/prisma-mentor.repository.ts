@@ -32,7 +32,7 @@ export class PrismaMentorRepository implements MentorRepository {
     });
     return rows
       .filter(
-        (row) => toAvailability(row.disponibilidad_mentor_registros[0]).status !== 'UNAVAILABLE',
+        (row) => toAvailability(row.disponibilidad_mentor_registros[0]).status !== 'NO_DISPONIBLE',
       )
       .map((row) => ({
         mentor: toMentor(row),
