@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import ApplicationsPage from './page';
-import { fetchApplicationsBoard } from '@/modules/applications/frontend/services/applications-board.service';
+import { fetchApplicationsBoard, fetchApplicationsMetrics } from '@/modules/applications/frontend/services/applications-board.service';
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -32,6 +32,7 @@ const mockRouter = {
 
 jest.mock('@/modules/applications/frontend/services/applications-board.service', () => ({
   fetchApplicationsBoard: jest.fn(),
+  fetchApplicationsMetrics: jest.fn(),
   fetchApplicationDetail: jest.fn(),
   fetchDocumentUrl: jest.fn(),
 }));
@@ -52,6 +53,10 @@ const boardPage = {
 describe('ApplicationsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (fetchApplicationsMetrics as jest.Mock).mockResolvedValue({ ok: true, data: {
+      receivedToday: 12, pending: 23, urgent: 7, resolvedToday: 5,
+      generatedAt: '2026-10-24T20:00:00Z', timeZone: 'America/La_Paz',
+    } });
     window.history.replaceState({}, '', '/applications');
     // Reemplazar la línea 56 por:
 (globalThis as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
@@ -62,7 +67,7 @@ describe('ApplicationsPage', () => {
     render(<ApplicationsPage />);
 
     expect(await screen.findByText('Bandeja de Solicitudes')).toBeInTheDocument();
-    expect(screen.getByText('1 en total')).toBeInTheDocument();
+    expect(await screen.findByText('1 en total')).toBeInTheDocument();
     expect(screen.getByText('Alejandro Rojas')).toBeInTheDocument();
     expect(screen.getByText('Alerta >48h')).toBeInTheDocument();
   });
@@ -200,6 +205,54 @@ describe('ApplicationsPage', () => {
         }),
       );
     });
+  });
+
+  it('muestra los totales del backend y los actualiza con la bandeja', async () => {
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
+    render(<ApplicationsPage />);
+    const metrics = screen.getByRole('region', { name: 'Indicadores de solicitudes' });
+    expect(await within(metrics).findByText('23')).toBeInTheDocument();
+    expect(within(metrics).getByText('12')).toBeInTheDocument();
+    expect(within(metrics).getByText('7')).toBeInTheDocument();
+    expect(within(metrics).getByText('5')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar bandeja' }));
+    await waitFor(() => expect(fetchApplicationsMetrics).toHaveBeenCalledTimes(2));
+  });
+
+  it('aplica el semestre y permite limpiar todos los filtros', async () => {
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
+    render(<ApplicationsPage />);
+    await screen.findByText('Alejandro Rojas');
+    fireEvent.click(screen.getByRole('button', { name: 'Semestre II' }));
+    await screen.findByLabelText('Gestión');
+    fireEvent.change(screen.getByLabelText('Gestión'), { target: { value: '2025' } });
+    await waitFor(() => expect(mockedFetchBoard).toHaveBeenLastCalledWith(expect.objectContaining({ period: 'semester2', year: 2025, page: 1 })));
+    expect(new URLSearchParams(window.location.search).get('year')).toBe('2025');
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+    await waitFor(() => expect(mockedFetchBoard).toHaveBeenLastCalledWith(expect.objectContaining({ period: undefined, year: undefined })));
+    expect(screen.queryByLabelText('Gestión')).not.toBeInTheDocument();
+  });
+
+  it('valida el rango antes de consultar y envía ambas fechas al aplicar', async () => {
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
+    render(<ApplicationsPage />);
+    await screen.findByText('Alejandro Rojas');
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-24' } });
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar fechas' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Desde no puede ser posterior a Hasta.');
+    expect(mockedFetchBoard).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-25' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar fechas' }));
+    await waitFor(() => expect(mockedFetchBoard).toHaveBeenLastCalledWith(expect.objectContaining({ period: 'custom', from: '2026-10-24', to: '2026-10-25' })));
+  });
+
+  it('mantiene disponible la tabla si falla la consulta de métricas', async () => {
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
+    (fetchApplicationsMetrics as jest.Mock).mockResolvedValue({ ok: false, message: 'Servicio no disponible', needsLogin: false, status: 503 });
+    render(<ApplicationsPage />);
+    expect(await screen.findByText('Alejandro Rojas')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar los indicadores');
   });
 
   it('pide iniciar sesión cuando la API responde 401', async () => {
