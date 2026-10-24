@@ -1,4 +1,4 @@
-import { fetchApplicationsBoard, fetchApplicationDetail, fetchDocumentUrl } from './applications-board.service';
+import { fetchApplicationsBoard, fetchApplicationsMetrics, fetchApplicationDetail, fetchDocumentUrl } from './applications-board.service';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';
 
 describe('applications-board.service', () => {
@@ -7,6 +7,18 @@ describe('applications-board.service', () => {
     setAccessToken('admin-token');
   });
   afterEach(() => clearAccessToken());
+
+  it('envía periodos y consulta métricas con autenticación', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: {} }) });
+    await fetchApplicationsBoard({ page: 1, pageSize: 15, period: 'custom', from: '2026-10-01', to: '2026-10-24', year: 2025 });
+    const params = new URL((global.fetch as jest.Mock).mock.calls[0][0], 'http://localhost').searchParams;
+    expect(params.get('period')).toBe('custom');
+    expect(params.get('from')).toBe('2026-10-01');
+    expect(params.get('to')).toBe('2026-10-24');
+    expect(params.has('year')).toBe(false);
+    await fetchApplicationsMetrics();
+    expect(global.fetch).toHaveBeenLastCalledWith('/api/v1/applications/metrics', expect.objectContaining({ headers: { Authorization: 'Bearer admin-token' } }));
+  });
 
   it('pide la bandeja con paginación y filtros (CA-04.1 y CA-04.2)', async () => {
     const page = { items: [], total: 0, page: 1, pageSize: 15 };

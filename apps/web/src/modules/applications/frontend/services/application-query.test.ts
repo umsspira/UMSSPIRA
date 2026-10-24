@@ -11,6 +11,25 @@ import {
 } from './application-query';
 
 describe('estado de paginación en la URL', () => {
+  it('conserva el semestre y la gestión al paginar', () => {
+    const state = parseApplicationsUrl(new URLSearchParams('period=semester2&year=2025&q=ana'));
+    const next = parseApplicationsUrl(toApplicationsParams(changePage(state, 3)));
+    expect(next).toEqual(expect.objectContaining({ period: 'semester2', year: 2025, page: 3, search: 'ana' }));
+  });
+
+  it('descarta fechas imposibles o invertidas de la URL', () => {
+    expect(parseApplicationsUrl(new URLSearchParams('period=custom&from=2026-02-30'))).toEqual(EMPTY_URL_STATE);
+    expect(parseApplicationsUrl(new URLSearchParams('period=custom&from=2026-10-24&to=2026-10-01'))).toEqual(EMPTY_URL_STATE);
+    expect(parseApplicationsUrl(new URLSearchParams('period=last15&year=2025&from=2026-10-01'))).toEqual({ ...EMPTY_URL_STATE, period: 'last15' });
+  });
+
+  it('conserva un rango personalizado al cambiar tamaño y lo limpia explícitamente', () => {
+    const state = parseApplicationsUrl(new URLSearchParams('period=custom&from=2026-10-01&to=2026-10-24&page=3'));
+    const next = changePageSize(state, 25);
+    expect(parseApplicationsUrl(toApplicationsParams(next))).toEqual({ ...state, page: 1, pageSize: 25 });
+    expect(toApplicationsParams(changeFilters(next, { period: '', from: '', to: '', year: undefined })).has('from')).toBe(false);
+  });
+
   it('usa valores predeterminados cuando la URL no tiene parámetros', () => {
     expect(parseApplicationsUrl(new URLSearchParams())).toEqual(EMPTY_URL_STATE);
   });

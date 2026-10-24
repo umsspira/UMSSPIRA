@@ -1,10 +1,10 @@
-import type { BoardStatus } from './applications-board.service';
+import type { BoardStatus, PeriodFilters } from './applications-board.service';
 
 export const PAGE_SIZE_OPTIONS = [10, 15, 25, 50] as const;
 export const DEFAULT_PAGE_SIZE = 15;
 
 const STATUS_VALUES: readonly BoardStatus[] = ['PENDIENTE', 'OBSERVADA', 'APROBADA', 'RECHAZADA'];
-export interface ApplicationsUrlState {
+export interface ApplicationsUrlState extends PeriodFilters {
   page: number;
   pageSize: number;
   search: string;
@@ -22,6 +22,28 @@ export const EMPTY_URL_STATE: ApplicationsUrlState = {
 
 type ParamsReader = { get(name: string): string | null };
 
+function readPeriod(params: ParamsReader): PeriodFilters {
+  const period = params.get('period');
+  if (period === 'last15' || period === 'last30') return { period };
+  if (period === 'semester1' || period === 'semester2') {
+    const year = Number(params.get('year'));
+    return {
+      period,
+      ...(Number.isInteger(year) && year >= 2000 && year <= 2100 ? { year } : {}),
+    };
+  }
+  if (period !== 'custom') return {};
+  const validDate = (value: string | null) => {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+    const date = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : undefined;
+  };
+  const from = validDate(params.get('from'));
+  const to = validDate(params.get('to'));
+  if ((!from && !to) || (from && to && from > to)) return {};
+  return { period, ...(from ? { from } : {}), ...(to ? { to } : {}) };
+}
+
 function toPositiveInt(value: string | null, fallback: number): number {
   const number = Number(value);
   return Number.isInteger(number) && number >= 1 ? number : fallback;
@@ -37,6 +59,7 @@ export function parseApplicationsUrl(params: ParamsReader): ApplicationsUrlState
     search: (params.get('q') ?? '').trim(),
     career: params.get('career') ?? '',
     status: (STATUS_VALUES as readonly string[]).includes(status) ? (status as BoardStatus) : '',
+    ...readPeriod(params),
   };
 }
 
@@ -47,6 +70,14 @@ export function toApplicationsParams(state: ApplicationsUrlState): URLSearchPara
   if (state.search) params.set('q', state.search);
   if (state.career) params.set('career', state.career);
   if (state.status) params.set('status', state.status);
+  if (state.period) params.set('period', state.period);
+  if ((state.period === 'semester1' || state.period === 'semester2') && state.year !== undefined) {
+    params.set('year', String(state.year));
+  }
+  if (state.period === 'custom') {
+    if (state.from) params.set('from', state.from);
+    if (state.to) params.set('to', state.to);
+  }
   return params;
 }
 
@@ -56,7 +87,7 @@ export function changePageSize(state: ApplicationsUrlState, pageSize: number): A
 
 export function changeFilters(
   state: ApplicationsUrlState,
-  patch: Partial<Pick<ApplicationsUrlState, 'search' | 'career' | 'status'>>,
+  patch: Partial<Pick<ApplicationsUrlState, 'search' | 'career' | 'status' | 'period' | 'year' | 'from' | 'to'>>,
 ): ApplicationsUrlState {
   return { ...state, ...patch, page: 1 };
 }
