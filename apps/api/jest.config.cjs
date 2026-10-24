@@ -5,5 +5,9 @@ module.exports = {
   setupFiles: ['<rootDir>/test/setup.ts'],
   transform: { '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.check.json' }] },
   modulePathIgnorePatterns: ['<rootDir>/dist'],
-  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
+  moduleNameMapper: {
+    '^@umsspira/shared-types$': '<rootDir>/../../packages/shared-types/src/index.ts',
+    // Resolver imports internos de Prisma (que usan .js pero existen como .ts)
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
 };
