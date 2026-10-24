@@ -212,3 +212,15 @@ export const updateObservedDataSchema = z
   });
 
 export type UpdateObservedDataInput = z.infer<typeof updateObservedDataSchema>;
+
+export const replaceDocumentSchema = z.object({
+  tipoDocumento: z.string().trim().min(1).max(50).optional(),
+});
+
+export type ReplaceDocumentInput = z.infer<typeof replaceDocumentSchema>;
+
+export const submitCorrectionSchema = z.strictObject({
+  expectedVersion: z.number().int().positive(),
+});
+
+export type SubmitCorrectionInput = z.infer<typeof submitCorrectionSchema>;
