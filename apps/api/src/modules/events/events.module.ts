@@ -20,6 +20,7 @@ import { RegisterEventController } from './http/controllers/register-event.contr
 import { GenerateEventPassService } from './application/generate-event-pass.service';
 import { EventPassesController } from './http/event-passes.controller';
 import { CancelPublishedEventController } from './http/controllers/cancel-published-event.controller';
+import { CancelEventRegistrationController } from './http/controllers/cancel-event-registration.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -38,6 +39,7 @@ import { CancelPublishedEventController } from './http/controllers/cancel-publis
     UploadEventCoverController,
     GetPublishedEventController,
     RegisterEventController,
+    CancelEventRegistrationController,
     EventPassesController,
     CancelPublishedEventController,
 
