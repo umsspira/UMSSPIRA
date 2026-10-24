@@ -264,7 +264,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
         const cleanName = file.originalname
           .replaceAll('\\', '/')
           .split('/')
-          .pop()
+          .pop()!
           .replace(/[\x00-\x1f\x7f]/g, '')
           .slice(0, 255);
 
