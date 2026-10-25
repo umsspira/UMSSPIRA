@@ -19,7 +19,7 @@ import type {
   ParticipantPassStatus,
 } from '../../domain/entities/event-participants';
 import { buildOccupation } from '../../domain/policies/event-occupation.policy';
-
+import type { MyEventRegistration } from '../../domain/entities/my-event-registration';
 const eventInclude = { usuario: { select: { nombre: true } } };
 
 @Injectable()
@@ -141,6 +141,46 @@ export class PrismaEventsRepository implements EventsRepository {
       { timeout: 15000 },
     );
   }
+  async mine(userId: string): Promise<MyEventRegistration[]> {
+    const rows = await this.prisma.inscripcionEvento.findMany({
+      where: { id_usuario: userId },
+      include: { evento: true, pase_qr: { select: { id: true } } },
+      orderBy: [{ evento: { fecha_inicio: 'asc' } }, { id: 'asc' }],
+    });
+    return rows.flatMap((row) => {
+      const event = row.evento;
+      const eventStatus = event?.estado?.toUpperCase();
+      const status = row.estado?.toUpperCase();
+      if (
+        !event ||
+        !event.titulo ||
+        !event.fecha_inicio ||
+        !event.fecha_fin ||
+        !row.fecha_inscripcion ||
+        !['BORRADOR', 'PUBLICADO', 'CANCELADO'].includes(eventStatus ?? '') ||
+        !['CONFIRMADA', 'CANCELADA'].includes(status ?? '')
+      ) {
+        return [];
+      }
+      return [
+        {
+          id: row.id,
+          status: status as MyEventRegistration['status'],
+          registeredAt: row.fecha_inscripcion,
+          hasPass: row.pase_qr !== null,
+          event: {
+            id: event.id,
+            title: event.titulo,
+            startDate: event.fecha_inicio,
+            endDate: event.fecha_fin,
+            location: event.ubicacion,
+            status: eventStatus as MyEventRegistration['event']['status'],
+          },
+        },
+      ];
+    });
+  }
+
 
   async register(userId: string, eventId: string) {
     try {

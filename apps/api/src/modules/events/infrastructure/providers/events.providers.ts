@@ -18,9 +18,9 @@ import { ReadEventCoverUseCase } from '../../application/use-cases/read-event-co
 import { UploadEventCoverUseCase } from '../../application/use-cases/upload-event-cover.use-case';
 import { RegisterEventUseCase } from '../../application/use-cases/register-event.use-case';
 import { GetEventParticipantsUseCase } from '../../application/use-cases/get-event-participants.use-case';
-
 import { ListInactiveEventsUseCase } from '../../application/use-cases/list-inactive-events.use-case';
 import { RetireEventUseCase } from '../../application/use-cases/retire-event.use-case';
+import { ListMyEventRegistrationsUseCase } from '../../application/use-cases/list-my-event-registrations.use-case';
 export const eventsProviders: Provider[] = [
   PrismaEventsRepository,
   { provide: EVENTS_REPOSITORY, useExisting: PrismaEventsRepository },
@@ -103,5 +103,11 @@ export const eventsProviders: Provider[] = [
     provide: RetireEventUseCase,
     inject: [EVENTS_REPOSITORY],
     useFactory: (repository: EventsRepository) => new RetireEventUseCase(repository),
+  },
+
+  {
+    provide: ListMyEventRegistrationsUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new ListMyEventRegistrationsUseCase(repository),
   },
 ];
