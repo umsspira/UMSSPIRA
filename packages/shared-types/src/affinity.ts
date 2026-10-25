@@ -1,4 +1,4 @@
-﻿export const AFFINITY_AREAS = [
+export const AFFINITY_AREAS = [
   "software-development",
   "cloud-devops",
   "data-ai",
@@ -31,7 +31,7 @@ export interface AffinityAreaScore {
 export interface AffinityVectorResponse {
   graduateId: string;
   calculatedAt: string;
-  // Siempre 6 Ã¡reas, en el orden fijo definido en la HU-2
+  // Siempre 6 áreas, en el orden fijo definido en la HU-2
   areas: AffinityAreaScore[];
   // false cuando el servidor no generó un cálculo nuevo (CA-HU8-11).
   recalculated?: boolean;
