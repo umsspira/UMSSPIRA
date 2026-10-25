@@ -27,7 +27,7 @@ export class CalculateRadarUseCase {
       unmapped: input.unmapped ?? [],
     };
 
-    await this.radarRepository.save(calculation);
+    await this.radarRepository.saveCalculation(calculation as never);
     return calculation;
   }
 }

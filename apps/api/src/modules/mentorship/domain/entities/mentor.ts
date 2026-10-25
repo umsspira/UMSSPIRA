@@ -13,7 +13,7 @@ export interface Mentor {
   updatedAt: Date | null;
 }
 
-export type AvailabilityStatus = 'AVAILABLE' | 'PAUSED' | 'UNAVAILABLE';
+export type AvailabilityStatus = 'DISPONIBLE' | 'EN_PAUSA' | 'NO_DISPONIBLE';
 
 export interface MentorAvailability {
   status: AvailabilityStatus | null;

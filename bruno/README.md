@@ -143,7 +143,7 @@ Para mentorías, activa la participación del titulado antes de gestionar áreas
 | eventCoverFilePath | Ruta local a una portada JPG, PNG o WebP                            |
 | eventStartDate     | Fecha inicial ISO con zona horaria, como 2027-01-20T09:00:00-04:00  |
 | eventEndDate       | Fecha final ISO posterior al inicio, como 2027-01-20T18:00:00-04:00 |
-| reportStatus       | PENDING, APPROVED, OBSERVED o REJECTED                              |
+| reportStatus       | PENDIENTE, APROBADA, OBSERVADA o RECHAZADA                              |
 
 Crear evento trae estado BORRADOR. Si quieres utilizar una portada cargada, agrega al body de creación o edición:
 

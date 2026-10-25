@@ -25,7 +25,7 @@ interface GraduateRecordResponse {
   anioEgreso: number;
   codSis: string;
   deseaMentor: boolean;
-  estado: 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED';
+  estado: 'PENDIENTE' | 'APROBADA' | 'OBSERVADA' | 'RECHAZADA';
   fechaCreacion: string;
   fechaRevision: string | null;
   justificacion?: string;
@@ -74,7 +74,7 @@ export async function getGraduates(): Promise<Graduate[]> {
     records.push(...nextPage.data.items);
   }
 
-  return records.filter((record) => record.estado === 'APPROVED' || record.estado === 'OBSERVED').map((record) => ({
+  return records.filter((record) => record.estado === 'APROBADA' || record.estado === 'OBSERVADA').map((record) => ({
     id: record.id,
     registrationNumber: `#REG-${record.anioEgreso}-${record.id.slice(-4)}`,
     fullName: `${record.apellido}, ${record.nombre}`,
@@ -91,7 +91,7 @@ export async function getGraduates(): Promise<Graduate[]> {
     ),
     reviewDate: formatDate(record.fechaRevision ?? record.fechaCreacion),
     rejectionReason: record.justificacion ?? null,
-    status: (record.estado === 'APPROVED' ? 'VERIFICADO' : 'OBSERVADO') as GraduateStatus,
+    status: (record.estado === 'APROBADA' ? 'VERIFICADO' : 'OBSERVADO') as GraduateStatus,
   }));
 }
 

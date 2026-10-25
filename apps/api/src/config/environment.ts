@@ -80,6 +80,8 @@ export const environmentSchema = z
       .enum(['true', 'false'])
       .transform((value) => value === 'true')
       .optional(),
+    CORRECTION_LINK_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
+    WEB_BASE_URL: z.string().url().default('http://localhost:3001'),
   })
   .superRefine((env, context) => {
     const store = env.AUTH_RATE_LIMIT_STORE ?? (env.NODE_ENV === 'production' ? 'redis' : 'memory');

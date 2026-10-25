@@ -1,5 +1,5 @@
 meta {
-  name: Activar cuenta aprobada
+  name: Activar cuenta aprobada (paso 2)
   type: http
   seq: 8
 }
@@ -17,11 +17,11 @@ headers {
 body:json {
   {
     "applicationId": "{{applicationId}}",
-    "code": "{{activationCode}}",
+    "activationToken": "{{activationToken}}",
     "password": "{{newPassword}}"
   }
 }
 
 docs {
-  Después de la aprobación, completa activationCode con el código del correo y newPassword con una contraseña de 15 a 128 caracteres. Luego utiliza Login con el correo registrado.
+  Paso 2 de la activación. Primero ejecuta "Validar código de activación (paso 1)" y copia activationToken de su respuesta. newPassword debe tener de 8 a 128 caracteres, con mayúscula, minúscula, número y símbolo. Luego utiliza Login con el correo registrado.
 }

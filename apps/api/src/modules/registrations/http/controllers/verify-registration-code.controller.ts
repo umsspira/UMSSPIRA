@@ -13,6 +13,6 @@ export class VerifyRegistrationCodeController {
   @PublicRegistration()
   @HttpCode(200)
   async handle(@Body(new ZodValidationPipe(verifyCodeSchema)) body: VerifyEmailCodeInput) {
-    return { data: await this.useCase.execute(body.registrationId, body.code) };
+    return { data: await this.useCase.execute(body.registrationId, body.code, body.email) };
   }
 }

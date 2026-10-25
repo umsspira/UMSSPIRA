@@ -38,7 +38,7 @@ Errores comunes: 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`,
 **Permiso:** ninguno. **Body/query:** ninguno.
 **Respuesta 200:** `{ "data": [<DirectoryMentor>] }`.
 
-Solo perfiles activos con cuenta de titulado activa. Excluye UNAVAILABLE; PAUSED y disponibilidad sin configurar permanecen visibles. Áreas raíz activas, orden por creación descendente y UUID. No expone correo, CI, ID de usuario ni información relevante privada.
+Solo perfiles activos con cuenta de titulado activa. Excluye NO_DISPONIBLE; EN_PAUSA y disponibilidad sin configurar permanecen visibles. Áreas raíz activas, orden por creación descendente y UUID. No expone correo, CI, ID de usuario ni información relevante privada.
 
 ## 2. Elegibilidad — `GET /api/v1/mentorship/eligibility`
 
@@ -191,7 +191,7 @@ Cada interés debe estar activo, tener área raíz activa y pertenecer a un áre
 ## 14. Consultar disponibilidad — `GET /api/v1/mentorship/availability`
 
 **Permiso:** `mentores:self:write`. Requiere mentor activo.
-**Respuesta 200:** `{ "data": { "availabilityStatus": "AVAILABLE", "fecha_actualizacion": "2026-10-18" } }`.
+**Respuesta 200:** `{ "data": { "availabilityStatus": "DISPONIBLE", "fecha_actualizacion": "2026-10-18" } }`.
 
 Sin configurar, ambos campos son null; la lectura no escribe en la BD.
 **Errores:** 403 `MENTOR_INACTIVE`; 404 `MENTOR_NOT_FOUND`.
@@ -199,7 +199,7 @@ Sin configurar, ambos campos son null; la lectura no escribe en la BD.
 ## 15. Cambiar disponibilidad — `PATCH /api/v1/mentorship/availability`
 
 **Permiso:** `mentores:self:write`. Requiere mentor activo.
-**Body:** `{ "availabilityStatus": "PAUSED" }`; admite AVAILABLE, PAUSED o UNAVAILABLE.
+**Body:** `{ "availabilityStatus": "EN_PAUSA" }`; admite DISPONIBLE, EN_PAUSA o NO_DISPONIBLE.
 **Respuesta 200:** mismo contrato de consulta. Repetir el estado conserva la fecha anterior.
 **Errores:** 400 `VALIDATION_ERROR`; 403 `MENTOR_INACTIVE`; 404 `MENTOR_NOT_FOUND`.
 
@@ -233,7 +233,7 @@ Experiencia, años y fechas pueden ser null. DirectoryMentor agrega nombre, desc
 
 - Los cambios del mismo mentor se serializan por titulado. No se crean varios perfiles por activar concurrentemente.
 - Desactivar no elimina información; reactivar conserva el estado de disponibilidad anterior.
-- PAUSED permanece en el directorio; aceptar solicitudes exige AVAILABLE y perfil/cuenta activos.
+- EN_PAUSA permanece en el directorio; aceptar solicitudes exige DISPONIBLE y perfil/cuenta activos.
 - La seed de demostración agrega dos áreas raíz y tres intereses sin sobreescribir filas existentes: `pnpm --filter api db:seed:demo`.
 - La ruta antigua POST eligibility ahora es GET. La desactivación recibe UUID del mentor.
 - No se migraron las utilidades de prueba status y profiles/reset. Salud está en /health.

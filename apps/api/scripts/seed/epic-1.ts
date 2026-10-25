@@ -21,7 +21,7 @@ const expedientes = [
     email: 'ana.pendiente@example.com',
     ci: '9000011',
     codSis: '202000011',
-    estado: 'PENDING',
+    estado: 'PENDIENTE',
   },
   {
     id: DEMO_IDS.applications.approved,
@@ -35,7 +35,7 @@ const expedientes = [
     email: DEMO_ACCOUNTS[0].email,
     ci: '9000001',
     codSis: '202000001',
-    estado: 'APPROVED',
+    estado: 'APROBADA',
   },
   {
     id: DEMO_IDS.applications.observed,
@@ -49,7 +49,7 @@ const expedientes = [
     email: 'luis.observado@example.com',
     ci: '9000013',
     codSis: '202000013',
-    estado: 'OBSERVED',
+    estado: 'OBSERVADA',
   },
   {
     id: DEMO_IDS.applications.rejected,
@@ -63,7 +63,7 @@ const expedientes = [
     email: 'maria.rechazada@example.com',
     ci: '9000014',
     codSis: '202000014',
-    estado: 'REJECTED',
+    estado: 'RECHAZADA',
   },
 ] as const;
 
@@ -81,7 +81,7 @@ export const detalles: Array<Prisma.DetalleSolicitudCreateManyInput & { id: stri
     fecha_ingreso: new Date('2020-02-01T00:00:00Z'),
     fecha_titulacion: new Date('2025-12-01T00:00:00Z'),
     anio_egreso: 2025,
-    desea_mentor: item.estado === 'APPROVED',
+    desea_mentor: item.estado === 'APROBADA',
   }));
 
 export const documentos: Array<Prisma.DocumentoRespaldoCreateManyInput & { id: string }> =
@@ -90,7 +90,7 @@ export const documentos: Array<Prisma.DocumentoRespaldoCreateManyInput & { id: s
     id_tipo_archivo: CATALOG_IDS.pdf,
     ruta_storage: item.archivoId,
     fecha_creacion: submittedAt,
-    es_valido: item.estado === 'APPROVED',
+    es_valido: item.estado === 'APROBADA',
   }));
 
 export const solicitudes: Array<Prisma.SolicitudCreateManyInput & { id: string }> = expedientes.map(
@@ -100,12 +100,12 @@ export const solicitudes: Array<Prisma.SolicitudCreateManyInput & { id: string }
     id_documento_respaldo: item.documentoId,
     estado: item.estado,
     fecha_creacion: submittedAt,
-    fecha_actualizacion: item.estado === 'PENDING' ? submittedAt : reviewedAt,
-    fecha_resolucion: item.estado === 'PENDING' ? null : reviewedAt,
-    observaciones_count: item.estado === 'OBSERVED' ? 1 : 0,
+    fecha_actualizacion: item.estado === 'PENDIENTE' ? submittedAt : reviewedAt,
+    fecha_resolucion: item.estado === 'PENDIENTE' ? null : reviewedAt,
+    observaciones_count: item.estado === 'OBSERVADA' ? 1 : 0,
     codigo_tit: `DEMO-TIT-${index + 1}`,
-    id_titulado: item.estado === 'APPROVED' ? DEMO_GRADUATE_ID : null,
-    activada_en: item.estado === 'APPROVED' ? reviewedAt : null,
+    id_titulado: item.estado === 'APROBADA' ? DEMO_GRADUATE_ID : null,
+    activada_en: item.estado === 'APROBADA' ? reviewedAt : null,
   }),
 );
 
@@ -114,18 +114,18 @@ export const administradoresSistema: Array<
 > = [{ id: DEMO_IDS.systemAdmin, id_usuario: DEMO_ACCOUNTS[1].id, id_carrera: DEMO_CAREER_ID }];
 
 export const dictamenes: Array<Prisma.DictamenCreateManyInput & { id: string }> = expedientes
-  .filter((item) => item.estado !== 'PENDING')
+  .filter((item) => item.estado !== 'PENDIENTE')
   .map((item) => ({
     id: item.dictamenId,
     id_solicitud: item.id,
     id_administrador_sistema: DEMO_IDS.systemAdmin,
     revisor_id: DEMO_ACCOUNTS[1].id,
     decision: item.estado,
-    categoria: item.estado === 'APPROVED' ? null : 'DOCUMENTO',
+    categoria: item.estado === 'APROBADA' ? null : 'DOCUMENTO',
     justificacion:
-      item.estado === 'APPROVED'
+      item.estado === 'APROBADA'
         ? null
-        : item.estado === 'OBSERVED'
+        : item.estado === 'OBSERVADA'
           ? 'Ejemplo: presentar una copia legible del documento.'
           : 'Ejemplo: el documento presentado no corresponde al trámite.',
     fecha_creacion: reviewedAt,

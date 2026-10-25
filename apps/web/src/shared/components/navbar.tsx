@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -18,6 +17,7 @@ import {
   Menu,
   X,
   LogOut,
+  MessageSquare, // 👈 Importado para el botón de mensajes
 } from 'lucide-react';
 
 import logoUmss from '@/shared/assets/images/logoumsspira.jpg';
@@ -26,6 +26,12 @@ import { clearSession } from '@/modules/auth/frontend/services/session';
 import { hardRedirect } from '@/modules/auth/frontend/services/navigation';
 import { clearAccessToken } from '@/shared/services/auth-session';
 import { clearToken } from '@/shared/services/api-client';
+import { useUnreadSummary } from '@/features/chat/hooks/useUnreadSummary';
+import { formatChatTime, getInitials } from '@/features/chat/utils/format';
+
+const MAX_VISIBLE_COUNT = 99;
+const formatUnreadCount = (count: number): string =>
+  count > MAX_VISIBLE_COUNT ? `${MAX_VISIBLE_COUNT}+` : String(count);
 
 const navItems = [
   { href: '/portal', label: 'Inicio', Icon: Home, exact: true },
@@ -63,6 +69,14 @@ export const Navbar: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
+  // 👈 NUEVO: Estado y referencia para el panel de mensajes (HU-09)
+  const [isMessagesOpen, setIsMessagesOpen] = useState(false);
+  const messagesRef = useRef<HTMLDivElement>(null);
+
+  // HU-10: total y últimas conversaciones con mensajes sin leer
+  const { summary: unread, reload: reloadUnread } = useUnreadSummary();
+  const unreadTotal = unread.total;
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -77,6 +91,7 @@ export const Navbar: React.FC = () => {
     setIsDrawerOpen(false);
     setIsProfileDropdownOpen(false);
     setIsNotificationsOpen(false);
+    setIsMessagesOpen(false); // 👈 Cerramos también el de mensajes
 
     hardRedirect('/login');
   };
@@ -96,6 +111,11 @@ export const Navbar: React.FC = () => {
       ) {
         setIsNotificationsOpen(false);
       }
+
+      // 👈 NUEVO: Cerrar mensajes si se hace clic fuera
+      if (messagesRef.current && !messagesRef.current.contains(target)) {
+        setIsMessagesOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -104,6 +124,16 @@ export const Navbar: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // HU-09 CA-05: cerrar el panel de mensajes con Esc
+  useEffect(() => {
+    if (!isMessagesOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMessagesOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isMessagesOpen]);
 
   // Cerrar el menú móvil al cambiar de ruta.
   useEffect(() => {
@@ -193,6 +223,101 @@ export const Navbar: React.FC = () => {
           <div
             className={`flex items-center ${config.rightSectionGap} lg:pr-2`}
           >
+            {/* Mensajes (HU-09) con insignia y pendientes (HU-10) */}
+            <div className="relative" ref={messagesRef}>
+              <button
+                type="button"
+                aria-label={
+                  unreadTotal > 0 ? `Mensajes: ${unreadTotal} sin leer` : 'Mensajes'
+                }
+                aria-expanded={isMessagesOpen}
+                onClick={() => {
+                  if (!isMessagesOpen) void reloadUnread();
+                  setIsMessagesOpen((open) => !open);
+                }}
+                className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-slate-800 transition-colors relative text-slate-300 hover:text-white"
+              >
+                <MessageSquare className="w-6 h-6" />
+                {/* CA-01 / CA-02: insignia con el total; sin pendientes no se dibuja */}
+                {unreadTotal > 0 && (
+                  <span
+                    data-testid="messages-unread-badge"
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-0.5 top-0 min-w-[18px] h-[18px] rounded-full bg-[#FFB162] px-1 text-center text-[10px] font-bold leading-[18px] text-[#0F172A]"
+                  >
+                    {formatUnreadCount(unreadTotal)}
+                  </span>
+                )}
+              </button>
+
+              {isMessagesOpen && (
+                <div className="absolute right-0 mt-3 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-100 bg-white text-sm text-slate-600 shadow-2xl z-50">
+                  <h3 className="border-b border-slate-100 px-4 py-3 font-bold text-slate-900">
+                    Mensajes
+                  </h3>
+
+                  {unread.conversations.length > 0 ? (
+                    // CA-04: últimas conversaciones con nombre, último mensaje e indicador de no leído
+                    <ul className="max-h-[60dvh] divide-y divide-slate-100 overflow-y-auto">
+                      {unread.conversations.map((conversation) => (
+                        <li key={conversation.id}>
+                          <Link
+                            href={`/portal/mensajes?conversation=${encodeURIComponent(conversation.id)}`}
+                            onClick={() => setIsMessagesOpen(false)}
+                            prefetch={false}
+                            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-amber-50"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0F172A] text-xs font-semibold text-white"
+                            >
+                              {getInitials(conversation.otherUser.name)}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline justify-between gap-2">
+                                <span className="truncate text-sm font-semibold text-slate-900">
+                                  {conversation.otherUser.name}
+                                </span>
+                                <span className="shrink-0 text-[10px] text-slate-400">
+                                  {formatChatTime(conversation.lastMessage?.sentAt)}
+                                </span>
+                              </span>
+                              <span className="block text-[10px] capitalize text-slate-400">
+                                {conversation.otherUser.role}
+                              </span>
+                              <span className="block truncate text-xs font-bold text-slate-800">
+                                {conversation.lastMessage?.content ?? ''}
+                              </span>
+                            </span>
+                            <span
+                              aria-label={`${conversation.unreadCount} sin leer`}
+                              className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-[#b06c30] px-1.5 text-[10px] font-bold text-white"
+                            >
+                              {formatUnreadCount(conversation.unreadCount)}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    // CA-05: sin pendientes
+                    <div className="flex flex-col items-center gap-2 px-4 py-6 text-center text-slate-500">
+                      <MessageSquare className="h-6 w-6" aria-hidden="true" />
+                      <p className="text-xs">No tienes mensajes nuevos.</p>
+                    </div>
+                  )}
+
+                  <Link
+                    href="/portal/mensajes"
+                    onClick={() => setIsMessagesOpen(false)}
+                    className="block w-full border-t border-slate-100 py-3 text-center text-sm font-semibold text-amber-600 transition-colors hover:bg-amber-50"
+                  >
+                    Ver todos los mensajes
+                  </Link>
+                </div>
+              )}
+            </div>
+
             {/* Notificaciones */}
             <div className="relative" ref={notificationsRef}>
               <button

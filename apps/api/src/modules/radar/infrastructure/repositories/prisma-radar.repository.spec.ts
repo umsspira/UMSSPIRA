@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { PrismaRadarRepository } from './prisma-radar.repository';
 import type { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { calculateAffinity } from '../../domain/affinity-calculator';
@@ -29,7 +30,21 @@ describe('PrismaRadarRepository', () => {
       unmapped: [{ term: 'desconocido', count: 2 }],
     };
 
-    await repository.save(calculation);
+    await repository.saveCalculation({
+      tituladoId: calculation.graduateId,
+      hashEntrada: calculation.inputHash,
+      estado: 'COMPLETADO',
+      versionAlgoritmo: '1.0.0',
+      areas: calculation.areas.map((a) => ({
+        areaSlug: a.area as never,
+        areaId: RADAR_AREA_IDS[a.area], // Corrección: Convertimos el texto al UUID usando el diccionario
+        puntaje: a.score,
+        porcentaje: a.percentage,
+        ponderacion: a.weighting,
+        palabrasClaveTop: a.topKeywords as never[],
+      })),
+      unmapped: calculation.unmapped,
+    });
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(transaction.calculoRadar.create).toHaveBeenCalledWith(
@@ -71,11 +86,12 @@ describe('PrismaRadarRepository', () => {
     };
     const repository = new PrismaRadarRepository(prisma as unknown as PrismaService);
 
-    await repository.save({
-      graduateId: 'graduate-id',
-      inputHash: 'new-profile-hash',
-      calculatedAt: new Date('2026-10-24T12:00:00.000Z'),
-      areas: calculateAffinity([], []),
+    await repository.saveCalculation({
+      tituladoId: 'graduate-id',
+      hashEntrada: 'new-profile-hash',
+      estado: 'COMPLETADO',
+      versionAlgoritmo: '1.0.0',
+      areas: [],
       unmapped: [],
     });
 

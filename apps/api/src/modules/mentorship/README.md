@@ -18,7 +18,7 @@ La información profesional usa columnas explícitas. La migración convierte el
 
 ## Disponibilidad
 
-AVAILABLE acepta solicitudes, PAUSED conserva la visibilidad sin aceptarlas y UNAVAILABLE oculta el perfil del directorio. Sin estado registrado también permanece visible, pero no recibe solicitudes. Consultar no crea registros.
+DISPONIBLE acepta solicitudes, EN_PAUSA conserva la visibilidad sin aceptarlas y NO_DISPONIBLE oculta el perfil del directorio. Sin estado registrado también permanece visible, pero no recibe solicitudes. Consultar no crea registros.
 
 El módulo exporta MENTOR_AVAILABILITY_REPOSITORY mediante un port. Otros módulos pueden consultar canReceiveRequests sin importar Prisma ni consultar directamente estas tablas.
 
