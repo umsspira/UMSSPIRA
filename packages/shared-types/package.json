@@ -9,7 +9,7 @@
       "import": "./src/index.ts",
       "require": "./dist/index.js"
     },
-    "./src/*": "./src/*",
+    "./src/*": "./src/*.ts",
     "./package.json": "./package.json"
   },
   "scripts": {
