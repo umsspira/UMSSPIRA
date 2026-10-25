@@ -1,7 +1,10 @@
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ApplicationsPage from './page';
-import { fetchApplicationsBoard } from '@/modules/applications/frontend/services/applications-board.service';
+import {
+  fetchApplicationsBoard,
+  fetchApplicationsMetrics,
+} from '@/modules/applications/frontend/services/applications-board.service';
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -32,11 +35,13 @@ const mockRouter = {
 
 jest.mock('@/modules/applications/frontend/services/applications-board.service', () => ({
   fetchApplicationsBoard: jest.fn(),
+  fetchApplicationsMetrics: jest.fn(),
   fetchApplicationDetail: jest.fn(),
   fetchDocumentUrl: jest.fn(),
 }));
 
 const mockedFetchBoard = fetchApplicationsBoard as jest.Mock;
+const mockedFetchMetrics = fetchApplicationsMetrics as jest.Mock;
 
 const boardPage = {
   items: [
@@ -53,6 +58,17 @@ describe('ApplicationsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.history.replaceState({}, '', '/applications');
+    mockedFetchMetrics.mockResolvedValue({
+      ok: true,
+      data: {
+        receivedToday: 3,
+        pending: 12,
+        urgent: 2,
+        resolvedToday: 4,
+        generatedAt: '2026-10-24T12:00:00.000Z',
+        timeZone: 'America/La_Paz',
+      },
+    });
     // Reemplazar la línea 56 por:
 (globalThis as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
   });
@@ -65,6 +81,62 @@ describe('ApplicationsPage', () => {
     expect(screen.getByText('1 en total')).toBeInTheDocument();
     expect(screen.getByText('Alejandro Rojas')).toBeInTheDocument();
     expect(screen.getByText('Alerta >48h')).toBeInTheDocument();
+    expect(await screen.findByText('Recibidas hoy')).toBeInTheDocument();
+    expect(screen.getByText('Resueltas hoy')).toBeInTheDocument();
+    expect(screen.getByText('Urgentes (> 48h)')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+  });
+
+  it('filtra por periodo y conserva el filtro en la URL y en la consulta', async () => {
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
+    render(<ApplicationsPage />);
+    await screen.findByText('Bandeja de Solicitudes');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Últimos 30 días' }));
+
+    await waitFor(() => {
+      expect(new URLSearchParams(window.location.search).get('period')).toBe('last30');
+      expect(mockedFetchBoard).toHaveBeenLastCalledWith(
+        expect.objectContaining({ period: 'last30', page: 1 }),
+      );
+    });
+  });
+
+  it('aplica un rango personalizado y reinicia la página', async () => {
+    window.history.replaceState({}, '', '/applications?page=3&size=25&q=ana');
+    mockedFetchBoard.mockImplementation(async (query: {
+      page: number;
+      pageSize: number;
+      from?: string;
+      to?: string;
+    }) => ({
+      ok: true,
+      data: { ...boardPage, total: 100, page: query.page, pageSize: query.pageSize },
+    }));
+    render(<ApplicationsPage />);
+    await screen.findByText('Bandeja de Solicitudes');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fechas' }));
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-01' } });
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-24' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar fechas' }));
+
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('period')).toBe('custom');
+      expect(params.get('from')).toBe('2026-10-01');
+      expect(params.get('to')).toBe('2026-10-24');
+      expect(params.get('page')).toBeNull();
+      expect(params.get('q')).toBe('ana');
+      expect(mockedFetchBoard).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          page: 1,
+          from: '2026-10-01',
+          to: '2026-10-24',
+          period: 'custom',
+        }),
+      );
+    });
   });
 
   it('filtra por texto y muestra el estado vacío con opción de limpiar (CA-04.2)', async () => {
