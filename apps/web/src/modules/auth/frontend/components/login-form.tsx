@@ -29,30 +29,29 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-// Bug 5: icono de sobre para el correo
+// Icono de sobre para el correo
 const AtIcon = () => (
   <Icon>
     <rect x="3" y="5" width="18" height="14" rx="2" />
     <path d="m3 7 9 6 9-6" />
   </Icon>
 );
-const KeyIcon = () => (
-  <Icon>
-    <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4" />
-  </Icon>
-);
+
+// Icono de candado para la contraseña
 const LockIcon = () => (
   <Icon>
     <rect x="4" y="11" width="16" height="10" rx="2" />
     <path d="M8 11V7a4 4 0 0 1 8 0v4" />
   </Icon>
 );
+
 const EyeIcon = () => (
   <Icon>
     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
     <circle cx="12" cy="12" r="3" />
   </Icon>
 );
+
 const EyeOffIcon = () => (
   <Icon>
     <path d="M3 3l18 18" />
@@ -61,10 +60,10 @@ const EyeOffIcon = () => (
 );
 
 const fieldWrapper =
-  "flex items-center gap-3 rounded-lg border bg-transparent px-3.5 text-gray-500 focus-within:ring-2 focus-within:ring-burning-flame";
+  "flex items-center gap-3 rounded-lg border bg-[#F5F2EA]/80 px-3.5 text-gray-500 transition-colors focus-within:border-burning-flame focus-within:bg-white focus-within:ring-2 focus-within:ring-burning-flame/30";
 const fieldInput =
   "w-full bg-transparent py-3.5 text-sm text-abyssal-blue outline-none placeholder:text-gray-400";
-const labelClass = "block text-sm font-semibold text-abyssal-blue";
+const labelClass = "block text-xs font-bold uppercase tracking-wider text-abyssal-blue";
 
 function fieldState(hasError: boolean) {
   return hasError ? "border-truffle-trouble ring-2 ring-truffle-trouble" : "border-oatmeal";
@@ -96,10 +95,10 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      {/* Bug 5: etiqueta e icono del correo */}
+      {/* Campo de correo electrónico */}
       <div className="space-y-2">
         <label htmlFor="email" className={labelClass}>
-          CORREO ELECTRÓNICO
+          CORREO ELECTRÓNICO INSTITUCIONAL O PERSONAL
           <span className="text-truffle-trouble"> *</span>
         </label>
 
@@ -111,7 +110,7 @@ export function LoginForm() {
             id="email"
             type="email"
             autoComplete="email"
-            placeholder="ejemplo@correo.umss.edu.bo"
+            placeholder="alumni.sistemas@umss.edu.bo"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             aria-invalid={Boolean(fieldErrors.email)}
@@ -122,7 +121,7 @@ export function LoginForm() {
         {fieldErrors.email && <p className="text-xs text-truffle-trouble">{fieldErrors.email}</p>}
       </div>
 
-      {/* Bug 6: icono de candado en campo contraseña */}
+      {/* Campo de contraseña */}
       <div className="space-y-2">
         <label htmlFor="password" className={labelClass}>
           CONTRASEÑA
@@ -155,16 +154,25 @@ export function LoginForm() {
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
           </button>
         </div>
-        {/* BUG1 y BUG4: preferencia de sesión persistente */}
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-abyssal-blue">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(event) => setRemember(event.target.checked)}
-            className="h-4 w-4 rounded border-oatmeal accent-abyssal-blue"
-          />
-          Recordar mi sesión en este equipo
-        </label>
+
+        {/* Preferencia de sesión persistente */}
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-abyssal-blue">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => setRemember(event.target.checked)}
+              className="h-4 w-4 rounded border-oatmeal accent-abyssal-blue"
+            />
+            Recordar mi sesión en este equipo
+          </label>
+          <Link
+            href="/forgot-password"
+            className="text-xs font-bold text-abyssal-blue underline underline-offset-4 hover:text-truffle-trouble"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
         {fieldErrors.password && (
           <p className="text-xs text-truffle-trouble">
             {fieldErrors.password}
@@ -178,32 +186,21 @@ export function LoginForm() {
         </p>
       )}
 
-      {/* Bug 7: texto solicitado en el botón principal */}
+      {/* Botón principal de ingreso */}
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full rounded-lg bg-burning-flame px-4 py-3.5 text-sm font-bold text-abyssal-blue shadow-sm transition hover:brightness-95 disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-burning-flame px-4 py-3.5 text-sm font-bold text-abyssal-blue shadow-sm transition hover:brightness-95 disabled:opacity-60"
       >
         {isLoading ? "Ingresando..." : "Ingresar al Portal ->"}
       </button>
 
-      <hr className="border-oatmeal" />
-
-      <div className="flex items-start gap-3 rounded-lg border border-oatmeal bg-[#E7E2D6] px-3.5 py-3 text-[13px] leading-snug text-abyssal-blue">
-        <span className="mt-0.5 shrink-0">
-          <LockIcon />
-        </span>
-        <p>
-          Acceso protegido para Administradores del Sistema, Decanaturas y
-          Titulados debidamente registrados.
-        </p>
-      </div>
-
-      <p className="text-center text-sm text-gray-500">
-        ¿Aún no te has registrado?{" "}
+      {/* Enlace para registro */}
+      <p className="pt-2 text-center text-xs text-gray-500">
+        ¿AÚN NO TE HAS REGISTRADO?{" "}
         <Link
           href="/register"
-          className="font-semibold text-abyssal-blue underline underline-offset-4 hover:text-truffle-trouble"
+          className="font-bold text-abyssal-blue underline underline-offset-4 hover:text-truffle-trouble"
         >
           Inicia tu registro aquí
         </Link>

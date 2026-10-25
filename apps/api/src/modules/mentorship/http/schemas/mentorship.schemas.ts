@@ -32,5 +32,5 @@ export const mentorInterestsSchema = z.strictObject({
   ids: z.array(mentorIdSchema).min(1).max(100),
 });
 export const availabilitySchema = z.strictObject({
-  availabilityStatus: z.enum(['AVAILABLE', 'PAUSED', 'UNAVAILABLE']),
+  availabilityStatus: z.enum(['DISPONIBLE', 'EN_PAUSA', 'NO_DISPONIBLE']),
 });

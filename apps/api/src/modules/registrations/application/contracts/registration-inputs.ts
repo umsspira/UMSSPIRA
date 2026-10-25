@@ -1,3 +1,4 @@
+import type { ApplicationPeriod } from '../../domain/policies/application-period.policy';
 export interface SubmitRegistrationInput {
   sessionToken: string;
   fechaTitulacion?: string;
@@ -10,6 +11,7 @@ export interface SubmitRegistrationInput {
 }
 
 export interface IssueEmailCodeInput {
+  email?: string;
   registrationId: string;
 }
 
@@ -24,7 +26,7 @@ export interface UploadRegistrationDocumentInput {
 
 export interface ActivateRegistrationInput {
   applicationId: string;
-  code: string;
+  activationToken: string;
   password: string;
 }
 
@@ -35,7 +37,7 @@ export interface UploadedDocument {
 }
 
 export interface ReviewInput {
-  decision: 'APPROVED' | 'OBSERVED' | 'REJECTED';
+  decision: 'APROBADA' | 'OBSERVADA' | 'RECHAZADA';
   category?: string;
   note?: string;
 }
@@ -44,13 +46,30 @@ export interface ApplicationQuery {
   page: number;
   pageSize: number;
   career?: string;
-  status?: 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED';
+  status?: 'PENDIENTE' | 'APROBADA' | 'OBSERVADA' | 'RECHAZADA';
   search?: string;
   age?: 'within48' | 'over48';
+  period?: ApplicationPeriod;
+  year?: number;
+  from?: string;
+  to?: string;
 }
 
 export interface Notification {
   to: string;
   subject: string;
   text: string;
+}
+
+export interface UpdateObservedDataUseCaseInput {
+  expectedVersion: number;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  telefono: string;
+  carreraId: string;
+  anioEgreso: number;
+  deseaMentor?: boolean;
+  fechaTitulacion?: string | null;
+  fechaIngreso?: string | null;
 }

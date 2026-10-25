@@ -1,3 +1,4 @@
+import { SAMPLE_BACKUP_URL } from '@/modules/profile/utils/backup-url';
 import type { ProfileRecords, RecordSection } from '@/modules/profile/types/profile-record';
 
 // Egresado con sesión iniciada (temporal hasta integrar la autenticación)
@@ -15,6 +16,7 @@ export const PROFILE_RECORDS_MOCK: ProfileRecords = {
       graduationYear: '2018',
       degree: 'Licenciatura',
       backupFile: 'respaldo.pdf',
+      backupUrl: SAMPLE_BACKUP_URL,
     },
     {
       id: 'edu-2',
@@ -24,6 +26,7 @@ export const PROFILE_RECORDS_MOCK: ProfileRecords = {
       graduationYear: '2021',
       degree: 'Maestría',
       backupFile: 'respaldo.pdf',
+      backupUrl: SAMPLE_BACKUP_URL,
     },
   ],
   experience: [
@@ -61,6 +64,7 @@ export const PROFILE_RECORDS_MOCK: ProfileRecords = {
       degree: 'Profesional',
       issueYear: '2022',
       backupFile: 'respaldo.pdf',
+      backupUrl: SAMPLE_BACKUP_URL,
       backupVerified: true,
     },
     {
@@ -71,6 +75,7 @@ export const PROFILE_RECORDS_MOCK: ProfileRecords = {
       degree: 'Asociado',
       issueYear: '2021',
       backupFile: 'respaldo.pdf',
+      backupUrl: SAMPLE_BACKUP_URL,
       backupVerified: true,
     },
     {
@@ -83,6 +88,15 @@ export const PROFILE_RECORDS_MOCK: ProfileRecords = {
     },
   ],
 };
+
+// "Mis registros" abierto en una pestaña (para volver a la sección desde la que se editó)
+export function recordsHref(section: RecordSection): string {
+  return `/profile/records?seccion=${section}`;
+}
+
+export function toRecordSection(value: string | undefined): RecordSection {
+  return value === 'experience' || value === 'certification' ? value : 'education';
+}
 
 export const SECTION_LABELS: Record<RecordSection, string> = {
   education: 'Educación',

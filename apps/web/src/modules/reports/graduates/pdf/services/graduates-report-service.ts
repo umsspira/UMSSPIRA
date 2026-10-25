@@ -48,7 +48,7 @@ export async function fetchGraduatesReportPdf(
   careerId?: string,
   signal?: AbortSignal,
 ): Promise<ReportPdfFile> {
-  const params = new URLSearchParams({ status: status === 'verified' ? 'APPROVED' : 'OBSERVED' });
+  const params = new URLSearchParams({ status: status === 'verified' ? 'APROBADA' : 'OBSERVADA' });
   if (careerId) params.set('careerId', careerId);
 
   let response: Response;

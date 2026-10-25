@@ -1,3 +1,5 @@
+import type { ProfessionalDescription } from './professional-description';
+
 export const PROFILE_SECTIONS = [
   'formacion-academica',
   'experiencia-laboral',
@@ -56,4 +58,5 @@ export interface ProfileSnapshot {
   education: EducationRecord[];
   experience: ExperienceRecord[];
   certifications: CertificationRecord[];
+  description: ProfessionalDescription;
 }

@@ -62,3 +62,33 @@ it('sustituye el Authorization anterior sin duplicar encabezados al enviar el to
     global.fetch = originalFetch;
   }
 });
+
+it('recupera una sesión de lectura desde la cookie HttpOnly aunque no exista token en memoria ni CSRF', async () => {
+  const originalFetch = global.fetch;
+  const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200 });
+  global.fetch = fetchMock;
+  try {
+    await authenticatedFetch('/api/v1/auth/me');
+
+    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = new Headers(request.headers);
+    expect(headers.has('Authorization')).toBe(false);
+    expect(request.credentials).toBe('same-origin');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+it('no intenta una mutación con cookies cuando falta la protección CSRF', async () => {
+  const originalFetch = global.fetch;
+  const fetchMock = jest.fn();
+  global.fetch = fetchMock;
+  try {
+    await expect(authenticatedFetch('/api/v1/events/event-id/registrations', {
+      method: 'POST',
+    })).rejects.toMatchObject({ status: 401 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

@@ -66,7 +66,7 @@ const record: GraduateReportRecord = {
   reviewedAt: null,
   justification: null,
   wantsMentorship: true,
-  status: 'APPROVED',
+  status: 'APROBADA',
 };
 
 describe('Mentorías y reportería: contratos HTTP y autorización', () => {
@@ -211,17 +211,22 @@ describe('Mentorías y reportería: contratos HTTP y autorización', () => {
     expect(mentors.deactivate).toHaveBeenCalledWith(mentorId, [careerId]);
   });
   it('valida el estado de disponibilidad y permite pausarlo', async () => {
-    availability.update.mockResolvedValue({ status: 'PAUSED', updatedAt: new Date() });
+    availability.update.mockResolvedValue({ status: 'EN_PAUSA', updatedAt: new Date() });
     await request(app.getHttpServer())
       .patch('/api/v1/mentorship/availability')
       .set('Authorization', 'Bearer graduate')
-      .send({ availabilityStatus: 'PAUSED' })
+      .send({ availabilityStatus: 'EN_PAUSA' })
       .expect(200);
-    expect(availability.update).toHaveBeenCalledWith(graduate.id, 'PAUSED');
+    expect(availability.update).toHaveBeenCalledWith(graduate.id, 'EN_PAUSA');
     await request(app.getHttpServer())
       .patch('/api/v1/mentorship/availability')
       .set('Authorization', 'Bearer graduate')
       .send({ availabilityStatus: 'OTHER' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .patch('/api/v1/mentorship/availability')
+      .set('Authorization', 'Bearer graduate')
+      .send({ availabilityStatus: 'AVAILABLE' })
       .expect(400);
   });
   it('protege los reportes por permiso y por alcance de carrera', async () => {
@@ -256,7 +261,7 @@ describe('Mentorías y reportería: contratos HTTP y autorización', () => {
   });
   it('pagina, filtra por estado y no inventa datos faltantes', async () => {
     const response = await request(app.getHttpServer())
-      .get('/api/v1/reports/graduates?status=APPROVED')
+      .get('/api/v1/reports/graduates?status=APROBADA')
       .set('Authorization', 'Bearer admin')
       .expect(200);
     expect(response.body.data.items[0].anioEgreso).toBeNull();
@@ -264,31 +269,31 @@ describe('Mentorías y reportería: contratos HTTP y autorización', () => {
     expect(reports.list).toHaveBeenCalledWith([careerId], {
       page: 1,
       limit: 10,
-      status: 'APPROVED',
+      status: 'APROBADA',
     });
     await request(app.getHttpServer())
       .get('/api/v1/reports/graduates?limit=1001')
       .set('Authorization', 'Bearer admin')
       .expect(400);
     await request(app.getHttpServer())
-      .get('/api/v1/reports/metrics?status=APPROVED')
+      .get('/api/v1/reports/metrics?status=APROBADA')
       .set('Authorization', 'Bearer admin')
       .expect(400);
   });
   it('produce CSV con el mismo filtro y nombre de archivo descargable', async () => {
     const response = await request(app.getHttpServer())
-      .get('/api/v1/reports/graduates/csv?status=APPROVED')
+      .get('/api/v1/reports/graduates/csv?status=APROBADA')
       .set('Authorization', 'Bearer admin')
       .expect(200);
     expect(response.headers['content-type']).toContain('text/csv');
     expect(response.headers['content-disposition']).toContain('.csv');
     expect(response.text).toContain('María');
-    expect(reports.exportData).toHaveBeenCalledWith([careerId], { status: 'APPROVED' });
+    expect(reports.exportData).toHaveBeenCalledWith([careerId], { status: 'APROBADA' });
   });
   it('no exporta datos ficticios si no hay resultados', async () => {
     reports.exportData.mockResolvedValue({ records: [], careerNames: ['Sistemas'] });
     const response = await request(app.getHttpServer())
-      .get('/api/v1/reports/graduates/pdf?status=REJECTED')
+      .get('/api/v1/reports/graduates/pdf?status=RECHAZADA')
       .set('Authorization', 'Bearer admin')
       .expect(404);
     expect(response.body.error.code).toBe('REPORT_EMPTY');

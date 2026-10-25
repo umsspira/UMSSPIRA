@@ -21,13 +21,13 @@ export class PrismaReportRepository implements ReportRepository {
           }),
           this.prisma.solicitud.count({
             where: {
-              estado: 'APPROVED',
+              estado: 'APROBADA',
               detalle_solicitud: { id_carrera: { in: [...careerIds] } },
             },
           }),
           this.prisma.solicitud.count({
             where: {
-              estado: 'OBSERVED',
+              estado: 'OBSERVADA',
               detalle_solicitud: { id_carrera: { in: [...careerIds] } },
             },
           }),

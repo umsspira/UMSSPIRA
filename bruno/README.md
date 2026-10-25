@@ -27,7 +27,7 @@ Los cuerpos contienen datos de ejemplo editables. Las referencias `{{variable}}`
 | Empresas   |          3 | Perfil de la empresa autenticada                                  |
 | Vacantes   |          1 | Publicación de vacante por empresa                                |
 | Mentorias  |         16 | Perfil y participación del mentor; gestión administrativa         |
-| Eventos    |         11 | Catálogo público y gestión de eventos propios                     |
+| Eventos    |         12 | Catálogo público, gestión propia e inscripción de Titulados       |
 | Reportes   |          5 | Indicadores y exportaciones por carreras autorizadas              |
 
 `folder.bru` ordena la carpeta; cada archivo numerado representa un endpoint. Las instrucciones particulares están en la pestaña Docs de la petición.
@@ -138,7 +138,7 @@ Para mentorías, activa la participación del titulado antes de gestionar áreas
 | eventCoverFilePath | Ruta local a una portada JPG, PNG o WebP                            |
 | eventStartDate     | Fecha inicial ISO con zona horaria, como 2027-01-20T09:00:00-04:00  |
 | eventEndDate       | Fecha final ISO posterior al inicio, como 2027-01-20T18:00:00-04:00 |
-| reportStatus       | PENDING, APPROVED, OBSERVED o REJECTED                              |
+| reportStatus       | PENDIENTE, APROBADA, OBSERVADA o RECHAZADA                              |
 
 Crear evento trae estado BORRADOR. Si quieres utilizar una portada cargada, agrega al body de creación o edición:
 

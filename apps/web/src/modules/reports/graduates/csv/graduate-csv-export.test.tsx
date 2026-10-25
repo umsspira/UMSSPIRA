@@ -209,7 +209,7 @@ test('conserva estado y búsqueda, descarga el CSV y notifica el nombre final', 
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3000/api/v1/reports/graduates/csv?status=OBSERVED&search=quispe',
+      'http://localhost:3000/api/v1/reports/graduates/csv?status=OBSERVADA&search=quispe',
       { method: 'GET', headers: { Authorization: 'Bearer admin-token' } },
     );
   });

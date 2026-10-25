@@ -3,7 +3,7 @@ import { readApiError } from '@/shared/services/api-contract';
 
 const APPLICATIONS_URL = '/api/v1/applications';
 
-export type BoardStatus = 'PENDING' | 'OBSERVED' | 'APPROVED' | 'REJECTED';
+export type BoardStatus = 'PENDIENTE' | 'OBSERVADA' | 'APROBADA' | 'RECHAZADA';
 
 export interface BoardItem {
   id: string;

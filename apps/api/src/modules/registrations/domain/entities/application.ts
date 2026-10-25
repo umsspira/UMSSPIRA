@@ -26,16 +26,26 @@ export interface ApplicationPage {
   total: number;
   page: number;
   pageSize: number;
+  totalPages: number;
+}
+
+export interface ApplicationMetrics {
+  receivedToday: number;
+  pending: number;
+  urgent: number;
+  resolvedToday: number;
+  generatedAt: string;
+  timeZone: string;
 }
 
 export interface ReviewResult {
   id: string;
   applicationId: string;
-  decision: Exclude<ApplicationStatus, 'PENDING'>;
-  status: Exclude<ApplicationStatus, 'PENDING'>;
+  decision: Exclude<ApplicationStatus, 'PENDIENTE'>;
+  status: Exclude<ApplicationStatus, 'PENDIENTE'>;
   category: string | null;
   note: string | null;
   reviewedBy: string;
   reviewedAt: string;
-  notificationStatus: 'QUEUED';
+  notificationStatus: 'EN_COLA';
 }

@@ -28,7 +28,7 @@ export function toAvailability(
   row: { estado: string | null; fecha_actualizacion: Date | null } | null | undefined,
 ): MentorAvailability {
   return {
-    status: ['AVAILABLE', 'PAUSED', 'UNAVAILABLE'].includes(row?.estado ?? '')
+    status: ['DISPONIBLE', 'EN_PAUSA', 'NO_DISPONIBLE'].includes(row?.estado ?? '')
       ? (row!.estado as AvailabilityStatus)
       : null,
     updatedAt: row?.fecha_actualizacion ?? null,

@@ -1,3 +1,4 @@
+import { EventParticipantsHeader } from "@/shared/components/event-participants-header";
 import React from "react";
 import { cookies } from "next/headers";
 import { AdminNavbar } from "@/shared/components/admin-navbar";
@@ -17,6 +18,7 @@ export default function DashboardLayout({
   return (
     <div className="dashboard-container min-h-screen bg-palladian text-abyssal-blue font-sans flex flex-col justify-between">
       <RevalidateOnPageShow />
+      <EventParticipantsHeader>
       {role === "titulado" ? (
         <TituladoHeader />
       ) : role === "empresa" ? (
@@ -24,6 +26,7 @@ export default function DashboardLayout({
       ) : (
         <AdminNavbar logoutSlot={role ? <LogoutButton /> : undefined} />
       )}
+      </EventParticipantsHeader>
       <div className="flex-1">{children}</div>
     </div>
   );

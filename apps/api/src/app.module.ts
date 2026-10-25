@@ -12,6 +12,7 @@ import { ProfileModule } from './modules/profile/profile.module';
 import { EventsModule } from './modules/events/events.module';
 import { MentorshipModule } from './modules/mentorship/mentorship.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { ChatModule } from './modules/chat/chat.module'; // 👈 Ya estaba importado
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     EventsModule,
     MentorshipModule,
     ReportsModule,
+    ChatModule, 
   ],
   controllers: [HealthController],
 })
