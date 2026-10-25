@@ -2237,3 +2237,137 @@
 .qr-passes-button:hover {
   background: #b9661c;
 }
+
+/* HU-7.11: Listado y estados de pases QR */
+
+.qr-passes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.qr-passes-card {
+  background: #fffdf9;
+  border: 1px solid #d4cbbc;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.qr-passes-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.qr-passes-card-icon {
+  color: #d77d26;
+}
+
+.qr-passes-card h2 {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.qr-passes-card-description {
+  color: #59616b;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.qr-passes-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.qr-passes-card-details > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #46515c;
+  font-size: 14px;
+}
+
+.qr-passes-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.qr-passes-status--activo {
+  background: #dff3e5;
+  color: #176534;
+}
+
+.qr-passes-status--invalidado {
+  background: #fce3e3;
+  color: #a22c2c;
+}
+
+.qr-passes-status--vencido {
+  background: #e8e8e8;
+  color: #555b63;
+}
+
+.qr-passes-card-footer {
+  border-top: 1px solid #e5dfd5;
+  padding-top: 14px;
+  margin-top: auto;
+  color: #59616b;
+  font-size: 13px;
+}
+
+.qr-passes-button {
+  gap: 9px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.qr-passes-spinner {
+  animation: qr-passes-spin 1s linear infinite;
+}
+
+@keyframes qr-passes-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .qr-passes-page {
+    padding: 24px 16px 56px;
+  }
+
+  .qr-passes-tabs {
+    gap: 8px;
+    margin-bottom: 30px;
+  }
+
+  .qr-passes-tabs a,
+  .qr-passes-tabs span {
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+
+  .qr-passes-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qr-passes-card {
+    padding: 20px;
+  }
+}
+
