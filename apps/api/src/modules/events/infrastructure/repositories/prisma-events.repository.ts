@@ -13,10 +13,8 @@ import {
   validateEventDates,
 } from '../../domain/policies/event.policy';
 import type { InactiveEvent, RetiredEvent } from '../../domain/entities/event';
-import { toEvent } from '../translators/event.translator';
+import { eventInclude, toEvent } from '../translators/event.translator';
 import { assertRegistrationCancellable } from '../../domain/policies/event-registration.policy';
-
-const eventInclude = { usuario: { select: { nombre: true } } };
 
 @Injectable()
 export class PrismaEventsRepository implements EventsRepository {
