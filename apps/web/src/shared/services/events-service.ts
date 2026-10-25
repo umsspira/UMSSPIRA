@@ -4,6 +4,7 @@ import type {
   EventRegistrationItem,
   EventItem,
   InactiveEventItem,
+  MyEventRegistrationItem,
   RetiredEventItem,
   UpdateDraftEventDto,
 } from '@umsspira/shared-types';
@@ -61,6 +62,12 @@ export async function registerForEvent(eventId: string): Promise<EventRegistrati
   return (await apiClient<{ data: EventRegistrationItem }>(
     `/api/v1/events/${encodeURIComponent(eventId)}/registrations`,
     { method: 'POST', authenticated: true },
+  )).data;
+}
+export async function getMyEventRegistrations(): Promise<MyEventRegistrationItem[]> {
+  return (await apiClient<{ data: MyEventRegistrationItem[] }>(
+    '/api/v1/events/my-registrations',
+    { authenticated: true },
   )).data;
 }
 

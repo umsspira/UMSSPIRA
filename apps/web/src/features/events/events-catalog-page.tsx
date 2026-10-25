@@ -7,6 +7,7 @@ import EventCard from '@/shared/components/event-card';
 import { getEventCatalog } from '@/shared/services/events-service';
 import { formatEventMonth, getEventMonthKey } from '@/shared/utils/event-date-time';
 import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
+import Link from 'next/link';
 
 type SortOrder = 'nearest' | 'furthest';
 
@@ -125,9 +126,7 @@ export default function EventsCatalogPage({
             <button type="button" className="is-active" aria-current="page">
               Explorar
             </button>
-            <button type="button" disabled title="Disponible al integrar HU9">
-              Mis eventos
-            </button>
+            <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
             <button type="button" disabled title="Disponible al integrar HU10">
               Mis pases
             </button>
