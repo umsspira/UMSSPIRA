@@ -61,6 +61,13 @@ export async function registerForEvent(eventId: string): Promise<EventRegistrati
   )).data;
 }
 
+export async function cancelEventRegistration(registrationId: string): Promise<void> {
+  await apiClient<void>(
+    `/api/v1/events/registrations/${encodeURIComponent(registrationId)}/cancel`,
+    { method: 'PATCH', authenticated: true },
+  );
+}
+
 export async function createEvent(
   event: CreateEventDto,
   userId?: string,
