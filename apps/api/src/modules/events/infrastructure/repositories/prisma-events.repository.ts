@@ -222,6 +222,8 @@ export class PrismaEventsRepository implements EventsRepository {
   async cancelRegistration(userId: string, registrationId: string, now: Date): Promise<void> {
     await this.prisma.$transaction(
       async (tx) => {
+        // El generador QR utiliza el mismo bloqueo antes de comprobar la inscripción.
+        await tx.$queryRaw`SELECT id FROM inscripcion_evento WHERE id = ${registrationId}::uuid FOR UPDATE`;
         await this.assertCancellableWith(tx, userId, registrationId, now);
         const result = await tx.inscripcionEvento.updateMany({
           where: {
@@ -240,6 +242,10 @@ export class PrismaEventsRepository implements EventsRepository {
             'La inscripción ya no está disponible para cancelación',
           );
         }
+        await tx.paseQr.updateMany({
+          where: { id_inscripcion: registrationId },
+          data: { estado: 'INVALIDADO' },
+        });
       },
       { timeout: 15000 },
     );
