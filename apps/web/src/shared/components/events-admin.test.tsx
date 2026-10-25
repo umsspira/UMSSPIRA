@@ -31,6 +31,7 @@ const mockGetAdminEvent = jest.fn();
 const mockGetAdminDraft = jest.fn();
 const mockUpdateDraftEvent = jest.fn();
 const mockPublishDraftEvent = jest.fn();
+const mockCancelPublishedEvent = jest.fn();
 const mockGetInactiveEvents = jest.fn();
 const mockRetireEvent = jest.fn();
 
@@ -46,6 +47,7 @@ jest.mock('@/shared/services/events-service', () => ({
   getAdminDraft: (...args: unknown[]) => mockGetAdminDraft(...args),
   updateDraftEvent: (...args: unknown[]) => mockUpdateDraftEvent(...args),
   publishDraftEvent: (...args: unknown[]) => mockPublishDraftEvent(...args),
+  cancelPublishedEvent: (...args: unknown[]) => mockCancelPublishedEvent(...args),
   getInactiveEvents: (...args: unknown[]) => mockGetInactiveEvents(...args),
   retireEvent: (...args: unknown[]) => mockRetireEvent(...args),
 }));
@@ -91,6 +93,7 @@ describe('Gestión administrativa de eventos HU1', () => {
     mockGetAdminDraft.mockReset();
     mockUpdateDraftEvent.mockReset();
     mockPublishDraftEvent.mockReset();
+    mockCancelPublishedEvent.mockReset();
     mockGetAdminEvent.mockReset();
   });
 
@@ -139,6 +142,72 @@ describe('Gestión administrativa de eventos HU1', () => {
     fireEvent.click(await screen.findByRole('button', { name: /ver/i }));
 
     expect(mockPush).toHaveBeenCalledWith('/events/published-1');
+  });
+
+  it('cancela un evento publicado tras confirmar y actualiza su estado', async () => {
+    mockGetAdminEvents.mockResolvedValueOnce([publishedEvent]);
+    mockCancelPublishedEvent.mockResolvedValueOnce({
+      ...publishedEvent,
+      status: EVENT_STATUS.CANCELADO,
+    });
+
+    render(<EventManagementContent userId="user-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^cancelar evento$/i }),
+    );
+
+    expect(
+      screen.getByRole('dialog', { name: /cancelar este evento/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /sí, cancelar evento/i }),
+    );
+
+    await waitFor(() => {
+      expect(mockCancelPublishedEvent).toHaveBeenCalledWith(
+        'published-1',
+        'user-1',
+      );
+    });
+
+    expect(
+      await screen.findByText('Cancelado', {
+        selector: '.event-status.is-cancelled',
+      }),
+    ).toBeInTheDocument();
+  });
+
+
+  it('muestra un error cuando falla la cancelación del evento', async () => {
+    mockGetAdminEvents.mockResolvedValueOnce([publishedEvent]);
+    mockCancelPublishedEvent.mockRejectedValueOnce(
+      new Error('No se pudo cancelar el evento'),
+    );
+
+    render(<EventManagementContent userId="user-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^cancelar evento$/i }),
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /sí, cancelar evento/i }),
+    );
+
+    expect(
+      await screen.findByText('No se pudo cancelar el evento'),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText('Feria de Empleo Real'),
+    ).toBeInTheDocument();
+
+    expect(mockCancelPublishedEvent).toHaveBeenCalledWith(
+      'published-1',
+      'user-1',
+    );
   });
 
   it('no muestra un affordance de menú sin acciones autorizadas', async () => {
