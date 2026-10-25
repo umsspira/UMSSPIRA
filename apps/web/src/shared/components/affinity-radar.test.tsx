@@ -174,6 +174,17 @@ describe('AffinityRadar Component', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
+  it('no muestra variación cuando la afinidad actual no es un número finito', () => {
+    const data: AffinityAreaScore[] = [
+      { area: 'software-development', affinity: Number.NaN, previousAffinity: 75 },
+      { area: 'cloud-devops', affinity: Number.POSITIVE_INFINITY, previousAffinity: 64 },
+    ];
+
+    render(<AffinityRadar affinityData={data} hasData={true} />);
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
   it('resalta solo los ejes indicados como cambiados y conserva la transición del polígono', () => {
     const { container } = render(
       <AffinityRadar

@@ -78,6 +78,7 @@ export default function AffinityRadar({
       previousAffinity: found?.previousAffinity ?? null,
       value: clampPercentage(rawValue),
       displayValue: formatPercentage(rawValue),
+      currentAffinity: rawValue,
     };
   });
 
@@ -278,7 +279,7 @@ export default function AffinityRadar({
                     </span>
                     {!isRadarEmpty && (
                       <VariationIndicator
-                        current={data.value}
+                        current={data.currentAffinity}
                         previous={data.previousAffinity}
                         areaLabel={data.label}
                       />
