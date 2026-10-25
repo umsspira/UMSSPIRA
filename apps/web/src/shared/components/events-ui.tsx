@@ -14,6 +14,7 @@ import {
   Plus,
 } from 'lucide-react';
 import {
+  cancelPublishedEvent,
   getAdminEvents,
   publishDraftEvent,
 } from '@/shared/services/events-service';
@@ -78,6 +79,9 @@ export function EventManagementContent({
   } = useAdminEvents(userId, !compact);
   const [pendingPublication, setPendingPublication] = useState<EventItem | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [pendingCancellation, setPendingCancellation] = useState<EventItem | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancellationError, setCancellationError] = useState<string | null>(null);
   const [publishedEventId, setPublishedEventId] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
@@ -117,6 +121,30 @@ export function EventManagementContent({
     ),
     [events],
   );
+
+  const confirmCancellation = async () => {
+    if (!pendingCancellation || !userId) return;
+
+    setIsCancelling(true);
+    setCancellationError(null);
+
+    try {
+      const cancelledEvent = await cancelPublishedEvent(
+        pendingCancellation.id,
+        userId,
+      );
+      setEvents((currentEvents) =>
+        currentEvents.map((event) =>
+          event.id === cancelledEvent.id ? cancelledEvent : event,
+        ),
+      );
+      setPendingCancellation(null);
+    } catch (error) {
+      setCancellationError(getRequestErrorMessage(error));
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   const confirmPublication = async () => {
     if (!pendingPublication || !userId) return;
@@ -238,13 +266,26 @@ export function EventManagementContent({
               <StatusChip status={event.status} />
               <div className={`event-row-actions ${event.status === EVENT_STATUS.PUBLICADO ? 'is-published' : 'is-draft'}`}>
                 {event.status === EVENT_STATUS.PUBLICADO ? (
-                  <button
-                    type="button"
-                    className="event-button event-button-secondary event-action-view"
-                    onClick={() => router.push(`/events/${event.id}`)}
-                  >
-                    <Eye size={15} aria-hidden="true" /> Ver
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="event-button event-button-secondary event-action-view"
+                      onClick={() => router.push(`/events/${event.id}`)}
+                    >
+                      <Eye size={15} aria-hidden="true" /> Ver
+                    </button>
+                    <button
+                      type="button"
+                      className="event-button event-button-secondary event-action-cancel"
+                      onClick={() => {
+                        setCancellationError(null);
+                        setPendingCancellation(event);
+                      }}
+                      disabled={isCancelling}
+                    >
+                      Cancelar evento
+                    </button>
+                  </>
                 ) : event.status === EVENT_STATUS.BORRADOR ? (
                   <>
                     <button type="button" className="event-button event-button-secondary event-action-edit" onClick={() => router.push(`/events/drafts/${event.id}`)}>Editar</button>
@@ -275,6 +316,19 @@ export function EventManagementContent({
           isSubmitting={isPublishing}
           onCancel={() => setPendingPublication(null)}
           onConfirm={() => void confirmPublication()}
+        />
+      ) : null}
+
+      {pendingCancellation ? (
+        <EventCancellationDialog
+          event={toEventSummary(pendingCancellation)}
+          isSubmitting={isCancelling}
+          errorMessage={cancellationError}
+          onCancel={() => {
+            setPendingCancellation(null);
+            setCancellationError(null);
+          }}
+          onConfirm={() => void confirmCancellation()}
         />
       ) : null}
 
@@ -546,6 +600,63 @@ export function EventConfirmDialog({
           <button type="button" className="event-button event-button-secondary" onClick={onCancel} disabled={isSubmitting}>Cancelar</button>
           <button type="button" className="event-button event-button-primary" onClick={onConfirm} disabled={isSubmitting}>
             {isSubmitting ? 'Publicando…' : 'Publicar evento'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function EventCancellationDialog({
+  event,
+  isSubmitting,
+  errorMessage,
+  onCancel,
+  onConfirm,
+}: {
+  event: EventSummary;
+  isSubmitting: boolean;
+  errorMessage: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="event-modal-layer" role="presentation">
+      <section
+        className="event-confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cancel-event-title"
+      >
+        <h2 id="cancel-event-title">¿Cancelar este evento?</h2>
+        {errorMessage ? <div className="event-feedback" role="alert">{errorMessage}</div> : null}
+        <p>
+          El evento dejará de estar publicado y sus pases QR vigentes
+          serán invalidados. Esta acción no se puede deshacer desde aquí.
+        </p>
+        <div className="event-confirm-summary">
+          <div>
+            <strong>{event.title}</strong>
+            <span>{event.dateLabel}</span>
+            <span>Ubicación: {event.location || 'Por definir'}</span>
+          </div>
+        </div>
+        <div className="event-dialog-actions">
+          <button
+            type="button"
+            className="event-button event-button-secondary"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Volver
+          </button>
+          <button
+            type="button"
+            className="event-button event-button-primary"
+            onClick={onConfirm}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Cancelando…' : 'Confirmar cancelación'}
           </button>
         </div>
       </section>
