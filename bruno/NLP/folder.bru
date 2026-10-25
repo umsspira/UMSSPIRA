@@ -8,3 +8,11 @@ docs {
 
   Permiso: nlp:extract. La empresa recibe 403 y una petición sin token recibe 401.
 }
+
+vars:pre-request {
+  accessTokenSinPermiso:
+}
+
+vars:secret [
+  accessTokenSinPermiso
+]

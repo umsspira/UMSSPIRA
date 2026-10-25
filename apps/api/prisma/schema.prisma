@@ -1118,7 +1118,7 @@ model AfinidadRadar {
   id_calculo_radar   String  @db.Uuid
   id_area            String  @db.Uuid
   puntaje            Decimal @db.Decimal
-  porcentaje         Decimal @db.Decimal
+  porcentaje         Decimal @db.Decimal(5, 2)
   palabras_clave_top Json?
 
   calculo_radar CalculoRadar @relation(fields: [id_calculo_radar], references: [id], onDelete: NoAction)
