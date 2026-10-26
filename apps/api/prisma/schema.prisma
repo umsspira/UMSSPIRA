@@ -1230,9 +1230,26 @@ model MensajeEstado {
   @@map("mensaje_estado")
 }
 
-// ============================================================
+model RespuestaEncuesta {  
+  id               String   @id @default(uuid()) @db.Uuid
+  idEncuesta       String   @map("id_encuesta") @db.Uuid
+  idTitulado       String   @map("id_titulado") @db.Uuid
+  condicionLaboral String   @map("condicion_laboral")
+  cargo            String?  @db.VarChar(150)
+  empresa          String?  @db.VarChar(200)
+  area             String?  @db.VarChar(150)
+  modalidad        String?
+  salarioMensual   String?  @map("salario_mensual") @db.VarChar(30)
+  tiempoInsercion  String?  @map("tiempo_insercion") @db.VarChar(40)
+  fechaEnvio       DateTime @default(now()) @map("fecha_envio")
+
+  @@unique([idEncuesta, idTitulado], name: "uq_respuesta_encuesta_titulado")
+  @@map("respuesta_encuesta")
+}
+
+//
 // Recuperación de contraseña (HU-12)
-// ============================================================
+//
 
 model PasswordResetToken {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

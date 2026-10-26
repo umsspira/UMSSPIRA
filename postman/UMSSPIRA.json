@@ -1329,6 +1329,38 @@
               "variable": []
             }
           }
+        },
+        {
+          "name": "Inscribirse a evento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": {
+                "key": "token",
+                "value": "{{accessToken}}",
+                "type": "string"
+              }
+            },
+            "description": "Confirma la inscripción del Titulado autenticado. El evento debe estar PUBLICADO, vigente y con cupo. No envíes userId ni body.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/events/{{eventId}}/registrations",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "events",
+                "{{eventId}}",
+                "registrations"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
         }
       ]
     },

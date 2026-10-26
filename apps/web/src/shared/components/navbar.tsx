@@ -42,7 +42,14 @@ const navItems = [
   { href: '/portal/comunidad', label: 'Comunidad', Icon: Users },
 ];
 
-export const Navbar: React.FC = () => {
+export const Navbar: React.FC<{ eventManagement?: boolean }> = ({
+  eventManagement = false,
+}) => {
+  const items = eventManagement
+    ? navItems.map((item) => item.label === 'Eventos'
+        ? { ...item, href: '/events' }
+        : item)
+    : navItems;
   const config = {
     height: 'h-16 lg:h-20',
     logoWidth: 'w-36 lg:w-44',
@@ -194,7 +201,7 @@ export const Navbar: React.FC = () => {
             aria-label="Principal"
             className={`hidden lg:flex items-center ${config.spacing} ${config.textSize} font-medium`}
           >
-            {navItems.map(({ href, label, Icon, exact }) => {
+            {items.map(({ href, label, Icon, exact }) => {
               const active = isActive(href, exact);
 
               return (
@@ -376,10 +383,10 @@ export const Navbar: React.FC = () => {
 
                     <div>
                       <p className="text-sm font-bold text-slate-900">
-                        Usuario UMSS
+                        {eventManagement ? 'Administración' : 'Usuario UMSS'}
                       </p>
                       <p className="text-xs text-slate-500">
-                        Titulado / Egresado
+                        {eventManagement ? 'Administrador de eventos' : 'Titulado / Egresado'}
                       </p>
                     </div>
                   </div>
@@ -472,7 +479,7 @@ export const Navbar: React.FC = () => {
           className="flex-1 overflow-y-auto px-2 py-4"
         >
           <ul className="space-y-1">
-            {navItems.map(({ href, label, Icon, exact }) => {
+            {items.map(({ href, label, Icon, exact }) => {
               const active = isActive(href, exact);
 
               return (

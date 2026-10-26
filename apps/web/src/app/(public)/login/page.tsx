@@ -135,7 +135,7 @@ export default function LoginPage() {
               Bienvenido de vuelta
             </h1>
             <p className="mt-2 text-sm text-abyssal-blue/70">
-              Accede al portal oficial de egresados y red profesional de Ingeniería de Sistemas.
+              Accede al portal oficial de titulados y red profesional de Ingeniería de Sistemas e Ingeniería Informática.
             </p>
             <div className="mt-8">
               <LoginForm />
@@ -144,7 +144,7 @@ export default function LoginPage() {
 
           <footer className="space-y-1 text-center text-[11px] text-abyssal-blue/60">
             <p className="uppercase tracking-wider">
-              UNIVERSIDAD MAYOR DE SAN SIMÓN • DTI & DPA
+              UNIVERSIDAD MAYOR DE SAN SIMÓN
             </p>
           </footer>
         </div>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   render,
@@ -10,6 +9,7 @@ import {
 } from '@testing-library/react';
 import { GraduateAffinityView } from './graduate-affinity-view';
 import * as affinityService from '../services/affinity-service';
+import { DEBOUNCE_MS } from '../hooks/use-debounced-batch';
 
 const mockPush = jest.fn();
 
@@ -151,12 +151,25 @@ const recalculatedAreas = [
   },
 ];
 
-const makeVector = (areas = recalculatedAreas) => ({
+const makeVector = (areas = recalculatedAreas, extra: Record<string, unknown> = {}) => ({
   graduateId: 'id-1',
   calculatedAt: '2026-09-30T12:00:00.000Z',
   hasLaborHistory: true,
   areas,
+  ...extra,
 });
+
+// Panel que contiene las seis barras de "Resumen de tu afinidad"
+const getSummaryPanel = async (): Promise<HTMLElement> => {
+  const heading = await screen.findByText('Resumen de tu afinidad');
+  const panel = heading.closest('.flex-col');
+
+  if (!panel) {
+    throw new Error('No se encontró el panel de resumen de afinidad');
+  }
+
+  return panel as HTMLElement;
+};
 
 const openSimulationModal = () => {
   fireEvent.click(
@@ -179,18 +192,6 @@ const clickSimulateProfileChange = async () => {
   });
 };
 
-// Panel que contiene las seis barras de "Resumen de tu afinidad"
-const getSummaryPanel = async (): Promise<HTMLElement> => {
-  const heading = await screen.findByText('Resumen de tu afinidad');
-  const panel = heading.closest('.flex-col');
-
-  if (!panel) {
-    throw new Error('No se encontró el panel de resumen de afinidad');
-  }
-
-  return panel as HTMLElement;
-};
-
 describe('GraduateAffinityView', () => {
   const mockGetAffinityConfig =
     affinityService.getAffinityConfig as jest.Mock;
@@ -198,12 +199,18 @@ describe('GraduateAffinityView', () => {
     affinityService.recalculateAffinity as jest.Mock;
   const mockGetAffinityVector =
     affinityService.getAffinityVector as jest.Mock;
-  const originalSimulationControls =
-    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS;
+
+  const originalEnv = process.env;
 
   beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS: 'true',
+    };
     jest.clearAllMocks();
-    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS = 'true';
+    mockGetAffinityVector.mockReset();
+    mockGetAffinityConfig.mockReset();
+    mockRecalculateAffinity.mockReset();
 
     mockGetAffinityVector.mockResolvedValue(makeVector());
     mockGetAffinityConfig.mockResolvedValue({
@@ -219,12 +226,9 @@ describe('GraduateAffinityView', () => {
     mockRecalculateAffinity.mockResolvedValue(makeVector());
   });
 
-  afterAll(() => {
-    if (originalSimulationControls === undefined) {
-      delete process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS;
-    } else {
-      process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS = originalSimulationControls;
-    }
+  afterEach(() => {
+    process.env = originalEnv;
+    jest.useRealTimers();
   });
 
   it('carga el radar inicial desde el servicio', async () => {
@@ -280,6 +284,8 @@ describe('GraduateAffinityView', () => {
     await waitFor(() => {
       expect(mockRecalculateAffinity).toHaveBeenCalledTimes(1);
     });
+
+    expect(await screen.findByText('Radar actualizado')).toBeInTheDocument();
   });
 
   it('muestra un error si falla el recálculo', async () => {
@@ -563,16 +569,13 @@ describe('GraduateAffinityView', () => {
   });
 
   it('muestra el estado vacío con "Completar perfil" y oculta el indicador de actualización cuando no hay datos', async () => {
-    // 1. Simulamos que el backend responde con un vector vacío
     mockGetAffinityVector.mockResolvedValueOnce({ areas: [] });
 
     render(<GraduateAffinityView />);
 
-    // 2. Esperamos a que la vista cargue y muestre el botón de completar perfil
     expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
     expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
 
-    // 3. Verificamos que los indicadores de un radar válido NO estén en pantalla
     expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Vector Calculado/i)).not.toBeInTheDocument();
   });
@@ -631,7 +634,250 @@ describe('GraduateAffinityView', () => {
     expect(link).toHaveAttribute('href', '/profile');
   });
 
-  it('muestra +8 % y \u22123 % en las barras del resumen con afinidad previa', async () => {
+  it('dispara automáticamente el recálculo tras el debounce de 500 ms cuando hasPendingChanges es true', async () => {
+    jest.useFakeTimers();
+
+    const updatedAreas = recalculatedAreas.map((area) =>
+      area.area === 'software-development' ? { ...area, affinity: 92 } : area
+    );
+
+    mockGetAffinityVector.mockResolvedValueOnce(
+      makeVector(recalculatedAreas, { hasPendingChanges: true })
+    );
+    mockRecalculateAffinity.mockResolvedValueOnce(makeVector(updatedAreas));
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(DEBOUNCE_MS - 1);
+    });
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+
+    await waitFor(() => {
+      expect(mockRecalculateAffinity).toHaveBeenCalledTimes(1);
+    });
+
+    expect(await screen.findByText('Radar actualizado')).toBeInTheDocument();
+    expect(screen.getByText('92%')).toBeInTheDocument();
+  });
+
+  it('mantiene visible el radar previo con el estado "Actualizando tu afinidad…" durante el recálculo', async () => {
+    let resolveRecalculate!: (value: unknown) => void;
+    mockRecalculateAffinity.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRecalculate = resolve;
+        })
+    );
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    await clickSimulateProfileChange();
+
+    expect(screen.getByText('Actualizando tu afinidad…')).toBeInTheDocument();
+    expect(screen.getByTestId('radar')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveRecalculate(makeVector());
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText('Actualizando tu afinidad…')
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Radar actualizado')).toBeInTheDocument();
+  });
+
+  it('muestra "No se pudo actualizar tu radar" con "Reintentar" a los 7 s de timeout conservando el radar válido y permite reintentar', async () => {
+    jest.useFakeTimers();
+
+    mockRecalculateAffinity.mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    await clickSimulateProfileChange();
+
+    expect(screen.getByText('Actualizando tu afinidad…')).toBeInTheDocument();
+
+    await act(async () => {
+      jest.advanceTimersByTime(7000);
+    });
+
+    expect(
+      await screen.findByText('No se pudo actualizar tu radar')
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('radar')).toBeInTheDocument();
+
+    const retryButton = screen.getByRole('button', { name: /reintentar/i });
+    expect(retryButton).toBeInTheDocument();
+
+    const recoveredAreas = recalculatedAreas.map((area) =>
+      area.area === 'software-development' ? { ...area, affinity: 89 } : area
+    );
+    mockRecalculateAffinity.mockResolvedValueOnce(makeVector(recoveredAreas));
+
+    await act(async () => {
+      fireEvent.click(retryButton);
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText('No se pudo actualizar tu radar')
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Radar actualizado')).toBeInTheDocument();
+    expect(screen.getByText('89%')).toBeInTheDocument();
+  });
+
+  it('descarta respuestas tardías si se lanza un nuevo recálculo antes de que finalice el anterior', async () => {
+    let resolveFirst!: (value: unknown) => void;
+    let resolveSecond!: (value: unknown) => void;
+
+    mockRecalculateAffinity
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          })
+      );
+
+    const staleAreas = recalculatedAreas.map((area) =>
+      area.area === 'software-development' ? { ...area, affinity: 61 } : area
+    );
+    const freshAreas = recalculatedAreas.map((area) =>
+      area.area === 'software-development' ? { ...area, affinity: 94 } : area
+    );
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    await clickSimulateProfileChange();
+    await clickSimulateProfileChange();
+
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolveSecond(makeVector(freshAreas));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('94%')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      resolveFirst(makeVector(staleAreas));
+    });
+
+    expect(screen.getByText('94%')).toBeInTheDocument();
+    expect(screen.queryByText('61%')).not.toBeInTheDocument();
+  });
+
+  it('oculta los controles de simulación cuando NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS está en false', async () => {
+    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS = 'false';
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.queryByRole('button', { name: /Simular Actualización/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Simular Timeout/i)).not.toBeInTheDocument();
+  });
+
+  it('muestra el estado vacío cuando el vector tiene áreas pero todas con afinidad cero y sin evidencias', async () => {
+    const zeroAreas = recalculatedAreas.map((area) => ({
+      ...area,
+      affinity: 0,
+      evidence: [],
+      keywords: [],
+    }));
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(zeroAreas));
+
+    render(<GraduateAffinityView />);
+
+    expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Áreas con mayor afinidad identificadas:/i)).not.toBeInTheDocument();
+  });
+
+  it('ordena el resumen de mayor a menor afinidad en las áreas identificadas', async () => {
+    const unorderedAreas = [
+      {
+        area: 'cybersecurity-networks',
+        affinity: 40,
+        evidence: evidence.cybersecurity,
+      },
+      {
+        area: 'quality-assurance',
+        affinity: 90,
+        evidence: evidence.qa,
+      },
+      {
+        area: 'data-ai',
+        affinity: 75,
+        evidence: evidence.data,
+      },
+      {
+        area: 'cloud-devops',
+        affinity: 60,
+        evidence: evidence.cloud,
+      },
+      {
+        area: 'software-development',
+        affinity: 30,
+        evidence: evidence.software,
+      },
+      {
+        area: 'it-management',
+        affinity: 20,
+        evidence: evidence.management,
+      },
+    ];
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(unorderedAreas));
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    const topSection = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    expect(topSection).toBeInTheDocument();
+
+    const badges = screen.getAllByText(/^\d+\.\s+/);
+    expect(badges).toHaveLength(3);
+    // 1ro: QA (90%)
+    expect(badges[0]).toHaveTextContent(/Aseguramiento de Calidad \(QA\)/);
+    expect(badges[0]).toHaveTextContent(/90%/);
+    // 2do: Data/IA (75%)
+    expect(badges[1]).toHaveTextContent(/Ciencia de Datos & IA/);
+    expect(badges[1]).toHaveTextContent(/75%/);
+    // 3ro: Cloud (60%)
+    expect(badges[2]).toHaveTextContent(/Cloud, DevOps/);
+    expect(badges[2]).toHaveTextContent(/60%/);
+  });
+
+  it('muestra +8 % y −3 % en las barras del resumen con afinidad previa', async () => {
     const areas = recalculatedAreas.map((area) => {
       if (area.area === 'software-development') {
         return { ...area, affinity: 83, previousAffinity: 75 };
@@ -657,7 +903,7 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
 
     expect(within(summary).getByText('61%')).toBeInTheDocument();
-    expect(within(summary).getByText('\u22123 %')).toBeInTheDocument();
+    expect(within(summary).getByText('−3 %')).toBeInTheDocument();
     expect(
       within(summary).getByRole('img', {
         name: 'Cloud, DevOps & Infraestructura: bajó 3 puntos porcentuales respecto al cálculo anterior',
@@ -674,6 +920,32 @@ describe('GraduateAffinityView', () => {
 
     expect(within(summary).queryByRole('img')).not.toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('muestra la variación en los chips de áreas con mayor afinidad', async () => {
+    const areas = recalculatedAreas.map((area) => {
+      if (area.area === 'software-development') {
+        return { ...area, affinity: 83, previousAffinity: 75 };
+      }
+      return { ...area, previousAffinity: null };
+    });
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(areas));
+
+    render(<GraduateAffinityView />);
+
+    const heading = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    const topSection = heading.closest('.bg-palladian') as HTMLElement;
+
+    expect(
+      within(topSection).getByText('1. Desarrollo de Software (83%)'),
+    ).toBeInTheDocument();
+    expect(within(topSection).getByText('+8 %')).toBeInTheDocument();
+    expect(
+      within(topSection).getByRole('img', {
+        name: 'Desarrollo de Software: subió 8 puntos porcentuales respecto al cálculo anterior',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('conserva la variación de las barras cuando el servidor devuelve recalculated false', async () => {
@@ -746,18 +1018,4 @@ describe('GraduateAffinityView', () => {
       );
     });
   });
-
-  it('oculta los controles de simulación cuando NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS no está activo', async () => {
-    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS = 'false';
-
-    render(<GraduateAffinityView />);
-
-    await screen.findByText('Resumen de tu afinidad');
-
-    expect(
-      screen.queryByRole('button', { name: /simular actualización del radar/i }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText(/Simular Timeout/i)).not.toBeInTheDocument();
-  });
-
 });

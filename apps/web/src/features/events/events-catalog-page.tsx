@@ -5,9 +5,8 @@ import { CircleAlert, ChevronDown } from 'lucide-react';
 
 import EventCard from '@/shared/components/event-card';
 import { getEventCatalog } from '@/shared/services/events-service';
-import { formatAvailableEventsCount } from '@/shared/utils/event-copy';
-import { getEventMonthKey } from '@/shared/utils/event-date-time';
-import type { EventItem } from '@umsspira/shared-types';
+import { formatEventMonth, getEventMonthKey } from '@/shared/utils/event-date-time';
+import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 
 type SortOrder = 'nearest' | 'furthest';
 
@@ -91,16 +90,48 @@ export default function EventsCatalogPage({
     });
   }, [appliedSearch, catalogEvents, dateFilter, sortOrder]);
 
+  const availableMonths = useMemo(() => (
+    Array.from(new Set(catalogEvents.map((event) => getEventMonthKey(event.startDate))))
+      .sort()
+  ), [catalogEvents]);
+
+  const availability = useMemo(() => visibleEvents.reduce(
+    (counts, event) => {
+      const isFull = event.currentCapacity !== undefined
+        && event.currentCapacity >= event.maxCapacity;
+      const isAvailable = event.status === EVENT_STATUS.PUBLICADO && !isFull;
+
+      counts[isAvailable ? 'available' : 'unavailable'] += 1;
+      return counts;
+    },
+    { available: 0, unavailable: 0 },
+  ), [visibleEvents]);
+
+  const resultsLabel = `${availability.available} ${availability.available === 1 ? 'evento disponible' : 'eventos disponibles'} · ${availability.unavailable} ${availability.unavailable === 1 ? 'no disponible' : 'no disponibles'}`;
+
   return (
     <main className="hu2-catalog-page">
       <div className="hu2-catalog-shell">
-        <header className="hu2-catalog-heading">
-          <h1>
-            Eventos universitarios
-          </h1>
-          {!errorMessage && (isLoading || catalogEvents.length > 0) ? (
-            <p>Descubre actividades, talleres y encuentros de la comunidad UMSS.</p>
-          ) : null}
+        <header className="hu2-catalog-header">
+          <div className="hu2-catalog-heading">
+            <h1>
+              Eventos universitarios
+            </h1>
+            {!errorMessage && (isLoading || catalogEvents.length > 0) ? (
+              <p>Descubre actividades, talleres y encuentros de la comunidad UMSS.</p>
+            ) : null}
+          </div>
+          <nav className="hu2-catalog-tabs" aria-label="Secciones de eventos">
+            <button type="button" className="is-active" aria-current="page">
+              Explorar
+            </button>
+            <button type="button" disabled title="Disponible al integrar HU9">
+              Mis eventos
+            </button>
+            <button type="button" disabled title="Disponible al integrar HU10">
+              Mis pases
+            </button>
+          </nav>
         </header>
 
         {!errorMessage ? (
@@ -122,13 +153,17 @@ export default function EventsCatalogPage({
 
           <label className="hu2-catalog-control hu2-date-control">
             <span className="sr-only">Filtrar por mes</span>
-            <input
-              type="month"
+            <select
               aria-label="Filtrar por mes"
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
-              className="hu2-control-input"
-            />
+              className="hu2-control-input hu2-date-select"
+            >
+              <option value="">Todas las fechas</option>
+              {availableMonths.map((month) => (
+                <option key={month} value={month}>{formatEventMonth(month)}</option>
+              ))}
+            </select>
           </label>
 
           <label className="hu2-catalog-control hu2-sort-control">
@@ -173,7 +208,7 @@ export default function EventsCatalogPage({
         ) : (
           <>
             <p className="hu2-results-count">
-              {formatAvailableEventsCount(visibleEvents.length)}
+              {resultsLabel}
             </p>
             {visibleEvents.length > 0 ? (
               <div className="hu2-event-grid">

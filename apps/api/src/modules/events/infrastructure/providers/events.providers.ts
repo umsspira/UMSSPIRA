@@ -12,10 +12,15 @@ import { GetEventDraftUseCase } from '../../application/use-cases/get-event-draf
 import { CreateEventUseCase } from '../../application/use-cases/create-event.use-case';
 import { UpdateEventDraftUseCase } from '../../application/use-cases/update-event-draft.use-case';
 import { PublishEventDraftUseCase } from '../../application/use-cases/publish-event-draft.use-case';
+import { CancelPublishedEventUseCase } from '../../application/use-cases/cancel-published-event.use-case';
 import { DeleteEventCoverUseCase } from '../../application/use-cases/delete-event-cover.use-case';
 import { ReadEventCoverUseCase } from '../../application/use-cases/read-event-cover.use-case';
 import { UploadEventCoverUseCase } from '../../application/use-cases/upload-event-cover.use-case';
+import { RegisterEventUseCase } from '../../application/use-cases/register-event.use-case';
+import { GetEventParticipantsUseCase } from '../../application/use-cases/get-event-participants.use-case';
 
+import { ListInactiveEventsUseCase } from '../../application/use-cases/list-inactive-events.use-case';
+import { RetireEventUseCase } from '../../application/use-cases/retire-event.use-case';
 export const eventsProviders: Provider[] = [
   PrismaEventsRepository,
   { provide: EVENTS_REPOSITORY, useExisting: PrismaEventsRepository },
@@ -59,6 +64,21 @@ export const eventsProviders: Provider[] = [
     inject: [EVENTS_REPOSITORY],
     useFactory: (repository: EventsRepository) => new PublishEventDraftUseCase(repository),
   },
+ {
+    provide: RegisterEventUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new RegisterEventUseCase(repository),
+  },
+  {
+    provide: GetEventParticipantsUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new GetEventParticipantsUseCase(repository),
+  },
+  {
+    provide: CancelPublishedEventUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new CancelPublishedEventUseCase(repository),
+  },
   {
     provide: DeleteEventCoverUseCase,
     inject: [EVENTS_REPOSITORY],
@@ -73,5 +93,15 @@ export const eventsProviders: Provider[] = [
     provide: UploadEventCoverUseCase,
     inject: [EVENTS_REPOSITORY],
     useFactory: (repository: EventsRepository) => new UploadEventCoverUseCase(repository),
+  },
+  {
+    provide: ListInactiveEventsUseCase,
+    useFactory: (repository: EventsRepository) => new ListInactiveEventsUseCase(repository),
+    inject: [EVENTS_REPOSITORY],
+  },
+  {
+    provide: RetireEventUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new RetireEventUseCase(repository),
   },
 ];

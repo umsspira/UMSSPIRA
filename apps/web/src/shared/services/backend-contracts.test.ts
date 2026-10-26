@@ -1,7 +1,7 @@
 import { clearAccessToken, setAccessToken } from "./auth-session";
 import { getCompanyHeader } from "./companies";
 import { createJobPosting } from "./job-postings";
-import { getEventCatalog } from "./events-service";
+import { getEventCatalog, registerForEvent } from "./events-service";
 import { getGraduates } from "@/modules/reports/services/reports.service";
 import { createRegistrationSession } from "@/modules/registration/frontend/services/registration.service";
 
@@ -79,6 +79,34 @@ it("extrae data del catálogo público de eventos sin exigir sesión", async () 
 
   await expect(getEventCatalog()).resolves.toEqual(events);
   expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/events/catalog");
+});
+
+it("confirma la inscripción HU3 sin enviar un body inventado", async () => {
+  fetchMock.mockResolvedValue(response({ data: {
+    id: "registration-1", eventId: "event-1", status: "CONFIRMADA",
+    registeredAt: "2026-11-06T03:59:00.000Z", currentCapacity: 1,
+  } }));
+
+  await expect(registerForEvent("event-1")).resolves.toMatchObject({
+    status: "CONFIRMADA", currentCapacity: 1,
+  });
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/events/event-1/registrations");
+  expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: "POST" });
+  expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
+});
+
+it("conserva el código de negocio para mostrar errores HU3", async () => {
+  fetchMock.mockResolvedValue(response({
+    error: {
+      code: "EVENT_REGISTRATION_ALREADY_CONFIRMED",
+      message: "Ya existe una inscripción confirmada",
+    },
+  }, 409));
+
+  await expect(registerForEvent("event-1")).rejects.toMatchObject({
+    status: 409,
+    code: "EVENT_REGISTRATION_ALREADY_CONFIRMED",
+  });
 });
 
 it("adapta la paginación y los estados del reporte a los nombres de la pantalla", async () => {

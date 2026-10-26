@@ -8,7 +8,7 @@ interface ApiClientOptions
 }
 
 export class ApiClientError extends Error {
-  constructor(message: string, public readonly status: number) {
+  constructor(message: string, public readonly status: number, public readonly code?: string) {
     super(message);
     this.name = 'ApiClientError';
   }
@@ -45,11 +45,13 @@ async function apiRequest<TResponse>(
 
   if (!response.ok) {
     const message = getErrorMessage(responseData);
+    const errorCode = readApiError(responseData, '').code;
 
     throw new ApiClientError(
       message ??
         `La solicitud falló con el estado ${response.status}.`,
       response.status,
+      errorCode,
     );
   }
 

@@ -1,4 +1,4 @@
-import type { EventItem } from '@umsspira/shared-types';
+import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 import Link from 'next/link';
 import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
 
@@ -15,11 +15,23 @@ export function EventCard({
     event.startDate,
     event.endDate,
   );
+  const isFull = event.currentCapacity !== undefined
+    && event.currentCapacity >= event.maxCapacity;
+  const visualStatus = event.status === EVENT_STATUS.CANCELADO
+    ? EVENT_STATUS.CANCELADO
+    : isFull
+      ? 'SIN CUPOS'
+      : event.status;
+  const coverStateClass = visualStatus === EVENT_STATUS.CANCELADO
+    ? 'is-cancelled'
+    : visualStatus === 'SIN CUPOS'
+      ? 'is-full'
+      : '';
 
   return (
     <article className="hu2-event-card">
       <header
-        className={`hu2-event-cover ${event.imageUrl ? 'has-image' : ''}`}
+        className={`hu2-event-cover ${coverStateClass} ${event.imageUrl ? 'has-image' : ''}`}
         style={event.imageUrl ? {
           backgroundImage: `linear-gradient(90deg, rgba(22, 32, 44, .46), rgba(22, 32, 44, .1)), url("${event.imageUrl}")`,
           backgroundSize: 'cover',
@@ -51,6 +63,9 @@ export function EventCard({
             {event.title}
           </h2>
         </div>
+        <span className={`hu2-event-status is-${visualStatus.toLocaleLowerCase('es').replace(' ', '-')}`}>
+          {visualStatus}
+        </span>
       </header>
 
       <div className="hu2-event-card-body">

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import AffinityRadar from '@/shared/components/affinity-radar';
@@ -12,9 +12,15 @@ import { AffinitySkeleton } from './affinity-skeleton';
 import RadarInspection from './radar-inspection';
 import { VariationIndicator } from './variation-indicator';
 import { clampPercentage, formatPercentage } from '../utils/percentage';
+import { sortAreasByAffinityDesc } from '../utils/affinity-math';
 import affinityVectorMock from '../mocks/affinity-vector-mock.json';
 import { useRecalculateState } from '../hooks/use-recalculate-state';
-import { recalculateAffinity, getAffinityVector } from '../services/affinity-service';
+import { DEBOUNCE_MS } from '../hooks/use-debounced-batch';
+import {
+  recalculateAffinity,
+  getAffinityVector,
+  RECALCULATE_TIMEOUT_MS,
+} from '../services/affinity-service';
 import {
   AFFINITY_AREAS,
   AFFINITY_AREA_LABELS,
@@ -23,6 +29,8 @@ import {
 import { ArrowLeft, Tag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+const DEFAULT_RECALCULATE_TIMEOUT_MS = RECALCULATE_TIMEOUT_MS ?? 7000;
 
 // Formatea dinámicamente mes (3 letras) y año en español
 const formatCalculatedDate = (dateString?: string | null): string | null => {
@@ -85,10 +93,18 @@ const extractKeywords = (areas: CandidateArea[]): string[] =>
     .filter((area) => (area.evidence?.length ?? 0) > 0)
     .flatMap((area) => area.keywords ?? []);
 
-export const GraduateAffinityView: React.FC = () => {
+export interface GraduateAffinityViewProps {
+  enableSimulationControls?: boolean;
+}
+
+export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
+  enableSimulationControls,
+}) => {
+  const isSimulationControlsEnabled =
+    enableSimulationControls ??
+    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS === 'true';
+
   const router = useRouter();
-  // CA-HU7-25: los controles de simulación solo se muestran si se habilitan explícitamente
-  const isSimulationEnabled = process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS === 'true';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [profileState, setProfileState] = useState<'calculated' | 'customizing'>('calculated');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -112,55 +128,61 @@ export const GraduateAffinityView: React.FC = () => {
   ]);
   const [loadedKeywords, setLoadedKeywords] = useState<string[]>([]);
 
-  const isRecalculatingRef = useRef<boolean>(false);
+  const { hasPendingChanges, markPendingChanges, clearPendingChanges } = useRecalculateState();
+
+  const candidateAreasRef = useRef<CandidateArea[]>(candidateAreas);
+  const hasPendingChangesRef = useRef<boolean>(hasPendingChanges);
+  const hasRadarErrorRef = useRef<boolean>(hasRadarError);
+  const recalculateRequestIdRef = useRef<number>(0);
+  const autoRecalculateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const changeVersionRef = useRef<number>(0);
 
-  const { hasPendingChanges, markPendingChanges, clearPendingChanges } = useRecalculateState();
+  candidateAreasRef.current = candidateAreas;
+  hasPendingChangesRef.current = hasPendingChanges;
+  hasRadarErrorRef.current = hasRadarError;
 
   useEffect(() => {
     if (changeVersion === 0 || !hasPendingChanges) return;
     setIsPendingDialogOpen(true);
   }, [changeVersion, hasPendingChanges]);
 
-  useEffect(() => {
-    async function loadInitialVector() {
-      try {
-        setIsLoading(true);
-        const result = await getAffinityVector();
-        const processed = processVectorAreas(result.areas as any, mockAreas);
-        setCandidateAreas(processed);
-        setLoadedKeywords(extractKeywords(processed));
-        setHasValidRadar(true);
-        setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
-        setHasRadarError(false);
-      } catch {
-        setHasRadarError(true);
-      } finally {
-        setIsLoading(false);
-      }
+  const handleRecalculate = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
+    if (!force && !hasPendingChangesRef.current && !hasRadarErrorRef.current) return;
+
+    if (autoRecalculateTimerRef.current !== null) {
+      clearTimeout(autoRecalculateTimerRef.current);
+      autoRecalculateTimerRef.current = null;
     }
 
-    loadInitialVector();
-  }, []);
-
-  const handleRecalculate = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
-    if (isRecalculatingRef.current) return;
-    if (!force && !hasPendingChanges && !hasRadarError) return;
-
-    isRecalculatingRef.current = true;
+    const requestId = ++recalculateRequestIdRef.current;
     setIsLoading(true);
+    hasRadarErrorRef.current = false;
+    setHasRadarError(false);
     setIsPendingDialogOpen(false);
     const versionAtStart = changeVersionRef.current;
 
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('No se pudo actualizar tu radar'));
+      }, DEFAULT_RECALCULATE_TIMEOUT_MS);
+    });
+
     try {
-      const previousAreas = [...candidateAreas];
-      const result = await recalculateAffinity();
+      const previousAreas = [...candidateAreasRef.current];
+      const result = await Promise.race([recalculateAffinity(), timeoutPromise]);
+
+      if (requestId !== recalculateRequestIdRef.current) {
+        return;
+      }
 
       // CA-HU8-11: sin recálculo real se conserva la variación y la referencia anterior
       if (result.recalculated === false) {
         if (changeVersionRef.current === versionAtStart) {
+          hasPendingChangesRef.current = false;
           clearPendingChanges();
         }
+        hasRadarErrorRef.current = false;
         setHasRadarError(false);
         setIsSuccessToastOpen(true);
         return;
@@ -181,26 +203,93 @@ export const GraduateAffinityView: React.FC = () => {
       });
 
       setChangedAreaIds(modifiedIds);
+      candidateAreasRef.current = processed;
       setCandidateAreas(processed);
       setLoadedKeywords(extractKeywords(processed));
 
       if (changeVersionRef.current === versionAtStart) {
+        hasPendingChangesRef.current = false;
         clearPendingChanges();
       }
+      hasRadarErrorRef.current = false;
       setHasRadarError(false);
       setHasValidRadar(true);
       setIsSuccessToastOpen(true);
     } catch {
+      if (requestId !== recalculateRequestIdRef.current) {
+        return;
+      }
+      hasRadarErrorRef.current = true;
       setHasRadarError(true);
     } finally {
-      isRecalculatingRef.current = false;
-      setIsLoading(false);
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      if (requestId === recalculateRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [hasPendingChanges, hasRadarError, clearPendingChanges, candidateAreas]);
+  }, [clearPendingChanges]);
+
+  const scheduleDebouncedRecalculate = useCallback(() => {
+    if (autoRecalculateTimerRef.current !== null) {
+      clearTimeout(autoRecalculateTimerRef.current);
+    }
+    autoRecalculateTimerRef.current = setTimeout(() => {
+      autoRecalculateTimerRef.current = null;
+      void handleRecalculate({ force: true });
+    }, DEBOUNCE_MS);
+  }, [handleRecalculate]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadInitialVector() {
+      try {
+        setIsLoading(true);
+        const result = await getAffinityVector();
+        if (!isMounted) return;
+        const processed = processVectorAreas(result.areas as any, mockAreas);
+        candidateAreasRef.current = processed;
+        setCandidateAreas(processed);
+        setLoadedKeywords(extractKeywords(processed));
+        setHasValidRadar(true);
+        setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
+        hasRadarErrorRef.current = false;
+        setHasRadarError(false);
+
+        if ((result as { hasPendingChanges?: boolean }).hasPendingChanges) {
+          hasPendingChangesRef.current = true;
+          markPendingChanges();
+          scheduleDebouncedRecalculate();
+        }
+      } catch {
+        if (isMounted) {
+          hasRadarErrorRef.current = true;
+          setHasRadarError(true);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadInitialVector();
+
+    return () => {
+      isMounted = false;
+      if (autoRecalculateTimerRef.current !== null) {
+        clearTimeout(autoRecalculateTimerRef.current);
+        autoRecalculateTimerRef.current = null;
+      }
+    };
+  }, [markPendingChanges, scheduleDebouncedRecalculate]);
 
   const handleProfileChange = useCallback(() => {
     changeVersionRef.current += 1;
     setChangeVersion(changeVersionRef.current);
+    hasPendingChangesRef.current = true;
     markPendingChanges();
   }, [markPendingChanges]);
 
@@ -214,13 +303,19 @@ export const GraduateAffinityView: React.FC = () => {
 
   const triggerTimeoutSimulation = useCallback(async () => {
     setIsLoading(true);
+    hasRadarErrorRef.current = false;
     setHasRadarError(false);
-    await new Promise((resolve) => setTimeout(resolve, 7000));
+    await new Promise((resolve) => setTimeout(resolve, DEFAULT_RECALCULATE_TIMEOUT_MS));
+    hasRadarErrorRef.current = true;
     setHasRadarError(true);
     setIsLoading(false);
   }, []);
 
-  const isEmptyVector = candidateAreas.length === 0;
+  const isEmptyVector =
+    candidateAreas.length === 0 ||
+    candidateAreas.every(
+      (item) => (item.affinity ?? 0) === 0 && (!item.evidence || item.evidence.length === 0)
+    );
   const orderedCandidateAreas: CandidateArea[] = AFFINITY_AREAS.map((areaKey) => {
     const found = candidateAreas.find((item) => item.area === areaKey);
     return found || { area: areaKey, affinity: 0, evidence: [] };
@@ -241,13 +336,16 @@ export const GraduateAffinityView: React.FC = () => {
     evidence: item.evidence ?? getAreaEvidence(item, mockAreas),
   }));
 
-  // Top 3 áreas con evidencias y mayor afinidad
-  const topAffinityAreas = [...orderedCandidateAreas]
-    .filter((item) => {
-      const ev = item.evidence ?? getAreaEvidence(item, mockAreas);
-      return ev.length > 0 && item.affinity > 0;
-    })
-    .sort((a, b) => clampPercentage(b.affinity) - clampPercentage(a.affinity))
+  // Áreas con evidencias ordenadas de mayor a menor afinidad
+  const areasWithEvidence = orderedCandidateAreas.filter((item) => {
+    const ev = item.evidence ?? getAreaEvidence(item, mockAreas);
+    return ev.length > 0 && item.affinity > 0;
+  });
+
+  const sortedAffinityAreas = sortAreasByAffinityDesc(areasWithEvidence);
+
+  // Top 3 áreas con mayor afinidad identificadas (orden de mayor a menor)
+  const topAffinityAreas = sortedAffinityAreas
     .slice(0, 3)
     .map((item) => ({
       id: item.area,
@@ -315,6 +413,16 @@ export const GraduateAffinityView: React.FC = () => {
                     />
                   </div>
 
+                  {isLoading && hasValidRadar && !hasRadarError && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-oatmeal text-xs font-semibold text-abyssal-blue shadow-sm"
+                    >
+                      <span>Actualizando tu afinidad…</span>
+                    </div>
+                  )}
+
                   {hasValidRadar && isEmptyVector && (
                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center bg-white/40 backdrop-blur-[3px] rounded-xl border border-white/50 shadow-sm">
                       <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
@@ -341,12 +449,15 @@ export const GraduateAffinityView: React.FC = () => {
 
                   {hasRadarError && (
                     <div className="absolute inset-0 flex items-center justify-center p-4">
-                      <RadarErrorState onRetry={handleRecalculate} isRetrying={isLoading} />
+                      <RadarErrorState
+                        onRetry={() => handleRecalculate({ force: true })}
+                        isRetrying={isLoading}
+                      />
                     </div>
                   )}
                 </div>
 
-                {hasValidRadar && !hasRadarError && !isLoading && (topAffinityAreas.length > 0 || influentialKeywords.length > 0) && (
+                {hasValidRadar && !hasRadarError && !isLoading && !isEmptyVector && (topAffinityAreas.length > 0 || influentialKeywords.length > 0) && (
                   <div className="mt-6 bg-palladian rounded-xl border border-oatmeal/60 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
@@ -401,7 +512,7 @@ export const GraduateAffinityView: React.FC = () => {
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  {isSimulationEnabled && (
+                  {isSimulationControlsEnabled && (
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(true)}
@@ -418,7 +529,7 @@ export const GraduateAffinityView: React.FC = () => {
                     onRecalculate={handleRecalculate}
                   />
 
-                  {isSimulationEnabled && (
+                  {isSimulationControlsEnabled && (
                     <button
                       type="button"
                       onClick={triggerTimeoutSimulation}
@@ -437,7 +548,7 @@ export const GraduateAffinityView: React.FC = () => {
             </div>
 
             <div className="lg:col-span-5">
-              {hasValidRadar && (
+              {hasValidRadar && !isEmptyVector && (
                 <RadarInspection
                   selectedAreaId={selectedAreaId}
                   onSelectArea={setSelectedAreaId}
@@ -473,7 +584,7 @@ export const GraduateAffinityView: React.FC = () => {
       />
       <SuccessToast open={isSuccessToastOpen} onClose={handleCloseToast} />
       
-      {isSimulationEnabled && isModalOpen && (
+      {isSimulationControlsEnabled && isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div
             role="dialog" 
@@ -524,3 +635,4 @@ export const GraduateAffinityView: React.FC = () => {
 };
 
 export default GraduateAffinityView;
+

@@ -73,6 +73,7 @@ export function ApplicationDrawer({
         procedureMode: "Original",
         documentName: data.documentName || "documento",
         documentUrl: doc.ok ? doc.data.url : "",
+        documentFormat: data.documentFormat,
         checklist: [{ label: "Expediente recibido en la bandeja", checked: true }],
       });
       setIsLoading(false);
