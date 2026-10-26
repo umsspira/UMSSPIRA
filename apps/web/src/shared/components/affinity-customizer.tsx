@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Code, Database, Cloud, ShieldAlert, Lock, Target } from 'lucide-react';
-import { AFFINITY_AREAS, type AffinityArea } from '@umsspira/shared-types';
+import { AFFINITY_AREAS, type AffinityArea } from '@umsspira/shared-types/src/affinity';
 import { getAffinityConfig, type AffinityAxisConfig } from '../services/affinity-service';
 
 export const PROFILE_EDIT_ROUTE = '/ruta-epic2';
@@ -77,7 +77,10 @@ export const AffinityCustomizer: React.FC = () => {
               </div>
 
               {weight !== undefined && (
-                <span className="text-[13px] font-medium text-blue-fantastic">
+                <span
+                  data-testid={`ponderacion-${area}`}
+                  className="text-[13px] font-medium text-blue-fantastic"
+                >
                   Ponderación: {weight}
                 </span>
               )}

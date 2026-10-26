@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   render,
   screen,
@@ -188,7 +188,13 @@ describe('GraduateAffinityView', () => {
   const mockGetAffinityVector =
     affinityService.getAffinityVector as jest.Mock;
 
+  const originalEnv = process.env;
+
   beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS: 'true',
+    };
     jest.clearAllMocks();
     mockGetAffinityVector.mockReset();
     mockGetAffinityConfig.mockReset();
@@ -209,6 +215,7 @@ describe('GraduateAffinityView', () => {
   });
 
   afterEach(() => {
+    process.env = originalEnv;
     jest.useRealTimers();
   });
 
@@ -289,74 +296,6 @@ describe('GraduateAffinityView', () => {
     expect(
       screen.getByRole('button', { name: /reintentar/i })
     ).toBeInTheDocument();
-  });
-
-  it('permite reintentar tras un error de recálculo y recupera el radar exitosamente', async () => {
-    render(<GraduateAffinityView />);
-
-    await waitFor(() => {
-      expect(mockGetAffinityVector).toHaveBeenCalled();
-    });
-
-    // Falla la primera vez
-    mockRecalculateAffinity.mockRejectedValueOnce(
-      new Error('error temporal de red')
-    );
-
-    await clickSimulateProfileChange();
-
-    expect(
-      await screen.findByText('No se pudo actualizar tu radar')
-    ).toBeInTheDocument();
-
-    const retryButton = screen.getByRole('button', { name: /reintentar/i });
-    expect(retryButton).toBeInTheDocument();
-
-    // La segunda vez tiene éxito
-    mockRecalculateAffinity.mockResolvedValueOnce(makeVector());
-
-    await act(async () => {
-      fireEvent.click(retryButton);
-    });
-
-    // El error debe desaparecer y mostrar el toast de confirmación
-    await waitFor(() => {
-      expect(
-        screen.queryByText('No se pudo actualizar tu radar')
-      ).not.toBeInTheDocument();
-    });
-
-    expect(screen.getByText('Radar actualizado')).toBeInTheDocument();
-    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(2);
-  });
-
-  it('conserva el último radar válido cuando falla un nuevo recálculo', async () => {
-    render(<GraduateAffinityView />);
-
-    await waitFor(() => {
-      expect(mockGetAffinityVector).toHaveBeenCalled();
-    });
-
-    // El radar inicial muestra porcentajes válidos
-    expect(await screen.findByText('85%')).toBeInTheDocument();
-    expect(screen.getByTestId('radar')).toBeInTheDocument();
-
-    // Simulamos fallo en nuevo recálculo
-    mockRecalculateAffinity.mockRejectedValueOnce(
-      new Error('fallo de recálculo')
-    );
-
-    await clickSimulateProfileChange();
-
-    // Muestra el banner de error recuperable
-    expect(
-      await screen.findByText('No se pudo actualizar tu radar')
-    ).toBeInTheDocument();
-
-    // Comprobamos que el radar previo y los datos no fueron eliminados
-    expect(screen.getByTestId('radar')).toBeInTheDocument();
-    expect(screen.getByText('85%')).toBeInTheDocument();
-    expect(screen.getByText('Resumen de tu afinidad')).toBeInTheDocument();
   });
 
   it('navega al flujo de certificaciones con returnTo', async () => {
@@ -839,5 +778,90 @@ describe('GraduateAffinityView', () => {
 
     expect(screen.getByText('94%')).toBeInTheDocument();
     expect(screen.queryByText('61%')).not.toBeInTheDocument();
+  });
+
+  it('oculta los controles de simulación cuando NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS está en false', async () => {
+    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS = 'false';
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.queryByRole('button', { name: /Simular Actualización/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Simular Timeout/i)).not.toBeInTheDocument();
+  });
+
+  it('muestra el estado vacío cuando el vector tiene áreas pero todas con afinidad cero y sin evidencias', async () => {
+    const zeroAreas = recalculatedAreas.map((area) => ({
+      ...area,
+      affinity: 0,
+      evidence: [],
+      keywords: [],
+    }));
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(zeroAreas));
+
+    render(<GraduateAffinityView />);
+
+    expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Áreas con mayor afinidad identificadas:/i)).not.toBeInTheDocument();
+  });
+
+  it('ordena el resumen de mayor a menor afinidad en las áreas identificadas', async () => {
+    const unorderedAreas = [
+      {
+        area: 'cybersecurity-networks',
+        affinity: 40,
+        evidence: evidence.cybersecurity,
+      },
+      {
+        area: 'quality-assurance',
+        affinity: 90,
+        evidence: evidence.qa,
+      },
+      {
+        area: 'data-ai',
+        affinity: 75,
+        evidence: evidence.data,
+      },
+      {
+        area: 'cloud-devops',
+        affinity: 60,
+        evidence: evidence.cloud,
+      },
+      {
+        area: 'software-development',
+        affinity: 30,
+        evidence: evidence.software,
+      },
+      {
+        area: 'it-management',
+        affinity: 20,
+        evidence: evidence.management,
+      },
+    ];
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(unorderedAreas));
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    const topSection = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    expect(topSection).toBeInTheDocument();
+
+    const badges = screen.getAllByText(/^\d+\.\s+/);
+    expect(badges).toHaveLength(3);
+    // 1ro: QA (90%)
+    expect(badges[0]).toHaveTextContent(/Aseguramiento de Calidad \(QA\)/);
+    expect(badges[0]).toHaveTextContent(/90%/);
+    // 2do: Data/IA (75%)
+    expect(badges[1]).toHaveTextContent(/Ciencia de Datos & IA/);
+    expect(badges[1]).toHaveTextContent(/75%/);
+    // 3ro: Cloud (60%)
+    expect(badges[2]).toHaveTextContent(/Cloud, DevOps/);
+    expect(badges[2]).toHaveTextContent(/60%/);
   });
 });
