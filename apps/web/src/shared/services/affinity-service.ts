@@ -4,7 +4,7 @@ import {
   type AffinityArea,
   type AffinityVectorResponse,
   RADAR_AREA_IDS,
-} from '@umsspira/shared-types/src/affinity';
+} from '@umsspira/shared-types';
 
 import { apiClient, apiFetch } from './api-client';
 
@@ -222,3 +222,4 @@ export async function recalculateAffinity(): Promise<AffinityVectorResponse> {
     clearTimeout(timeoutId);
   }
 }
+
