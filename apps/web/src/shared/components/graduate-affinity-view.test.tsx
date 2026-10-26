@@ -826,31 +826,37 @@ describe('GraduateAffinityView', () => {
       {
         area: 'cybersecurity-networks',
         affinity: 40,
+        keywords: [],
         evidence: evidence.cybersecurity,
       },
       {
         area: 'quality-assurance',
         affinity: 90,
+        keywords: [],
         evidence: evidence.qa,
       },
       {
         area: 'data-ai',
         affinity: 75,
+        keywords: [],
         evidence: evidence.data,
       },
       {
         area: 'cloud-devops',
         affinity: 60,
+        keywords: [],
         evidence: evidence.cloud,
       },
       {
         area: 'software-development',
         affinity: 30,
+        keywords: [],
         evidence: evidence.software,
       },
       {
         area: 'it-management',
         affinity: 20,
+        keywords: [],
         evidence: evidence.management,
       },
     ];
