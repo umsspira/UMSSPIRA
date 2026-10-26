@@ -147,18 +147,27 @@ describe('Gestión administrativa de eventos HU1', () => {
   it('cancela un evento publicado tras confirmar y actualiza su estado', async () => {
     mockGetAdminEvents.mockResolvedValueOnce([publishedEvent]);
     mockCancelPublishedEvent.mockResolvedValueOnce({
-      ...publishedEvent,
-      status: EVENT_STATUS.CANCELADO,
+      event: {
+        ...publishedEvent,
+        status: EVENT_STATUS.CANCELADO,
+      },
+      registrationsCount: 1,
+      invalidatedPassesCount: 1,
     });
 
     render(<EventManagementContent userId="user-1" />);
 
     fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Acciones para ${publishedEvent.title}`,
+      }),
+    );
+    fireEvent.click(
       await screen.findByRole('button', { name: 'Cancelar evento' }),
     );
 
     const dialog = screen.getByRole('dialog', {
-      name: '¿Cancelar este evento?',
+      name: 'Cancelar evento publicado',
     });
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Confirmar cancelación' }),
@@ -188,11 +197,16 @@ describe('Gestión administrativa de eventos HU1', () => {
     render(<EventManagementContent userId="user-1" />);
 
     fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Acciones para ${publishedEvent.title}`,
+      }),
+    );
+    fireEvent.click(
       await screen.findByRole('button', { name: /^cancelar evento$/i }),
     );
 
     const dialog = screen.getByRole('dialog', {
-      name: '¿Cancelar este evento?',
+      name: 'Cancelar evento publicado',
     });
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Confirmar cancelación' }),
@@ -202,7 +216,7 @@ describe('Gestión administrativa de eventos HU1', () => {
       'No se pudo cancelar el evento.',
     );
     expect(screen.getByRole('dialog', {
-      name: '¿Cancelar este evento?',
+      name: 'Cancelar evento publicado',
     })).toBeInTheDocument();
     expect(mockCancelPublishedEvent).toHaveBeenCalledWith(
       'published-1',
@@ -210,13 +224,25 @@ describe('Gestión administrativa de eventos HU1', () => {
     );
   });
 
-  it('no muestra un affordance de menú sin acciones autorizadas', async () => {
+  it('muestra las acciones y participantes de un publicado dentro del menú', async () => {
     mockGetAdminEvents.mockResolvedValueOnce([publishedEvent]);
 
     render(<EventManagementContent userId="user-1" />);
 
-    const viewButton = await screen.findByRole('button', { name: /ver/i });
-    expect(viewButton.parentElement?.querySelectorAll('svg')).toHaveLength(1);
+    expect(
+      await screen.findByRole('button', {
+        name: `Acciones para ${publishedEvent.title}`,
+      }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Ver participantes' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', {
+      name: `Acciones para ${publishedEvent.title}`,
+    }));
+    expect(screen.getByRole('link', { name: 'Ver participantes' })).toHaveAttribute(
+      'href',
+      '/events/published-1/participants',
+    );
   });
 
   it('filtra los eventos por estado y mes elegidos', async () => {

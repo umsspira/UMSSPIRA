@@ -14,12 +14,13 @@ import {
   Archive,
   Check,
   Eye,
+  MoreVertical,
   Plus,
 } from 'lucide-react';
 import {
-  cancelPublishedEvent,
   getAdminEvents,
   getInactiveEvents,
+  cancelPublishedEvent,
   publishDraftEvent,
   retireEvent,
 } from '@/shared/services/events-service';
@@ -85,17 +86,22 @@ export function EventManagementContent({
   } = useAdminEvents(userId, !compact);
   const [pendingPublication, setPendingPublication] = useState<EventItem | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [publishedEventId, setPublishedEventId] = useState<string | null>(null);
-  const [pendingCancellation, setPendingCancellation] = useState<EventItem | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [cancellationError, setCancellationError] = useState<string | null>(null);
+  const [pendingCancellation, setPendingCancellation] = useState<EventItem | null>(null);
+  const [cancelledResult, setCancelledResult] = useState<{
+    event: EventItem;
+    registrationsCount: number;
+    invalidatedPassesCount: number;
+  } | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [openActionEventId, setOpenActionEventId] = useState<string | null>(null);
+  const [publishedEventId, setPublishedEventId] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-
   const filteredEvents = useMemo(() => {
     const normalizedSearch = searchFilter.trim().toLocaleLowerCase('es');
     return events.filter((event) => {
@@ -110,14 +116,12 @@ export function EventManagementContent({
       return matchesSearch && matchesMonth && matchesStatus;
     });
   }, [events, monthFilter, searchFilter, statusFilter]);
-
   const availableMonths = useMemo(
     () => Array.from(
       new Set(events.map((event) => getEventMonthKey(event.startDate))),
     ).sort(),
     [events],
   );
-
   const { publishedCount, draftCount } = useMemo(
     () => events.reduce(
       (counts, event) => ({
@@ -157,25 +161,17 @@ export function EventManagementContent({
     }
   };
 
-  const confirmCancellation = async () => {
-    if (!pendingCancellation || !userId) return;
-
+  const cancelEvent = async () => {
+    if (!userId || !pendingCancellation) return;
     setIsCancelling(true);
-    setCancellationError(null);
-
+    setCancelError(null);
     try {
-      const cancelledEvent = await cancelPublishedEvent(
-        pendingCancellation.id,
-        userId,
-      );
-      setEvents((currentEvents) =>
-        currentEvents.map((event) =>
-          event.id === cancelledEvent.id ? cancelledEvent : event,
-        ),
-      );
+      const result = await cancelPublishedEvent(pendingCancellation.id, userId);
+      setEvents((current) => current.map((item) => item.id === result.event.id ? result.event : item));
       setPendingCancellation(null);
+      setCancelledResult(result);
     } catch (error) {
-      setCancellationError(getRequestErrorMessage(error));
+      setCancelError(getRequestErrorMessage(error));
     } finally {
       setIsCancelling(false);
     }
@@ -188,9 +184,14 @@ export function EventManagementContent({
           <h1>Gestión de eventos</h1>
           <p>Administra los eventos universitarios de la comunidad UMSSPIRA.</p>
         </div>
-        <Link href="/events/create" className="event-button event-button-primary events-create-button">
-          <Plus size={16} /> Crear evento
-        </Link>
+        <div className="events-title-actions">
+          <Link href="/events/inactive" className="event-button event-button-secondary events-inactive-button">
+            Eventos inactivos
+          </Link>
+          <Link href="/events/create" className="event-button event-button-primary events-create-button">
+            <Plus size={16} /> Crear evento
+          </Link>
+        </div>
       </div>
 
       <EventAdminTabs active="management" />
@@ -274,13 +275,6 @@ export function EventManagementContent({
               <span className="event-capacity">{event.maxCapacity}</span>
               <StatusChip status={event.status} />
               <div className={`event-row-actions ${event.status === EVENT_STATUS.PUBLICADO ? 'is-published' : 'is-draft'}`}>
-                <Link
-                  href={`/events/${encodeURIComponent(event.id)}/participants`}
-                  className="event-button event-button-secondary hu8-participants-link"
-                >
-                  Ver participantes
-                </Link>
-
                 {event.status === EVENT_STATUS.PUBLICADO ? (
                   <>
                     <button
@@ -290,17 +284,25 @@ export function EventManagementContent({
                     >
                       <Eye size={15} aria-hidden="true" /> Ver
                     </button>
-                    <button
-                      type="button"
-                      className="event-button event-button-secondary event-action-cancel"
-                      onClick={() => {
-                        setCancellationError(null);
-                        setPendingCancellation(event);
-                      }}
-                      disabled={isCancelling}
-                    >
-                      Cancelar evento
-                    </button>
+                    <div className="event-actions-menu">
+                      <button
+                        type="button"
+                        aria-label={`Acciones para ${event.title}`}
+                        aria-expanded={openActionEventId === event.id}
+                        onClick={() => setOpenActionEventId((current) => current === event.id ? null : event.id)}
+                      >
+                        <MoreVertical size={17} aria-hidden="true" />
+                      </button>
+                      {openActionEventId === event.id ? (
+                        <div className="event-actions-popover">
+                          <strong>{event.title}</strong>
+                          <small>Acciones del evento</small>
+                          <button type="button" onClick={() => router.push(`/events/${event.id}/edit`)}>Editar evento</button>
+                          <Link href={`/events/${encodeURIComponent(event.id)}/participants`} className="event-actions-item">Ver participantes</Link>
+                          <button type="button" className="is-danger" disabled={isCancelling} onClick={() => { setOpenActionEventId(null); setCancelError(null); setPendingCancellation(event); }}>Cancelar evento</button>
+                        </div>
+                      ) : null}
+                    </div>
                   </>
                 ) : event.status === EVENT_STATUS.BORRADOR ? (
                   <>
@@ -335,20 +337,25 @@ export function EventManagementContent({
         />
       ) : null}
 
-      {pendingCancellation ? (
-        <EventCancellationDialog
-          event={toEventSummary(pendingCancellation)}
-          isSubmitting={isCancelling}
-          errorMessage={cancellationError}
-          onCancel={() => setPendingCancellation(null)}
-          onConfirm={() => void confirmCancellation()}
-        />
-      ) : null}
-
       {publishedEventId ? (
         <EventSuccessDialog
           eventId={publishedEventId}
           onBack={() => setPublishedEventId(null)}
+        />
+      ) : null}
+
+      {pendingCancellation ? (
+        <EventCancelDialog
+          event={pendingCancellation}
+          isSubmitting={isCancelling}
+          errorMessage={cancelError}
+          onCancel={() => { if (!isCancelling) setPendingCancellation(null); }}
+          onConfirm={() => void cancelEvent()}
+        />
+      ) : null}
+      {cancelledResult ? (
+        <EventCancelledDialog
+          result={cancelledResult}
         />
       ) : null}
     </main>
@@ -643,8 +650,7 @@ function useInactiveEvents(userId: string | undefined) {
   };
 }
 
-function Metric({ value, label, mobileLabel, tone }: { value: number; label: string; mobileLabel?: string; tone: string }) {
-  return (
+function Metric({ value, label, mobileLabel, tone }: { value: number; label: string; mobileLabel?: string; tone: string }) {  return (
     <article className={`event-metric is-${tone}`}>
       <span className="metric-accent" />
       <strong>{value}</strong>
@@ -792,57 +798,63 @@ export function EventConfirmDialog({
   );
 }
 
-export function EventCancellationDialog({
+export function EventCancelDialog({
   event,
   isSubmitting,
   errorMessage,
   onCancel,
   onConfirm,
 }: {
-  event: EventSummary;
+  event: EventItem;
   isSubmitting: boolean;
   errorMessage: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const registrationsCount = event.currentCapacity ?? 0;
   return (
     <div className="event-modal-layer" role="presentation">
-      <section
-        className="event-confirm-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="cancel-event-title"
-      >
-        <h2 id="cancel-event-title">¿Cancelar este evento?</h2>
-        {errorMessage ? <div className="event-feedback" role="alert">{errorMessage}</div> : null}
-        <p>
-          El evento dejará de estar publicado y sus pases QR vigentes
-          serán invalidados. Esta acción no se puede deshacer desde aquí.
-        </p>
-        <div className="event-confirm-summary">
-          <div>
-            <strong>{event.title}</strong>
-            <span>{event.dateLabel}</span>
-            <span>Ubicación: {event.location || 'Por definir'}</span>
-          </div>
+      <section className="event-cancel-dialog" role="dialog" aria-modal="true" aria-labelledby="cancel-event-title">
+        <h2 id="cancel-event-title">Cancelar evento publicado</h2>
+        <p>La acción impedirá nuevas inscripciones y afectará las inscripciones y pases asociados.</p>
+        <div className="event-cancel-summary">
+          <strong>{event.title} · {registrationsCount} {registrationsCount === 1 ? 'inscripción' : 'inscripciones'}</strong>
+          <ul>
+            <li>El evento pasará a estado CANCELADO.</li>
+            <li>Las inscripciones dejarán de ser participaciones vigentes.</li>
+            <li>Los pases QR vigentes quedarán invalidados.</li>
+            <li>Se conservará el registro para trazabilidad.</li>
+          </ul>
         </div>
+        {errorMessage ? <p className="event-cancel-error" role="alert">{errorMessage}</p> : null}
         <div className="event-dialog-actions">
-          <button
-            type="button"
-            className="event-button event-button-secondary"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            Volver
-          </button>
-          <button
-            type="button"
-            className="event-button event-button-primary"
-            onClick={onConfirm}
-            disabled={isSubmitting}
-          >
+          <button type="button" className="event-button event-button-secondary" onClick={onCancel} disabled={isSubmitting}>No cancelar</button>
+          <button type="button" className="event-button event-button-primary" onClick={onConfirm} disabled={isSubmitting}>
             {isSubmitting ? 'Cancelando…' : 'Confirmar cancelación'}
           </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function EventCancelledDialog({
+  result,
+}: {
+  result: { event: EventItem; registrationsCount: number; invalidatedPassesCount: number };
+}) {
+  return (
+    <div className="event-modal-layer" role="presentation">
+      <section className="event-success-dialog" role="dialog" aria-modal="true" aria-labelledby="event-cancelled-title">
+        <span className="event-success-icon"><Check size={40} strokeWidth={3} /></span>
+        <h2 id="event-cancelled-title">Evento cancelado</h2>
+        <p>{result.event.title} fue retirado del catálogo activo y se conservará su trazabilidad.</p>
+        <div className="event-cancel-result-counts">
+          <span>{result.registrationsCount} {result.registrationsCount === 1 ? 'inscripción afectada' : 'inscripciones afectadas'}</span>
+          <span>{result.invalidatedPassesCount} {result.invalidatedPassesCount === 1 ? 'pase invalidado' : 'pases invalidados'}</span>
+        </div>
+        <div className="event-dialog-actions">
+          <Link href="/events/inactive" className="event-button event-button-primary">Retirar del activo</Link>
         </div>
       </section>
     </div>
