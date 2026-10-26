@@ -11,6 +11,7 @@ import { GetDraftDocumentController } from './http/controllers/get-draft-documen
 import { Module } from '@nestjs/common';
 import { RenewActivationController } from './http/controllers/renew-activation.controller';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
+import { REGISTRATION_SECURITY } from './application/ports/registration-security.port';
 import { AuthModule } from '../auth/auth.module';
 import { registrationsProviders } from './infrastructure/providers/registrations.providers';
 import { SmtpOutboxWorker } from './infrastructure/notifications/smtp-outbox.worker';
@@ -66,6 +67,6 @@ import { GetApplicationMetricsController } from './http/controllers/get-applicat
     TrustedOriginGuard,
     CorrectionTokenGuard,
   ],
-  exports: [CorrectionTokenService, CorrectionTokenGuard, ObservedApplicationService],
+  exports: [REGISTRATION_SECURITY, CorrectionTokenService, CorrectionTokenGuard, ObservedApplicationService],
 })
 export class RegistrationsModule {}

@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { validateEnvironment } from './config/environment';
 import { PrismaModule } from './shared/infrastructure/database/prisma.module';
 import { HealthController } from './shared/http/controllers/health.controller';
+import { RootController } from './shared/http/controllers/root.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { JobPostingsModule } from './modules/job-postings/job-postings.module';
@@ -36,6 +37,6 @@ import { ChatModule } from './modules/chat/chat.module';
     RadarModule,
     ChatModule,
   ],
-  controllers: [HealthController],
+  controllers: [RootController, HealthController],
 })
 export class AppModule {}

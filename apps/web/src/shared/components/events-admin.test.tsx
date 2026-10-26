@@ -154,15 +154,14 @@ describe('Gestión administrativa de eventos HU1', () => {
     render(<EventManagementContent userId="user-1" />);
 
     fireEvent.click(
-      await screen.findByRole('button', { name: /^cancelar evento$/i }),
+      await screen.findByRole('button', { name: 'Cancelar evento' }),
     );
 
-    expect(
-      screen.getByRole('dialog', { name: /cancelar este evento/i }),
-    ).toBeInTheDocument();
-
+    const dialog = screen.getByRole('dialog', {
+      name: '¿Cancelar este evento?',
+    });
     fireEvent.click(
-      screen.getByRole('button', { name: /sí, cancelar evento/i }),
+      within(dialog).getByRole('button', { name: 'Confirmar cancelación' }),
     );
 
     await waitFor(() => {

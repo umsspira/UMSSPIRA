@@ -73,6 +73,7 @@ describe('Mentorías y reportería: contratos HTTP y autorización', () => {
   let app: INestApplication;
   const mentors = {
     directory: jest.fn(),
+    detail: jest.fn(),
     eligible: jest.fn(),
     own: jest.fn(),
     participate: jest.fn(),
@@ -131,7 +132,24 @@ describe('Mentorías y reportería: contratos HTTP y autorización', () => {
     mentors.own.mockResolvedValue(mentor);
     mentors.participate.mockResolvedValue(mentor);
     mentors.deactivate.mockResolvedValue({ ...mentor, active: false });
-    mentors.directory.mockResolvedValue([{ mentor, areas: [], availability: null }]);
+    mentors.directory.mockResolvedValue({
+      entries: [
+        { mentor, areas: [], interests: [], availability: 'DISPONIBLE', cargo: null, empresa: null },
+      ],
+      total: 1,
+      catalog: [],
+    });
+    mentors.detail.mockResolvedValue({
+      mentor,
+      areas: [{ id: careerId, name: 'Backend' }],
+      interests: [],
+      availability: 'DISPONIBLE',
+      canRequest: true,
+      schedules: [1, 2, 3, 4, 5, 6, 7].map((weekday) => ({ weekday, start: '00:00', end: '23:59' })),
+      bookings: [],
+      position: 'Backend Developer',
+      company: null,
+    });
     reports.metrics.mockResolvedValue({
       totalApplications: 2,
       approvedApplications: 1,
@@ -144,13 +162,93 @@ describe('Mentorías y reportería: contratos HTTP y autorización', () => {
   });
   afterAll(async () => app?.close());
 
-  it('publica únicamente la información pública del directorio', async () => {
+  it('protege el directorio y publica únicamente la información pública paginada', async () => {
+    await request(app.getHttpServer()).get('/api/v1/mentorship/profiles').expect(401);
+
     const response = await request(app.getHttpServer())
       .get('/api/v1/mentorship/profiles')
+      .set('Authorization', 'Bearer graduate')
+      .query({ offset: 0, limit: 6 })
       .expect(200);
     expect(response.body.data[0].nombre).toBe(graduate.name);
+    expect(response.body.total).toBe(1);
+    expect(response.body.catalog).toEqual([]);
     expect(JSON.stringify(response.body)).not.toContain('Dato reservado');
     expect(JSON.stringify(response.body)).not.toContain(graduate.id);
+    expect(mentors.directory).toHaveBeenCalledWith({ offset: 0, limit: 6 });
+  });
+
+  it('valida paginación y rechaza métodos de escritura para el directorio', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/mentorship/profiles')
+      .set('Authorization', 'Bearer graduate')
+      .query({ offset: -1 })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/mentorship/profiles')
+      .set('Authorization', 'Bearer graduate')
+      .expect(405);
+  });
+  it('exige sesión para consultar el perfil detallado de un mentor', async () => {
+    await request(app.getHttpServer()).get(`/api/v1/mentorship/profiles/${mentorId}`).expect(401);
+    expect(mentors.detail).not.toHaveBeenCalled();
+  });
+  it('entrega el perfil detallado sin datos privados', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/mentorship/profiles/${mentorId.toUpperCase()}`)
+      .set('Authorization', 'Bearer graduate')
+      .expect(200);
+    const day = expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/);
+    expect(mentors.detail).toHaveBeenCalledWith(mentorId, day, day);
+    const { slots, weekLabel, ...profile } = response.body.data;
+    expect(profile).toEqual({
+      id: mentorId,
+      fullName: graduate.name,
+      photoUrl: null,
+      jobTitle: 'Backend Developer',
+      company: null,
+      about: 'Mentora',
+      experience: 'Desarrollo de software',
+      relevantInfo: 'Dato reservado',
+      technicalAreas: ['Backend'],
+      interests: [],
+      availability: 'AVAILABLE',
+    });
+    expect(weekLabel).toMatch(/^Del \d{1,2}( [a-z]{3})? al \d{1,2} [a-z]{3} · sesiones de 1 hora$/);
+    expect(slots.length).toBeGreaterThanOrEqual(6);
+    for (const slot of slots) {
+      expect(slot.date).toEqual(day);
+      expect(slot.dayLabel).toMatch(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo) \d{1,2} [a-z]{3}$/);
+      expect(slot.times.every((time: string) => /^\d{2}:\d{2}$/.test(time))).toBe(true);
+    }
+    const body = JSON.stringify(response.body);
+    expect(body).not.toContain(graduate.id);
+    expect(body).not.toContain(mentor.graduateId);
+    expect(body).not.toContain(graduate.email);
+  });
+  it('rechaza identificadores inválidos y responde 404 si el perfil no está disponible', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/mentorship/profiles/no-es-uuid')
+      .set('Authorization', 'Bearer graduate')
+      .expect(400);
+    expect(mentors.detail).not.toHaveBeenCalled();
+    mentors.detail.mockResolvedValue(null);
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/mentorship/profiles/${randomUUID()}`)
+      .set('Authorization', 'Bearer graduate')
+      .expect(404);
+    expect(response.body.error.code).toBe('MENTOR_NOT_FOUND');
+  });
+  it('no expone acciones de escritura sobre el perfil detallado', async () => {
+    for (const method of ['post', 'put', 'patch', 'delete'] as const) {
+      const response = await request(app.getHttpServer())
+        [method](`/api/v1/mentorship/profiles/${mentorId}`)
+        .set('Authorization', 'Bearer graduate');
+      expect(response.status).toBe(404);
+    }
+    expect(mentors.detail).not.toHaveBeenCalled();
+    expect(mentors.updateInformation).not.toHaveBeenCalled();
   });
   it('exige sesión y permiso para gestionar la participación', async () => {
     await request(app.getHttpServer())
