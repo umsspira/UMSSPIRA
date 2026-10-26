@@ -8,7 +8,7 @@ import {
   meetsPasswordPolicy,
   PASSWORD_MAX_LENGTH,
   PASSWORD_POLICY_MESSAGE,
-} from '../../domain/policies/password.policy';
+} from '../../../../shared/security/policies/password.policy';
 
 export const registrationIdSchema = z.uuid();
 const nameSchema = z
