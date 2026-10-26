@@ -499,13 +499,20 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
   });
 
   it('permite al administrador cancelar un evento publicado', async () => {
-    events.cancelPublished.mockResolvedValue({ ...event, status: 'CANCELADO' });
+    events.cancelPublished.mockResolvedValue({
+      event: { ...event, status: 'CANCELADO' },
+      registrationsCount: 1,
+      invalidatedPassesCount: 1,
+    });
 
-    await request(app.getHttpServer())
+    const response = await request(app.getHttpServer())
       .patch('/api/v1/events/' + eventId + '/cancel')
       .set('Authorization', 'Bearer admin')
       .expect(200);
 
+    expect(response.body.data.event.status).toBe('CANCELADO');
+    expect(response.body.data.registrationsCount).toBe(1);
+    expect(response.body.data.invalidatedPassesCount).toBe(1);
     expect(events.cancelPublished).toHaveBeenCalledWith(admin.id, eventId);
   });
 
