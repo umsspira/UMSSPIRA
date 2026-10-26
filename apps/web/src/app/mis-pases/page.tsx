@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-// Ruta corregida a la carpeta de componentes compartidos
-import { Navbar } from "@/shared/components/navbar";
+// Import con minúscula tal como lo exige tu proyecto
+import { Navbar } from "@/shared/components/navbar"; 
 import { EventPassCard } from "@/modules/events/components/EventPassCard";
 import { apiClient } from "@/shared/services/api-client";
 
@@ -12,7 +12,7 @@ interface PassData {
   eventId: string;
   userId: string;
   qrToken: string;
-  status: "VALID" | "INVALID" | "ERROR" | "RECOVERED";
+  status: "VALID" | "INVALID" | "ERROR" | "RECOVERED" | "ACTIVO";
   isValidForAccess: boolean;
   issuedAt: string;
   eventDetails?: {
@@ -47,27 +47,36 @@ export default function MyPassesPage() {
     void fetchPasses();
   }, []);
 
+  // Pantalla de carga usando los colores del manual
   if (loading) {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen flex items-center justify-center bg-[#EEE9DF]">
-          <p className="font-sans text-[#1B2632] font-semibold">Cargando tus pases...</p>
+        <div className="min-h-screen flex items-center justify-center bg-palladian">
+          <p className="font-sans text-abyssal-blue font-semibold text-[14px]">
+            Cargando tus pases...
+          </p>
         </div>
       </>
     );
   }
 
+  // Pantalla principal aplicando el sistema tipográfico
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[#EEE9DF] p-4 md:p-8">
+      <div className="min-h-screen bg-palladian p-4 md:p-8 font-sans">
         <div className="max-w-4xl mx-auto space-y-8">
-          <h1 className="font-serif text-3xl font-bold text-[#1B2632] mb-8">
+          
+          {/* Título de Sección H1 Oficial (Inter, Bold, 32px) */}
+          <h1 className="font-sans font-bold text-[32px] leading-[40px] text-abyssal-blue mb-8">
             Mis Credenciales
           </h1>
+          
           {passes.length === 0 ? (
-            <p className="font-sans text-[#1B2632]">No tienes pases generados actualmente.</p>
+            <p className="font-sans text-abyssal-blue text-[14px]">
+              No tienes pases generados actualmente.
+            </p>
           ) : (
             passes.map((pass) => (
               <EventPassCard
