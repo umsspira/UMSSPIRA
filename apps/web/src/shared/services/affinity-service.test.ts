@@ -243,6 +243,41 @@ describe('recalculateAffinity', () => {
     expect(result.calculatedAt).toBeDefined();
   });
 
+  it('conserva previousAffinity y recalculated de la respuesta real', async () => {
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
+    await setTestAccessToken();
+
+    const payload = {
+      graduateId: 'id-1',
+      calculatedAt: '2026-09-28T12:00:00.000Z',
+      recalculated: false,
+      areas: [
+        {
+          area: 'software-development',
+          affinity: 83,
+          previousAffinity: 75,
+          topKeywords: ['React', 'TypeScript'],
+        },
+      ],
+    };
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: payload }),
+    });
+
+    const { recalculateAffinity } = await import('./affinity-service');
+    const result = await recalculateAffinity();
+
+    expect(result.recalculated).toBe(false);
+    expect(result.areas[0]).toMatchObject({
+      area: 'software-development',
+      affinity: 83,
+      previousAffinity: 75,
+    });
+  });
+
   it('aborta a los 7000 ms y lanza el mensaje exacto del criterio', async () => {
     process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
     await setTestAccessToken();
