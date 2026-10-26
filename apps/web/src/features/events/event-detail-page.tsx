@@ -296,9 +296,12 @@ export default function EventDetailPage({
               <button type="button" className="hu3-result-action" disabled title="Disponible al integrar HU9">
                 Ver mis eventos
               </button>
-              <button type="button" className="hu3-result-action hu3-result-action-primary" disabled title="Disponible al integrar HU10">
+              <Link
+                href="/mis-pases"
+                className="hu3-result-action hu3-result-action-primary"
+              >
                 Ver pase QR
-              </button>
+              </Link>
             </div>
           </section>
         </div>
