@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import AffinityRadar from '@/shared/components/affinity-radar';
@@ -11,6 +11,7 @@ import { SuccessToast } from './success-toast';
 import { AffinitySkeleton } from './affinity-skeleton';
 import RadarInspection, { AREA_NAMES_MAP } from './radar-inspection';
 import { formatPercentage } from '../utils/percentage';
+import { sortAreasByAffinityDesc } from '../utils/affinity-math';
 import affinityVectorMock from '../mocks/affinity-vector-mock.json';
 import { useRecalculateState } from '../hooks/use-recalculate-state';
 import { DEBOUNCE_MS } from '../hooks/use-debounced-batch';
@@ -85,7 +86,17 @@ const extractKeywords = (areas: CandidateArea[]): string[] =>
     .filter((area) => (area.evidence?.length ?? 0) > 0)
     .flatMap((area) => area.keywords ?? []);
 
-export const GraduateAffinityView: React.FC = () => {
+export interface GraduateAffinityViewProps {
+  enableSimulationControls?: boolean;
+}
+
+export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
+  enableSimulationControls,
+}) => {
+  const isSimulationControlsEnabled =
+    enableSimulationControls ??
+    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS === 'true';
+
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [profileState, setProfileState] = useState<'calculated' | 'customizing'>('calculated');
@@ -280,7 +291,11 @@ export const GraduateAffinityView: React.FC = () => {
     setIsLoading(false);
   }, []);
 
-  const isEmptyVector = candidateAreas.length === 0;
+  const isEmptyVector =
+    candidateAreas.length === 0 ||
+    candidateAreas.every(
+      (item) => (item.affinity ?? 0) === 0 && (!item.evidence || item.evidence.length === 0)
+    );
   const orderedCandidateAreas: CandidateArea[] = AFFINITY_AREAS.map((areaKey) => {
     const found = candidateAreas.find((item) => item.area === areaKey);
     return found || { area: areaKey, affinity: 0, evidence: [] };
@@ -300,13 +315,16 @@ export const GraduateAffinityView: React.FC = () => {
     evidence: item.evidence ?? getAreaEvidence(item, mockAreas),
   }));
 
-  // Top 3 áreas con evidencias y mayor afinidad
-  const topAffinityAreas = [...orderedCandidateAreas]
-    .filter((item) => {
-      const ev = item.evidence ?? getAreaEvidence(item, mockAreas);
-      return ev.length > 0 && item.affinity > 0;
-    })
-    .sort((a, b) => b.affinity - a.affinity)
+  // Áreas con evidencias ordenadas de mayor a menor afinidad
+  const areasWithEvidence = orderedCandidateAreas.filter((item) => {
+    const ev = item.evidence ?? getAreaEvidence(item, mockAreas);
+    return ev.length > 0 && item.affinity > 0;
+  });
+
+  const sortedAffinityAreas = sortAreasByAffinityDesc(areasWithEvidence);
+
+  // Top 3 áreas con mayor afinidad identificadas (orden de mayor a menor)
+  const topAffinityAreas = sortedAffinityAreas
     .slice(0, 3)
     .map((item) => ({
       id: item.area,
@@ -417,7 +435,7 @@ export const GraduateAffinityView: React.FC = () => {
                   )}
                 </div>
 
-                {hasValidRadar && !hasRadarError && !isLoading && (topAffinityAreas.length > 0 || influentialKeywords.length > 0) && (
+                {hasValidRadar && !hasRadarError && !isLoading && !isEmptyVector && (topAffinityAreas.length > 0 || influentialKeywords.length > 0) && (
                   <div className="mt-6 bg-palladian rounded-xl border border-oatmeal/60 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
@@ -465,14 +483,16 @@ export const GraduateAffinityView: React.FC = () => {
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(true)}
-                    aria-label="Simular actualización del radar"
-                    className="h-11 px-4 rounded-lg border border-oatmeal bg-white text-blue-fantastic text-sm font-semibold hover:bg-palladian transition-colors flex items-center justify-center"
-                  >
-                    Simular Actualización
-                  </button>
+                  {isSimulationControlsEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(true)}
+                      aria-label="Simular actualización del radar"
+                      className="h-11 px-4 rounded-lg border border-oatmeal bg-white text-blue-fantastic text-sm font-semibold hover:bg-palladian transition-colors flex items-center justify-center"
+                    >
+                      Simular Actualización
+                    </button>
+                  )}
 
                   <RecalculateButton
                     hasPendingChanges={hasPendingChanges}
@@ -480,24 +500,26 @@ export const GraduateAffinityView: React.FC = () => {
                     onRecalculate={handleRecalculate}
                   />
 
-                  <button
-                    type="button"
-                    onClick={triggerTimeoutSimulation}
-                    className="min-h-[44px] px-3.5 py-1.5 border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer select-none"
-                  >
-                    <span className="text-xs font-bold text-red-600 leading-tight">
-                      Simular Timeout
-                    </span>
-                    <span className="text-[11px] font-medium text-red-500 leading-tight mt-0.5">
-                      (7s) [Demo Sprint 1]
-                    </span>
-                  </button>
+                  {isSimulationControlsEnabled && (
+                    <button
+                      type="button"
+                      onClick={triggerTimeoutSimulation}
+                      className="min-h-[44px] px-3.5 py-1.5 border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer select-none"
+                    >
+                      <span className="text-xs font-bold text-red-600 leading-tight">
+                        Simular Timeout
+                      </span>
+                      <span className="text-[11px] font-medium text-red-500 leading-tight mt-0.5">
+                        (7s) [Demo Sprint 1]
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="lg:col-span-5">
-              {hasValidRadar && (
+              {hasValidRadar && !isEmptyVector && (
                 <RadarInspection
                   selectedAreaId={selectedAreaId}
                   onSelectArea={setSelectedAreaId}
@@ -533,7 +555,7 @@ export const GraduateAffinityView: React.FC = () => {
       />
       <SuccessToast open={isSuccessToastOpen} onClose={handleCloseToast} />
       
-      {isModalOpen && (
+      {isSimulationControlsEnabled && isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div
             role="dialog" 
