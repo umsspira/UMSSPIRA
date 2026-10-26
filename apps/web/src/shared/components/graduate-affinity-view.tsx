@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import AffinityRadar from '@/shared/components/affinity-radar';
