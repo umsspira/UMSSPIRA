@@ -291,6 +291,74 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
   });
 
+  it('permite reintentar tras un error de recálculo y recupera el radar exitosamente', async () => {
+    render(<GraduateAffinityView />);
+
+    await waitFor(() => {
+      expect(mockGetAffinityVector).toHaveBeenCalled();
+    });
+
+    // Falla la primera vez
+    mockRecalculateAffinity.mockRejectedValueOnce(
+      new Error('error temporal de red')
+    );
+
+    await clickSimulateProfileChange();
+
+    expect(
+      await screen.findByText('No se pudo actualizar tu radar')
+    ).toBeInTheDocument();
+
+    const retryButton = screen.getByRole('button', { name: /reintentar/i });
+    expect(retryButton).toBeInTheDocument();
+
+    // La segunda vez tiene éxito
+    mockRecalculateAffinity.mockResolvedValueOnce(makeVector());
+
+    await act(async () => {
+      fireEvent.click(retryButton);
+    });
+
+    // El error debe desaparecer y mostrar el toast de confirmación
+    await waitFor(() => {
+      expect(
+        screen.queryByText('No se pudo actualizar tu radar')
+      ).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Radar actualizado')).toBeInTheDocument();
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(2);
+  });
+
+  it('conserva el último radar válido cuando falla un nuevo recálculo', async () => {
+    render(<GraduateAffinityView />);
+
+    await waitFor(() => {
+      expect(mockGetAffinityVector).toHaveBeenCalled();
+    });
+
+    // El radar inicial muestra porcentajes válidos
+    expect(await screen.findByText('85%')).toBeInTheDocument();
+    expect(screen.getByTestId('radar')).toBeInTheDocument();
+
+    // Simulamos fallo en nuevo recálculo
+    mockRecalculateAffinity.mockRejectedValueOnce(
+      new Error('fallo de recálculo')
+    );
+
+    await clickSimulateProfileChange();
+
+    // Muestra el banner de error recuperable
+    expect(
+      await screen.findByText('No se pudo actualizar tu radar')
+    ).toBeInTheDocument();
+
+    // Comprobamos que el radar previo y los datos no fueron eliminados
+    expect(screen.getByTestId('radar')).toBeInTheDocument();
+    expect(screen.getByText('85%')).toBeInTheDocument();
+    expect(screen.getByText('Resumen de tu afinidad')).toBeInTheDocument();
+  });
+
   it('navega al flujo de certificaciones con returnTo', async () => {
     render(<GraduateAffinityView />);
 
