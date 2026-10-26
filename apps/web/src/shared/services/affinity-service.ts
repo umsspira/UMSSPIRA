@@ -3,6 +3,7 @@ import {
   AFFINITY_AREAS,
   type AffinityArea,
   type AffinityVectorResponse,
+  RADAR_AREA_IDS,
 } from '@umsspira/shared-types/src/affinity';
 
 import { apiClient, apiFetch } from './api-client';
@@ -10,11 +11,11 @@ import { apiClient, apiFetch } from './api-client';
 import affinityVectorMock from '../mocks/affinity-vector-mock.json';
 import affinityConfigMock from '../mocks/affinity-config-mock.json';
 import affinitySnapshotsMock from '../mocks/affinity-snapshots-mock.json';
-import { RADAR_AREA_IDS } from '@umsspira/shared-types/src/affinity';
 
 const AREA_BY_ID = Object.fromEntries(
   Object.entries(RADAR_AREA_IDS).map(([area, id]) => [id, area]),
 ) as Record<string, AffinityArea>;
+
 const AFFINITY_ENDPOINT = '/api/v1/radar';
 const AFFINITY_CALCULATE_ENDPOINT = '/affinity/calculate';
 const RADAR_RECALCULATE_ENDPOINT = '/api/v1/radar/recalculate';
@@ -40,6 +41,12 @@ interface RadarApiResponse {
   areas: RadarApiArea[];
 }
 
+type MockAreaWithEvidence = {
+  area: AffinityArea;
+  keywords?: string[];
+  evidence?: unknown[];
+};
+
 function normalizeArea(area: string): AffinityArea | undefined {
   if (AFFINITY_AREAS.includes(area as AffinityArea)) {
     return area as AffinityArea;
@@ -52,28 +59,29 @@ function adaptRadarResponse(
   response: RadarApiResponse,
 ): AffinityVectorResponse {
   const mockAreas = new Map(
-    (affinityVectorMock as AffinityVectorResponse).areas.map((area) => [
-      area.area,
-      area,
-    ]),
+    (
+      affinityVectorMock.areas as MockAreaWithEvidence[]
+    ).map((area) => [area.area, area]),
   );
 
   const areas = response.areas
     .map((area) => {
       const normalizedArea = normalizeArea(area.area);
 
-      if (!normalizedArea) return undefined;
+      if (!normalizedArea) {
+        return undefined;
+      }
 
       const mockArea = mockAreas.get(normalizedArea);
 
       return {
-        ...mockArea,
         area: normalizedArea,
         affinity: area.affinity,
         keywords: (area.topKeywords ?? []).map((keyword) =>
           typeof keyword === 'string' ? keyword : keyword.term,
         ),
-     };
+        evidence: mockArea?.evidence ?? [],
+      };
     })
     .filter((area) => area !== undefined)
     .sort(
@@ -87,7 +95,6 @@ function adaptRadarResponse(
     areas,
   } as AffinityVectorResponse;
 }
-
 
 export const RECALCULATE_TIMEOUT_MS = 7000;
 
@@ -105,9 +112,6 @@ export interface AffinityConfigPayload {
   axes: AffinityAxisConfig[];
 }
 
-/**
- * Ordena los ejes segÃºn las seis Ã¡reas definidas en el proyecto.
- */
 function orderConfigAxes(
   payload: AffinityConfigPayload,
 ): AffinityConfigPayload {
@@ -126,23 +130,16 @@ function orderConfigAxes(
   return { axes };
 }
 
-/**
- * Obtiene el vector de afinidad del usuario.
- */
-
 export async function getAffinityVector(): Promise<AffinityVectorResponse> {
   if (USE_AFFINITY_MOCK) {
     return affinityVectorMock as AffinityVectorResponse;
   }
 
   const response = await apiFetch<RadarApiResponse>(AFFINITY_ENDPOINT);
+
   return adaptRadarResponse(response);
 }
 
-
-/**
- * Conserva la funciÃ³n de cÃ¡lculo existente por compatibilidad.
- */
 export async function calculateAffinityVector(): Promise<AffinityVectorResponse> {
   if (USE_AFFINITY_MOCK) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -159,9 +156,6 @@ export async function calculateAffinityVector(): Promise<AffinityVectorResponse>
   );
 }
 
-/**
- * Obtiene la configuraciÃ³n de los ejes.
- */
 export async function getAffinityConfig(): Promise<AffinityConfigPayload> {
   const payload = USE_AFFINITY_MOCK
     ? (affinityConfigMock as AffinityConfigPayload)
@@ -172,9 +166,6 @@ export async function getAffinityConfig(): Promise<AffinityConfigPayload> {
   return orderConfigAxes(payload);
 }
 
-/**
- * Guarda la configuraciÃ³n de afinidad.
- */
 export async function saveAffinityConfig(
   config: AffinityConfigPayload,
 ): Promise<void> {
@@ -183,16 +174,9 @@ export async function saveAffinityConfig(
     return;
   }
 
-  await apiClient.post<void>(
-    AFFINITY_CONFIG_ENDPOINT,
-    config,
-  );
+  await apiClient.post<void>(AFFINITY_CONFIG_ENDPOINT, config);
 }
 
-/**
- * Recalcula el radar mediante el endpoint de backend.
- * Mantiene el mock para desarrollo sin backend.
- */
 export async function recalculateAffinity(): Promise<AffinityVectorResponse> {
   if (USE_AFFINITY_MOCK) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -217,15 +201,14 @@ export async function recalculateAffinity(): Promise<AffinityVectorResponse> {
 
   try {
     const response = await apiFetch<RadarApiResponse>(
-  RADAR_RECALCULATE_ENDPOINT,
-  {
-    method: 'POST',
-    signal: controller.signal,
-  },
-);
+      RADAR_RECALCULATE_ENDPOINT,
+      {
+        method: 'POST',
+        signal: controller.signal,
+      },
+    );
 
-return adaptRadarResponse(response);
-
+    return adaptRadarResponse(response);
   } catch (error) {
     if (
       controller.signal.aborted ||
@@ -236,7 +219,6 @@ return adaptRadarResponse(response);
 
     throw error;
   } finally {
-
     clearTimeout(timeoutId);
   }
 }
