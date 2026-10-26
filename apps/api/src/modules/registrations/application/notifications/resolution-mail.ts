@@ -30,7 +30,7 @@ export function buildResolutionMail(input: ResolutionMailInput): ResolutionMail 
     if (!input.code) {
       throw new Error('Un dictamen aprobado requiere el código de activación');
     }
-    const webOrigin = process.env.WEB_ORIGIN || 'http://localhost:3001';
+    const webOrigin = process.env.WEB_BASE_URL || process.env.WEB_ORIGIN || 'http://localhost:3001';
     const activationLink = input.activationUrl
       ? input.activationUrl
       : `${webOrigin}/activate?applicationId=${input.applicationId}`;
@@ -49,7 +49,7 @@ export function buildResolutionMail(input: ResolutionMailInput): ResolutionMail 
         'Número de solicitud: ' + input.applicationId,
         '',
         'El código tiene 6 dígitos, vence en 24 horas y se invalida tras 5 intentos incorrectos.',
-        'Si vence, pide uno nuevo a la administración de tu carrera.',
+        'Si vence, solicita uno nuevo con Reenviar código en la pantalla de activación.',
         '',
         'Equipo UMSSPIRA',
       ].join('\n'),

@@ -31,7 +31,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginResult>
 }
 
 export function getRedirectPath(role: UserRole): string {
-  if (role === 'administrador') return '/applications';
+  if (role === 'administrador') return '/reports';
   if (role === 'empresa') return '/companies';
   if (role === 'titulado') return '/portal';
   return '/me';

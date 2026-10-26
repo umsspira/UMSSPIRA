@@ -26,6 +26,7 @@ export type Application = {
   procedureMode: string;
   documentName: string;
   documentUrl: string;
+  documentFormat?: string;
   checklist: ChecklistItem[];
 };
 
@@ -226,20 +227,30 @@ export function ApplicationDetail({ application }: Props) {
           </p>
         </div>
 
-        <div className="flex min-h-[260px] flex-1 items-center justify-center rounded-lg border border-[#2C3B4D] bg-[#2C3B4D]/40 p-4 text-center text-[13px] leading-5 text-[#C9C1B1]">
-          Vista previa del documento
-          <br />
-          (fase 2: URL firmada de 5 minutos)
+        <div className="flex min-h-[260px] flex-1 items-center justify-center overflow-hidden rounded-lg bg-white text-center text-sm text-[#1B2632]">
+          {!application.documentUrl ? (
+            <p role="alert" className="p-6">No se pudo obtener el documento. Cierra y vuelve a abrir el expediente para reintentar.</p>
+          ) : /^(image\/(png|jpeg)|png|jpe?g)$/i.test(application.documentFormat ?? '') || /\.(png|jpe?g)$/i.test(application.documentName) ? (
+            // eslint-disable-next-line @next/next/no-img-element -- URL temporal del documento privado del expediente.
+            <img src={application.documentUrl} alt={`Documento adjunto: ${application.documentName}`}
+              className="max-h-[600px] w-full object-contain" />
+          ) : (
+            <object data={application.documentUrl} type="application/pdf"
+              aria-label={`Documento adjunto: ${application.documentName}`}
+              className="h-[600px] w-full">
+              <p className="p-6">Tu navegador no pudo mostrar el PDF aquí. Puedes abrirlo con el botón inferior.</p>
+            </object>
+          )}
         </div>
 
-        <a
+        {application.documentUrl && <a
           href={application.documentUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-4 inline-flex h-11 items-center justify-center rounded-lg bg-[#FFB162] px-6 text-[14px] font-bold text-[#1B2632]"
         >
           Abrir documento en otra pestaña
-        </a>
+        </a>}
       </section>
     </div>
   );

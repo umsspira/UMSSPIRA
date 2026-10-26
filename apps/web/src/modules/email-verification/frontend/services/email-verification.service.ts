@@ -134,7 +134,7 @@ export class EmailVerificationService {
         message: 'Código reenviado con éxito',
         maskedEmail: resData?.maskedEmail,
         cooldownSeconds: resData?.resendAvailableInSeconds || 30,
-        expiresInSeconds: resData?.expiresInSeconds || 600,
+        expiresInSeconds: resData?.expiresInSeconds || 300,
       };
     } catch {
       return {

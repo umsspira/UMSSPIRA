@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { CurrentActor } from '../../../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../../../shared/http/auth/decorators/require-permissions.decorator';
+import { Roles } from '../../../../shared/http/auth/decorators/roles.decorator';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
 import type { z } from 'zod';
@@ -9,6 +10,7 @@ import { reportMetricsSchema } from '../schemas/reports.schemas';
 import { presentMetrics } from '../presenters/report.presenter';
 
 @Controller('reports')
+@Roles('administrador')
 export class GetReportMetricsController {
   constructor(private readonly useCase: GetReportMetricsUseCase) {}
 

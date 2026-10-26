@@ -1,3 +1,4 @@
+import { reserveActivationResend } from './activation-resend';
 import { applicationTotalPages } from '../../domain/policies/application-pagination.policy';
 import { Injectable } from '@nestjs/common';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
@@ -54,13 +55,14 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             'La solicitud no existe o no está a tu cargo',
           );
         }
-        if (row.estado !== 'APROBADA' || row.activada_en) {
+        if (!['APROBADA', 'APPROVED'].includes(row.estado ?? '') || row.activada_en) {
           throw new BusinessRuleError(
             'conflict',
             'ACTIVATION_NOT_ALLOWED',
             'Solo se reenvía la activación de una solicitud aprobada sin cuenta activa',
           );
         }
+        await reserveActivationResend(tx, id);
         await tx.solicitud.update({
           where: { id },
           data: {
@@ -276,6 +278,7 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
           data: { contenido: encryptedMail, expira_en: new Date(Date.now() + 86400000) },
         });
         await tx.correoTramite.create({
+          select: { id: true },
           data: {
             id_solicitud: id,
             id_dictamen: review.id,
@@ -306,7 +309,7 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM solicitud WHERE id = ${id}::uuid FOR UPDATE`;
         const row = await tx.solicitud.findUnique({ where: { id } });
-        if (!row || row.estado !== 'APROBADA' || row.activada_en || !row.activacion_hash) {
+        if (!row || !['APROBADA', 'APPROVED'].includes(row.estado ?? '') || row.activada_en || !row.activacion_hash) {
           return { result: 'invalid' };
         }
         if (!row.activacion_expira_en || row.activacion_expira_en.getTime() <= Date.now()) {
@@ -321,7 +324,7 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             where: { id },
             data: { activacion_intentos: { increment: 1 } },
           });
-          return { result: 'invalid' };
+          return { result: row.activacion_intentos + 1 >= 5 ? 'locked' : 'invalid' };
         }
         return { result: 'verified', binding: row.activacion_hash };
       },
@@ -341,7 +344,7 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
           where: { id },
           include: { detalle_solicitud: true },
         });
-                if (!row || row.estado !== 'APROBADA') {
+                if (!row || !['APROBADA', 'APPROVED'].includes(row.estado ?? '')) {
           return 'invalid';
         }
         if (row.activada_en) {
