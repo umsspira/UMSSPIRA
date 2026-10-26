@@ -1,6 +1,10 @@
 import type {
   CreateEventDto,
+  EventParticipantsDto,
+  EventRegistrationItem,
   EventItem,
+  InactiveEventItem,
+  RetiredEventItem,
   UpdateDraftEventDto,
 } from '@umsspira/shared-types';
 
@@ -50,6 +54,13 @@ export async function getEventCatalog(): Promise<EventItem[]> {
 export async function getPublishedEvent(eventId: string): Promise<EventItem> {
   return (await apiClient<{ data: EventItem }>(
     `/api/v1/events/${encodeURIComponent(eventId)}`,
+  )).data;
+}
+
+export async function registerForEvent(eventId: string): Promise<EventRegistrationItem> {
+  return (await apiClient<{ data: EventRegistrationItem }>(
+    `/api/v1/events/${encodeURIComponent(eventId)}/registrations`,
+    { method: 'POST', authenticated: true },
   )).data;
 }
 
@@ -165,6 +176,43 @@ export async function cancelPublishedEvent(
     },
   )).data;
 }
+export async function getEventParticipants(
+  eventId: string,
+  userId?: string,
+): Promise<EventParticipantsDto> {
+  requireUserId(userId, 'consultar los participantes');
+  return (await apiClient<{ data: EventParticipantsDto }>(
+    `/api/v1/events/owned/${encodeURIComponent(eventId)}/participants`,
+    { authenticated: true },
+  )).data;
+}
+
+// --- FUNCIONES RESTAURADAS ---
+
+export async function getInactiveEvents(
+  userId?: string,
+): Promise<InactiveEventItem[]> {
+  requireUserId(userId, 'consultar los eventos inactivos');
+  return (await apiClient<{ data: InactiveEventItem[] }>('/api/v1/events/inactive', {
+    authenticated: true,
+  })).data;
+}
+
+export async function retireEvent(
+  eventId: string,
+  userId?: string,
+): Promise<RetiredEventItem> {
+  requireUserId(userId, 'retirar el evento');
+  return (await apiClient<{ data: RetiredEventItem }>(
+    `/api/v1/events/inactive/${encodeURIComponent(eventId)}/retire`,
+    {
+      method: 'PATCH',
+      authenticated: true,
+    },
+  )).data;
+}
+
+// -----------------------------
 
 function requireUserId(
   userId: string | undefined,

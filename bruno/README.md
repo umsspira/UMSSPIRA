@@ -1,6 +1,6 @@
 # UMSSPIRA en Bruno
 
-Esta colección contiene 71 peticiones, una por operación HTTP existente. Los archivos se agrupan por módulo o responsabilidad. Se utilizan manualmente desde Bruno; no contienen scripts, captura de variables, assertions ni casos de prueba adicionales.
+Esta colección contiene 79 peticiones, una por operación HTTP existente. Los archivos se agrupan por módulo o responsabilidad. Se utilizan manualmente desde Bruno; la carpeta NLP incluye scripts de prueba para validar el contrato de `POST /api/v1/nlp/extract`. El resto de las peticiones no contiene scripts ni captura de variables.
 
 ## Abrir la colección
 
@@ -27,8 +27,9 @@ Los cuerpos contienen datos de ejemplo editables. Las referencias `{{variable}}`
 | Empresas   |          3 | Perfil de la empresa autenticada                                  |
 | Vacantes   |          1 | Publicación de vacante por empresa                                |
 | Mentorias  |         16 | Perfil y participación del mentor; gestión administrativa         |
-| Eventos    |         11 | Catálogo público y gestión de eventos propios                     |
+| Eventos    |         12 | Catálogo público, gestión propia e inscripción de Titulados       |
 | Reportes   |          5 | Indicadores y exportaciones por carreras autorizadas              |
+| NLP        |          8 | Extracción de keywords con casos 200, 400, 401 y 403              |
 
 `folder.bru` ordena la carpeta; cada archivo numerado representa un endpoint. Las instrucciones particulares están en la pestaña Docs de la petición.
 
@@ -47,6 +48,10 @@ Se sigue la distribución del ejemplo Bruno2: variables compartidas en collectio
 | Reportes/folder.bru  | reportStatus                                                                                                                         |
 
 Las otras carpetas utilizan los valores compartidos. Por ejemplo, Empresas y Vacantes usan el mismo companyId; Registro y Backoffice comparten applicationId. No se duplica accessToken en las peticiones ni se utiliza una segunda variable auth.
+
+## Carpeta NLP
+
+`NLP` usa `{{accessToken}}` y el mismo `baseUrl` del resto de la colección. Ejecuta `001-extract-keywords` con un token de titulado o administrador. Para el caso 403, copia temporalmente el token de `empresa@umss.edu.bo`; para el 401, `002-sin-token` no envía Authorization. Los casos 400 cubren texto de 5001 caracteres, campo extra y `text` que no es cadena. No se guardan tokens reales en los archivos.
 
 ## Variables de autenticación
 
@@ -138,7 +143,7 @@ Para mentorías, activa la participación del titulado antes de gestionar áreas
 | eventCoverFilePath | Ruta local a una portada JPG, PNG o WebP                            |
 | eventStartDate     | Fecha inicial ISO con zona horaria, como 2027-01-20T09:00:00-04:00  |
 | eventEndDate       | Fecha final ISO posterior al inicio, como 2027-01-20T18:00:00-04:00 |
-| reportStatus       | PENDING, APPROVED, OBSERVED o REJECTED                              |
+| reportStatus       | PENDIENTE, APROBADA, OBSERVADA o RECHAZADA                              |
 
 Crear evento trae estado BORRADOR. Si quieres utilizar una portada cargada, agrega al body de creación o edición:
 

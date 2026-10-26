@@ -65,15 +65,29 @@ export async function ensureAccessToken(): Promise<string> {
 }
 
 export async function authenticatedFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  const token = getAccessToken() ?? await ensureAccessToken();
-  const send = (value: string) => {
+  const method = (init.method ?? 'GET').toUpperCase();
+  const isReadOnly = ['GET', 'HEAD', 'OPTIONS'].includes(method);
+  const send = (value?: string) => {
     const headers = Object.fromEntries(new Headers(init.headers).entries());
     delete headers.authorization;
     return fetch(url, {
       ...init,
-      headers: { ...headers, Authorization: `Bearer ${value}` },
+      ...(!value ? { credentials: init.credentials ?? 'same-origin' } : {}),
+      headers: {
+        ...headers,
+        ...(value ? { Authorization: `Bearer ${value}` } : {}),
+      },
     });
   };
+
+  let token = getAccessToken();
+  if (!token && !csrfToken()) {
+    if (!isReadOnly) throw new SessionError(401, 'Inicia sesión para continuar');
+    const cookieResponse = await send();
+    if (cookieResponse.status !== 401) return cookieResponse;
+    throw new SessionError(401, 'Inicia sesión para continuar');
+  }
+  token ??= await ensureAccessToken();
   const response = await send(token);
   if (response.status !== 401) return response;
   const current = getAccessToken();

@@ -11,7 +11,7 @@ import { ActivityPanel } from './activity-panel';
 import { NavbarSearch } from './search-dialog';
 import type { NavbarProps } from './types';
 import styles from './navbar.module.css';
-
+import { MessagesButton } from './messages-button';
 const unchangedHref = (href: string) => href;
 
 /** Contenido real de la barra. Usa useSearchParams, por eso debe ir dentro de <Suspense>. */
@@ -97,9 +97,13 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
       </nav>
       <div className={styles.actions} aria-label="Acciones de cuenta">
         <button type="button" className={styles.iconButton} aria-label="Buscar en la plataforma" onClick={startSearch}><Search size={22} strokeWidth={1.8} /></button>
-        {session ? <>
-          {([{ id: 'messages', label: 'Mensajes', Icon: MessageSquare, items: messages }, { id: 'notifications', label: 'Notificaciones', Icon: Bell, items: notifications }] as const).map(({ id, label, Icon, items }) => <div className={`${styles.actionDropdown} ${id === 'messages' ? styles.messageAction : ''}`} key={id}>
-            <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={opened === id} aria-controls={panelId(id)} onClick={event => toggle(id, event.currentTarget)}><Icon size={22} strokeWidth={1.8} />{items.some(item => item.unread) && <span className={styles.badge} aria-label="Hay elementos sin leer" />}</button>
+                {session ? <>
+          {/* HU-09: Botón de mensajes independiente */}
+          <MessagesButton />
+          
+          {/* Mapeo solo para Notificaciones (HU-10 se encargará de los mensajes) */}
+          {([{ id: 'notifications', label: 'Notificaciones', Icon: Bell, items: notifications }] as const).map(({ id, label, Icon, items }) => <div className={styles.actionDropdown} key={id}>
+           <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={opened === id} aria-controls={panelId(id)} onClick={event => toggle(id, event.currentTarget)}><Icon size={22} strokeWidth={1.8} />{items.some(item => item.unread) && <span className={styles.badge} aria-label="Hay elementos sin leer" />}</button>
             {opened === id && <div className={styles.activityPopover} id={panelId(id)} onKeyDown={moveFocus}><ActivityPanel kind={id} items={[...items]} resolveHref={resolveHref} onNavigate={close} /></div>}
           </div>)}
           <span className={styles.separator} aria-hidden="true" />

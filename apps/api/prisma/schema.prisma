@@ -59,6 +59,10 @@ model Usuario {
   mensaje_registros                   Mensaje[]                  @relation("mensaje_emisor_id_usuario")
   mensaje_estado_registros            MensajeEstado[]            @relation("mensaje_estado_usuario_id_usuario")
 
+  password_reset_token_registros      PasswordResetToken[]
+  password_reset_solicitud_registros  PasswordResetSolicitud[]
+  password_reset_evento_registros     PasswordResetEvento[]
+
   @@map("usuario")
 }
 
@@ -854,6 +858,7 @@ model Solicitud {
   token_subsanacion_registros  TokenSubsanacion[]
   correo_tramite_registros     CorreoTramite[]
   auditoria_dictamen_registros AuditoriaDictamen[]
+  control_reenvio_otp          ControlReenvioOtp?
 
   @@map("solicitud")
 }
@@ -966,6 +971,7 @@ model OtpActivacion {
   solicitud Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: NoAction)
 
   @@index([id_solicitud, consumido, invalidado, expira_en])
+  @@index([id_solicitud, created_at(sort: Desc)], map: "ix_otp_solicitud_fecha")
   @@map("otp_activacion")
 }
 
@@ -995,17 +1001,23 @@ model CorreoTramite {
   estado               String    @default("pendiente") @db.VarChar(20)
   intentos             Int       @default(0) @db.SmallInt
   ultimo_error         String?   @db.Text
-  proveedor_id         String?   @db.VarChar
   fecha_envio          DateTime? @db.Timestamptz(6)
   fecha_ultimo_intento DateTime? @db.Timestamptz(6)
   created_at           DateTime  @default(now()) @db.Timestamptz(6)
   updated_at           DateTime  @default(now()) @db.Timestamptz(6)
+  max_intentos          Int       @default(3) @db.SmallInt
+  siguiente_intento_en  DateTime  @default(now()) @db.Timestamptz(6)
+  clave_evento          String?   @db.VarChar(200)
 
   solicitud Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: NoAction)
   dictamen  Dictamen? @relation(fields: [id_dictamen], references: [id], onDelete: NoAction)
 
+
+
   @@index([id_solicitud, created_at])
   @@index([id_dictamen])
+  @@index([estado, siguiente_intento_en, created_at], map: "idx_correo_cola")
+  @@index([id_solicitud, created_at(sort: Desc)], map: "idx_correo_solicitud")
   @@map("correo_tramite")
 }
 
@@ -1093,6 +1105,7 @@ model PalabraClaveNoMapeada {
 
   titulado Titulado @relation(fields: [id_titulado], references: [id], onDelete: NoAction)
 
+  @@unique([id_titulado, termino])
   @@index([id_titulado, fecha_deteccion])
   @@map("palabra_clave_no_mapeada")
 }
@@ -1101,6 +1114,7 @@ model CalculoRadar {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_titulado       String   @db.Uuid
   version_algoritmo String   @db.VarChar
+  hash_entrada      String?  @db.VarChar(64)
   estado            String   @db.VarChar
   fecha_calculo     DateTime @default(now()) @db.Timestamptz(6)
 
@@ -1112,11 +1126,12 @@ model CalculoRadar {
 }
 
 model AfinidadRadar {
-  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_calculo_radar String  @db.Uuid
-  id_area          String  @db.Uuid
-  puntaje          Decimal @db.Decimal
-  porcentaje       Decimal @db.Decimal
+  id                 String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_calculo_radar   String  @db.Uuid
+  id_area            String  @db.Uuid
+  puntaje            Decimal @db.Decimal
+  porcentaje         Decimal @db.Decimal(5, 2)
+  palabras_clave_top Json?
 
   calculo_radar CalculoRadar @relation(fields: [id_calculo_radar], references: [id], onDelete: NoAction)
   area          Area         @relation(fields: [id_area], references: [id], onDelete: NoAction)
@@ -1213,4 +1228,107 @@ model MensajeEstado {
   usuario Usuario? @relation("mensaje_estado_usuario_id_usuario", fields: [usuario_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "mensaje_estado_usuario_id_fkey")
 
   @@map("mensaje_estado")
+}
+
+model RespuestaEncuesta {  
+  id               String   @id @default(uuid()) @db.Uuid
+  idEncuesta       String   @map("id_encuesta") @db.Uuid
+  idTitulado       String   @map("id_titulado") @db.Uuid
+  condicionLaboral String   @map("condicion_laboral")
+  cargo            String?  @db.VarChar(150)
+  empresa          String?  @db.VarChar(200)
+  area             String?  @db.VarChar(150)
+  modalidad        String?
+  salarioMensual   String?  @map("salario_mensual") @db.VarChar(30)
+  tiempoInsercion  String?  @map("tiempo_insercion") @db.VarChar(40)
+  fechaEnvio       DateTime @default(now()) @map("fecha_envio")
+
+  @@unique([idEncuesta, idTitulado], name: "uq_respuesta_encuesta_titulado")
+  @@map("respuesta_encuesta")
+}
+
+//
+// Recuperación de contraseña (HU-12)
+//
+
+model PasswordResetToken {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario  String    @db.Uuid
+  token_hash  String    @unique @db.Text
+  expira_en   DateTime  @db.Timestamptz(6)
+  usado_en    DateTime? @db.Timestamptz(6)
+  revocado    Boolean   @default(false)
+  creado_en   DateTime  @default(now()) @db.Timestamptz(6)
+
+  usuario     Usuario               @relation(fields: [id_usuario], references: [usuario_id], onDelete: Cascade, onUpdate: NoAction)
+  correos     PasswordResetCorreo[]
+
+  @@index([id_usuario, creado_en(sort: Desc)], map: "idx_prt_usuario")
+  @@map("password_reset_token")
+}
+
+model PasswordResetSolicitud {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  correo_normalizado  String   @db.VarChar(255)
+  origen_hash         String   @db.VarChar(64)
+  usuario_id          String?  @db.Uuid
+  resultado           String   @default("solicitado") @db.VarChar(30)
+  creado_en           DateTime @default(now()) @db.Timestamptz(6)
+
+  usuario             Usuario? @relation(fields: [usuario_id], references: [usuario_id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([correo_normalizado, creado_en(sort: Desc)], map: "idx_prs_correo_ventana")
+  @@index([origen_hash, creado_en(sort: Desc)], map: "idx_prs_origen_ventana")
+  @@map("password_reset_solicitud")
+}
+
+model PasswordResetEvento {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id          String?  @db.Uuid
+  correo_normalizado  String?  @db.VarChar(255)
+  tipo                String   @db.VarChar(30)
+  metadata            Json?    @db.JsonB
+  creado_en           DateTime @default(now()) @db.Timestamptz(6)
+
+  usuario             Usuario? @relation(fields: [usuario_id], references: [usuario_id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([usuario_id, creado_en(sort: Desc)], map: "idx_pre_usuario")
+  @@index([correo_normalizado, creado_en(sort: Desc)], map: "idx_pre_correo")
+  @@map("password_reset_evento")
+}
+
+model PasswordResetCorreo {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_token              String    @db.Uuid
+  email_destino         String    @db.VarChar(255)
+  asunto                String    @db.VarChar(255)
+  cuerpo                String?   @db.Text
+  estado                String    @default("pendiente") @db.VarChar(20)
+  intentos              Int       @default(0) @db.SmallInt
+  max_intentos          Int       @default(3) @db.SmallInt
+  siguiente_intento_en  DateTime  @default(now()) @db.Timestamptz(6)
+  smtp_message_id       String?   @db.VarChar(255)
+  ultimo_error          String?   @db.Text
+  fecha_envio           DateTime? @db.Timestamptz(6)
+  creado_en             DateTime  @default(now()) @db.Timestamptz(6)
+  actualizado_en        DateTime  @default(now()) @db.Timestamptz(6)
+
+  token                 PasswordResetToken @relation(fields: [id_token], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_token], map: "uq_prc_un_correo_por_token")
+  @@index([estado, siguiente_intento_en], map: "idx_prc_pendientes") 
+  @@map("password_reset_correo")
+}
+
+model ControlReenvioOtp {
+  id_solicitud        String    @id @db.Uuid
+  generaciones_ciclo  Int       @default(0) @db.SmallInt
+  nivel_bloqueo       Int       @default(0) @db.SmallInt
+  enfriamiento_hasta  DateTime? @db.Timestamptz(6)
+  bloqueado_hasta     DateTime? @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  solicitud           Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("control_reenvio_otp")
 }

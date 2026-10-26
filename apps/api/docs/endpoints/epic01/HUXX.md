@@ -20,6 +20,10 @@
 - `POST /api/v1/applications/:id/review` — dictaminar · permiso: `solicitudes:review`.
 - `POST /api/v1/applications/:id/activation` — reenviar activación · permiso: `solicitudes:review`.
 - `POST /api/v1/registrations/activate` — establecer contraseña y activar cuenta aprobada.
+- `GET /api/v1/registrations/observed/access` — validar acceso con token de corrección.
+- `POST /api/v1/registrations/observed/request-link` — solicitar nuevo enlace de corrección por C.I.
+- `GET /api/v1/registrations/observed` — obtener datos del expediente observado · header: `X-Correction-Token`.
+- `PATCH /api/v1/registrations/observed` — actualizar datos con control de versión optimista · header: `X-Correction-Token`.
 
 ## Autenticación
 
@@ -153,7 +157,7 @@ Formatos PDF, PNG o JPG/JPEG; máximo 5 MiB (5 242 880 bytes). Se comprueban ext
 
 Fechas opcionales ISO `YYYY-MM-DD`, sin futuro; ingreso no puede superar titulación. `mimeType` es opcional. El servidor coteja referencia, tipo y tamaño con el archivo realmente almacenado.
 
-**Respuesta 201:** `{ "data": { "idSolicitud": "uuid", "estado": "PENDING", "mensaje": "Solicitud registrada correctamente" } }`.
+**Respuesta 201:** `{ "data": { "idSolicitud": "uuid", "estado": "PENDIENTE", "mensaje": "Solicitud registrada correctamente" } }`.
 
 **Errores:** 400 `DOCUMENT_MISMATCH`; 409 `REGISTRATION_EXISTS`; 410 `REGISTRATION_EXPIRED`.
 La operación es transaccional y vuelve a comprobar duplicados; una segunda petición no crea otra solicitud.
@@ -199,17 +203,17 @@ En Bruno usar Bearer. En navegador usar las cookies de sesión o fetch autentica
 **Body**
 ```json
 {
-  "decision": "REJECTED",
+  "decision": "RECHAZADA",
   "category": "Documento ilegible",
   "note": "Adjunta un documento que permita verificar todos los datos."
 }
 ```
 
-Decisión `APPROVED | OBSERVED | REJECTED`. Categoría 1–100 y nota 10–500 caracteres son obligatorias al observar o rechazar. Al aprobar se guardan ambas como null. `notifyDean: true` se rechaza: el sistema anterior tampoco tenía un destinatario institucional definido.
+Decisión `APROBADA | OBSERVADA | RECHAZADA`. Categoría 1–100 y nota 10–500 caracteres son obligatorias al observar o rechazar. Al aprobar se guardan ambas como null. `notifyDean: true` se rechaza: el sistema anterior tampoco tenía un destinatario institucional definido.
 
-**Respuesta 201:** `{ "data": { "id": "uuid", "applicationId": "uuid", "decision": "REJECTED", "status": "REJECTED", "category": "Documento ilegible", "note": "...", "reviewedBy": "uuid", "reviewedAt": "ISO-8601", "notificationStatus": "QUEUED" } }`.
+**Respuesta 201:** `{ "data": { "id": "uuid", "applicationId": "uuid", "decision": "RECHAZADA", "status": "RECHAZADA", "category": "Documento ilegible", "note": "...", "reviewedBy": "uuid", "reviewedAt": "ISO-8601", "notificationStatus": "EN_COLA" } }`.
 
-Solo solicitudes PENDING. Dictamen, estado y notificación se guardan juntos; revisiones concurrentes producen un éxito y un 409 `APPLICATION_ALREADY_REVIEWED`. El revisor proviene de la sesión. Al aprobar se emite un código de activación de 24 horas; la cuenta todavía no puede iniciar sesión.
+Solo solicitudes PENDIENTE. Dictamen, estado y notificación se guardan juntos; revisiones concurrentes producen un éxito y un 409 `APPLICATION_ALREADY_REVIEWED`. El revisor proviene de la sesión. Al aprobar se emite un código de activación de 24 horas; la cuenta todavía no puede iniciar sesión.
 
 ## 13. Reenviar activación — `POST /api/v1/applications/:id/activation`
 
@@ -217,7 +221,7 @@ Solo solicitudes PENDING. Dictamen, estado y notificación se guardan juntos; re
 
 Para una solicitud aprobada cuya cuenta aún no se activó. Reemplaza el código y reinicia sus cinco intentos.
 
-**Respuesta 201:** `{ "data": { "notificationStatus": "QUEUED", "expiresInSeconds": 86400 } }`.
+**Respuesta 201:** `{ "data": { "notificationStatus": "EN_COLA", "expiresInSeconds": 86400 } }`.
 
 **Errores:** 404 `APPLICATION_NOT_FOUND`; 409 `ACTIVATION_NOT_ALLOWED`.
 
@@ -240,6 +244,123 @@ Contraseña de 15–128 caracteres; nunca se utiliza el código como contraseña
 
 ---
 
+---
+
+## 15. Validar acceso de corrección — `GET /api/v1/registrations/observed/access`
+
+**Permiso:** Header `X-Correction-Token: <token>`.
+
+**Respuesta 200:** `{ "data": { "valid": true } }`.
+
+**Respuesta 404:** Token inválido, vencido o solicitud no observada devuelve `{ "error": { "code": "TOKEN_NOT_FOUND", "message": "El recurso solicitado no existe o no está disponible" } }`.
+
+---
+
+## 16. Solicitar enlace de corrección — `POST /api/v1/registrations/observed/request-link`
+
+**Permiso:** ninguno. Rate limit: cooldown de 60s y tope diario de 5 peticiones.
+
+**Body**
+```json
+{
+  "ci": "12345678",
+  "complemento": "",
+  "expedidoEn": "CB"
+}
+```
+
+**Respuesta 200 (inmediata e indistinguible):**
+```json
+{
+  "data": {
+    "message": "Si los datos corresponden a una solicitud observada, se enviará un enlace de corrección al correo registrado"
+  }
+}
+```
+
+## 17. Obtener datos del expediente observado — `GET /api/v1/registrations/observed`
+
+**Header requerido:** `X-Correction-Token: <token>`
+
+**Respuesta 200:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "version": 1,
+    "nombres": "Carlos",
+    "apellidos": "Montaño",
+    "ci": "12345678",
+    "complementoCi": "",
+    "expedidoEn": "CB",
+    "codigoSis": "202012345",
+    "correo": "carlos@example.com",
+    "telefono": "77777777",
+    "carreraId": "uuid",
+    "anioEgreso": 2024,
+    "deseaMentor": true,
+    "fechaTitulacion": "2024-05-10",
+    "fechaIngreso": "2019-02-15",
+    "observacion": {
+      "categoria": "documento_ilegible",
+      "justificacion": "El documento adjunto no es legible",
+      "fecha": "2026-10-20T10:00:00.000Z"
+    },
+    "documento": {
+      "id": "uuid",
+      "nombre": "titulo.pdf",
+      "tipoDocumento": "diploma_academico",
+      "mime": "application/pdf",
+      "sizeBytes": 1048576
+    }
+  }
+}
+```
+
+## 18. Actualizar datos del expediente observado — `PATCH /api/v1/registrations/observed`
+
+**Header requerido:** `X-Correction-Token: <token>`
+
+**Body:**
+```json
+{
+  "expectedVersion": 1,
+  "nombres": "Carlos Alberto",
+  "apellidos": "Montaño Díaz",
+  "correo": "carlos.nuevo@example.com",
+  "telefono": "78888888",
+  "carreraId": "uuid",
+  "anioEgreso": 2024,
+  "deseaMentor": true,
+  "fechaTitulacion": "2024-05-10",
+  "fechaIngreso": "2019-02-15"
+}
+```
+
+**Respuesta 200:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "version": 2,
+    "requiresEmailVerification": true,
+    "message": "Datos actualizados. Debe verificar su nueva dirección de correo electrónico."
+  }
+}
+```
+
+**Respuesta 409 (Conflicto de versión optimista):**
+```json
+{
+  "error": {
+    "code": "VERSION_CONFLICT",
+    "message": "La solicitud cambió; actualiza antes de guardar"
+  }
+}
+```
+
+---
+
 ## Entidad `ApplicationDetail`
 
 ```json
@@ -255,7 +376,7 @@ Contraseña de 15–128 caracteres; nunca se utiliza el código como contraseña
   "sisCode": "202012345",
   "career": "Ingeniería de Sistemas",
   "careerId": "uuid",
-  "status": "PENDING",
+  "status": "PENDIENTE",
   "submittedAt": "2026-10-18T20:00:00.000Z",
   "phone": "77777777",
   "graduationYear": 2025,
@@ -268,10 +389,10 @@ Contraseña de 15–128 caracteres; nunca se utiliza el código como contraseña
 ## Casos borde
 
 - Las cuentas, solicitudes activas y perfiles existentes bloquean duplicados por correo, SIS o CI + complemento; una solicitud rechazada permite volver a postular si no existe otra cuenta o solicitud activa.
-- OBSERVED conserva el dictamen y la observación. El backend anterior no tenía una operación para subsanar o reabrir; no se agregó un flujo de otro sprint.
+- OBSERVADA conserva el dictamen y la observación. El backend anterior no tenía una operación para subsanar o reabrir; no se agregó un flujo de otro sprint.
 - `deseaMentor` se guarda como preferencia; no habilita automáticamente al usuario como mentor.
 - Borradores vencidos sin enviar y sus archivos se limpian automáticamente. Los respaldos enviados se conservan con el expediente.
 - Los códigos se comparan mediante HMAC. El contenido de la cola de correo se cifra con AES-GCM y se borra tras entregar; SMTP tiene semántica de entrega al menos una vez.
-- Un SMTP caído no revierte el dictamen: la notificación sigue pendiente y se reintenta cada minuto hasta su vencimiento. `QUEUED` significa guardado para envío, no entregado.
+- Un SMTP caído no revierte el dictamen: la notificación sigue pendiente y se reintenta cada minuto hasta su vencimiento. `EN_COLA` significa guardado para envío, no entregado.
 - Todo el almacenamiento pertenece al backend y PostgreSQL. No intervienen Supabase Auth, Storage, RPC ni triggers de autenticación.
 - Las rutas antiguas sin versión no son alias. El frontend se mantiene sin cambios en esta etapa y necesitará adaptar sus URLs y el tratamiento uniforme de errores al integrarlo.

@@ -25,3 +25,18 @@ export function profileRecordMissing(): never {
     'El registro no existe o no pertenece a tu perfil',
   );
 }
+
+export function profileRecordForbidden(): never {
+  throw new BusinessRuleError(
+    'forbidden',
+    'PROFILE_RECORD_FORBIDDEN',
+    'No tienes permiso para modificar este registro',
+  );
+}
+
+export async function rejectProfileRecord(lookup: Promise<unknown>): Promise<never> {
+  if (await lookup) {
+    profileRecordForbidden();
+  }
+  return profileRecordMissing();
+}

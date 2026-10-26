@@ -1,7 +1,7 @@
 import { clearAccessToken, getAccessToken } from '@/shared/services/auth-session';
 import { authenticatedFetch, ensureAccessToken, SessionError } from '@/shared/services/auth-session';
 
-export const mentorAvailabilityStatuses = ['AVAILABLE', 'PAUSED', 'UNAVAILABLE'] as const;
+export const mentorAvailabilityStatuses = ['DISPONIBLE', 'EN_PAUSA', 'NO_DISPONIBLE'] as const;
 
 export type MentorAvailabilityStatus = typeof mentorAvailabilityStatuses[number];
 

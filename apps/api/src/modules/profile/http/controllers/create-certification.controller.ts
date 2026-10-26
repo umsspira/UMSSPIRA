@@ -4,7 +4,7 @@ import { RequirePermissions } from '../../../../shared/http/auth/decorators/requ
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import { CreateCertificationUseCase } from '../../application/use-cases/create-certification.use-case';
 import { presentProfileRecord } from '../presenters/profile.presenter';
-import { certificationSchema } from '../schemas/profile.schemas';
+import { createCertificationSchema } from '../schemas/profile.schemas';
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
 import type { CertificationInput } from '../../application/contracts/profile-inputs';
 
@@ -16,7 +16,7 @@ export class CreateCertificationController {
   @RequirePermissions('perfil:self:write')
   async handle(
     @CurrentActor() actor: ActorContext,
-    @Body(new ZodValidationPipe(certificationSchema)) body: CertificationInput,
+    @Body(new ZodValidationPipe(createCertificationSchema)) body: CertificationInput,
   ) {
     return { data: presentProfileRecord(await this.useCase.execute(actor, body)) };
   }

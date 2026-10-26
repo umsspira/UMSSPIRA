@@ -58,7 +58,7 @@ describe('catálogo de eventos', () => {
 
     expect(screen.getAllByText('Taller de tecnología')).not.toHaveLength(0);
     expect(screen.queryAllByText('Feria de empleo')).toHaveLength(0);
-    expect(screen.getByText('1 evento disponible')).toBeInTheDocument();
+    expect(screen.getByText('1 evento disponible · 0 no disponibles')).toBeInTheDocument();
   });
 
   it('envía los filtros al presionar Enter en la búsqueda', async () => {
@@ -97,22 +97,22 @@ describe('catálogo de eventos', () => {
   it('pluraliza el contador para cero, uno y varios resultados', async () => {
     const { rerender } = render(<EventsCatalogPage />);
 
-    expect(await screen.findByText('2 eventos disponibles')).toBeInTheDocument();
+    expect(await screen.findByText('2 eventos disponibles · 0 no disponibles')).toBeInTheDocument();
 
     jest.mocked(getEventCatalog).mockResolvedValueOnce([catalogEvents[0]]);
     rerender(<EventsCatalogPage key="one" />);
-    expect(await screen.findByText('1 evento disponible')).toBeInTheDocument();
+    expect(await screen.findByText('1 evento disponible · 0 no disponibles')).toBeInTheDocument();
 
     jest.mocked(getEventCatalog).mockResolvedValueOnce([]);
     rerender(<EventsCatalogPage key="zero" />);
-    expect(await screen.findByText('0 eventos disponibles')).toBeInTheDocument();
+    expect(await screen.findByText('0 eventos disponibles · 0 no disponibles')).toBeInTheDocument();
   });
 
   it('muestra el estado global cuando no existen eventos publicados', async () => {
     jest.mocked(getEventCatalog).mockResolvedValueOnce([]);
     render(<EventsCatalogPage />);
 
-    expect(await screen.findByText('0 eventos disponibles')).toBeInTheDocument();
+    expect(await screen.findByText('0 eventos disponibles · 0 no disponibles')).toBeInTheDocument();
     expect(screen.getByText(
       'El catálogo estará disponible cuando existan eventos publicados.',
     )).toBeInTheDocument();
@@ -129,19 +129,51 @@ describe('catálogo de eventos', () => {
 
   it('distingue una búsqueda sin coincidencias de un catálogo vacío', async () => {
     render(<EventsCatalogPage />);
-    await screen.findByText('2 eventos disponibles');
+    await screen.findByText('2 eventos disponibles · 0 no disponibles');
 
     fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar eventos' }), {
       target: { value: 'sin coincidencias' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
 
-    expect(screen.getByText('0 eventos disponibles')).toBeInTheDocument();
+    expect(screen.getByText('0 eventos disponibles · 0 no disponibles')).toBeInTheDocument();
     expect(screen.getByText(
       'No hay coincidencias con los filtros actuales. Modifica la búsqueda o el mes seleccionado.',
     )).toBeInTheDocument();
     expect(screen.queryByText(
       'El catálogo estará disponible cuando existan eventos publicados.',
     )).not.toBeInTheDocument();
+  });
+
+  it('recupera las pestañas del catálogo sin inventar rutas de HU9 o HU10', async () => {
+    render(<EventsCatalogPage />);
+
+    await screen.findAllByText('Feria de empleo');
+
+    expect(screen.getByRole('button', { name: 'Explorar' }))
+      .toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Mis eventos' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Mis pases' })).toBeDisabled();
+  });
+
+  it('distingue eventos publicados, sin cupos y cancelados', async () => {
+    jest.mocked(getEventCatalog).mockResolvedValueOnce([
+      catalogEvents[0],
+      { ...catalogEvents[1], currentCapacity: catalogEvents[1].maxCapacity },
+      {
+        ...catalogEvents[0],
+        id: 'event-cancelled',
+        title: 'Evento cancelado',
+        status: EVENT_STATUS.CANCELADO,
+      },
+    ]);
+
+    render(<EventsCatalogPage />);
+
+    expect(await screen.findByText('1 evento disponible · 2 no disponibles'))
+      .toBeInTheDocument();
+    expect(screen.getByText('PUBLICADO')).toBeInTheDocument();
+    expect(screen.getByText('SIN CUPOS')).toBeInTheDocument();
+    expect(screen.getByText('CANCELADO')).toBeInTheDocument();
   });
 });
