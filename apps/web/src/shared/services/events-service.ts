@@ -158,6 +158,24 @@ export async function publishDraftEvent(
   )).data;
 }
 
+
+export async function cancelPublishedEvent(
+  eventId: string,
+  userId?: string,
+): Promise<EventItem> {
+  requireUserId(
+    userId,
+    'cancelar el evento',
+  );
+
+  return (await apiClient<{ data: EventItem }>(
+    `/api/v1/events/${encodeURIComponent(eventId)}/cancel`,
+    {
+      method: 'PATCH',
+      authenticated: true,
+    },
+  )).data;
+}
 export async function getEventParticipants(
   eventId: string,
   userId?: string,
