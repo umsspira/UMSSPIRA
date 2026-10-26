@@ -85,16 +85,17 @@ export function EventManagementContent({
   } = useAdminEvents(userId, !compact);
   const [pendingPublication, setPendingPublication] = useState<EventItem | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishedEventId, setPublishedEventId] = useState<string | null>(null);
   const [pendingCancellation, setPendingCancellation] = useState<EventItem | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancellationError, setCancellationError] = useState<string | null>(null);
-  const [publishedEventId, setPublishedEventId] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+
   const filteredEvents = useMemo(() => {
     const normalizedSearch = searchFilter.trim().toLocaleLowerCase('es');
     return events.filter((event) => {
@@ -109,12 +110,14 @@ export function EventManagementContent({
       return matchesSearch && matchesMonth && matchesStatus;
     });
   }, [events, monthFilter, searchFilter, statusFilter]);
+
   const availableMonths = useMemo(
     () => Array.from(
       new Set(events.map((event) => getEventMonthKey(event.startDate))),
     ).sort(),
     [events],
   );
+
   const { publishedCount, draftCount } = useMemo(
     () => events.reduce(
       (counts, event) => ({
@@ -127,30 +130,6 @@ export function EventManagementContent({
     ),
     [events],
   );
-
-  const confirmCancellation = async () => {
-    if (!pendingCancellation || !userId) return;
-
-    setIsCancelling(true);
-    setCancellationError(null);
-
-    try {
-      const cancelledEvent = await cancelPublishedEvent(
-        pendingCancellation.id,
-        userId,
-      );
-      setEvents((currentEvents) =>
-        currentEvents.map((event) =>
-          event.id === cancelledEvent.id ? cancelledEvent : event,
-        ),
-      );
-      setPendingCancellation(null);
-    } catch (error) {
-      setCancellationError(getRequestErrorMessage(error));
-    } finally {
-      setIsCancelling(false);
-    }
-  };
 
   const confirmPublication = async () => {
     if (!pendingPublication || !userId) return;
@@ -175,6 +154,30 @@ export function EventManagementContent({
       setErrorMessage(getRequestErrorMessage(error));
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const confirmCancellation = async () => {
+    if (!pendingCancellation || !userId) return;
+
+    setIsCancelling(true);
+    setCancellationError(null);
+
+    try {
+      const cancelledEvent = await cancelPublishedEvent(
+        pendingCancellation.id,
+        userId,
+      );
+      setEvents((currentEvents) =>
+        currentEvents.map((event) =>
+          event.id === cancelledEvent.id ? cancelledEvent : event,
+        ),
+      );
+      setPendingCancellation(null);
+    } catch (error) {
+      setCancellationError(getRequestErrorMessage(error));
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -277,6 +280,7 @@ export function EventManagementContent({
                 >
                   Ver participantes
                 </Link>
+
                 {event.status === EVENT_STATUS.PUBLICADO ? (
                   <>
                     <button
@@ -336,10 +340,7 @@ export function EventManagementContent({
           event={toEventSummary(pendingCancellation)}
           isSubmitting={isCancelling}
           errorMessage={cancellationError}
-          onCancel={() => {
-            setPendingCancellation(null);
-            setCancellationError(null);
-          }}
+          onCancel={() => setPendingCancellation(null)}
           onConfirm={() => void confirmCancellation()}
         />
       ) : null}
@@ -642,7 +643,8 @@ function useInactiveEvents(userId: string | undefined) {
   };
 }
 
-function Metric({ value, label, mobileLabel, tone }: { value: number; label: string; mobileLabel?: string; tone: string }) {  return (
+function Metric({ value, label, mobileLabel, tone }: { value: number; label: string; mobileLabel?: string; tone: string }) {
+  return (
     <article className={`event-metric is-${tone}`}>
       <span className="metric-accent" />
       <strong>{value}</strong>
