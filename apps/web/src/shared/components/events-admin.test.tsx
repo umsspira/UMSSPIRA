@@ -182,7 +182,7 @@ describe('Gestión administrativa de eventos HU1', () => {
   it('muestra un error cuando falla la cancelación del evento', async () => {
     mockGetAdminEvents.mockResolvedValueOnce([publishedEvent]);
     mockCancelPublishedEvent.mockRejectedValueOnce(
-      new Error('No se pudo cancelar el evento'),
+      new Error('No se pudo cancelar el evento.'),
     );
 
     render(<EventManagementContent userId="user-1" />);
@@ -191,18 +191,19 @@ describe('Gestión administrativa de eventos HU1', () => {
       await screen.findByRole('button', { name: /^cancelar evento$/i }),
     );
 
+    const dialog = screen.getByRole('dialog', {
+      name: '¿Cancelar este evento?',
+    });
     fireEvent.click(
-      screen.getByRole('button', { name: /sí, cancelar evento/i }),
+      within(dialog).getByRole('button', { name: 'Confirmar cancelación' }),
     );
 
-    expect(
-      await screen.findByText('No se pudo cancelar el evento'),
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByText('Feria de Empleo Real'),
-    ).toBeInTheDocument();
-
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo cancelar el evento.',
+    );
+    expect(screen.getByRole('dialog', {
+      name: '¿Cancelar este evento?',
+    })).toBeInTheDocument();
     expect(mockCancelPublishedEvent).toHaveBeenCalledWith(
       'published-1',
       'user-1',
