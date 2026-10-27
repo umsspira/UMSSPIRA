@@ -342,3 +342,155 @@ describe('PrismaApplicationsRepository.metrics', () => {
     expect(prisma.dictamen.findMany).toHaveBeenCalledWith(expect.objectContaining({ distinct: ['id_solicitud'] }));
   });
 });
+
+
+
+describe('HU11 - Autoría del dictamen', () => {
+  const actor = {
+    id: '11111111-1111-4111-8111-111111111111',
+    name: 'Administrador Prueba',
+    email: 'admin@ejemplo.com',
+    role: 'administrador',
+    scopes: { careerIds: [], companyIds: [], graduateId: null },
+    permissions: ['solicitudes:review'],
+    credentialVersion: 1,
+  } as const;
+
+  const solicitudId =
+    '22222222-2222-4222-8222-222222222222';
+
+  const dictamenId =
+    '33333333-3333-4333-8333-333333333333';
+
+  it('guarda la autoría desde la sesión autenticada', async () => {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      solicitud: {
+        findFirst: jest.fn().mockResolvedValue({
+          estado: 'PENDIENTE',
+          id_documento_respaldo: null,
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      dictamen: {
+        create: jest.fn().mockResolvedValue({
+          id: dictamenId,
+        }),
+      },
+      auditoriaDictamen: {
+        create: jest.fn().mockResolvedValue({}),
+      },
+      correoPendiente: {
+        create: jest.fn().mockResolvedValue({}),
+      },
+      correoTramite: {
+        create: jest.fn().mockResolvedValue({}),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(
+        async (callback: (transaction: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    };
+
+    const repository = new PrismaApplicationsRepository(
+      prisma as never,
+    );
+
+    const result = await repository.review(
+      actor as never,
+      solicitudId,
+      { decision: 'APROBADA' },
+      'activation-hash',
+      'encrypted-mail',
+      {
+        type: 'aprobacion',
+        to: 'titulado@ejemplo.com',
+        subject: 'Solicitud aprobada',
+      },
+    );
+
+    expect(tx.dictamen.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          revisor_id: actor.id,
+        }),
+      }),
+    );
+
+    expect(tx.auditoriaDictamen.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          id_dictamen: dictamenId,
+          accion: 'emision',
+          detalle: expect.objectContaining({
+            revisorId: actor.id,
+            revisorNombre: actor.name,
+            revisorCorreo: actor.email,
+          }),
+        }),
+      }),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        reviewedBy: actor.id,
+        reviewedByName: actor.name,
+        reviewedByEmail: actor.email,
+      }),
+    );
+  });
+
+  it('rechaza un segundo dictamen', async () => {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      solicitud: {
+        findFirst: jest.fn().mockResolvedValue({
+          estado: 'APROBADA',
+          id_documento_respaldo: null,
+        }),
+      },
+      dictamen: {
+        create: jest.fn(),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(
+        async (callback: (transaction: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    };
+
+    const repository = new PrismaApplicationsRepository(
+      prisma as never,
+    );
+
+    const reviewPromise = repository.review(
+      actor as never,
+      solicitudId,
+      { decision: 'RECHAZADA' },
+      null,
+      'encrypted-mail',
+      {
+      type: 'rechazo',
+      to: 'titulado@ejemplo.com',
+      subject: 'Solicitud rechazada',
+      },
+    );
+
+    await expect(reviewPromise).rejects.toMatchObject({
+    code: 'APPLICATION_ALREADY_REVIEWED',
+    reason: 'conflict',
+    });
+
+    await expect(reviewPromise).rejects.toThrow(
+    'Esta solicitud ya fue revisada',
+    );
+
+    expect(tx.dictamen.create).not.toHaveBeenCalled();
+
+    });
+});
