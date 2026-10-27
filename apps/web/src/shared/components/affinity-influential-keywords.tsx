@@ -12,7 +12,7 @@ export const InfluentialKeywords: React.FC<InfluentialKeywordsProps> = ({ keywor
   if (!displayKeywords || displayKeywords.length === 0) {
     return (
       <div className="p-4 bg-gray-50 rounded-lg text-center text-sm text-gray-500">
-        No se encontraron palabras clave para esta área. Sigue completando tu perfil.
+        No hay palabras clave que aporten a esta área.
       </div>
     );
   }
