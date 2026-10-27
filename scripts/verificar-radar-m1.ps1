@@ -31,6 +31,35 @@ $env:DATABASE_URL = $testUrl
 
 Write-Host "Verificando PostgreSQL de pruebas..." -ForegroundColor Cyan
 
+$container = "umsspira-bd-s2-db-1"
+
+docker exec $container pg_isready -U postgres -d postgres
+
+if ($LASTEXITCODE -ne 0) {
+    throw "PostgreSQL no esta disponible. Inicia el contenedor Docker."
+}
+
+Write-Host "Comprobando si existe umsspira_test..." -ForegroundColor Cyan
+
+$dbExists = docker exec $container psql -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'umsspira_test';"
+
+if ($LASTEXITCODE -ne 0) {
+    throw "No se pudo consultar PostgreSQL."
+}
+
+if ($dbExists.Trim() -ne "1") {
+    Write-Host "Creando base umsspira_test..." -ForegroundColor Yellow
+
+    docker exec $container psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE umsspira_test;"
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "No se pudo crear umsspira_test."
+    }
+}
+else {
+    Write-Host "umsspira_test ya existe. No se modificara su contenido." -ForegroundColor Green
+}
+
 docker exec umsspira-bd-s2-db-1 psql -U postgres -d umsspira_test -tAc "SELECT current_database();"
 
 if ($LASTEXITCODE -ne 0) {
@@ -89,3 +118,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "M1 de Radar verificada correctamente." -ForegroundColor Green
+
