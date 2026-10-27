@@ -1,25 +1,15 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { ObservedEditForm } from "./observed-edit-form";
+import type { CorrectionValues } from "../hooks/use-observed-correction";
 
 type Observation = { category: string; note: string };
 
 type ObservedApplication = {
   observedAt: string;
   observations: Observation[];
-  form: {
-    firstName: string;
-    lastName: string;
-    birthDate: string;
-    ci: string;
-    complement: string;
-    issuedIn: string;
-    email: string;
-    phone: string;
-    career: string;
-    graduationYear: string;
-    sisCode: string;
-  };
+  form: CorrectionValues;
   document: { name: string; sizeLabel: string; uploadedAt: string; url: string; type: string };
 };
 
@@ -57,10 +47,11 @@ async function fetchObservedApplication(token: string): Promise<ViewState> {
         complement: "",
         issuedIn: "CB",
         email: "carlos.perez.m@correo.com",
-        phone: "+591 70745821",
+        phone: "70745821",
         career: "Licenciatura en Ingeniería de Sistemas",
         graduationYear: "2023",
         sisCode: "201804921",
+        documentType: "Título en Provisión Nacional",
       },
       document: {
         name: "Certificado_Conclusion_Estudios_JuanPerez.pdf",
@@ -96,49 +87,6 @@ function formatDateTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function ReadOnlyField({
-  label,
-  value,
-  required,
-}: {
-  label: string;
-  value: string;
-  required?: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-semibold text-slate-700">
-        {label} {required && <span className="text-red-600">*</span>}
-      </span>
-      <div className="min-h-[40px] rounded-md bg-[#EDE8DE] px-3 py-2 text-sm text-slate-800">
-        {value || "—"}
-      </div>
-    </div>
-  );
-}
-
-function SectionCard({
-  number,
-  title,
-  children,
-}: {
-  number: number;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4 text-lg font-bold text-slate-900">
-        <span className="flex h-6 w-6 items-center justify-center rounded bg-slate-900 text-xs text-white">
-          {number}
-        </span>
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
 }
 
 function StatusMessage({ kind }: { kind: keyof typeof STATUS_MESSAGES }) {
@@ -223,54 +171,19 @@ function ValidView({ data }: { data: ObservedApplication }) {
         </ul>
       </section>
 
-      <SectionCard number={1} title="Datos personales y contacto">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <ReadOnlyField label="Nombres" value={form.firstName} required />
-          <ReadOnlyField label="Apellidos" value={form.lastName} required />
-          <ReadOnlyField label="Fecha de nacimiento" value={form.birthDate} required />
-          <ReadOnlyField label="Cédula de Identidad (C.I.)" value={form.ci} required />
-          <ReadOnlyField label="Complemento (Opcional)" value={form.complement} />
-          <ReadOnlyField label="Expedido en" value={form.issuedIn} required />
-          <ReadOnlyField label="Correo electrónico" value={form.email} required />
-          <ReadOnlyField label="Teléfono celular / WhatsApp" value={form.phone} required />
-        </div>
-      </SectionCard>
-
-      <SectionCard number={2} title="Datos académicos">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <ReadOnlyField label="Carrera universitaria" value={form.career} />
-          </div>
-          <ReadOnlyField
-            label="Año de conclusión de estudios / egreso"
-            value={form.graduationYear}
-            required
-          />
-          <ReadOnlyField label="Código SIS" value={form.sisCode} />
-        </div>
-      </SectionCard>
-
-      <SectionCard number={3} title="Documento de respaldo">
-        <div className="rounded-lg bg-[#EDE8DE] p-4">
-          <p className="text-sm font-bold text-slate-900">{document.name}</p>
-          <p className="text-xs text-slate-600">
-            {document.sizeLabel} • Subido el {document.uploadedAt}
-          </p>
-          <a
-            href={document.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-block text-xs font-bold text-slate-900 underline"
-          >
-            Ver documento previo
-          </a>
-        </div>
-        <div className="mt-4">
-          <ReadOnlyField label="Tipo de documento" value={document.type} required />
-        </div>
-      </SectionCard>
-
-      {/* TODO T-10.6: reemplazo de documento, campos editables y botón "Revisar cambios" */}
+      <ObservedEditForm
+        initial={form}
+        currentDocument={document}
+        onCancel={() => window.history.back()}
+        onReview={(result) => {
+          // TODO T-10.7: abrir el resumen de HU-07
+          console.log("review", result);
+        }}
+        onRequireEmailVerification={(result) => {
+          // TODO: enviar al paso de verificación (email-verification)
+          console.log("verify email", result);
+        }}
+      />
 
       <p className="rounded-lg border border-slate-200 bg-white/60 p-3 text-center text-xs text-slate-600">
         La corrección de datos se realiza directamente sobre el mismo expediente oficial sin
