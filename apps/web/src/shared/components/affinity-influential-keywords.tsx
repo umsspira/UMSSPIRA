@@ -6,8 +6,11 @@ interface InfluentialKeywordsProps {
 }
 
 export const InfluentialKeywords: React.FC<InfluentialKeywordsProps> = ({ keywords = [] }) => {
-  // Mostramos máximo 5 palabras clave según el requerimiento de la tarea 4.2
-  const displayKeywords = keywords.slice(0, 5);
+  // Aseguramos que siempre sea un arreglo para que el CI no explote con .slice() o .map()
+const safeKeywords = Array.isArray(keywords) ? keywords : [];
+
+// Mostramos máximo 5 palabras clave según el requerimiento de la tarea 4.2
+const displayKeywords = safeKeywords.slice(0, 5);
 
   if (!displayKeywords || displayKeywords.length === 0) {
     return (

@@ -193,7 +193,7 @@ export default function RadarInspection({
                 <p className="text-sm text-gray-500 italic">Esta área no tiene respaldos asociados.</p>
               )}
             </div>
-            <InfluentialKeywords keywords="{selectedArea?.topKeywords}"/>
+            <InfluentialKeywords keywords={selectedArea?.topKeywords}/>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
