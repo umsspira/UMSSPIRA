@@ -7,6 +7,7 @@
     {
       "area": "software-development",
       "affinity": 82.5,
+      "previousAffinity": null,
       "keywords": [
         "React",
         "TypeScript",
@@ -40,6 +41,7 @@
     {
       "area": "cloud-devops",
       "affinity": 64,
+      "previousAffinity": null,
       "keywords": [
         "AWS",
         "Docker",
@@ -67,6 +69,7 @@
     {
       "area": "data-ai",
       "affinity": 71.25,
+      "previousAffinity": null,
       "keywords": [
         "Python",
         "Pandas",
@@ -95,6 +98,7 @@
     {
       "area": "quality-assurance",
       "affinity": 38,
+      "previousAffinity": null,
       "keywords": [
         "ISTQB",
         "Cypress",
@@ -117,6 +121,7 @@
     {
       "area": "cybersecurity-networks",
       "affinity": 27.5,
+      "previousAffinity": null,
       "keywords": [
         "Cisco CCNA",
         "Redes",
@@ -139,6 +144,7 @@
     {
       "area": "it-management",
       "affinity": 45,
+      "previousAffinity": null,
       "keywords": [
         "Scrum",
         "Agile",
