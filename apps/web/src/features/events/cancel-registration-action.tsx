@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, CircleAlert, LockKeyhole, Info } from "lucide-react";
+import { CheckCircle2, CircleAlert } from "lucide-react";
 import {
   EVENT_REGISTRATION_STATUS,
   type EventItem,
@@ -21,6 +21,8 @@ interface CancelRegistrationActionProps {
   status: EventRegistrationStatus;
   onConfirm: () => Promise<void>;
   onCancelled?: () => void;
+  onConflict?: () => Promise<void>;
+  variant?: "default" | "card";
 }
 
 function cancellationError(error: unknown): {
@@ -39,9 +41,9 @@ function cancellationError(error: unknown): {
     }
     if (error.status === 403 || error.status === 404) {
       return {
-        title: "No puedes modificar esta inscripción",
+        title: "Inscripción no disponible",
         message:
-          "No se encontró una inscripción propia disponible para cancelar.",
+          "No se encontró una inscripción disponible para cancelar.",
         retryable: false,
       };
     }
@@ -55,7 +57,7 @@ function cancellationError(error: unknown): {
     }
   }
   return {
-    title: "No se pudo confirmar la cancelación",
+    title: "No se pudo cancelar la inscripción",
     message:
       "No pudimos confirmar la cancelación. Comprueba el estado de tu inscripción antes de volver a intentarlo.",
     retryable: true,
@@ -67,6 +69,8 @@ export function CancelRegistrationAction({
   status,
   onConfirm,
   onCancelled,
+  onConflict,
+  variant = "default",
 }: CancelRegistrationActionProps) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -118,6 +122,13 @@ export function CancelRegistrationAction({
       const result = cancellationError(failure);
       setError(result);
       if (!result.retryable) setOpen(false);
+      if (failure instanceof ApiClientError && failure.status === 409 && onConflict) {
+        try {
+          await onConflict();
+        } catch {
+          // Si falla la sincronización, se conserva el rechazo original.
+        }
+      }
       return;
     } finally {
       inFlight.current = false;
@@ -153,26 +164,14 @@ export function CancelRegistrationAction({
     );
   }
 
-  if (status === EVENT_REGISTRATION_STATUS.CANCELADA) {
-    return (
-      <div className="hu4-cancellation-result" role="status">
-        <Info aria-hidden="true" size={28} />
-        <h2>La inscripción ya está cancelada</h2>
-        <p>No es posible realizar una segunda cancelación.</p>
-      </div>
-    );
-  }
-
   if (status !== EVENT_REGISTRATION_STATUS.CONFIRMADA) return null;
 
   return (
-    <div className="hu4-cancellation">
+    <div className={variant === "card" ? "hu4-cancellation hu4-cancellation--card" : "hu4-cancellation"}>
       {!open && error ? (
-        <div className="hu4-cancellation-result" role="alert">
-          <LockKeyhole aria-hidden="true" size={28} />
-          <h2>{error.title}</h2>
-          <p>{error.message}</p>
-        </div>
+        <p className="hu4-cancellation-error" role="alert">
+          {error.message}
+        </p>
       ) : null}
       {expired ? (
         <p className="hu4-cancellation-note">
@@ -188,23 +187,24 @@ export function CancelRegistrationAction({
             setOpen(true);
           }}
         >
-          Cancelar mi inscripción
+          {variant === "card" ? "Cancelar inscripción" : "Cancelar mi inscripción"}
         </button>
       )}
       <ConfirmModal
-        className="hu4-cancellation-modal"
+        className={error ? "hu4-cancellation-modal hu4-cancellation-modal--error" : "hu4-cancellation-modal"}
         open={open}
         icon={CircleAlert}
-        eyebrow="Tu inscripción"
-        title={error ? error.title : "¿Cancelar tu inscripción?"}
-        description="Al confirmar, liberarás tu cupo y el pase QR asociado dejará de ser válido."
-        cancelLabel="Conservar inscripción"
+        title={error ? error.title : "Cancelar inscripción"}
+        description={error ? (
+          <p role="alert">{error.message}</p>
+        ) : "Si confirmas, liberarás tu cupo y el pase QR asociado dejará de estar vigente."}
+        cancelLabel="Mantener inscripción"
         confirmLabel={
           submitting
             ? "Cancelando..."
             : error
-              ? "Reintentar cancelación"
-              : "Sí, cancelar inscripción"
+              ? "Reintentar"
+              : "Cancelar inscripción"
         }
         confirming={submitting}
         onCancel={() => {
@@ -215,20 +215,20 @@ export function CancelRegistrationAction({
         }}
         onConfirm={() => void confirm()}
       >
-        <div className="hu4-cancellation-event">
+        {!error ? <div className="hu4-cancellation-event">
           <strong>{event.title}</strong>
-          <span>{formatEventSchedule(event.startDate, event.endDate)}</span>
-          <span>{event.location || "Ubicación por definir"}</span>
-          <span>Se conservará el historial de tu inscripción.</span>
-        </div>
+          <p className="hu4-cancellation-event-meta">
+            <span>{formatEventSchedule(event.startDate, event.endDate)}</span>
+            {" · "}
+            <span>{event.location || "Ubicación por definir"}</span>
+          </p>
+          <p className="hu4-cancellation-event-warning">
+            El pase QR asociado dejará de estar vigente y se conservará la trazabilidad.
+          </p>
+        </div> : null}
         {submitting ? (
           <p className="hu4-cancellation-note" role="status">
             Procesando cancelación...
-          </p>
-        ) : null}
-        {error ? (
-          <p className="hu4-cancellation-error" role="alert">
-            {error.message}
           </p>
         ) : null}
         {expired ? (

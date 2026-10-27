@@ -37,7 +37,7 @@ describe("Confirmación de cancelación de inscripción", () => {
   it("muestra el evento, horario y ubicación sin enviar todavía la operación", () => {
     const { onConfirm } = setup();
     const dialog = screen.getByRole("alertdialog", {
-      name: "¿Cancelar tu inscripción?",
+      name: "Cancelar inscripción",
     });
     expect(within(dialog).getByText(event.title)).toBeInTheDocument();
     expect(
@@ -47,12 +47,12 @@ describe("Confirmación de cancelación de inscripción", () => {
     ).toBeInTheDocument();
     expect(within(dialog).getByText(event.location)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Conservar inscripción" }),
+      screen.getByRole("button", { name: "Mantener inscripción" }),
     ).toHaveFocus();
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
-  it.each(["Conservar inscripción", "Cerrar", "Escape"])(
+  it.each(["Mantener inscripción", "Cerrar", "Escape"])(
     "permite desistir mediante %s sin enviar la cancelación",
     (action) => {
       const { onConfirm, onCancelled } = setup();
@@ -77,7 +77,7 @@ describe("Confirmación de cancelación de inscripción", () => {
     );
     const { onCancelled } = setup(onConfirm);
     const confirm = screen.getByRole("button", {
-      name: "Sí, cancelar inscripción",
+      name: "Cancelar inscripción",
     });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
@@ -85,7 +85,7 @@ describe("Confirmación de cancelación de inscripción", () => {
       screen.getByRole("button", { name: "Cancelando..." }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Conservar inscripción" }),
+      screen.getByRole("button", { name: "Mantener inscripción" }),
     ).toBeDisabled();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe("Confirmación de cancelación de inscripción", () => {
       .mockResolvedValueOnce(undefined);
     const { onCancelled } = setup(onConfirm);
     fireEvent.click(
-      screen.getByRole("button", { name: "Sí, cancelar inscripción" }),
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancelar inscripción" }),
     );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No pudimos confirmar la cancelación",
@@ -119,8 +119,11 @@ describe("Confirmación de cancelación de inscripción", () => {
       screen.queryByText(/DETALLE_INTERNO|No se realizaron cambios/),
     ).not.toBeInTheDocument();
     expect(onCancelled).not.toHaveBeenCalled();
+    const errorDialog = screen.getByRole("alertdialog", { name: "No se pudo cancelar la inscripción" });
+    expect(within(errorDialog).queryByText(event.title)).not.toBeInTheDocument();
+    expect(within(errorDialog).getByRole("button", { name: "Mantener inscripción" })).toBeEnabled();
     fireEvent.click(
-      screen.getByRole("button", { name: "Reintentar cancelación" }),
+      screen.getByRole("button", { name: "Reintentar" }),
     );
     expect(
       await screen.findByText("Cancelación realizada"),
@@ -129,15 +132,27 @@ describe("Confirmación de cancelación de inscripción", () => {
     expect(onCancelled).toHaveBeenCalledTimes(1);
   });
 
+  it("permite cerrar el aviso de error sin volver a enviar la cancelación", async () => {
+    const { onConfirm, onCancelled } = setup(
+      jest.fn<Promise<void>, []>().mockRejectedValue(new TypeError("Failed to fetch")),
+    );
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancelar inscripción" }));
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "Mantener inscripción" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onCancelled).not.toHaveBeenCalled();
+  });
+
   it.each([
     [new SessionError(401, "interno"), "Tu sesión ha finalizado"],
     [
       new ApiClientError("interno", 403),
-      "No se encontró una inscripción propia",
+      "No se encontró una inscripción disponible",
     ],
     [
       new ApiClientError("interno", 404),
-      "No se encontró una inscripción propia",
+      "No se encontró una inscripción disponible",
     ],
     [
       new ApiClientError("interno", 409, "EVENT_REGISTRATION_NOT_CONFIRMED"),
@@ -150,7 +165,7 @@ describe("Confirmación de cancelación de inscripción", () => {
         jest.fn<Promise<void>, []>().mockRejectedValue(failure),
       );
       fireEvent.click(
-        screen.getByRole("button", { name: "Sí, cancelar inscripción" }),
+        within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancelar inscripción" }),
       );
       expect(await screen.findByRole("alert")).toHaveTextContent(
         message as string,
@@ -172,7 +187,7 @@ describe("Confirmación de cancelación de inscripción", () => {
       />,
     );
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("La inscripción ya está cancelada");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("rechaza el instante exacto de finalización", () => {
@@ -195,7 +210,7 @@ describe("Confirmación de cancelación de inscripción", () => {
     const { onConfirm } = setup();
     act(() => jest.advanceTimersByTime(1000));
     fireEvent.click(
-      screen.getByRole("button", { name: "Sí, cancelar inscripción" }),
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancelar inscripción" }),
     );
     expect(onConfirm).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();

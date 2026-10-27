@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { within, fireEvent, render, screen } from '@testing-library/react';
 import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 
 import EventDetailPage from '@/features/events/event-detail-page';
@@ -295,14 +295,14 @@ describe('Cancelación desde la inscripción confirmada', () => {
 
   it('permite desistir y mantiene la inscripción confirmada sin enviar PATCH', async () => {
     await registeredPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Conservar inscripción' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mantener inscripción' }));
     expect(screen.getByText('CONFIRMADA')).toBeInTheDocument();
     expect(cancelEventRegistration).not.toHaveBeenCalled();
   });
 
   it('cancela por ID de inscripción y actualiza el resultado visible', async () => {
     await registeredPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, cancelar inscripción' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar inscripción' }));
     expect(await screen.findByRole('heading', { name: 'Inscripción cancelada' })).toBeInTheDocument();
     expect(cancelEventRegistration).toHaveBeenCalledWith('inscripcion-1');
     expect(screen.getByText('CANCELADA')).toBeInTheDocument();
@@ -313,7 +313,7 @@ describe('Cancelación desde la inscripción confirmada', () => {
   it('mantiene el estado visible ante un error de cancelación', async () => {
     jest.mocked(cancelEventRegistration).mockRejectedValue(new Error('Fallo de red'));
     await registeredPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, cancelar inscripción' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar inscripción' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos confirmar la cancelación');
     expect(screen.getByText('CONFIRMADA')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Inscripción cancelada' })).not.toBeInTheDocument();
