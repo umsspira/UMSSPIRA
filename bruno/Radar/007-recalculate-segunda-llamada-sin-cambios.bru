@@ -29,6 +29,23 @@ tests {
     expect(res.body.data.calculatedAt).to.equal(anterior);
   });
 
+  test("Conserva previousAffinity y topKeywords del calculo vigente (CA-HU8-11)", function() {
+    const previaAnterior = bru.getVar("radarPreviousAffinityJson");
+    const topAnterior = bru.getVar("radarTopKeywordsJson");
+    expect(previaAnterior, "Ejecuta antes el caso 006").to.be.a("string").that.is.not.empty;
+    expect(topAnterior, "Ejecuta antes el caso 006").to.be.a("string").that.is.not.empty;
+
+    const previaActual = res.body.data.areas.map(function(a) {
+      return [a.area, a.previousAffinity];
+    });
+    const topActual = res.body.data.areas.map(function(a) {
+      return [a.area, a.topKeywords];
+    });
+
+    expect(JSON.stringify(previaActual)).to.equal(previaAnterior);
+    expect(JSON.stringify(topActual)).to.equal(topAnterior);
+  });
+
   test("Tiempo de respuesta menor o igual a 3 000 ms", function() {
     expect(res.responseTime).to.be.at.most(3000);
   });
