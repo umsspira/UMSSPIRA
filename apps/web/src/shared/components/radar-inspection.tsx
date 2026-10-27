@@ -4,8 +4,10 @@ import React from "react";
 import mockData from "../mocks/affinity-vector-mock.json";
 import { AFFINITY_AREA_LABELS } from "@umsspira/shared-types/src/affinity";
 import { formatPercentage } from "@/shared/utils/percentage";
+import { InfluentialKeywords } from './affinity-influential-keywords';
 import { calculateVariation } from "@/shared/utils/affinity-variation";
 import { VariationIndicator } from "./variation-indicator";
+import type { AffinityKeywordContribution } from "@umsspira/shared-types";
 
 // 1. Tipado estricto de la evidencia tal como viene en el JSON
 export interface EvidenceItem {
@@ -17,9 +19,10 @@ export interface EvidenceItem {
 export interface AreaData {
   area: string;
   affinity: number;
-  /** Afinidad del cálculo anterior; null o ausente en el primer cálculo. */
   previousAffinity?: number | null;
   evidence?: EvidenceItem[];
+  topKeywords?: AffinityKeywordContribution[];
+
 }
 
 interface RadarInspectionProps {
@@ -190,6 +193,7 @@ export default function RadarInspection({
                 <p className="text-sm text-gray-500 italic">Esta área no tiene respaldos asociados.</p>
               )}
             </div>
+            <InfluentialKeywords keywords={selectedArea?.topKeywords}/>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">

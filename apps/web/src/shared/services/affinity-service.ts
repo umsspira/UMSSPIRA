@@ -4,6 +4,7 @@ import {
   type AffinityArea,
   type AffinityVectorResponse,
   RADAR_AREA_IDS,
+  type AffinityKeywordContribution,
 } from '@umsspira/shared-types/src/affinity';
 
 import { apiClient, apiFetch } from './api-client';
@@ -25,8 +26,8 @@ interface RadarApiArea {
   area: string;
   affinity: number;
   previousAffinity?: number | null;
-  weighting?: number;
-  topKeywords?: Array<string | { term: string; count?: number }>;
+  weighting?: number | null;
+  topKeywords?: AffinityKeywordContribution[];
 }
 
 interface RadarApiResponse {
@@ -80,7 +81,7 @@ function adaptRadarResponse(
         affinity: area.affinity,
         previousAffinity: area.previousAffinity ?? null,
         keywords: (area.topKeywords ?? []).map((keyword) =>
-          typeof keyword === 'string' ? keyword : keyword.term,
+          typeof keyword === 'string' ? keyword : keyword.keyword,
         ),
         evidence: mockArea?.evidence ?? [],
       };

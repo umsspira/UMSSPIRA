@@ -1,4 +1,3 @@
-
 {
   "graduateId": "00000000-0000-0000-0000-000000000001",
   "calculatedAt": "2026-09-28T12:00:00.000Z",
@@ -8,13 +7,7 @@
       "area": "software-development",
       "affinity": 82.5,
       "previousAffinity": null,
-      "keywords": [
-        "React",
-        "TypeScript",
-        "Node.js",
-        "JavaScript",
-        "Backend"
-      ],
+      "keywords": [],
       "evidence": [
         {
           "type": "certification",
@@ -42,12 +35,7 @@
       "area": "cloud-devops",
       "affinity": 64,
       "previousAffinity": null,
-      "keywords": [
-        "AWS",
-        "Docker",
-        "CI/CD",
-        "Git"
-      ],
+      "keywords": [],
       "evidence": [
         {
           "type": "certification",
@@ -70,13 +58,7 @@
       "area": "data-ai",
       "affinity": 71.25,
       "previousAffinity": null,
-      "keywords": [
-        "Python",
-        "Pandas",
-        "Machine Learning",
-        "SQL",
-        "Scikit-learn"
-      ],
+      "keywords": [],
       "evidence": [
         {
           "type": "certification",
@@ -99,12 +81,7 @@
       "area": "quality-assurance",
       "affinity": 38,
       "previousAffinity": null,
-      "keywords": [
-        "ISTQB",
-        "Cypress",
-        "Jest",
-        "Pruebas E2E"
-      ],
+      "keywords": [],
       "evidence": [
         {
           "type": "certification",
@@ -122,12 +99,7 @@
       "area": "cybersecurity-networks",
       "affinity": 27.5,
       "previousAffinity": null,
-      "keywords": [
-        "Cisco CCNA",
-        "Redes",
-        "Firewalls",
-        "SecOps"
-      ],
+      "keywords": [],
       "evidence": [
         {
           "type": "certification",
@@ -145,12 +117,7 @@
       "area": "it-management",
       "affinity": 45,
       "previousAffinity": null,
-      "keywords": [
-        "Scrum",
-        "Agile",
-        "PSM I",
-        "Gestión de proyectos"
-      ],
+      "keywords": [],
       "evidence": [
         {
           "type": "certification",
