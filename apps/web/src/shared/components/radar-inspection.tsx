@@ -3,6 +3,7 @@
 import React from "react";
 import mockData from "../mocks/affinity-vector-mock.json";
 import { formatPercentage } from "@/shared/utils/percentage";
+import { InfluentialKeywords } from './affinity-influential-keywords';
 
 // 1. Tipado estricto de la evidencia tal como viene en el JSON
 export interface EvidenceItem {
@@ -172,6 +173,7 @@ export default function RadarInspection({
                 <p className="text-sm text-gray-500 italic">Esta área no tiene respaldos asociados.</p>
               )}
             </div>
+            <InfluentialKeywords/>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
