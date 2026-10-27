@@ -21,6 +21,7 @@ import {
   type SubmitCorrectionInput,
   updateObservedDataSchema,
   type UpdateObservedDataInput,
+  replaceDocumentSchema,
   type ReplaceDocumentInput,
 } from '../schemas/registrations.schemas';
 
@@ -64,7 +65,8 @@ export class ObservedApplicationController {
   async replaceDocument(
     @CorrectionApplicationId() applicationId: string,
     @UploadedFiles() files?: UploadedDocument[] | UploadedDocument,
-    @Body() body?: ReplaceDocumentInput,
+    @Body(new ZodValidationPipe(replaceDocumentSchema))
+    body?: ReplaceDocumentInput,
   ) {
     const file = Array.isArray(files) ? files[0] : (files as UploadedDocument | undefined);
     const data = await this.observedApplicationService.replaceDocument(

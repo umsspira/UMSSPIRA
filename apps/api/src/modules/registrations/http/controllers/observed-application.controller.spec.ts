@@ -1,6 +1,7 @@
 import { ObservedApplicationController } from './observed-application.controller';
 import type { ObservedApplicationService } from '../../application/services/observed-application.service';
 import {
+  replaceDocumentSchema,
   submitCorrectionSchema,
   updateObservedDataSchema,
 } from '../schemas/registrations.schemas';
@@ -113,6 +114,17 @@ describe('ObservedApplicationController', () => {
   });
 
   describe('POST /registrations/observed/document', () => {
+    it('valida el esquema de reemplazo de documento y restringe longitud a 40', () => {
+      const parsed = replaceDocumentSchema.parse({ tipoDocumento: 'diploma_academico' });
+      expect(parsed.tipoDocumento).toBe('diploma_academico');
+
+      const maxLimit = replaceDocumentSchema.parse({ tipoDocumento: 'a'.repeat(40) });
+      expect(maxLimit.tipoDocumento).toHaveLength(40);
+
+      expect(() =>
+        replaceDocumentSchema.parse({ tipoDocumento: 'a'.repeat(41) }),
+      ).toThrow();
+    });
     it('reemplaza el documento con exito pasando archivo', async () => {
       const mockResult = {
         id: 'app-123',

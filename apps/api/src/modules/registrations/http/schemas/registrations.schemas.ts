@@ -214,7 +214,7 @@ export const updateObservedDataSchema = z
 export type UpdateObservedDataInput = z.infer<typeof updateObservedDataSchema>;
 
 export const replaceDocumentSchema = z.object({
-  tipoDocumento: z.string().trim().min(1).max(50).optional(),
+  tipoDocumento: z.string().trim().min(1).max(40).optional(),
 });
 
 export type ReplaceDocumentInput = z.infer<typeof replaceDocumentSchema>;
