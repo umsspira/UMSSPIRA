@@ -1,5 +1,15 @@
+import { OBSERVED_APPLICATION_PORT } from '../../application/ports/observed-application.port';
+import { PrismaObservedApplicationRepository } from '../repositories/prisma-observed-application.repository';
+import { ObservedApplicationService } from '../../application/services/observed-application.service';
+import { UpdateRegistrationUseCase } from '../../application/use-cases/update-registration.use-case';
+import { GetDraftDocumentUseCase } from '../../application/use-cases/get-draft-document.use-case';
 import type { Provider } from '@nestjs/common';
 import { RenewActivationUseCase } from '../../application/use-cases/renew-activation.use-case';
+import { CORRECTION_TOKEN_PORT } from '../../application/ports/correction-token.port';
+import { PrismaCorrectionTokenRepository } from '../repositories/prisma-correction-token.repository';
+import { CorrectionTokenService } from '../../application/services/correction-token.service';
+import { RequestCorrectionLinkUseCase } from '../../application/use-cases/request-correction-link.use-case';
+import { GetApplicationMetricsUseCase } from '../../application/use-cases/get-application-metrics.use-case';
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
@@ -31,8 +41,14 @@ import { GetApplicationUseCase } from '../../application/use-cases/get-applicati
 import { GetApplicationDocumentUseCase } from '../../application/use-cases/get-application-document.use-case';
 import { ReviewApplicationUseCase } from '../../application/use-cases/review-application.use-case';
 import { ActivateRegistrationUseCase } from '../../application/use-cases/activate-registration.use-case';
-
+import { VerifyActivationCodeUseCase } from '../../application/use-cases/verify-activation-code.use-case';
 export const registrationsProviders: Provider[] = [
+  ...[UpdateRegistrationUseCase, GetDraftDocumentUseCase].map((useCase) => ({
+    provide: useCase,
+    inject: [REGISTRATION_REPOSITORY, REGISTRATION_SECURITY],
+    useFactory: (repository: RegistrationRepository, security: RegistrationSecurity) =>
+      new useCase(repository, security),
+  })),
   {
     provide: RenewActivationUseCase,
     inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY],
@@ -41,6 +57,13 @@ export const registrationsProviders: Provider[] = [
   },
   PrismaRegistrationRepository,
   PrismaApplicationsRepository,
+  PrismaCorrectionTokenRepository,
+  { provide: CORRECTION_TOKEN_PORT, useExisting: PrismaCorrectionTokenRepository },
+  CorrectionTokenService,
+  RequestCorrectionLinkUseCase,
+  PrismaObservedApplicationRepository,
+  { provide: OBSERVED_APPLICATION_PORT, useExisting: PrismaObservedApplicationRepository },
+  ObservedApplicationService,
   NodeRegistrationSecurity,
   { provide: REGISTRATION_REPOSITORY, useExisting: PrismaRegistrationRepository },
   { provide: APPLICATIONS_REPOSITORY, useExisting: PrismaApplicationsRepository },
@@ -92,6 +115,12 @@ export const registrationsProviders: Provider[] = [
     inject: [APPLICATIONS_REPOSITORY],
     useFactory: (repository: ApplicationsRepository) => new ListApplicationsUseCase(repository),
   },
+    {
+    provide: GetApplicationMetricsUseCase,
+    inject: [APPLICATIONS_REPOSITORY],
+    useFactory: (repository: ApplicationsRepository) =>
+      new GetApplicationMetricsUseCase(repository),
+  },
   {
     provide: GetApplicationUseCase,
     inject: [APPLICATIONS_REPOSITORY],
@@ -117,5 +146,12 @@ export const registrationsProviders: Provider[] = [
       security: RegistrationSecurity,
       passwords: PasswordHasher,
     ) => new ActivateRegistrationUseCase(repository, security, passwords),
+  },
+
+  {
+    provide: VerifyActivationCodeUseCase,
+    inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY],
+    useFactory: (repository: ApplicationsRepository, security: RegistrationSecurity) =>
+      new VerifyActivationCodeUseCase(repository, security),
   },
 ];

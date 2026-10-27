@@ -73,7 +73,7 @@ it("reenvía PATCH con su cuerpo y conserva la respuesta sin contenido", async (
     "http://frontend/api/v1/mentorship/availability",
     {
       method: "PATCH",
-      body: JSON.stringify({ availabilityStatus: "PAUSED" }),
+      body: JSON.stringify({ availabilityStatus: "EN_PAUSA" }),
       headers: { "Content-Type": "application/json" },
     },
   );
@@ -84,4 +84,32 @@ it("reenvía PATCH con su cuerpo y conserva la respuesta sin contenido", async (
 
   expect(result.status).toBe(204);
   expect(fetchMock.mock.calls[0][1].method).toBe("PATCH");
+});
+
+it("permite el módulo nlp sin devolver 404", async () => {
+  fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: { keywords: [] } }), { status: 200 }));
+  const request = new NextRequest("http://frontend/api/v1/nlp/extract", {
+    method: "POST",
+    body: JSON.stringify({ text: "Node.js" }),
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const result = await POST(request, {
+    params: { path: ["nlp", "extract"] },
+  });
+
+  expect(result.status).toBe(200);
+  expect(fetchMock.mock.calls[0][0]).toBe("http://backend:3000/api/v1/nlp/extract");
+});
+
+it("permite el módulo radar sin devolver 404", async () => {
+  fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: { areas: [] } }), { status: 200 }));
+  const request = new NextRequest("http://frontend/api/v1/radar");
+
+  const result = await GET(request, {
+    params: { path: ["radar"] },
+  });
+
+  expect(result.status).toBe(200);
+  expect(fetchMock.mock.calls[0][0]).toBe("http://backend:3000/api/v1/radar");
 });

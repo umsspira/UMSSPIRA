@@ -152,7 +152,8 @@ describe('catálogo de eventos', () => {
 
     expect(screen.getByRole('button', { name: 'Explorar' }))
       .toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('button', { name: 'Mis eventos' })).toBeDisabled();
+      expect(screen.getByRole('link', { name: 'Mis eventos' }))
+      .toHaveAttribute('href', '/portal/eventos/mis-eventos');
     expect(screen.getByRole('button', { name: 'Mis pases' })).toBeDisabled();
   });
 

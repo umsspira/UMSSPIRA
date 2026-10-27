@@ -72,6 +72,7 @@ const profile = {
   education: [],
   experience: [],
   certifications: [],
+  description: { text: '', updatedAt: null },
 };
 
 describe('Perfil y eventos con contratos y guards compartidos', () => {
@@ -86,6 +87,8 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
     remove: jest.fn(),
     saveBackup: jest.fn(),
     readBackup: jest.fn(),
+    findBackupOwner: jest.fn(),
+    readBackupFile: jest.fn(),
   };
   const events = {
     catalog: jest.fn(),
@@ -197,6 +200,38 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
       education,
     );
   });
+  it('crea certificación con grado Profesional por defecto y dueño derivado de la sesión', async () => {
+    profiles.createCertification.mockResolvedValue({
+      id: recordId,
+      graduateId,
+      kind: 'certification',
+      name: 'AWS Solutions Architect',
+      issuer: 'Amazon Web Services',
+      degree: 'Profesional',
+      issuedYear: 2022,
+      backup: null,
+      createdAt: new Date(),
+    });
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/perfil/certificaciones')
+      .set('Authorization', 'Bearer graduate')
+      .send({
+        nombre: 'AWS Solutions Architect',
+        entidadEmisora: 'Amazon Web Services',
+        anioEmision: 2022,
+      })
+      .expect(201);
+    expect(response.body.data.grado).toBe('Profesional');
+    expect(profiles.createCertification).toHaveBeenCalledWith(
+      { graduateId, userId: graduate.id },
+      {
+        nombre: 'AWS Solutions Architect',
+        entidadEmisora: 'Amazon Web Services',
+        anioEmision: 2022,
+        grado: 'Profesional',
+      },
+    );
+  });
 
   it('rechaza campos de propiedad y años futuros', async () => {
     await request(app.getHttpServer())
@@ -263,6 +298,8 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
     expect(response.headers['content-disposition']).toContain('perfil_maria_perez_');
     expect(response.body.titulado.id).toBe(graduateId);
     expect(response.body.fechaExportacion).toMatch(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
+    expect(response.body).toHaveProperty(['Formación académica', 'total']);
+    expect(response.body).not.toHaveProperty('formacionAcademica');
     expect(response.body).not.toHaveProperty('password_hash');
   });
 
@@ -280,6 +317,74 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
       )
       .expect(400);
     expect(profiles.saveBackup).not.toHaveBeenCalled();
+  });
+
+  it('entrega un enlace firmado y temporal del respaldo JPG', async () => {
+    profiles.findBackupOwner.mockResolvedValue({
+      graduateId,
+      userId: graduate.id,
+      hasBackup: true,
+    });
+    profiles.readBackupFile.mockResolvedValue({
+      id: randomUUID(),
+      name: 'aws.jpg',
+      mime: 'image/jpeg',
+      bytes: new Uint8Array([0xff, 0xd8, 0xff]),
+      size: 3,
+    });
+
+    await request(app.getHttpServer())
+      .get('/api/v1/perfil/certificaciones/' + recordId + '/respaldo/enlace')
+      .expect(401);
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/perfil/certificaciones/' + recordId + '/respaldo/enlace')
+      .set('Authorization', 'Bearer graduate')
+      .expect(200);
+    const { url, expiraEn } = response.body.data;
+    const seconds = (new Date(expiraEn).getTime() - Date.now()) / 1000;
+    expect(seconds).toBeGreaterThan(290);
+    expect(seconds).toBeLessThanOrEqual(300);
+
+    const file = await request(app.getHttpServer()).get(url).expect(200);
+    expect(file.headers['content-type']).toContain('image/jpeg');
+    expect(file.headers['content-disposition']).toMatch(/^inline/);
+    expect(profiles.readBackupFile).toHaveBeenCalledWith(recordId);
+    const download = await request(app.getHttpServer())
+      .get(url + '&descargar=1')
+      .expect(200);
+    expect(download.headers['content-disposition']).toMatch(/^attachment/);
+
+    await request(app.getHttpServer())
+      .get(url.replace(/firma=[^&]+/, 'firma=alterada'))
+      .expect(403);
+  });
+
+  it('responde 403 y no entrega enlace si el respaldo es de otro titulado', async () => {
+    profiles.findBackupOwner.mockResolvedValue({
+      graduateId: randomUUID(),
+      userId: randomUUID(),
+      hasBackup: true,
+    });
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/perfil/certificaciones/' + recordId + '/respaldo/enlace')
+      .set('Authorization', 'Bearer graduate')
+      .expect(403);
+    expect(response.body.error.message).toBe('No tienes permiso para ver este respaldo');
+    expect(response.body).not.toHaveProperty('data');
+    expect(profiles.readBackupFile).not.toHaveBeenCalled();
+  });
+
+  it('responde 404 al pedir el enlace de una certificación sin respaldo', async () => {
+    profiles.findBackupOwner.mockResolvedValue({
+      graduateId,
+      userId: graduate.id,
+      hasBackup: false,
+    });
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/perfil/certificaciones/' + recordId + '/respaldo/enlace')
+      .set('Authorization', 'Bearer graduate')
+      .expect(404);
+    expect(response.body.error.message).toBe('No se encontró un respaldo de tu certificación');
   });
 
   it('deja público el catálogo y protege la gestión de eventos', async () => {
@@ -396,13 +501,20 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
   });
 
   it('permite al administrador cancelar un evento publicado', async () => {
-    events.cancelPublished.mockResolvedValue({ ...event, status: 'CANCELADO' });
+    events.cancelPublished.mockResolvedValue({
+      event: { ...event, status: 'CANCELADO' },
+      registrationsCount: 1,
+      invalidatedPassesCount: 1,
+    });
 
-    await request(app.getHttpServer())
+    const response = await request(app.getHttpServer())
       .patch('/api/v1/events/' + eventId + '/cancel')
       .set('Authorization', 'Bearer admin')
       .expect(200);
 
+    expect(response.body.data.event.status).toBe('CANCELADO');
+    expect(response.body.data.registrationsCount).toBe(1);
+    expect(response.body.data.invalidatedPassesCount).toBe(1);
     expect(events.cancelPublished).toHaveBeenCalledWith(admin.id, eventId);
   });
 

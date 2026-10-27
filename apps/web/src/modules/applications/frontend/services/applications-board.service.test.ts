@@ -12,14 +12,14 @@ describe('applications-board.service', () => {
     const page = { items: [], total: 0, page: 1, pageSize: 15 };
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: page }) });
 
-    const result = await fetchApplicationsBoard({ page: 2, pageSize: 15, career: 'Sistemas', status: 'PENDING', search: '20180' });
+    const result = await fetchApplicationsBoard({ page: 2, pageSize: 15, career: 'Sistemas', status: 'PENDIENTE', search: '20180' });
 
     expect(result).toEqual({ ok: true, data: page });
     const [url] = (global.fetch as jest.Mock).mock.calls[0];
     expect(url).toContain('/api/v1/applications?');
     expect(url).toContain('page=2');
     expect(url).toContain('career=Sistemas');
-    expect(url).toContain('status=PENDING');
+    expect(url).toContain('status=PENDIENTE');
     expect(url).toContain('search=20180');
   });
 

@@ -6,7 +6,7 @@
 
 ## Endpoints
 
-- `GET /api/v1/mentorship/profiles` — directorio público.
+- `GET /api/v1/mentorship/profiles` — directorio de mentores autenticado.
 - `GET /api/v1/mentorship/eligibility` — elegibilidad del titulado.
 - `GET /api/v1/mentorship/my-profile` — participación propia.
 - `PATCH /api/v1/mentorship/my-profile/participation` — activar o desactivar.
@@ -25,7 +25,7 @@
 
 ## Autenticación
 
-El directorio es público. Las operaciones propias requieren `mentores:self:write`; administración requiere `mentores:manage`.
+El directorio y el perfil detallado requieren sesión autenticada. Las operaciones propias requieren `mentores:self:write`; administración requiere `mentores:manage`.
 
 Usar Bearer del login o cookies de sesión. Las mutaciones autenticadas con cookies requieren `X-CSRF-Token`. No se aceptan headers de identidad como mecanismo de autenticación. El actor debe tener cuenta activa y un titulado asociado para participar. Usuario, titulado y mentor tienen UUID distintos.
 
@@ -35,10 +35,11 @@ Errores comunes: 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`,
 
 ## 1. Directorio — `GET /api/v1/mentorship/profiles`
 
-**Permiso:** ninguno. **Body/query:** ninguno.
-**Respuesta 200:** `{ "data": [<DirectoryMentor>] }`.
+**Autenticación:** sesión válida requerida. **Query:** `offset` opcional (por defecto `0`) y `limit` opcional (entre `1` y `100`). Sin `limit`, devuelve el conjunto completo para compatibilidad con clientes existentes.
+**Respuesta 200:** `{ "data": [<DirectoryMentor>], "total": 9, "catalog": [...] }`.
 
-Solo perfiles activos con cuenta de titulado activa. Excluye UNAVAILABLE; PAUSED y disponibilidad sin configurar permanecen visibles. Áreas raíz activas, orden por creación descendente y UUID. No expone correo, CI, ID de usuario ni información relevante privada.
+Incluye solo perfiles activos, de cuentas activas, cuyo último estado de disponibilidad es `AVAILABLE`. Ordena por creación descendente y UUID ascendente. Cada perfil incluye áreas técnicas, intereses activos asociados, y la experiencia laboral vigente más reciente (o la más reciente por fecha de inicio) como cargo y empresa. `catalog` contiene áreas raíz e intereses activos del catálogo existente. No expone correo, CI, ID de usuario ni información relevante privada. Una consulta sin coincidencias responde `200` con `data: []` y `total: 0`.
+Solo perfiles activos con cuenta de titulado activa. Excluye NO_DISPONIBLE; EN_PAUSA y disponibilidad sin configurar permanecen visibles. Áreas raíz activas, orden por creación descendente y UUID. No expone correo, CI, ID de usuario ni información relevante privada.
 
 ## 2. Elegibilidad — `GET /api/v1/mentorship/eligibility`
 
@@ -191,7 +192,7 @@ Cada interés debe estar activo, tener área raíz activa y pertenecer a un áre
 ## 14. Consultar disponibilidad — `GET /api/v1/mentorship/availability`
 
 **Permiso:** `mentores:self:write`. Requiere mentor activo.
-**Respuesta 200:** `{ "data": { "availabilityStatus": "AVAILABLE", "fecha_actualizacion": "2026-10-18" } }`.
+**Respuesta 200:** `{ "data": { "availabilityStatus": "DISPONIBLE", "fecha_actualizacion": "2026-10-18" } }`.
 
 Sin configurar, ambos campos son null; la lectura no escribe en la BD.
 **Errores:** 403 `MENTOR_INACTIVE`; 404 `MENTOR_NOT_FOUND`.
@@ -199,7 +200,7 @@ Sin configurar, ambos campos son null; la lectura no escribe en la BD.
 ## 15. Cambiar disponibilidad — `PATCH /api/v1/mentorship/availability`
 
 **Permiso:** `mentores:self:write`. Requiere mentor activo.
-**Body:** `{ "availabilityStatus": "PAUSED" }`; admite AVAILABLE, PAUSED o UNAVAILABLE.
+**Body:** `{ "availabilityStatus": "EN_PAUSA" }`; admite DISPONIBLE, EN_PAUSA o NO_DISPONIBLE.
 **Respuesta 200:** mismo contrato de consulta. Repetir el estado conserva la fecha anterior.
 **Errores:** 400 `VALIDATION_ERROR`; 403 `MENTOR_INACTIVE`; 404 `MENTOR_NOT_FOUND`.
 
@@ -211,6 +212,41 @@ Sin configurar, ambos campos son null; la lectura no escribe en la BD.
 
 El titulado del mentor debe pertenecer a una carrera asignada al administrador.
 **Errores:** 404 `MENTOR_NOT_FOUND` tanto si no existe como si queda fuera del alcance.
+
+---
+
+## 17. Perfil detallado — `GET /api/v1/mentorship/profiles/:id`
+
+**Permiso:** sesión iniciada (cualquier rol). **Body/query:** ninguno. `:id` es el UUID del mentor que entrega el directorio.
+**Respuesta 200:** `{ "data": <MentorProfile> }`. Las claves siguen el contrato que consume el front de la HU 6.9 (`features/mentorship/model/mentor-detail.ts`).
+
+```json
+{
+  "id": "uuid",
+  "fullName": "María Pérez",
+  "photoUrl": null,
+  "jobTitle": "Backend Developer",
+  "company": "Acme",
+  "about": "Mentora backend",
+  "experience": "Desarrollo de APIs",
+  "relevantInfo": null,
+  "technicalAreas": ["Backend"],
+  "interests": [{ "area": "Backend", "items": ["NestJS"] }],
+  "availability": "AVAILABLE",
+  "weekLabel": "Del 23 al 29 oct · sesiones de 1 hora",
+  "slots": [{ "date": "2026-10-27", "dayLabel": "martes 27 oct", "times": ["18:00", "19:00"] }]
+}
+```
+
+- Mismo filtro que el directorio para perfil y cuenta: perfil activo y cuenta de titulado activa. Un mentor UNAVAILABLE no es accesible por URL (404).
+- `availability` es `AVAILABLE`, `PAUSED` o `null` (sin configurar). Solo AVAILABLE puede recibir solicitudes; en los demás casos `slots` llega vacío.
+- `about`, `experience` y `relevantInfo` son la descripción, experiencia e información relevante de la HU 6.5; los textos vacíos llegan como `null`. `jobTitle` y `company` vienen de la experiencia laboral actual del titulado (o la más reciente).
+- `technicalAreas` e `interests` solo incluyen áreas e intereses activos, ordenados por nombre; los intereses se agrupan por área.
+- `slots` cubre los próximos 7 días en hora de Bolivia (`America/La_Paz`), desde hoy. Cada rango activo de `espacio_disponible_mentor` se divide en sesiones de 1 hora; se omiten las horas de hoy que ya pasaron, los bloques ocupados por solicitudes PENDIENTE o ACEPTADO y los días sin horas libres.
+- `dia_semana`: 1 = lunes … 7 = domingo; 0 también se interpreta como domingo. Las horas se guardan y se devuelven como hora local `HH:mm`, sin conversión de zona.
+- No expone correo, teléfono, CI ni los ID de usuario o titulado.
+
+**Errores:** 401 `UNAUTHENTICATED`; 400 `VALIDATION_ERROR` si el ID no es UUID; 404 `MENTOR_NOT_FOUND` si el perfil no existe, está inactivo o no disponible.
 
 ---
 
@@ -233,7 +269,8 @@ Experiencia, años y fechas pueden ser null. DirectoryMentor agrega nombre, desc
 
 - Los cambios del mismo mentor se serializan por titulado. No se crean varios perfiles por activar concurrentemente.
 - Desactivar no elimina información; reactivar conserva el estado de disponibilidad anterior.
-- PAUSED permanece en el directorio; aceptar solicitudes exige AVAILABLE y perfil/cuenta activos.
+- PAUSED no aparece en el directorio, pero su perfil detallado sigue accesible por URL sin horarios; aceptar solicitudes exige AVAILABLE y perfil/cuenta activos.
+- EN_PAUSA permanece en el directorio; aceptar solicitudes exige DISPONIBLE y perfil/cuenta activos.
 - La seed de demostración agrega dos áreas raíz y tres intereses sin sobreescribir filas existentes: `pnpm --filter api db:seed:demo`.
 - La ruta antigua POST eligibility ahora es GET. La desactivación recibe UUID del mentor.
 - No se migraron las utilidades de prueba status y profiles/reset. Salud está en /health.

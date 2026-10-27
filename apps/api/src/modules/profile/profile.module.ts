@@ -11,6 +11,10 @@ import { DeleteProfileRecordController } from './http/controllers/delete-profile
 import { ReadCertificationBackupController } from './http/controllers/read-certification-backup.controller';
 import { ExportProfileController } from './http/controllers/export-profile.controller';
 import { UploadCertificationBackupController } from './http/controllers/upload-certification-backup.controller';
+import { CreateBackupLinkController } from './http/controllers/create-backup-link.controller';
+import { ReadSignedBackupController } from './http/controllers/read-signed-backup.controller';
+import { GetProfessionalDescriptionController } from './http/controllers/get-professional-description.controller';
+import { SaveProfessionalDescriptionController } from './http/controllers/save-professional-description.controller';
 
 @Module({
   imports: [PrismaModule],
@@ -19,12 +23,17 @@ import { UploadCertificationBackupController } from './http/controllers/upload-c
     CreateEducationController,
     CreateExperienceController,
     CreateCertificationController,
+    // Antes de las rutas :section/:id para que «descripcion-profesional» no se lea como sección
+    GetProfessionalDescriptionController,
+    SaveProfessionalDescriptionController,
     GetProfileRecordController,
     UpdateProfileRecordController,
     DeleteProfileRecordController,
     ReadCertificationBackupController,
     ExportProfileController,
     UploadCertificationBackupController,
+    CreateBackupLinkController,
+    ReadSignedBackupController,
   ],
   providers: profileProviders,
 })

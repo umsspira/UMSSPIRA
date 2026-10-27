@@ -15,6 +15,8 @@
 - `PATCH /api/v1/events/drafts/:id` — editar borrador.
 - `PATCH /api/v1/events/drafts/:id/publish` — publicar borrador.
 - `PATCH /api/v1/events/:id/cancel` — cancelar evento publicado propio.
+- `GET /api/v1/events/inactive` — eventos propios cancelados o finalizados que siguen en gestión activa.
+- `PATCH /api/v1/events/owned/:id/retire` — retirar de la gestión activa un evento propio cancelado o finalizado (baja lógica).
 - `POST /api/v1/events/covers` — cargar portada.
 - `DELETE /api/v1/events/covers/:id` — eliminar portada propia sin usar.
 - `GET /api/v1/events/covers/:id` — leer imagen pública o previsualización propia.
@@ -176,6 +178,35 @@ La ruta es relativa al origen de la API. Puede previsualizarse con sesión propi
 
 **Errores:** 404 `COVER_NOT_FOUND` si no está publicada ni es propia. Los errores de infraestructura conservan el manejo centralizado de la API.
 
+## 13. Listar eventos inactivos — `GET /api/v1/events/inactive`
+
+**Permiso:** `eventos:manage`. **Body:** ninguno.
+
+**Respuesta 200:** `{ "data": [<InactiveEventItem>] }`.
+
+Devuelve los eventos propios que siguen en gestión activa (`archivado = false`) pero ya no son operativos, ordenados por fecha de inicio descendente y UUID. Un evento es inactivo cuando:
+
+- su estado es `CANCELADO`, o
+- su fecha y hora de finalización (`endDate`) ya transcurrieron.
+
+No existe un estado persistido `FINALIZADO`: se calcula en el servidor a partir de `endDate` y se expone en el campo `inactiveStatus` como `CANCELADO` o `FINALIZADO`. Los eventos archivados no se incluyen. No aplica paginación, igual que el listado de gestión.
+
+**Errores:** 401 si no hay sesión; 403 si falta el permiso `eventos:manage`.
+
+## 14. Retirar evento de la gestión activa — `PATCH /api/v1/events/owned/:id/retire`
+
+**Permiso:** `eventos:manage`. **Params:** UUID de un evento propio. **Body:** ninguno.
+
+Retira de la gestión activa un evento propio que sea retirable, es decir, `CANCELADO` o ya finalizado. La operación se ejecuta dentro de una transacción con bloqueo del evento:
+
+- si el evento conserva inscripciones o pases QR, se realiza una **baja lógica** (`archivado = true` y `fecha_archivado`), preservando la trazabilidad;
+- si no tiene relaciones, se elimina **físicamente** el registro.
+
+En ambos casos el evento deja de aparecer en la gestión activa y en el catálogo.
+
+**Respuesta 200:** `{ "data": { "id": "uuid", "registrationsCount": 0, "passesCount": 0 } }`. Los conteos describen las relaciones que se conservaron al retirar.
+
+**Errores:** 400 `VALIDATION_ERROR` para un ID inválido; 404 `EVENT_NOT_FOUND` si el evento no existe, está archivado o no pertenece al creador; 409 `EVENT_NOT_RETIRABLE` si el evento está `PUBLICADO` y aún no ha finalizado (debe cancelarse primero o esperar su finalización).
 ## 12. Inscribirse — `POST /api/v1/events/:id/registrations`
 
 **Rol:** `titulado`. **Params:** UUID de evento. **Body:** ninguno.
@@ -218,7 +249,33 @@ Dentro de una transacción se bloquea el evento, se vuelve a comprobar PUBLICADO
 }
 ```
 
-description, location, imageUrl y creatorName pueden ser null. Los estados reconocidos son BORRADOR, PUBLICADO y CANCELADO. La operación de cancelación permite pasar de PUBLICADO a CANCELADO; no permite cancelar un borrador.
+description, location, imageUrl y creatorName pueden ser null. Los estados reconocidos son BORRADOR, PUBLICADO y CANCELADO. La operación de cancelación permite pasar de PUBLICADO a CANCELADO; no permite cancelar un borrador. El retiro de la gestión activa se aplica a eventos CANCELADO o finalizados y no introduce un estado persistido nuevo.
+
+## Entidad `InactiveEventItem`
+
+`GET /api/v1/events/inactive` devuelve la entidad `EventItem` con los siguientes campos adicionales calculados en el servidor.
+
+```json
+{
+  "id": "uuid",
+  "title": "Feria profesional",
+  "startDate": "2027-06-01T14:00:00.000Z",
+  "endDate": "2027-06-01T22:00:00.000Z",
+  "status": "CANCELADO",
+  "createdBy": "uuid",
+  "creatorName": "Administración",
+  "createdAt": "ISO-8601",
+  "inactiveStatus": "CANCELADO",
+  "registrationsCount": 0,
+  "passesCount": 0
+}
+```
+
+- `inactiveStatus`: `CANCELADO` si el estado es CANCELADO; `FINALIZADO` si la fecha de fin ya transcurrió. Nunca es null en esta colección.
+- `registrationsCount`: número de inscripciones vinculadas al evento.
+- `passesCount`: número de pases QR vinculados a las inscripciones del evento.
+
+Estos conteos indican si, al retirar, el evento se archivará (baja lógica) o se eliminará físicamente.
 
 ## Casos borde
 

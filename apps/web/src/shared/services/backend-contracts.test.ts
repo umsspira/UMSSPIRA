@@ -114,7 +114,7 @@ it("adapta la paginación y los estados del reporte a los nombres de la pantalla
     id: "51000000-0000-4000-8000-000000000001",
     nombre: "Ana",
     apellido: "Rojas",
-    estado: "APPROVED",
+    estado: "APROBADA",
     anioEgreso: 2025,
     telefono: "77777777",
     email: "ana@example.com",

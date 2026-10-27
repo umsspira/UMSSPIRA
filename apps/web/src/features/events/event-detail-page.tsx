@@ -171,9 +171,9 @@ export default function EventDetailPage({
               <small>{isRegistrationCancelled ? 'El pase QR asociado ya no permite el acceso' : 'Inscripción confirmada a tu nombre'}</small>
             </div>
             <div className="hu3-external-actions" aria-label="Acciones de la inscripción">
-              <button type="button" className="hu3-result-action" disabled title="Disponible al integrar HU9">
-                Ver mis eventos
-              </button>
+            <Link href="/portal/eventos/mis-eventos" className="hu3-result-action">
+                 Ver mis eventos
+            </Link>
               <button type="button" className="hu3-result-action hu3-result-action-primary" disabled title="Disponible al integrar HU10">
                 Ver pase QR
               </button>
@@ -308,9 +308,9 @@ export default function EventDetailPage({
             <p>No necesitas volver a reservar un cupo. Tu inscripción actual continúa confirmada.</p>
             <span className="hu3-status-chip">INSCRIPCIÓN CONFIRMADA</span>
             <div className="hu3-external-actions" aria-label="Acciones de la inscripción">
-              <button type="button" className="hu3-result-action" disabled title="Disponible al integrar HU9">
-                Ver mis eventos
-              </button>
+            <Link href="/portal/eventos/mis-eventos" className="hu3-result-action">
+                   Ver mis eventos
+                 </Link>
               <button type="button" className="hu3-result-action hu3-result-action-primary" disabled title="Disponible al integrar HU10">
                 Ver pase QR
               </button>

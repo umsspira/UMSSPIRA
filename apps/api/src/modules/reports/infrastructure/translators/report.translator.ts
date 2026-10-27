@@ -19,7 +19,7 @@ export function toGraduateReport(row: ReportRow): GraduateReportRecord {
   const detail = row.detalle_solicitud;
   if (
     !detail?.id_carrera ||
-    !['PENDING', 'APPROVED', 'OBSERVED', 'REJECTED'].includes(row.estado ?? '')
+    !['PENDIENTE', 'APROBADA', 'OBSERVADA', 'RECHAZADA'].includes(row.estado ?? '')
   ) {
     throw new Error('Solicitud persistida sin datos válidos de reporte');
   }

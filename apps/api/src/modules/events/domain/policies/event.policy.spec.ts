@@ -42,6 +42,10 @@ describe('inactiveStatus', () => {
   it('no marca como inactivo a un evento vigente', () => {
     expect(inactiveStatus(eventWith({ endDate: future }), now)).toBeNull();
   });
+
+  it('no marca como inactivo a un BORRADOR cuya fecha de fin ya pasó', () => {
+    expect(inactiveStatus(eventWith({ status: 'BORRADOR' }), now)).toBeNull();
+  });
 });
 
 describe('assertRetirable', () => {

@@ -44,6 +44,23 @@ export interface EventItem {
   createdAt: string;
 }
 
+export type InactiveEventStatus = Extract<
+  EventStatus,
+  'CANCELADO' | 'FINALIZADO'
+>;
+
+export interface InactiveEventItem extends EventItem {
+  inactiveStatus: InactiveEventStatus;
+  registrationsCount: number;
+  passesCount: number;
+}
+
+export interface RetiredEventItem {
+  id: string;
+  registrationsCount: number;
+  passesCount: number;
+}
+
 export interface CreateEventDto {
   title: string;
   description?: string;
@@ -60,4 +77,55 @@ export type UpdateDraftEventDto = Omit<CreateEventDto, 'status'>;
 export interface EventFilters {
   status?: EventStatus;
   upcomingOnly?: boolean;
+}
+
+export type EventParticipantPassStatus = 'VIGENTE' | 'INVALIDADO' | 'SIN_PASE';
+
+export interface EventParticipantItem {
+  registrationId: string;
+  name: string;
+  status: EventRegistrationStatus;
+  registeredAt: string;
+  passStatus: EventParticipantPassStatus;
+}
+
+export interface EventOccupationSummary {
+  maxCapacity: number;
+  confirmed: number;
+  cancelled: number;
+  available: number;
+  occupancyPercent: number;
+}
+
+export interface EventParticipantsDto {
+  eventId: string;
+  eventTitle: string;
+  occupation: EventOccupationSummary;
+  participants: EventParticipantItem[];
+}
+
+export const EVENT_PARTICIPATION_STATUS = {
+  VIGENTE: 'VIGENTE',
+  INSCRIPCION_CANCELADA: 'INSCRIPCION_CANCELADA',
+  EVENTO_CANCELADO: 'EVENTO_CANCELADO',
+  FINALIZADO: 'FINALIZADO',
+} as const;
+
+export type EventParticipationStatus =
+  (typeof EVENT_PARTICIPATION_STATUS)[keyof typeof EVENT_PARTICIPATION_STATUS];
+
+export interface MyEventRegistrationItem {
+  id: string;
+  status: EventRegistrationStatus;
+  participationStatus: EventParticipationStatus;
+  registeredAt: string;
+  hasPass: boolean;
+  event: {
+    id: string;
+    title: string;
+    startDate: string;
+    endDate: string;
+    location: string | null;
+    status: EventStatus;
+  };
 }

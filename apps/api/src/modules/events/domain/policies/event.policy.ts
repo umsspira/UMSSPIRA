@@ -33,10 +33,10 @@ export function validateEventDates(start: Date, end: Date): void {
       'La fecha de fin debe ser posterior al inicio',
     );
   }
-  
 }
+/** "Finalizado" = PUBLICADO con fecha/hora de fin ya transcurrida (no existe enum FINALIZADO). */
 export function isFinished(event: Event, now: Date): boolean {
-  return event.endDate <= now;
+  return event.status === 'PUBLICADO' && event.endDate <= now;
 }
 
 export function inactiveStatus(event: Event, now: Date): InactiveEventStatus | null {

@@ -7,15 +7,22 @@ import {
   EVENT_STATUS,
   type EventItem,
   type EventStatus,
+  type InactiveEventItem,
+  type InactiveEventStatus,
 } from '@umsspira/shared-types';
 import {
+  Archive,
   Check,
   Eye,
+  MoreVertical,
   Plus,
 } from 'lucide-react';
 import {
   getAdminEvents,
+  getInactiveEvents,
+  cancelPublishedEvent,
   publishDraftEvent,
+  retireEvent,
 } from '@/shared/services/events-service';
 import {
   useAuthenticatedUserId,
@@ -28,7 +35,7 @@ import {
   getEventMonthKey,
 } from '@/shared/utils/event-date-time';
 
-type AdminSection = 'management' | 'create' | 'drafts';
+type AdminSection = 'management' | 'create' | 'drafts' | 'inactive';
 
 export function EventsHeader({ children }: { children: React.ReactNode }) {
   return <div className="events-app">{children}</div>;
@@ -38,6 +45,7 @@ export function EventAdminTabs({ active }: { active: AdminSection }) {
     { key: 'management', label: 'Gestión', href: '/events' },
     { key: 'create', label: 'Crear evento', href: '/events/create' },
     { key: 'drafts', label: 'Borradores', href: '/events/drafts' },
+    { key: 'inactive', label: 'Inactivos', href: '/events/inactive' },
   ];
 
   return (
@@ -78,6 +86,15 @@ export function EventManagementContent({
   } = useAdminEvents(userId, !compact);
   const [pendingPublication, setPendingPublication] = useState<EventItem | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [pendingCancellation, setPendingCancellation] = useState<EventItem | null>(null);
+  const [cancelledResult, setCancelledResult] = useState<{
+    event: EventItem;
+    registrationsCount: number;
+    invalidatedPassesCount: number;
+  } | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [openActionEventId, setOpenActionEventId] = useState<string | null>(null);
   const [publishedEventId, setPublishedEventId] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
@@ -144,6 +161,22 @@ export function EventManagementContent({
     }
   };
 
+  const cancelEvent = async () => {
+    if (!userId || !pendingCancellation) return;
+    setIsCancelling(true);
+    setCancelError(null);
+    try {
+      const result = await cancelPublishedEvent(pendingCancellation.id, userId);
+      setEvents((current) => current.map((item) => item.id === result.event.id ? result.event : item));
+      setPendingCancellation(null);
+      setCancelledResult(result);
+    } catch (error) {
+      setCancelError(getRequestErrorMessage(error));
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <main className={`events-page events-management ${compact ? 'is-compact' : ''}`}>
       <div className="events-title-row">
@@ -151,9 +184,14 @@ export function EventManagementContent({
           <h1>Gestión de eventos</h1>
           <p>Administra los eventos universitarios de la comunidad UMSSPIRA.</p>
         </div>
-        <Link href="/events/create" className="event-button event-button-primary events-create-button">
-          <Plus size={16} /> Crear evento
-        </Link>
+        <div className="events-title-actions">
+          <Link href="/events/inactive" className="event-button event-button-secondary events-inactive-button">
+            Eventos inactivos
+          </Link>
+          <Link href="/events/create" className="event-button event-button-primary events-create-button">
+            <Plus size={16} /> Crear evento
+          </Link>
+        </div>
       </div>
 
       <EventAdminTabs active="management" />
@@ -238,13 +276,34 @@ export function EventManagementContent({
               <StatusChip status={event.status} />
               <div className={`event-row-actions ${event.status === EVENT_STATUS.PUBLICADO ? 'is-published' : 'is-draft'}`}>
                 {event.status === EVENT_STATUS.PUBLICADO ? (
-                  <button
-                    type="button"
-                    className="event-button event-button-secondary event-action-view"
-                    onClick={() => router.push(`/events/${event.id}`)}
-                  >
-                    <Eye size={15} aria-hidden="true" /> Ver
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="event-button event-button-secondary event-action-view"
+                      onClick={() => router.push(`/events/${event.id}`)}
+                    >
+                      <Eye size={15} aria-hidden="true" /> Ver
+                    </button>
+                    <div className="event-actions-menu">
+                      <button
+                        type="button"
+                        aria-label={`Acciones para ${event.title}`}
+                        aria-expanded={openActionEventId === event.id}
+                        onClick={() => setOpenActionEventId((current) => current === event.id ? null : event.id)}
+                      >
+                        <MoreVertical size={17} aria-hidden="true" />
+                      </button>
+                      {openActionEventId === event.id ? (
+                        <div className="event-actions-popover">
+                          <strong>{event.title}</strong>
+                          <small>Acciones del evento</small>
+                          <button type="button" onClick={() => router.push(`/events/${event.id}/edit`)}>Editar evento</button>
+                          <Link href={`/events/${encodeURIComponent(event.id)}/participants`} className="event-actions-item">Ver participantes</Link>
+                          <button type="button" className="is-danger" disabled={isCancelling} onClick={() => { setOpenActionEventId(null); setCancelError(null); setPendingCancellation(event); }}>Cancelar evento</button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </>
                 ) : event.status === EVENT_STATUS.BORRADOR ? (
                   <>
                     <button type="button" className="event-button event-button-secondary event-action-edit" onClick={() => router.push(`/events/drafts/${event.id}`)}>Editar</button>
@@ -282,6 +341,21 @@ export function EventManagementContent({
         <EventSuccessDialog
           eventId={publishedEventId}
           onBack={() => setPublishedEventId(null)}
+        />
+      ) : null}
+
+      {pendingCancellation ? (
+        <EventCancelDialog
+          event={pendingCancellation}
+          isSubmitting={isCancelling}
+          errorMessage={cancelError}
+          onCancel={() => { if (!isCancelling) setPendingCancellation(null); }}
+          onConfirm={() => void cancelEvent()}
+        />
+      ) : null}
+      {cancelledResult ? (
+        <EventCancelledDialog
+          result={cancelledResult}
         />
       ) : null}
     </main>
@@ -404,8 +478,179 @@ export function EventDraftsContent({
   );
 }
 
-function Metric({ value, label, mobileLabel, tone }: { value: number; label: string; mobileLabel?: string; tone: string }) {
+export function EventInactiveContent({
+  userId: providedUserId,
+}: {
+  userId?: string;
+}) {
+  const authenticatedUserId = useAuthenticatedUserId();
+  const userId = providedUserId ?? authenticatedUserId;
+  const {
+    events,
+    setEvents,
+    isLoading,
+    errorMessage,
+    setErrorMessage,
+  } = useInactiveEvents(userId);
+  const [pendingRetire, setPendingRetire] = useState<InactiveEventItem | null>(null);
+  const [isRetiring, setIsRetiring] = useState(false);
+  const [retiredEvent, setRetiredEvent] = useState<InactiveEventItem | null>(null);
+
+  const confirmRetire = async () => {
+    if (!pendingRetire || !userId) return;
+
+    setIsRetiring(true);
+    setErrorMessage(null);
+
+    try {
+      await retireEvent(pendingRetire.id, userId);
+      setEvents((currentEvents) =>
+        currentEvents.filter((event) => event.id !== pendingRetire.id),
+      );
+      setRetiredEvent(pendingRetire);
+      setPendingRetire(null);
+    } catch (error) {
+      setPendingRetire(null);
+      setErrorMessage(getRequestErrorMessage(error));
+    } finally {
+      setIsRetiring(false);
+    }
+  };
+
   return (
+    <main className="events-page event-inactive-page">
+      <div className="events-title-row">
+        <div>
+          <h1>Eventos inactivos</h1>
+          <p>
+            Eventos cancelados o finalizados que siguen en tu gestión. Puedes
+            retirarlos para quitarlos de la administración activa.
+          </p>
+        </div>
+      </div>
+
+      <EventAdminTabs active="inactive" />
+
+      <section className="event-inactive-panel">
+        <h2>
+          {events.length} {events.length === 1 ? 'evento inactivo' : 'eventos inactivos'}
+        </h2>
+        {errorMessage ? <div className="event-feedback" role="alert">{errorMessage}</div> : null}
+        {isLoading ? <p className="events-list-footer" role="status">Cargando eventos inactivos…</p> : null}
+        {!isLoading && !errorMessage && events.length === 0 ? (
+          <p className="events-list-footer" role="status">
+            No hay eventos cancelados o finalizados por retirar.
+          </p>
+        ) : null}
+        <div className="event-inactive-list">
+          {!isLoading && !errorMessage && events.map((event) => (
+            <article className="event-inactive-row" key={event.id}>
+              <div className="event-inactive-main">
+                <span className={`event-thumb ${event.inactiveStatus === 'CANCELADO' ? 'is-red' : ''}`}>
+                  {getEventInitials(event.title)}
+                </span>
+                <span>
+                  <strong>{event.title}</strong>
+                  <small>{formatEventSchedule(event.startDate, event.endDate)}</small>
+                  <small>{event.location ?? 'Sin ubicación'}</small>
+                </span>
+              </div>
+              <span className="event-inactive-relations">
+                {event.registrationsCount} {event.registrationsCount === 1 ? 'inscripción' : 'inscripciones'}
+                {' · '}
+                {event.passesCount} {event.passesCount === 1 ? 'pase' : 'pases'}
+              </span>
+              <InactiveStatusChip status={event.inactiveStatus} />
+              <div className="event-inactive-actions">
+                <button
+                  type="button"
+                  className="event-button event-button-secondary event-action-retire"
+                  onClick={() => setPendingRetire(event)}
+                  disabled={isRetiring}
+                >
+                  <Archive size={15} aria-hidden="true" /> Retirar
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {pendingRetire ? (
+        <EventRetireDialog
+          event={pendingRetire}
+          isSubmitting={isRetiring}
+          onCancel={() => setPendingRetire(null)}
+          onConfirm={() => void confirmRetire()}
+        />
+      ) : null}
+
+      {retiredEvent ? (
+        <EventRetiredDialog
+          event={retiredEvent}
+          onBack={() => setRetiredEvent(null)}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function InactiveStatusChip({ status }: { status: InactiveEventStatus }) {
+  const label = status === 'CANCELADO' ? 'Cancelado' : 'Finalizado';
+  const statusClass = status === 'CANCELADO' ? 'is-cancelled' : 'is-finished';
+
+  return <span className={`event-status ${statusClass}`}>{label}</span>;
+}
+
+function useInactiveEvents(userId: string | undefined) {
+  const [events, setEvents] = useState<InactiveEventItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!userId) {
+      setEvents([]);
+      setErrorMessage(MISSING_EVENTS_IDENTITY);
+      setIsLoading(false);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    void getInactiveEvents(userId)
+      .then((inactiveEvents) => {
+        if (isActive) setEvents(inactiveEvents);
+      })
+      .catch((error: unknown) => {
+        if (isActive) {
+          setEvents([]);
+          setErrorMessage(getRequestErrorMessage(error));
+        }
+      })
+      .finally(() => {
+        if (isActive) setIsLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [userId]);
+
+  return {
+    events,
+    setEvents,
+    isLoading,
+    errorMessage,
+    setErrorMessage,
+  };
+}
+
+function Metric({ value, label, mobileLabel, tone }: { value: number; label: string; mobileLabel?: string; tone: string }) {  return (
     <article className={`event-metric is-${tone}`}>
       <span className="metric-accent" />
       <strong>{value}</strong>
@@ -553,6 +798,69 @@ export function EventConfirmDialog({
   );
 }
 
+export function EventCancelDialog({
+  event,
+  isSubmitting,
+  errorMessage,
+  onCancel,
+  onConfirm,
+}: {
+  event: EventItem;
+  isSubmitting: boolean;
+  errorMessage: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const registrationsCount = event.currentCapacity ?? 0;
+  return (
+    <div className="event-modal-layer" role="presentation">
+      <section className="event-cancel-dialog" role="dialog" aria-modal="true" aria-labelledby="cancel-event-title">
+        <h2 id="cancel-event-title">Cancelar evento publicado</h2>
+        <p>La acción impedirá nuevas inscripciones y afectará las inscripciones y pases asociados.</p>
+        <div className="event-cancel-summary">
+          <strong>{event.title} · {registrationsCount} {registrationsCount === 1 ? 'inscripción' : 'inscripciones'}</strong>
+          <ul>
+            <li>El evento pasará a estado CANCELADO.</li>
+            <li>Las inscripciones dejarán de ser participaciones vigentes.</li>
+            <li>Los pases QR vigentes quedarán invalidados.</li>
+            <li>Se conservará el registro para trazabilidad.</li>
+          </ul>
+        </div>
+        {errorMessage ? <p className="event-cancel-error" role="alert">{errorMessage}</p> : null}
+        <div className="event-dialog-actions">
+          <button type="button" className="event-button event-button-secondary" onClick={onCancel} disabled={isSubmitting}>No cancelar</button>
+          <button type="button" className="event-button event-button-primary" onClick={onConfirm} disabled={isSubmitting}>
+            {isSubmitting ? 'Cancelando…' : 'Confirmar cancelación'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function EventCancelledDialog({
+  result,
+}: {
+  result: { event: EventItem; registrationsCount: number; invalidatedPassesCount: number };
+}) {
+  return (
+    <div className="event-modal-layer" role="presentation">
+      <section className="event-success-dialog" role="dialog" aria-modal="true" aria-labelledby="event-cancelled-title">
+        <span className="event-success-icon"><Check size={40} strokeWidth={3} /></span>
+        <h2 id="event-cancelled-title">Evento cancelado</h2>
+        <p>{result.event.title} fue retirado del catálogo activo y se conservará su trazabilidad.</p>
+        <div className="event-cancel-result-counts">
+          <span>{result.registrationsCount} {result.registrationsCount === 1 ? 'inscripción afectada' : 'inscripciones afectadas'}</span>
+          <span>{result.invalidatedPassesCount} {result.invalidatedPassesCount === 1 ? 'pase invalidado' : 'pases invalidados'}</span>
+        </div>
+        <div className="event-dialog-actions">
+          <Link href="/events/inactive" className="event-button event-button-primary">Retirar del activo</Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function EventSuccessDialog({
   eventId,
   onBack,
@@ -574,6 +882,79 @@ export function EventSuccessDialog({
           >
             Ver evento
           </Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function EventRetireDialog({
+  event,
+  isSubmitting,
+  onCancel,
+  onConfirm,
+}: {
+  event: InactiveEventItem;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const hasHistory = event.registrationsCount > 0 || event.passesCount > 0;
+
+  return (
+    <div className="event-modal-layer" role="presentation">
+      <section className="event-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="retire-event-title">
+        <h2 id="retire-event-title">¿Retirar este evento?</h2>
+        <p>
+          El evento dejará de aparecer en tu gestión activa. Esta acción no se
+          puede deshacer.
+        </p>
+        <div className="event-confirm-summary">
+          <div className="event-confirm-cover"><span>{getEventInitials(event.title)}</span><i /></div>
+          <div>
+            <strong>{event.title}</strong>
+            <span>{formatEventSchedule(event.startDate, event.endDate)}</span>
+            <span>Ubicación: {event.location || 'Por definir'}</span>
+            <span>
+              {event.registrationsCount} {event.registrationsCount === 1 ? 'inscripción' : 'inscripciones'}
+              {' · '}
+              {event.passesCount} {event.passesCount === 1 ? 'pase' : 'pases'}
+            </span>
+          </div>
+        </div>
+        <p className="event-retire-note">
+          {hasHistory
+            ? 'El evento conserva inscripciones o pases, por lo que se archivará para preservar el historial.'
+            : 'El evento no tiene inscripciones ni pases, por lo que se eliminará permanentemente.'}
+        </p>
+        <div className="event-dialog-actions">
+          <button type="button" className="event-button event-button-secondary" onClick={onCancel} disabled={isSubmitting}>Cancelar</button>
+          <button type="button" className="event-button event-button-primary" onClick={onConfirm} disabled={isSubmitting}>
+            {isSubmitting ? 'Retirando…' : 'Retirar evento'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function EventRetiredDialog({
+  event,
+  onBack,
+}: {
+  event: InactiveEventItem;
+  onBack: () => void;
+}) {
+  return (
+    <div className="event-modal-layer" role="presentation">
+      <section className="event-success-dialog" role="dialog" aria-modal="true" aria-labelledby="event-retired-title">
+        <span className="event-success-icon"><Check size={40} strokeWidth={3} /></span>
+        <h2 id="event-retired-title">¡Evento retirado correctamente!</h2>
+        <p>
+          {event.title} ya no forma parte de tu gestión activa.
+        </p>
+        <div className="event-dialog-actions">
+          <button type="button" className="event-button event-button-secondary event-back-button" onClick={onBack}>Volver a inactivos</button>
         </div>
       </section>
     </div>
