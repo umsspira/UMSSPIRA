@@ -4,6 +4,11 @@
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
 
+// Se construyen con RegExp porque el target de TypeScript de apps/web no admite el flag /u en literales.
+const UPPERCASE = new RegExp("\\p{Lu}", "u");
+const LOWERCASE = new RegExp("\\p{Ll}", "u");
+const SYMBOL = new RegExp("[^\\p{L}\\p{N}\\s]", "u");
+
 export interface PasswordRules {
   hasMinLength: boolean;
   hasUppercase: boolean;
@@ -17,10 +22,10 @@ export interface PasswordRules {
 export function evaluatePassword(password: string, confirmation: string): PasswordRules {
   const hasMinLength =
     password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH;
-  const hasUppercase = /\p{Lu}/u.test(password);
-  const hasLowercase = /\p{Ll}/u.test(password);
+  const hasUppercase = UPPERCASE.test(password);
+  const hasLowercase = LOWERCASE.test(password);
   const hasNumber = /\d/.test(password);
-  const hasSymbol = /[^\p{L}\p{N}\s]/u.test(password);
+  const hasSymbol = SYMBOL.test(password);
   const passwordsMatch = password.length > 0 && password === confirmation;
 
   return {
