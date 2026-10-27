@@ -614,9 +614,22 @@
                   "  for (const area of body.data.areas) {",
                   "    pm.expect(area.affinity).to.be.a(\"number\");",
                   "    pm.expect(area.affinity).to.be.within(0, 100);",
-                  "    pm.expect(area.weighting).to.be.a(\"number\");",
-                  "    pm.expect(area.topKeywords).to.be.an(\"array\");",
-                  "    if (area.previousAffinity !== null) pm.expect(area.previousAffinity).to.be.a(\"number\");",
+                  "    if (area.weighting !== null) pm.expect(area.weighting).to.be.within(1, 5);",
+                  "    pm.expect(area.topKeywords).to.be.an(\"array\").with.lengthOf.at.most(5);",
+                  "    if (area.previousAffinity !== null) pm.expect(area.previousAffinity).to.be.a(\"number\").within(0, 100);",
+                  "  }",
+                  "});",
+                  "pm.test(\"Keywords influyentes con el contrato de HU-8\", () => {",
+                  "  for (const area of body.data.areas) {",
+                  "    pm.expect(area.topKeywords.length).to.be.at.most(5);",
+                  "    for (const keyword of area.topKeywords) {",
+                  "      pm.expect(keyword).to.have.all.keys(\"keyword\", \"weight\", \"frequency\", \"points\", \"percentage\");",
+                  "      pm.expect(keyword.keyword).to.be.a(\"string\").and.not.empty;",
+                  "      pm.expect(keyword.weight).to.be.within(1, 5);",
+                  "      pm.expect(keyword.frequency).to.be.at.least(1);",
+                  "      pm.expect(keyword.points).to.be.at.least(1);",
+                  "      pm.expect(keyword.percentage).to.be.within(0, 100);",
+                  "    }",
                   "  }",
                   "});",
                   "pm.test(\"Las áreas usan los slugs del contrato AffinityArea\", () => {",
@@ -681,9 +694,22 @@
                   "  for (const area of body.data.areas) {",
                   "    pm.expect(area.affinity).to.be.a(\"number\");",
                   "    pm.expect(area.affinity).to.be.within(0, 100);",
-                  "    pm.expect(area.weighting).to.be.a(\"number\");",
-                  "    pm.expect(area.topKeywords).to.be.an(\"array\");",
-                  "    if (area.previousAffinity !== null) pm.expect(area.previousAffinity).to.be.a(\"number\");",
+                  "    if (area.weighting !== null) pm.expect(area.weighting).to.be.within(1, 5);",
+                  "    pm.expect(area.topKeywords).to.be.an(\"array\").with.lengthOf.at.most(5);",
+                  "    if (area.previousAffinity !== null) pm.expect(area.previousAffinity).to.be.a(\"number\").within(0, 100);",
+                  "  }",
+                  "});",
+                  "pm.test(\"Keywords influyentes con el contrato de HU-8\", () => {",
+                  "  for (const area of body.data.areas) {",
+                  "    pm.expect(area.topKeywords.length).to.be.at.most(5);",
+                  "    for (const keyword of area.topKeywords) {",
+                  "      pm.expect(keyword).to.have.all.keys(\"keyword\", \"weight\", \"frequency\", \"points\", \"percentage\");",
+                  "      pm.expect(keyword.keyword).to.be.a(\"string\").and.not.empty;",
+                  "      pm.expect(keyword.weight).to.be.within(1, 5);",
+                  "      pm.expect(keyword.frequency).to.be.at.least(1);",
+                  "      pm.expect(keyword.points).to.be.at.least(1);",
+                  "      pm.expect(keyword.percentage).to.be.within(0, 100);",
+                  "    }",
                   "  }",
                   "});",
                   "pm.test(\"Las áreas usan los slugs del contrato AffinityArea\", () => {",
@@ -892,9 +918,22 @@
                   "  for (const area of body.data.areas) {",
                   "    pm.expect(area.affinity).to.be.a(\"number\");",
                   "    pm.expect(area.affinity).to.be.within(0, 100);",
-                  "    pm.expect(area.weighting).to.be.a(\"number\");",
-                  "    pm.expect(area.topKeywords).to.be.an(\"array\");",
-                  "    if (area.previousAffinity !== null) pm.expect(area.previousAffinity).to.be.a(\"number\");",
+                  "    if (area.weighting !== null) pm.expect(area.weighting).to.be.within(1, 5);",
+                  "    pm.expect(area.topKeywords).to.be.an(\"array\").with.lengthOf.at.most(5);",
+                  "    if (area.previousAffinity !== null) pm.expect(area.previousAffinity).to.be.a(\"number\").within(0, 100);",
+                  "  }",
+                  "});",
+                  "pm.test(\"Keywords influyentes con el contrato de HU-8\", () => {",
+                  "  for (const area of body.data.areas) {",
+                  "    pm.expect(area.topKeywords.length).to.be.at.most(5);",
+                  "    for (const keyword of area.topKeywords) {",
+                  "      pm.expect(keyword).to.have.all.keys(\"keyword\", \"weight\", \"frequency\", \"points\", \"percentage\");",
+                  "      pm.expect(keyword.keyword).to.be.a(\"string\").and.not.empty;",
+                  "      pm.expect(keyword.weight).to.be.within(1, 5);",
+                  "      pm.expect(keyword.frequency).to.be.at.least(1);",
+                  "      pm.expect(keyword.points).to.be.at.least(1);",
+                  "      pm.expect(keyword.percentage).to.be.within(0, 100);",
+                  "    }",
                   "  }",
                   "});",
                   "pm.test(\"Las áreas usan los slugs del contrato AffinityArea\", () => {",
@@ -907,7 +946,11 @@
                   "  pm.expect(body.data.hasPendingChanges).to.eql(false);",
                   "});",
                   "pm.test(\"Tiempo de respuesta menor o igual a 3 000 ms\", () => pm.expect(pm.response.responseTime).to.be.at.most(3000));",
-                  "if (pm.response.code === 200) pm.collectionVariables.set(\"radarCalculatedAt\", body.data.calculatedAt);"
+                  "if (pm.response.code === 200) pm.collectionVariables.set(\"radarCalculatedAt\", body.data.calculatedAt);",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set(\"radarPreviousAffinityJson\", JSON.stringify(body.data.areas.map((area) => [area.area, area.previousAffinity])));",
+                  "  pm.collectionVariables.set(\"radarTopKeywordsJson\", JSON.stringify(body.data.areas.map((area) => [area.area, area.topKeywords])));",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -957,7 +1000,18 @@
                   "  pm.expect(anterior, \"Ejecuta antes el caso 006\").to.be.a(\"string\").and.not.empty;",
                   "  pm.expect(body.data.calculatedAt).to.eql(anterior);",
                   "});",
-                  "pm.test(\"Tiempo de respuesta menor o igual a 3 000 ms\", () => pm.expect(pm.response.responseTime).to.be.at.most(3000));"
+                  "pm.test(\"Tiempo de respuesta menor o igual a 3 000 ms\", () => pm.expect(pm.response.responseTime).to.be.at.most(3000));",
+                  "pm.test(\"Conserva previousAffinity y topKeywords del cálculo vigente (CA-HU8-11)\", () => {",
+                  "  const previousSaved = pm.collectionVariables.get(\"radarPreviousAffinityJson\");",
+                  "  const topSaved = pm.collectionVariables.get(\"radarTopKeywordsJson\");",
+                  "  pm.expect(previousSaved, \"Ejecuta antes el caso POST recalculate - ok\").to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(topSaved, \"Ejecuta antes el caso POST recalculate - ok\").to.be.a(\"string\").and.not.empty;",
+                  "  const body = pm.response.json();",
+                  "  const previousNow = JSON.stringify(body.data.areas.map((area) => [area.area, area.previousAffinity]));",
+                  "  const topNow = JSON.stringify(body.data.areas.map((area) => [area.area, area.topKeywords]));",
+                  "  pm.expect(previousNow).to.eql(previousSaved);",
+                  "  pm.expect(topNow).to.eql(topSaved);",
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -986,6 +1040,69 @@
                 "v1",
                 "radar",
                 "recalculate"
+              ],
+              "query": [],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "GET radar - keywords persistidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Estado 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"GET no expone recalculated\", () => pm.expect(body.data).to.not.have.property(\"recalculated\"));",
+                  "pm.test(\"Devuelve el mismo topKeywords y previousAffinity que el POST\", () => {",
+                  "  const previousSaved = pm.collectionVariables.get(\"radarPreviousAffinityJson\");",
+                  "  const topSaved = pm.collectionVariables.get(\"radarTopKeywordsJson\");",
+                  "  pm.expect(previousSaved, \"Ejecuta antes el caso POST recalculate - ok\").to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(topSaved, \"Ejecuta antes el caso POST recalculate - ok\").to.be.a(\"string\").and.not.empty;",
+                  "  const previousNow = JSON.stringify(body.data.areas.map((area) => [area.area, area.previousAffinity]));",
+                  "  const topNow = JSON.stringify(body.data.areas.map((area) => [area.area, area.topKeywords]));",
+                  "  pm.expect(previousNow).to.eql(previousSaved);",
+                  "  pm.expect(topNow).to.eql(topSaved);",
+                  "});",
+                  "pm.test(\"Cada área mantiene como máximo cinco keywords con aporte positivo\", () => {",
+                  "  for (const area of body.data.areas) {",
+                  "    pm.expect(area.topKeywords.length).to.be.at.most(5);",
+                  "    for (const keyword of area.topKeywords) {",
+                  "      pm.expect(keyword.points).to.be.at.least(1);",
+                  "      pm.expect(keyword.percentage).to.be.within(0, 100);",
+                  "    }",
+                  "  }",
+                  "});",
+                  "pm.test(\"Tiempo de respuesta menor o igual a 3 000 ms\", () => pm.expect(pm.response.responseTime).to.be.at.most(3000));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": {
+                "key": "token",
+                "value": "{{accessToken}}",
+                "type": "string"
+              }
+            },
+            "description": "Ejecuta antes los casos POST recalculate - ok y POST recalculate - segunda llamada sin cambios con el mismo accessToken.\nVerifica que palabras_clave_top y previousAffinity se leen de la base de datos con el mismo contenido que devolvio el recalculo (persistencia JSONB).\n\nPermiso: radar:self:read.\nHU-8: keywords influyentes persistidas y expuestas por GET tras el recalculo.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar"
               ],
               "query": [],
               "variable": []

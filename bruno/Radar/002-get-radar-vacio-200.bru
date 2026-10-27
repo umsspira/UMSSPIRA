@@ -38,10 +38,12 @@ tests {
     areas.forEach(function(a) {
       expect(a.affinity).to.be.a("number");
       expect(a.affinity).to.be.within(0, 100);
-      expect(a.weighting).to.be.a("number");
-      expect(a.topKeywords).to.be.an("array");
+      if (a.weighting !== null) {
+        expect(a.weighting).to.be.within(1, 5);
+      }
+      expect(a.topKeywords).to.be.an("array").with.lengthOf.at.most(5);
       if (a.previousAffinity !== null) {
-        expect(a.previousAffinity).to.be.a("number");
+        expect(a.previousAffinity).to.be.a("number").within(0, 100);
       }
     });
   });
