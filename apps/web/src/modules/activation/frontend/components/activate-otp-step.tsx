@@ -18,12 +18,15 @@ import {
   ArrowRight,
   Clock,
   RotateCw,
+  MailCheck,
+  Info,
+  Lock,
 } from 'lucide-react';
 
 export interface ActivateOtpStepProps {
   applicationId: string;
   email?: string;
-  onSuccess?: (activationToken: string) => void;
+  onSuccess?: (activationToken: string, maskedEmail: string) => void;
 }
 
 export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
@@ -33,6 +36,8 @@ export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
 }) => {
   const {
     otpDigits,
+    isLoading,
+    expiresAt,
     isCodeComplete,
     maskedEmail,
     isVerifying,
@@ -114,9 +119,13 @@ export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
   };
 
   return (
-    <div className="w-full max-w-xl rounded-2xl border border-oatmeal/70 bg-white p-6 shadow-xl shadow-abyssal-blue/5 sm:p-10">
+    <div className="w-full max-w-3xl rounded-2xl border border-t-[6px] border-t-abyssal-blue border-oatmeal/70 bg-white p-6 shadow-xl shadow-abyssal-blue/5 sm:p-12">
+      <div className="mb-6 flex items-center gap-4">
+        <span className="rounded-2xl bg-abyssal-blue p-4 text-white"><MailCheck aria-hidden="true" className="h-7 w-7" /></span>
+        <span className="rounded bg-blue-50 px-3 py-1 text-xs font-bold tracking-wide text-abyssal-blue">ACTIVACIÓN DE TITULADO</span>
+      </div>
       {/* Insignia de Aprobación Administrativa (CA-06.2) */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="sr-only">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
           <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
           ¡Solicitud Aprobada!
@@ -129,7 +138,7 @@ export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
       </div>
 
       <div className="mt-5">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-3xl">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
           Activa tu cuenta de Titulado
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-abyssal-blue/75">
@@ -164,7 +173,7 @@ export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
                   autoComplete="one-time-code"
                   maxLength={1}
                   value={digit}
-                  disabled={isVerifying || isResending || isOtpInvalidated}
+                  disabled={isLoading || isVerifying || isResending || isOtpInvalidated}
                   aria-label={`Dígito ${index + 1} de 6`}
                   placeholder={focusedIndex === index ? '' : '•'}
                   onFocus={(e) => {
@@ -175,7 +184,7 @@ export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
                   onChange={(e) => handleChange(index, e)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
-                  className={`h-14 w-12 rounded-xl text-center text-2xl font-bold outline-none transition-all sm:h-16 sm:w-14 caret-burning-flame placeholder:text-abyssal-blue/25 focus:placeholder-transparent ${
+                  className={`h-14 min-w-0 flex-1 rounded-xl text-center text-2xl font-bold outline-none transition-all sm:h-20 caret-burning-flame placeholder:text-abyssal-blue/25 focus:placeholder-transparent ${
                     isFilled ? 'bg-[#F5F2EA] text-abyssal-blue' : 'bg-[#F5F2EA]/60 text-abyssal-blue'
                   } border focus:border-2 focus:border-burning-flame focus:bg-white ${
                     error
@@ -192,6 +201,22 @@ export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
           </div>
         </div>
 
+        <p className="text-xs text-abyssal-blue/65">Presiona las teclas numéricas o pega el código completo directamente.</p>
+        <div className="flex items-center gap-3 rounded-xl border border-oatmeal bg-palladian p-4 text-sm text-abyssal-blue">
+          <Clock aria-hidden="true" className="h-6 w-6 shrink-0" />
+          <div><p className="font-semibold">El código de activación expirará en:</p>
+            <p>{expiresAt ? new Date(expiresAt).toLocaleString('es-BO', { timeZone: 'America/La_Paz' }) + ' (hora de Bolivia)' : 'Consultando vigencia…'}</p>
+            <p className="text-xs text-abyssal-blue/65">Válido por 24 horas desde su emisión.</p></div>
+        </div>
+        {isLocked && !isLoading && <div className="rounded-xl border border-truffle-trouble/30 bg-truffle-trouble/10 p-4 text-sm text-truffle-trouble">
+          <p className="flex items-center gap-2 font-bold"><Lock aria-hidden="true" className="h-5 w-5" />El reenvío de códigos está bloqueado temporalmente</p>
+          <p className="mt-2">Podrás solicitar un nuevo código en: <strong>{cooldownFormatted}</strong></p>
+          <p className="mt-2 text-xs">Puedes continuar con el último código recibido si todavía está vigente.</p>
+        </div>}
+        <div className="flex items-start gap-3 rounded-xl border border-oatmeal bg-palladian/70 p-4 text-sm text-abyssal-blue/75">
+          <Info aria-hidden="true" className="h-5 w-5 shrink-0" />
+          <p>¿No recibiste el código? Revisa tu bandeja de entrada o la carpeta de spam / correos no deseados.</p>
+        </div>
         {/* Mensaje de error (CA-06.4) */}
         {error && (
           <div
@@ -216,7 +241,7 @@ export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
           {/* Botón primario «Siguiente» */}
           <button
             type="submit"
-            disabled={!isCodeComplete || isVerifying || isResending || isOtpInvalidated}
+            disabled={isLoading || !isCodeComplete || isVerifying || isResending || isOtpInvalidated}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-burning-flame px-4 py-3.5 text-sm font-bold text-abyssal-blue shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isVerifying ? (

@@ -8,7 +8,7 @@ export function configureHttp(app: INestApplication): void {
   const config = app.get(ConfigService<Environment, true>);
   const origins = config.get('CORS_ORIGINS', { infer: true });
 
-  app.setGlobalPrefix('api/v1', { exclude: ['health'] });
+  app.setGlobalPrefix('api/v1', { exclude: ['/', 'health'] });
   app.use(helmet());
   app.use((_request: unknown, response: import('express').Response, next: () => void) => {
     response.setHeader('Cache-Control', 'no-store');

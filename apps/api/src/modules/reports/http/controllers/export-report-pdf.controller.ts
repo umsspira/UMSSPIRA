@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import type { z } from 'zod';
 import { CurrentActor } from '../../../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../../../shared/http/auth/decorators/require-permissions.decorator';
+import { Roles } from '../../../../shared/http/auth/decorators/roles.decorator';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
 import { ExportReportPdfUseCase } from '../../application/use-cases/export-report-pdf.use-case';
@@ -10,6 +11,7 @@ import { reportFilterSchema } from '../schemas/reports.schemas';
 import { ReportExportGuard } from '../guards/report-export.guard';
 
 @Controller('reports')
+@Roles('administrador')
 export class ExportReportPdfController {
   constructor(private readonly useCase: ExportReportPdfUseCase) {}
 

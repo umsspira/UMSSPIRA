@@ -58,7 +58,7 @@ export const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
 
   // La vigencia se actualiza con la respuesta del servidor al emitir el OTP.
   const { formattedTime, reset: resetOtpTimer } = useCountdown({
-    initialSeconds: 600,
+    initialSeconds: 300,
     autoStart: true,
     onExpire: () => {
       setIsExpired(true);

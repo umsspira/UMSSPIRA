@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 
 export default function ActivatePage() {
   return (
-    <main className="min-h-screen bg-[#EEE9DF] px-4 py-8 sm:px-6 sm:py-12 flex flex-col justify-between">
+    <main className="min-h-screen bg-[#F2EDE3] flex flex-col">
       {/* Encabezado Institucional */}
-      <header className="mx-auto w-full max-w-xl flex items-center justify-between pb-6">
+      <header className="w-full flex items-center justify-between bg-[#101827] px-6 py-4 sm:px-10">
         <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
           <Image
             src="/icons/icon-192.png"
@@ -24,10 +24,10 @@ export default function ActivatePage() {
             priority
           />
           <div className="leading-tight">
-            <span className="text-xl font-black tracking-tight text-abyssal-blue">
+            <span className="text-2xl font-black tracking-tight text-white">
               UMSS<span className="text-burning-flame">PIRA</span>
             </span>
-            <span className="block text-[10px] font-bold tracking-widest text-abyssal-blue/70">
+            <span className="block text-[10px] font-bold tracking-widest text-white/70">
               UNIVERSIDAD MAYOR DE SAN SIMÓN
             </span>
           </div>
@@ -39,7 +39,7 @@ export default function ActivatePage() {
       </header>
 
       {/* Contenido Dinámico con Suspense */}
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-start justify-center px-4 py-8 sm:py-12">
         <Suspense
           fallback={
             <div className="flex w-full max-w-xl items-center justify-center rounded-2xl border border-oatmeal/60 bg-white p-12 text-center text-sm font-medium text-abyssal-blue/70 shadow-sm">
@@ -52,7 +52,7 @@ export default function ActivatePage() {
       </div>
 
       {/* Pie de página institucional */}
-      <footer className="mx-auto w-full max-w-xl pt-8 text-center text-[11px] text-abyssal-blue/60 space-y-1">
+      <footer className="mx-auto w-full max-w-3xl pb-8 text-center text-[11px] text-abyssal-blue/60 space-y-1">
         <p className="uppercase tracking-wider font-medium">
           UNIVERSIDAD MAYOR DE SAN SIMÓN • DTI & DPA
         </p>
