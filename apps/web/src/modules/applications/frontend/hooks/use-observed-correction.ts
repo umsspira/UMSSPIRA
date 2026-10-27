@@ -5,6 +5,7 @@ import {
   DOCUMENT_ERROR_MESSAGES,
   validateDocumentFile,
 } from "@/modules/documents/frontend/validation/document-file";
+import { personalDataSchema } from "@/modules/registration/frontend/validation/personal-data.schema";
 
 export type CorrectionValues = {
   firstName: string;
@@ -30,32 +31,30 @@ export type CorrectionResult = {
   emailChanged: boolean;
 };
 
-// TODO: reemplazar por el schema de registration/frontend/validation/personal-data.schema.ts
-const REQUIRED: (keyof CorrectionValues)[] = [
-  "firstName",
-  "lastName",
-  "birthDate",
-  "ci",
-  "issuedIn",
-  "email",
-  "phone",
-  "graduationYear",
-  "documentType",
-];
+const REQUIRED_MESSAGE = "Este campo es obligatorio.";
+
+// Campo del formulario -> campo del schema del registro original (CA-10.3).
+const SCHEMA_KEY = {
+  firstName: "nombres",
+  lastName: "apellidos",
+  ci: "ci",
+  complement: "complementoCi",
+  issuedIn: "expedidoEn",
+  email: "correo",
+  phone: "telefono",
+  career: "carreraId",
+  graduationYear: "anioEgreso",
+  sisCode: "codigoSis",
+} as const;
 
 function validateField(name: keyof CorrectionValues, value: string): string | null {
-  const v = value.trim();
-  if (REQUIRED.includes(name) && !v) return "Este campo es obligatorio.";
-  if (name === "email" && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-    return "Ingresa un correo válido.";
+  if (name === "birthDate") return value.trim() ? null : REQUIRED_MESSAGE;
+  if (name === "documentType") {
+    return value.trim() ? null : DOCUMENT_ERROR_MESSAGES.missingType;
   }
-  if (name === "ci" && v && !/^\d{5,10}$/.test(v)) {
-    return "El C.I. debe tener entre 5 y 10 dígitos.";
-  }
-  if (name === "phone" && v && !/^\d{8}$/.test(v)) {
-    return "Ingresa un celular válido de 8 dígitos.";
-  }
-  return null;
+  const rule = personalDataSchema.shape[SCHEMA_KEY[name]];
+  const result = rule.safeParse(value);
+  return result.success ? null : result.error.issues[0]?.message ?? REQUIRED_MESSAGE;
 }
 
 export function useObservedCorrection(initial: CorrectionValues) {
@@ -72,7 +71,8 @@ export function useObservedCorrection(initial: CorrectionValues) {
   );
 
   const hasChanges = changedFields.length > 0 || file !== null;
-  const emailChanged = values.email.trim() !== initial.email.trim();
+  const emailChanged =
+    values.email.trim().toLowerCase() !== initial.email.trim().toLowerCase();
 
   const setValue = useCallback((name: keyof CorrectionValues, value: string) => {
     setValues((prev) => ({ ...prev, [name]: value }));

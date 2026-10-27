@@ -3,6 +3,10 @@
 import type { ReactNode } from "react";
 import { DocumentDropzone } from "@/modules/documents/frontend/components/document-dropzone";
 import {
+  EXPEDITION_DEPARTMENTS,
+  EXPEDITION_LABELS,
+} from "@/modules/registration/frontend/validation/personal-data.schema";
+import {
   useObservedCorrection,
   type CorrectionResult,
   type CorrectionValues,
@@ -16,7 +20,6 @@ type Props = {
   onCancel: () => void;
 };
 
-const DEPARTMENTS = ["LP", "CB", "SC", "OR", "PT", "CH", "TJ", "BN", "PD"];
 // TODO: tomar los tipos de documento del módulo documents (document-upload-step.tsx).
 const DOCUMENT_TYPES = [
   "Título en Provisión Nacional",
@@ -121,9 +124,9 @@ export function ObservedEditForm({
               aria-invalid={Boolean(c.errors.issuedIn)}
               className={inputClass}
             >
-              {DEPARTMENTS.map((d) => (
+              {EXPEDITION_DEPARTMENTS.map((d) => (
                 <option key={d} value={d}>
-                  {d}
+                  {EXPEDITION_LABELS[d]}
                 </option>
               ))}
             </select>

@@ -87,20 +87,34 @@ describe("ObservedEditForm", () => {
     expect(onVerify).not.toHaveBeenCalled();
   });
 
-  it("valida el formato del correo", () => {
+  it("valida el formato del correo con la regla del registro", () => {
     const { onReview, onVerify } = setup();
     fireEvent.change(screen.getByLabelText(/Correo electrónico/), { target: { value: "mal" } });
-    expect(screen.getByRole("alert")).toHaveTextContent("Ingresa un correo válido.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Ingresa un correo electrónico válido.");
 
     fireEvent.click(reviewButton());
     expect(onReview).not.toHaveBeenCalled();
     expect(onVerify).not.toHaveBeenCalled();
   });
 
-  it("valida el teléfono de 8 dígitos", () => {
+  it("valida el teléfono de 8 dígitos con la regla del registro", () => {
     setup();
     fireEvent.change(screen.getByLabelText(/Teléfono/), { target: { value: "123" } });
-    expect(screen.getByRole("alert")).toHaveTextContent("Ingresa un celular válido de 8 dígitos.");
+    expect(screen.getByRole("alert")).toHaveTextContent("El teléfono debe tener 8 dígitos.");
+  });
+
+  it("valida el C.I. con la regla del registro", () => {
+    setup();
+    fireEvent.change(screen.getByLabelText(/Cédula de Identidad/), { target: { value: "12.3" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("El C.I. debe tener entre 5 y 10 dígitos");
+  });
+
+  it("valida el Código SIS con la regla del registro", () => {
+    setup();
+    fireEvent.change(screen.getByLabelText(/Código SIS/), { target: { value: "12" } });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "El Código SIS debe tener de 6 a 9 dígitos.",
+    );
   });
 
   it("avisa y envía a verificación si cambió el correo", () => {
