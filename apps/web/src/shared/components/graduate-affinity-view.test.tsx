@@ -159,6 +159,18 @@ const makeVector = (areas = recalculatedAreas, extra: Record<string, unknown> = 
   ...extra,
 });
 
+// Panel que contiene las seis barras de "Resumen de tu afinidad"
+const getSummaryPanel = async (): Promise<HTMLElement> => {
+  const heading = await screen.findByText('Resumen de tu afinidad');
+  const panel = heading.closest('.flex-col');
+
+  if (!panel) {
+    throw new Error('No se encontró el panel de resumen de afinidad');
+  }
+
+  return panel as HTMLElement;
+};
+
 const openSimulationModal = () => {
   fireEvent.click(
     screen.getByRole('button', {
@@ -814,31 +826,37 @@ describe('GraduateAffinityView', () => {
       {
         area: 'cybersecurity-networks',
         affinity: 40,
+        keywords: [],
         evidence: evidence.cybersecurity,
       },
       {
         area: 'quality-assurance',
         affinity: 90,
+        keywords: [],
         evidence: evidence.qa,
       },
       {
         area: 'data-ai',
         affinity: 75,
+        keywords: [],
         evidence: evidence.data,
       },
       {
         area: 'cloud-devops',
         affinity: 60,
+        keywords: [],
         evidence: evidence.cloud,
       },
       {
         area: 'software-development',
         affinity: 30,
+        keywords: [],
         evidence: evidence.software,
       },
       {
         area: 'it-management',
         affinity: 20,
+        keywords: [],
         evidence: evidence.management,
       },
     ];
@@ -863,5 +881,147 @@ describe('GraduateAffinityView', () => {
     // 3ro: Cloud (60%)
     expect(badges[2]).toHaveTextContent(/Cloud, DevOps/);
     expect(badges[2]).toHaveTextContent(/60%/);
+  });
+
+  it('muestra +8 % y −3 % en las barras del resumen con afinidad previa', async () => {
+    const areas = recalculatedAreas.map((area) => {
+      if (area.area === 'software-development') {
+        return { ...area, affinity: 83, previousAffinity: 75 };
+      }
+      if (area.area === 'cloud-devops') {
+        return { ...area, affinity: 61, previousAffinity: 64 };
+      }
+      return { ...area, previousAffinity: null };
+    });
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(areas));
+
+    render(<GraduateAffinityView />);
+
+    const summary = await getSummaryPanel();
+
+    expect(within(summary).getByText('83%')).toBeInTheDocument();
+    expect(within(summary).getByText('+8 %')).toBeInTheDocument();
+    expect(
+      within(summary).getByRole('img', {
+        name: 'Desarrollo de Software: subió 8 puntos porcentuales respecto al cálculo anterior',
+      }),
+    ).toBeInTheDocument();
+
+    expect(within(summary).getByText('61%')).toBeInTheDocument();
+    expect(within(summary).getByText('−3 %')).toBeInTheDocument();
+    expect(
+      within(summary).getByRole('img', {
+        name: 'Cloud, DevOps & Infraestructura: bajó 3 puntos porcentuales respecto al cálculo anterior',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('no muestra indicadores de variación en el primer cálculo', async () => {
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector());
+
+    render(<GraduateAffinityView />);
+
+    const summary = await getSummaryPanel();
+
+    expect(within(summary).queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('muestra la variación en los chips de áreas con mayor afinidad', async () => {
+    const areas = recalculatedAreas.map((area) => {
+      if (area.area === 'software-development') {
+        return { ...area, affinity: 83, previousAffinity: 75 };
+      }
+      return { ...area, previousAffinity: null };
+    });
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(areas));
+
+    render(<GraduateAffinityView />);
+
+    const heading = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    const topSection = heading.closest('.bg-palladian') as HTMLElement;
+
+    expect(
+      within(topSection).getByText('1. Desarrollo de Software (83%)'),
+    ).toBeInTheDocument();
+    expect(within(topSection).getByText('+8 %')).toBeInTheDocument();
+    expect(
+      within(topSection).getByRole('img', {
+        name: 'Desarrollo de Software: subió 8 puntos porcentuales respecto al cálculo anterior',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('conserva la variación de las barras cuando el servidor devuelve recalculated false', async () => {
+    const initialAreas = recalculatedAreas.map((area) => {
+      if (area.area === 'software-development') {
+        return { ...area, affinity: 83, previousAffinity: 75 };
+      }
+      return { ...area, previousAffinity: null };
+    });
+    const noRecalculatedAreas = recalculatedAreas.map((area) => {
+      if (area.area === 'software-development') {
+        return { ...area, affinity: 90, previousAffinity: 83 };
+      }
+      return { ...area, previousAffinity: null };
+    });
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(initialAreas));
+    mockRecalculateAffinity.mockResolvedValueOnce({
+      ...makeVector(noRecalculatedAreas),
+      recalculated: false,
+    });
+
+    render(<GraduateAffinityView />);
+
+    const summary = await getSummaryPanel();
+    expect(within(summary).getByText('+8 %')).toBeInTheDocument();
+
+    await clickSimulateProfileChange();
+
+    await waitFor(() => {
+      expect(mockRecalculateAffinity).toHaveBeenCalledTimes(1);
+    });
+
+    // Se conserva la referencia anterior: 83% con +8 % y no el 90% del servidor
+    expect(within(summary).getByText('83%')).toBeInTheDocument();
+    expect(within(summary).getByText('+8 %')).toBeInTheDocument();
+    expect(within(summary).queryByText('90%')).not.toBeInTheDocument();
+  });
+
+  it('resalta solo los ejes cuyo porcentaje entero cambió tras recalcular', async () => {
+    const initialAreas = recalculatedAreas.map((area) => {
+      if (area.area === 'software-development') {
+        return { ...area, affinity: 85.4 };
+      }
+      return area;
+    });
+    const nextAreas = recalculatedAreas.map((area) => {
+      if (area.area === 'software-development') {
+        return { ...area, affinity: 85.2 };
+      }
+      if (area.area === 'cloud-devops') {
+        return { ...area, affinity: 66.2 };
+      }
+      return area;
+    });
+
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(initialAreas));
+    mockRecalculateAffinity.mockResolvedValueOnce(makeVector(nextAreas));
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    await clickSimulateProfileChange();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('radar')).toHaveAttribute(
+        'data-changed',
+        JSON.stringify(['cloud-devops']),
+      );
+    });
   });
 });
