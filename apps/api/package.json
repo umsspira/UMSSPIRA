@@ -13,6 +13,7 @@
     "typecheck": "pnpm prisma:generate && tsc --noEmit -p tsconfig.check.json",
     "test": "pnpm prisma:generate && jest --runInBand",
     "test:watch": "pnpm prisma:generate && jest --watch",
+    "test:integration": "pnpm prisma:generate && jest --config jest.integration.config.cjs --runInBand",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
