@@ -200,6 +200,61 @@ describe('PrismaApplicationsRepository.list', () => {
     );
   });
  
+  it('genera un grupo OR por palabra dentro del mismo AND', async () => {
+    const { prisma, repository } = createRepository({ pending: 0, others: 0 });
+    await repository.list(actor, query({ search: 'Alejandro  Rojas' }));
+
+    const { where } = prisma.solicitud.count.mock.calls[0][0];
+    expect(where.AND).toContainEqual({
+      detalle_solicitud: {
+        is: {
+          AND: [
+            { OR: expect.arrayContaining([{ nombre: { contains: 'Alejandro', mode: 'insensitive' } }]) },
+            { OR: expect.arrayContaining([{ apellido: { contains: 'Rojas', mode: 'insensitive' } }]) },
+          ],
+        },
+      },
+    });
+  });
+  it('invierte el orden de los grupos OR cuando se invierten las palabras', async () => {
+    const { prisma, repository } = createRepository({ pending: 0, others: 0 });
+    await repository.list(actor, query({ search: 'Rojas Alejandro' }));
+
+    const { where } = prisma.solicitud.count.mock.calls[0][0];
+
+    expect(where.AND).toContainEqual({
+      detalle_solicitud: {
+        is: {
+          AND: [
+            { OR: expect.arrayContaining([{ apellido: { contains: 'Rojas', mode: 'insensitive' } }]) },
+            { OR: expect.arrayContaining([{ nombre: { contains: 'Alejandro', mode: 'insensitive' } }]) },
+          ],
+        },
+      },
+    });
+  });
+
+  it('incluye codigo SIS exacto solo para palabras de 6 a 9 digitos', async () => {
+    const { prisma, repository } = createRepository({ pending: 0, others: 0 });
+    await repository.list(actor, query({ search: 'Alejandro 201804921 123' }));
+
+    const { where } = prisma.solicitud.count.mock.calls[0][0];
+
+    const searchFilter = where.AND.find(
+      (condition: {
+        detalle_solicitud?: { is?: { AND?: Array<{ OR?: unknown[] }> } };
+      }) => condition.detalle_solicitud?.is?.AND?.some((group) => group.OR),
+    );
+
+    expect(searchFilter).toBeDefined();
+
+    const groups = searchFilter.detalle_solicitud.is.AND;
+
+    expect(groups).toHaveLength(3);
+    expect(groups[1].OR).toContainEqual({ cod_sis: '201804921' });
+    expect(JSON.stringify(groups[2])).not.toContain('cod_sis');
+  });
+
   it('busca por Código SIS solo cuando el texto tiene entre 6 y 9 dígitos (CA-08.3)', async () => {
     const withSis = createRepository({ pending: 0, others: 0 });
     await withSis.repository.list(actor, query({ search: '201804921' }));

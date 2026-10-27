@@ -2,6 +2,7 @@ import { reserveActivationResend } from './activation-resend';
 import { queueTrackedMail } from '../notifications/queue-mail';
 import { RENEWAL_MAIL_SUBJECT } from '../../application/use-cases/renew-activation.use-case';
 import { applicationTotalPages } from '../../domain/policies/application-pagination.policy';
+import { searchTerms } from '../../domain/policies/application-search.policy';
 import { Injectable } from '@nestjs/common';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Prisma } from '../../../../generated/prisma/client';
@@ -105,16 +106,17 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
       });
     }
     if (query.search) {
-      const search = query.search;
-      detailFilters.push({
-        OR: [
-          { nombre: { contains: search, mode: 'insensitive' } },
-          { apellido: { contains: search, mode: 'insensitive' } },
-          { ci: { contains: search } },
-          { email: { contains: search, mode: 'insensitive' } },
-          ...(/^\d{6,9}$/.test(search) ? [{ cod_sis: search }] : []),
-        ],
-      });
+      for (const term of searchTerms(query.search)) {
+        detailFilters.push({
+          OR: [
+            { nombre: { contains: term, mode: 'insensitive' } },
+            { apellido: { contains: term, mode: 'insensitive' } },
+            { ci: { contains: term } },
+            { email: { contains: term, mode: 'insensitive' } },
+            ...(/^\d{6,9}$/.test(term) ? [{ cod_sis: term }] : []),
+          ],
+        });
+      }
     }
     const overdue: Prisma.SolicitudWhereInput = {
       estado: 'PENDIENTE',
