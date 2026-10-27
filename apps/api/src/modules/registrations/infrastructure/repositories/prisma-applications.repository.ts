@@ -202,20 +202,66 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     };
   }
 
-  async find(actor: ActorContext, id: string) {
-    const row = await this.prisma.solicitud.findFirst({
-      where: scopedApplication(actor, id),
-      include: applicationInclude,
-    });
-    if (!row) {
-      throw new BusinessRuleError(
-        'missing',
-        'APPLICATION_NOT_FOUND',
-        'La solicitud no existe o no está a tu cargo',
-      );
-    }
-    return toApplication(row);
+  
+async find(actor: ActorContext, id: string) {
+  const row = await this.prisma.solicitud.findFirst({
+    where: scopedApplication(actor, id),
+    include: applicationInclude,
+  });
+
+  if (!row) {
+    throw new BusinessRuleError(
+      'missing',
+      'APPLICATION_NOT_FOUND',
+      'La solicitud no existe o no está a tu cargo',
+    );
   }
+
+  const application = toApplication(row);
+
+  const audit = await this.prisma.auditoriaDictamen.findFirst({
+    where: {
+      id_solicitud: id,
+      accion: 'emision',
+      resultado: 'exitoso',
+    },
+    orderBy: [
+      { created_at: 'desc' },
+      { id: 'desc' },
+    ],
+  });
+
+  const detail = audit?.detalle;
+
+  const author =
+    detail &&
+    typeof detail === 'object' &&
+    !Array.isArray(detail)
+      ? detail
+      : null;
+
+  application.reviewAuthor =
+  audit &&
+  author &&
+  typeof author.revisorId === 'string' &&
+  typeof author.revisorCorreo === 'string'
+    ? {
+        id: author.revisorId,
+        name:
+          typeof author.revisorNombre === 'string'
+            ? author.revisorNombre
+            : null,
+        email: author.revisorCorreo,
+        reviewedAt:
+          typeof author.fechaDictamen === 'string'
+            ? author.fechaDictamen
+            : audit.created_at.toISOString(),
+      }
+    : null;
+
+  return application;
+}
+
 
   async document(actor: ActorContext, id: string) {
     const row = await this.prisma.archivoRegistro.findFirst({
@@ -260,8 +306,8 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
           throw new BusinessRuleError(
             'conflict',
             'APPLICATION_ALREADY_REVIEWED',
-             'La solicitud ya fue dictaminada',
-  )       ;
+            'Esta solicitud ya fue revisada',
+          );
         }
         const approved = input.decision === 'APROBADA';
         const now = new Date();
@@ -278,6 +324,26 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             subsanada: false,
           },
         });
+        
+        await tx.auditoriaDictamen.create({
+          data: {
+          id_solicitud: id,
+          id_dictamen: review.id,
+          accion: 'emision',
+          estado_anterior: row.estado,
+          estado_nuevo: input.decision,
+          resultado: 'exitoso',
+          created_at: now,
+          detalle: {
+          revisorId: actor.id,
+          revisorNombre: actor.name,
+          revisorCorreo: actor.email,
+          fechaDictamen: now.toISOString(),
+          decision: input.decision,
+            },
+          },
+        });
+
         await tx.solicitud.update({
           where: { id },
           data: {
@@ -309,6 +375,8 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
           category,
           note,
           reviewedBy: actor.id,
+          reviewedByName: actor.name,
+          reviewedByEmail: actor.email,
           reviewedAt: now.toISOString(),
           notificationStatus: 'EN_COLA' as const,
         };
