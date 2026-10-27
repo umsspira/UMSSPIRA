@@ -8,12 +8,10 @@ export default function RegisterDocumentPage() {
       <main className="mx-auto max-w-5xl">
         <ProgressSteps currentStep="document" />
         <DocumentUploadStep />
-        <ProgressSteps currentStep="document" />
-        <DocumentUploadStep />
         <div className="mt-6 flex justify-end">
           <ExitRegistrationButton />
         </div>
-       </main>
+      </main>
     </div>
   );
 }

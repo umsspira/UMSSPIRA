@@ -47,12 +47,6 @@ export default function VerifyEmailPage() {
           onEditData={isUpdate ? undefined : handleEditData}
           onBackToReview={isUpdate ? handleBackToReview : undefined}
         />
-        <VerifyEmailForm
-          variant={isUpdate ? 'update' : 'initial'}
-          onSuccess={handleSuccess}
-          onEditData={isUpdate ? undefined : handleEditData}
-          onBackToReview={isUpdate ? handleBackToReview : undefined}
-        />
         <div className="mt-4 flex justify-center">
           <ExitRegistrationButton />
         </div>
