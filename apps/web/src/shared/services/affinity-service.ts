@@ -1,4 +1,4 @@
-﻿
+
 import {
   AFFINITY_AREAS,
   type AffinityArea,
@@ -36,6 +36,7 @@ interface RadarApiResponse {
   status?: 'ok' | 'empty';
   algorithmVersion?: string;
   hasPendingChanges?: boolean;
+  recalculated?: boolean;
   processingMs?: number;
   unmappedKeywords?: unknown[];
   areas: RadarApiArea[];
@@ -77,6 +78,7 @@ function adaptRadarResponse(
       return {
         area: normalizedArea,
         affinity: area.affinity,
+        previousAffinity: area.previousAffinity ?? null,
         keywords: (area.topKeywords ?? []).map((keyword) =>
           typeof keyword === 'string' ? keyword : keyword.term,
         ),

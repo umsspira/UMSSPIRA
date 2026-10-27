@@ -1,0 +1,73 @@
+meta {
+  name: GET radar - 200 radar con keywords (estado ok)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/radar
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.data) {
+    bru.setVar("radarGraduateId", res.body.data.graduateId);
+  }
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Respuesta envuelta en data", function() {
+    expect(res.body).to.have.property("data").that.is.an("object");
+  });
+
+  test("Esquema: graduateId, calculatedAt, status, algorithmVersion y hasPendingChanges", function() {
+    const d = res.body.data;
+    expect(d.graduateId).to.be.a("string").that.is.not.empty;
+    expect(Number.isNaN(Date.parse(d.calculatedAt))).to.equal(false);
+    expect(d.status).to.equal("ok");
+    expect(d.algorithmVersion).to.be.a("string").that.is.not.empty;
+    expect(d.hasPendingChanges).to.be.a("boolean");
+  });
+
+  test("Siempre 6 areas con affinity entre 0 y 100", function() {
+    const areas = res.body.data.areas;
+    expect(areas).to.be.an("array").with.lengthOf(6);
+    areas.forEach(function(a) {
+      expect(a.affinity).to.be.a("number");
+      expect(a.affinity).to.be.within(0, 100);
+      expect(a.weighting).to.be.a("number");
+      expect(a.topKeywords).to.be.an("array");
+      if (a.previousAffinity !== null) {
+        expect(a.previousAffinity).to.be.a("number");
+      }
+    });
+  });
+
+  test("Las areas usan los slugs del contrato AffinityArea", function() {
+    const esperados = ["software-development", "cloud-devops", "data-ai", "quality-assurance", "cybersecurity-networks", "it-management"];
+    const recibidos = res.body.data.areas.map(function(a) { return a.area; });
+    expect(recibidos.slice().sort()).to.eql(esperados.slice().sort());
+  });
+
+  test("Tiempo de respuesta menor o igual a 3 000 ms", function() {
+    expect(res.responseTime).to.be.at.most(3000);
+  });
+}
+
+docs {
+  Usa el accessToken de un titulado con perfil cargado (ej. titulado@umss.edu.bo).
+  Devuelve { data: AffinityVectorResponse } con 6 areas. La primera llamada de un titulado calcula el radar (lazy GET).
+  Guarda graduateId en radarGraduateId para el caso 005.
+
+  Permiso: radar:self:read.
+  CA-HU?-XX (pendiente: copiar del .md de QA): estado ok y esquema del vector.
+}
