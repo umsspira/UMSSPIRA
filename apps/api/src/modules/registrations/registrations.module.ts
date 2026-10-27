@@ -1,3 +1,5 @@
+import { ActivationAccessController } from './http/controllers/activation-access.controller';
+import { ActivationAccessService } from './application/services/activation-access.service';
 import { ObservedApplicationController } from './http/controllers/observed-application.controller';
 import { ObservedApplicationService } from './application/services/observed-application.service';
 import { CorrectionTokenService } from './application/services/correction-token.service';
@@ -9,6 +11,7 @@ import { GetDraftDocumentController } from './http/controllers/get-draft-documen
 import { Module } from '@nestjs/common';
 import { RenewActivationController } from './http/controllers/renew-activation.controller';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
+import { REGISTRATION_SECURITY } from './application/ports/registration-security.port';
 import { AuthModule } from '../auth/auth.module';
 import { registrationsProviders } from './infrastructure/providers/registrations.providers';
 import { SmtpOutboxWorker } from './infrastructure/notifications/smtp-outbox.worker';
@@ -33,6 +36,7 @@ import { GetApplicationMetricsController } from './http/controllers/get-applicat
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [
+    ActivationAccessController,
     UpdateRegistrationController,
     GetDraftDocumentController,
     RenewActivationController,
@@ -56,12 +60,13 @@ import { GetApplicationMetricsController } from './http/controllers/get-applicat
     ObservedApplicationController,
   ],
   providers: [
+    ActivationAccessService,
     ...registrationsProviders,
     SmtpOutboxWorker,
     RegistrationTrafficGuard,
     TrustedOriginGuard,
     CorrectionTokenGuard,
   ],
-  exports: [CorrectionTokenService, CorrectionTokenGuard, ObservedApplicationService],
+  exports: [REGISTRATION_SECURITY, CorrectionTokenService, CorrectionTokenGuard, ObservedApplicationService],
 })
 export class RegistrationsModule {}

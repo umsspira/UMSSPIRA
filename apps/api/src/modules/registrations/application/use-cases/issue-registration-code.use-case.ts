@@ -26,7 +26,7 @@ export class IssueRegistrationCodeUseCase {
     const mail = this.security.seal({
       to: draft.data.correo,
       subject: 'Verifica tu correo en UMSSPIRA',
-      text: 'Tu código de verificación es ' + code + '. Vence en 10 minutos.',
+      text: 'Tu código de verificación es ' + code + '. Vence en 5 minutos.',
     });
     const result = await this.repository.issueCode(
       hash,

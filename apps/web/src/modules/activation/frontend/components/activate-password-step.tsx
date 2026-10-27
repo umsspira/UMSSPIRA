@@ -18,6 +18,7 @@ import { activationService } from '../services/activation.service';
 export interface ActivatePasswordStepProps {
   applicationId: string;
   activationToken: string;
+  maskedEmail?: string;
   onSuccess?: () => void;
   onBackToOtp?: () => void;
 }
@@ -25,6 +26,7 @@ export interface ActivatePasswordStepProps {
 export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
   applicationId,
   activationToken,
+  maskedEmail,
   onSuccess,
   onBackToOtp,
 }) => {
@@ -100,9 +102,9 @@ export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
     return (
       <div
         data-testid="activation-success-view"
-        className="w-full max-w-xl rounded-2xl border border-oatmeal/70 bg-white p-6 shadow-xl shadow-abyssal-blue/5 sm:p-10 text-center"
+        className="w-full max-w-3xl rounded-2xl border border-oatmeal/70 bg-white p-6 shadow-xl shadow-abyssal-blue/5 sm:p-12 text-center"
       >
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-burning-flame text-abyssal-blue ring-8 ring-burning-flame/20">
           <CheckCircle2 className="h-10 w-10" aria-hidden="true" />
         </div>
 
@@ -112,12 +114,12 @@ export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
             Activación Completada
           </span>
 
-          <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-3xl">
+          <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
             Cuenta activada exitosamente
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-abyssal-blue/75">
-            Tu cuenta institucional ha sido habilitada correctamente. Ya puedes acceder con tu
-            correo institucional y la nueva contraseña que acabas de configurar.
+            Tu cuenta de titulado ha sido activada. Ya puedes iniciar sesión con tu
+            correo verificado y la contraseña que acabas de configurar.
           </p>
         </div>
 
@@ -135,9 +137,13 @@ export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
   }
 
   return (
-    <div className="w-full max-w-xl rounded-2xl border border-oatmeal/70 bg-white p-6 shadow-xl shadow-abyssal-blue/5 sm:p-10">
+    <div className="w-full max-w-3xl rounded-2xl border border-oatmeal/70 bg-white p-6 shadow-xl shadow-abyssal-blue/5 sm:p-12">
+      <div className="-mx-6 -mt-6 mb-8 flex items-center gap-3 rounded-t-2xl bg-[#101827] px-6 py-5 text-white sm:-mx-12 sm:-mt-12 sm:px-12">
+        <Lock aria-hidden="true" className="h-6 w-6 text-burning-flame" />
+        <span className="text-sm font-semibold tracking-wide">ACTIVACIÓN DE TITULADO</span>
+      </div>
       {/* Insignia de paso */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="sr-only">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
           <Lock className="h-3.5 w-3.5 text-blue-600" aria-hidden="true" />
           Paso 2: Crear contraseña
@@ -150,7 +156,7 @@ export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
       </div>
 
       <div className="mt-5">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-3xl">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
           Crea tu nueva contraseña
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-abyssal-blue/75">
@@ -159,6 +165,10 @@ export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
         </p>
       </div>
 
+      {maskedEmail && <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-oatmeal bg-[#F2EDE3] p-4 text-sm">
+        <span className="font-semibold text-abyssal-blue">{maskedEmail}</span>
+        <span className="flex items-center gap-2 text-emerald-700"><CheckCircle2 className="h-4 w-4" />Código verificado</span>
+      </div>}
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
         {/* Campo «Nueva contraseña» */}
         <div className="space-y-1.5">
@@ -339,6 +349,8 @@ export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
 
         {/* Botón primario «Activar cuenta» (CA-06.3, CA-06.8) */}
         <div className="pt-2">
+          {onBackToOtp && <button type="button" onClick={onBackToOtp} disabled={isSubmitting}
+            className="mb-4 rounded-lg border border-oatmeal bg-[#F2EDE3] px-5 py-3 text-sm font-semibold text-abyssal-blue disabled:opacity-50">Volver</button>}
           <button
             type="submit"
             disabled={!rules.allValid || isSubmitting}

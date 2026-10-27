@@ -32,3 +32,30 @@ it('activa el módulo por la ruta más específica, incluidos los registros din�
   expect(activeSection('/profile/certifications/cert-1/edit')).toBe('directory');
   expect(activeSection('/portal/empleos')).toBe('jobs');
 });
+
+
+it('HU-004/T4.1: muestra reportes al administrador y reserva encuestas para titulado', () => {
+  const adminLinks = visibleLinks(NAVBAR_ACCOUNT_LINKS, 'administrador');
+  expect(adminLinks).toEqual(expect.arrayContaining([
+    expect.objectContaining({ label: 'Reportes Institucionales', href: '/reports' }),
+    expect.objectContaining({ id: 'employment-survey-admin', label: 'Encuestas de Empleabilidad', href: '/reports/encuestas' }),
+  ]));
+  expect(adminLinks.map(link => link.id)).not.toContain('employment-surveys');
+  expect(adminLinks.map(link => link.href)).not.toContain('/surveys');
+
+  const graduateLinks = visibleLinks(NAVBAR_ACCOUNT_LINKS, 'titulado');
+  expect(graduateLinks.map(link => link.href)).not.toContain('/reports');
+  expect(graduateLinks.map(link => link.href)).not.toContain('/reports/encuestas');
+  expect(graduateLinks).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: 'employment-surveys', pending: expect.any(String) }),
+  ]));
+  // /surveys aún no está en epic9: sin href hasta que llegue la vista.
+  expect(graduateLinks.find(link => link.id === 'employment-surveys')?.href).toBeUndefined();
+
+  for (const role of ['empresa', null] as const) {
+    const links = visibleLinks(NAVBAR_ACCOUNT_LINKS, role).map(link => link.id);
+    expect(links).not.toContain('reports');
+    expect(links).not.toContain('employment-survey-admin');
+    expect(links).not.toContain('employment-surveys');
+  }
+});

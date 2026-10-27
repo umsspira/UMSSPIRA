@@ -11,6 +11,7 @@ import { GetOwnedEventController } from './http/controllers/get-owned-event.cont
 import { GetEventDraftController } from './http/controllers/get-event-draft.controller';
 import { CreateEventController } from './http/controllers/create-event.controller';
 import { UpdateEventDraftController } from './http/controllers/update-event-draft.controller';
+import { UpdatePublishedEventController } from './http/controllers/update-published-event.controller';
 import { PublishEventDraftController } from './http/controllers/publish-event-draft.controller';
 import { ListInactiveEventsController } from './http/controllers/list-inactive-events.controller';
 import { RetireEventController } from './http/controllers/retire-event.controller';
@@ -33,6 +34,7 @@ import { CancelPublishedEventController } from './http/controllers/cancel-publis
     GetEventDraftController,
     CreateEventController,
     UpdateEventDraftController,
+    UpdatePublishedEventController,
     PublishEventDraftController,
     ListInactiveEventsController,
     RetireEventController,

@@ -4,14 +4,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ActivateView } from './activate-view';
 import { activationService } from '@/modules/activation/frontend/services/activation.service';
 
-const mockSearchParams = new URLSearchParams('applicationId=app-123&email=titulado@umss.edu.bo');
+const applicationId = '12345678-1234-4234-8234-123456789abc';
+const mockSearchParams = new URLSearchParams();
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('@/modules/activation/frontend/services/activation.service', () => ({
+  ...jest.requireActual('@/modules/activation/frontend/services/activation.service'),
   activationService: {
+    inspect: jest.fn(),
     verifyOtp: jest.fn(),
     resendOtp: jest.fn(),
     activateAccount: jest.fn(),
@@ -21,6 +24,11 @@ jest.mock('@/modules/activation/frontend/services/activation.service', () => ({
 describe('ActivateView Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSearchParams.set('applicationId', applicationId);
+    (activationService.inspect as jest.Mock).mockResolvedValue({
+      maskedEmail: 'ti****@umss.edu.bo', expiresAt: '2026-10-25T20:00:00Z',
+      cooldownSeconds: 0, resendCount: 0, failedAttempts: 0,
+    });
   });
 
   it('inicia en el Paso 1 (OTP) y pasa al Paso 2 (contraseña) tras validar exitosamente (CA-06.3)', async () => {
@@ -34,6 +42,7 @@ describe('ActivateView Integration', () => {
     expect(screen.getByText(/activa tu cuenta de titulado/i)).toBeTruthy();
     const inputs = screen.getAllByRole('textbox');
     expect(inputs).toHaveLength(6);
+    await waitFor(() => expect(inputs[0]).toBeEnabled());
 
     // Ingresar 6 dígitos
     for (let i = 0; i < 6; i++) {
@@ -62,6 +71,7 @@ describe('ActivateView Integration', () => {
     render(<ActivateView />);
 
     const inputs = screen.getAllByRole('textbox');
+    await waitFor(() => expect(inputs[0]).toBeEnabled());
     for (let i = 0; i < 6; i++) {
       fireEvent.change(inputs[i], { target: { value: '1' } });
     }
@@ -90,5 +100,13 @@ describe('ActivateView Integration', () => {
         '/login',
       );
     });
+  });
+
+  it('no muestra el formulario ni consulta el servidor cuando el enlace es inválido', () => {
+    mockSearchParams.set('applicationId', 'app-123');
+    render(<ActivateView />);
+    expect(screen.getByText(/abre el enlace de activación/i)).toBeInTheDocument();
+    expect(screen.queryAllByRole('textbox')).toHaveLength(0);
+    expect(activationService.inspect).not.toHaveBeenCalled();
   });
 });
