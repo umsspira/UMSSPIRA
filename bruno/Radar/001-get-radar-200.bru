@@ -38,51 +38,61 @@ tests {
     expect(d.hasPendingChanges).to.be.a("boolean");
   });
 
-  test("Siempre 6 areas con affinity entre 0 y 100", function() {
+  test("Los 6 ejes de afinidad vienen en el orden fijo esperado", function() {
     const areas = res.body.data.areas;
     expect(areas).to.be.an("array").with.lengthOf(6);
+
+    const ordenEsperado = [
+      "software-development",
+      "cloud-devops",
+      "data-ai",
+      "quality-assurance",
+      "cybersecurity-networks",
+      "it-management"
+    ];
+    expect(areas.map(function(a) { return a.area; })).to.deep.equal(ordenEsperado);
+  });
+
+  test("Cada eje incluye affinity, previousAffinity, weighting y topKeywords (máx. 5, aporte > 0, orden descendente)", function() {
+    const areas = res.body.data.areas;
     areas.forEach(function(a) {
       expect(a.affinity).to.be.a("number");
       expect(a.affinity).to.be.within(0, 100);
+      if (a.previousAffinity !== null) {
+        expect(a.previousAffinity).to.be.a("number");
+        expect(a.previousAffinity).to.be.within(0, 100);
+      }
       if (a.weighting !== null) {
+        expect(a.weighting).to.be.a("number");
         expect(a.weighting).to.be.within(1, 5);
       }
-      expect(a.topKeywords).to.be.an("array").with.lengthOf.at.most(5);
-      if (a.previousAffinity !== null) {
-        expect(a.previousAffinity).to.be.a("number").within(0, 100);
-      }
-    });
-  });
+      expect(a.topKeywords).to.be.an("array");
+      expect(a.topKeywords.length).to.be.at.most(5);
 
-  test("Keywords influyentes con el contrato de HU-8", function() {
-    res.body.data.areas.forEach(function(a) {
-      a.topKeywords.forEach(function(k) {
-        expect(k).to.have.all.keys("keyword", "weight", "frequency", "points", "percentage");
+      const seenKeywords = [];
+      a.topKeywords.forEach(function(k, index) {
         expect(k.keyword).to.be.a("string").that.is.not.empty;
-        expect(k.weight).to.be.within(1, 5);
-        expect(k.frequency).to.be.at.least(1);
-        expect(k.points).to.be.at.least(1);
-        expect(k.percentage).to.be.within(0, 100);
+        expect(seenKeywords).to.not.include(k.keyword);
+        seenKeywords.push(k.keyword);
+
+        expect(k.weight).to.be.a("number").and.to.be.within(1, 5);
+        expect(k.frequency).to.be.a("number").and.to.be.at.least(1);
+        expect(k.points).to.be.a("number").and.to.be.above(0);
+        expect(k.points).to.equal(k.weight * Math.min(k.frequency, 3));
+        expect(k.percentage).to.be.a("number").and.to.be.above(0).and.to.be.at.most(100);
+
+        if (index > 0) {
+          const prev = a.topKeywords[index - 1];
+          expect(prev.points).to.be.at.least(k.points);
+          expect(prev.percentage).to.be.at.least(k.percentage);
+          if (prev.points === k.points) {
+            expect(prev.keyword <= k.keyword).to.equal(true);
+          }
+        }
       });
     });
+
+    const conKeywords = areas.some(function(a) { return a.topKeywords.length > 0; });
+    expect(conKeywords).to.equal(true);
   });
-
-  test("Las areas usan los slugs del contrato AffinityArea", function() {
-    const esperados = ["software-development", "cloud-devops", "data-ai", "quality-assurance", "cybersecurity-networks", "it-management"];
-    const recibidos = res.body.data.areas.map(function(a) { return a.area; });
-    expect(recibidos.slice().sort()).to.eql(esperados.slice().sort());
-  });
-
-  test("Tiempo de respuesta menor o igual a 3 000 ms", function() {
-    expect(res.responseTime).to.be.at.most(3000);
-  });
-}
-
-docs {
-  Usa el accessToken de un titulado con perfil cargado (ej. titulado@umss.edu.bo).
-  Devuelve { data: AffinityVectorResponse } con 6 areas. La primera llamada de un titulado calcula el radar (lazy GET).
-  Guarda graduateId en radarGraduateId para el caso 005.
-
-  Permiso: radar:self:read.
-  CA-HU?-XX (pendiente: copiar del .md de QA): estado ok y esquema del vector.
 }

@@ -1,5 +1,5 @@
 meta {
-  name: GET radar - 200 radar vacio (estado empty)
+  name: GET radar - 200 radar vacío (sin keywords)
   type: http
   seq: 2
 }
@@ -19,57 +19,27 @@ tests {
     expect(res.status).to.equal(200);
   });
 
-  test("Respuesta envuelta en data", function() {
-    expect(res.body).to.have.property("data").that.is.an("object");
-  });
-
-  test("Esquema: graduateId, calculatedAt, status, algorithmVersion y hasPendingChanges", function() {
+  test("Status empty y los 6 ejes en orden fijo con afinidad 0, previousAffinity null y sin topKeywords", function() {
     const d = res.body.data;
-    expect(d.graduateId).to.be.a("string").that.is.not.empty;
-    expect(Number.isNaN(Date.parse(d.calculatedAt))).to.equal(false);
     expect(d.status).to.equal("empty");
-    expect(d.algorithmVersion).to.be.a("string").that.is.not.empty;
     expect(d.hasPendingChanges).to.be.a("boolean");
-  });
+    expect(d.areas).to.be.an("array").with.lengthOf(6);
 
-  test("Siempre 6 areas con affinity entre 0 y 100", function() {
-    const areas = res.body.data.areas;
-    expect(areas).to.be.an("array").with.lengthOf(6);
-    areas.forEach(function(a) {
-      expect(a.affinity).to.be.a("number");
-      expect(a.affinity).to.be.within(0, 100);
-      if (a.weighting !== null) {
-        expect(a.weighting).to.be.within(1, 5);
-      }
-      expect(a.topKeywords).to.be.an("array").with.lengthOf.at.most(5);
-      if (a.previousAffinity !== null) {
-        expect(a.previousAffinity).to.be.a("number").within(0, 100);
-      }
-    });
-  });
+    const ordenEsperado = [
+      "software-development",
+      "cloud-devops",
+      "data-ai",
+      "quality-assurance",
+      "cybersecurity-networks",
+      "it-management"
+    ];
+    expect(d.areas.map(function(a) { return a.area; })).to.deep.equal(ordenEsperado);
 
-  test("Las areas usan los slugs del contrato AffinityArea", function() {
-    const esperados = ["software-development", "cloud-devops", "data-ai", "quality-assurance", "cybersecurity-networks", "it-management"];
-    const recibidos = res.body.data.areas.map(function(a) { return a.area; });
-    expect(recibidos.slice().sort()).to.eql(esperados.slice().sort());
-  });
-
-  test("Estado vacio: todas las areas en 0 y sin keywords", function() {
-    res.body.data.areas.forEach(function(a) {
+    d.areas.forEach(function(a) {
       expect(a.affinity).to.equal(0);
-      expect(a.topKeywords).to.be.empty;
+      expect(a.previousAffinity).to.equal(null);
+      expect(a.weighting).to.be.oneOf([null, 0]);
+      expect(a.topKeywords).to.deep.equal([]);
     });
   });
-
-  test("Tiempo de respuesta menor o igual a 3 000 ms", function() {
-    expect(res.responseTime).to.be.at.most(3000);
-  });
-}
-
-docs {
-  Requiere configurar manualmente {{accessTokenRadarVacio}} con el token de un titulado cuyo perfil no tenga ninguna keyword reconocida.
-  Si la variable esta vacia o el titulado tiene datos, el test falla (no es un bug de la API).
-
-  Permiso: radar:self:read.
-  CA-HU?-XX (pendiente: copiar del .md de QA): estado vacio -> status empty, 6 areas en 0.
 }

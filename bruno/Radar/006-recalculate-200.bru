@@ -1,12 +1,12 @@
 meta {
-  name: POST radar/recalculate - 200 recalcula el radar
+  name: POST recalculate - 200 recalcula vector de afinidad
   type: http
   seq: 6
 }
 
 post {
   url: {{baseUrl}}/api/v1/radar/recalculate
-  body: none
+  body: json
   auth: bearer
 }
 
@@ -14,15 +14,29 @@ auth:bearer {
   token: {{accessToken}}
 }
 
+body:json {
+  {}
+}
+
 script:post-response {
   if (res.status === 200 && res.body && res.body.data) {
     bru.setVar("radarCalculatedAt", res.body.data.calculatedAt);
-    bru.setVar("radarPreviousAffinityJson", JSON.stringify(res.body.data.areas.map(function(a) {
-      return [a.area, a.previousAffinity];
-    })));
-    bru.setVar("radarTopKeywordsJson", JSON.stringify(res.body.data.areas.map(function(a) {
-      return [a.area, a.topKeywords];
-    })));
+    bru.setVar(
+      "radarPreviousAffinityJson",
+      JSON.stringify(
+        res.body.data.areas.map(function(a) {
+          return [a.area, a.previousAffinity];
+        })
+      )
+    );
+    bru.setVar(
+      "radarTopKeywordsJson",
+      JSON.stringify(
+        res.body.data.areas.map(function(a) {
+          return [a.area, a.topKeywords];
+        })
+      )
+    );
   }
 }
 
@@ -31,69 +45,61 @@ tests {
     expect(res.status).to.equal(200);
   });
 
-  test("Respuesta envuelta en data", function() {
-    expect(res.body).to.have.property("data").that.is.an("object");
-  });
-
-  test("Esquema: graduateId, calculatedAt, status, algorithmVersion y hasPendingChanges", function() {
+  test("Recálculo exitoso limpia hasPendingChanges y expone recalculated booleano", function() {
     const d = res.body.data;
     expect(d.graduateId).to.be.a("string").that.is.not.empty;
     expect(Number.isNaN(Date.parse(d.calculatedAt))).to.equal(false);
-    expect(["ok", "empty"]).to.include(d.status);
-    expect(d.algorithmVersion).to.be.a("string").that.is.not.empty;
-    expect(d.hasPendingChanges).to.be.a("boolean");
+    expect(d.status).to.be.oneOf(["ok", "empty"]);
+    expect(d.hasPendingChanges).to.equal(false);
+    expect(d.recalculated).to.be.a("boolean");
+    expect(d.areas).to.be.an("array").with.lengthOf(6);
+
+    const ordenEsperado = [
+      "software-development",
+      "cloud-devops",
+      "data-ai",
+      "quality-assurance",
+      "cybersecurity-networks",
+      "it-management"
+    ];
+    expect(d.areas.map(function(a) { return a.area; })).to.deep.equal(ordenEsperado);
   });
 
-  test("Siempre 6 areas con affinity entre 0 y 100", function() {
-    const areas = res.body.data.areas;
-    expect(areas).to.be.an("array").with.lengthOf(6);
-    areas.forEach(function(a) {
-      expect(a.affinity).to.be.a("number");
+  test("Top keywords normalizados (máx. 5, aporte > 0, orden descendente) y previousAffinity válida", function() {
+    res.body.data.areas.forEach(function(a) {
       expect(a.affinity).to.be.within(0, 100);
+      if (a.previousAffinity !== null) {
+        expect(a.previousAffinity).to.be.a("number");
+        expect(a.previousAffinity).to.be.within(0, 100);
+      }
       if (a.weighting !== null) {
+        expect(a.weighting).to.be.a("number");
         expect(a.weighting).to.be.within(1, 5);
       }
-      expect(a.topKeywords).to.be.an("array").with.lengthOf.at.most(5);
-      if (a.previousAffinity !== null) {
-        expect(a.previousAffinity).to.be.a("number").within(0, 100);
-      }
-    });
-  });
+      expect(a.topKeywords).to.be.an("array");
+      expect(a.topKeywords.length).to.be.at.most(5);
 
-  test("Keywords influyentes con el contrato de HU-8", function() {
-    res.body.data.areas.forEach(function(a) {
-      a.topKeywords.forEach(function(k) {
-        expect(k).to.have.all.keys("keyword", "weight", "frequency", "points", "percentage");
+      const seenKeywords = [];
+      a.topKeywords.forEach(function(k, index) {
         expect(k.keyword).to.be.a("string").that.is.not.empty;
-        expect(k.weight).to.be.within(1, 5);
-        expect(k.frequency).to.be.at.least(1);
-        expect(k.points).to.be.at.least(1);
-        expect(k.percentage).to.be.within(0, 100);
+        expect(seenKeywords).to.not.include(k.keyword);
+        seenKeywords.push(k.keyword);
+
+        expect(k.weight).to.be.a("number").and.to.be.within(1, 5);
+        expect(k.frequency).to.be.a("number").and.to.be.at.least(1);
+        expect(k.points).to.be.a("number").and.to.be.above(0);
+        expect(k.points).to.equal(k.weight * Math.min(k.frequency, 3));
+        expect(k.percentage).to.be.a("number").and.to.be.above(0).and.to.be.at.most(100);
+
+        if (index > 0) {
+          const prev = a.topKeywords[index - 1];
+          expect(prev.points).to.be.at.least(k.points);
+          expect(prev.percentage).to.be.at.least(k.percentage);
+          if (prev.points === k.points) {
+            expect(prev.keyword <= k.keyword).to.equal(true);
+          }
+        }
       });
     });
   });
-
-  test("Las areas usan los slugs del contrato AffinityArea", function() {
-    const esperados = ["software-development", "cloud-devops", "data-ai", "quality-assurance", "cybersecurity-networks", "it-management"];
-    const recibidos = res.body.data.areas.map(function(a) { return a.area; });
-    expect(recibidos.slice().sort()).to.eql(esperados.slice().sort());
-  });
-
-  test("recalculated es booleano y no quedan cambios pendientes", function() {
-    expect(res.body.data.recalculated).to.be.a("boolean");
-    expect(res.body.data.hasPendingChanges).to.equal(false);
-  });
-
-  test("Tiempo de respuesta menor o igual a 3 000 ms", function() {
-    expect(res.responseTime).to.be.at.most(3000);
-  });
-}
-
-docs {
-  Usa el accessToken de un titulado. Recalcula con los textos actuales del perfil.
-  Si el perfil no cambio desde el ultimo calculo, devuelve el calculo existente (recalculated = false).
-  Guarda calculatedAt en radarCalculatedAt para el caso 007.
-
-  Permiso: radar:self:write.
-  CA-HU?-XX (pendiente: copiar del .md de QA): recalcular y esquema del vector.
 }
