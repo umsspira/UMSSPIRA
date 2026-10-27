@@ -666,7 +666,7 @@
                 "type": "string"
               }
             },
-            "description": "Usa el accessToken de un titulado con perfil cargado (ej. titulado@umss.edu.bo).\nDevuelve { data: AffinityVectorResponse } con 6 areas. La primera llamada de un titulado calcula el radar (lazy GET).\nGuarda graduateId en radarGraduateId para el caso 005.\n\nPermiso: radar:self:read.\nCA-HU?-XX (pendiente: copiar del .md de QA): estado ok y esquema del vector.",
+            "description": "Usa el accessToken de un titulado con perfil cargado (ej. titulado@umss.edu.bo).\nDevuelve { data: AffinityVectorResponse } con 6 areas. La primera llamada de un titulado calcula el radar (lazy GET).\nGuarda graduateId en radarGraduateId para el caso 005.\n\nPermiso: radar:self:read.\nCA-HU7-01: estado ok y esquema del vector.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar",
               "protocol": "",
@@ -721,7 +721,7 @@
                 "type": "string"
               }
             },
-            "description": "Requiere configurar manualmente {{accessTokenRadarVacio}} con el token de un titulado cuyo perfil no tenga ninguna keyword reconocida.\nSi la variable esta vacia o el titulado tiene datos, el test falla (no es un bug de la API).\n\nPermiso: radar:self:read.\nCA-HU?-XX (pendiente: copiar del .md de QA): estado vacio -> status empty, 6 areas en 0.",
+            "description": "Requiere configurar manualmente {{accessTokenRadarVacio}} con el token de un titulado cuyo perfil no tenga ninguna keyword reconocida.\nSi la variable esta vacia o el titulado tiene datos, el test falla (no es un bug de la API).\n\nPermiso: radar:self:read.\nCA-HU6-16: estado vacio -> status empty, 6 areas en 0.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar",
               "protocol": "",
@@ -764,7 +764,7 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "Sin Authorization debe responder 401.\n\nCA-HU?-XX (pendiente: copiar del .md de QA): acceso sin autenticar.",
+            "description": "Sin Authorization debe responder 401.\n\nCA-HU7-24: acceso sin autenticar.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar",
               "protocol": "",
@@ -812,7 +812,7 @@
                 "type": "string"
               }
             },
-            "description": "Requiere configurar manualmente {{accessTokenSinPermiso}} con el token de un usuario SIN radar:self:read (ej. empresa@umss.edu.bo).\nSi la variable esta vacia o el token tiene permiso, el test falla (no es un bug de la API).\n\nPermiso exigido: radar:self:read.\nCA-HU?-XX (pendiente: copiar del .md de QA): acceso sin permiso.",
+            "description": "Requiere configurar manualmente {{accessTokenSinPermiso}} con el token de un usuario SIN radar:self:read (ej. empresa@umss.edu.bo).\nSi la variable esta vacia o el token tiene permiso, el test falla (no es un bug de la API).\n\nPermiso exigido: radar:self:read.\nCA-HU7-24: acceso sin permiso.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar",
               "protocol": "",
@@ -860,7 +860,7 @@
                 "type": "string"
               }
             },
-            "description": "Requiere {{accessTokenOtroTitulado}} con el token de un titulado DISTINTO al de accessToken. Ejecuta antes el caso 001, que guarda su graduateId.\nEl id sale del JWT, no de la URL: no existe forma de pedir el radar de otro titulado. El graduateId devuelto debe ser el del dueno del token y distinto al del caso 001.\n\nPermiso: radar:self:read.\nCA-HU?-XX (pendiente: copiar del .md de QA): un titulado solo ve su radar.",
+            "description": "Requiere {{accessTokenOtroTitulado}} con el token de un titulado DISTINTO al de accessToken. Ejecuta antes el caso 001, que guarda su graduateId.\nEl id sale del JWT, no de la URL: no existe forma de pedir el radar de otro titulado. El graduateId devuelto debe ser el del dueno del token y distinto al del caso 001.\n\nPermiso: radar:self:read.\nCA-HU7-24: un titulado solo ve su radar.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar",
               "protocol": "",
@@ -948,7 +948,7 @@
                 "type": "string"
               }
             },
-            "description": "Usa el accessToken de un titulado. Recalcula con los textos actuales del perfil.\nSi el perfil no cambio desde el ultimo calculo, devuelve el calculo existente (recalculated = false).\nGuarda calculatedAt en radarCalculatedAt para el caso 007.\n\nPermiso: radar:self:write.\nCA-HU?-XX (pendiente: copiar del .md de QA): recalcular y esquema del vector.",
+            "description": "Usa el accessToken de un titulado. Recalcula con los textos actuales del perfil.\nSi el perfil no cambio desde el ultimo calculo, devuelve el calculo existente (recalculated = false).\nGuarda calculatedAt en radarCalculatedAt para el caso 007.\n\nPermiso: radar:self:write.\nCA-HU7-12: recalcular y esquema del vector.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar/recalculate",
               "protocol": "",
@@ -1009,7 +1009,7 @@
                 "type": "string"
               }
             },
-            "description": "Ejecuta antes el caso 006 con el mismo accessToken y sin editar el perfil entre ambos.\nMismo hash de entrada -> idempotente: recalculated = false y el mismo calculatedAt (no se crea fila nueva).\nLa API no expone el hash ni el conteo de filas; la verificacion directa en BD se hace en T3.9.\n\nPermiso: radar:self:write.\nCA-HU?-XX (pendiente: copiar del .md de QA): idempotencia del recalculo.",
+            "description": "Ejecuta antes el caso 006 con el mismo accessToken y sin editar el perfil entre ambos.\nMismo hash de entrada -> idempotente: recalculated = false y el mismo calculatedAt (no se crea fila nueva).\nLa API no expone el hash ni el conteo de filas; la verificacion directa en BD se hace en T3.9.\n\nPermiso: radar:self:write.\nCA-HU7-13: idempotencia del recalculo.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar/recalculate",
               "protocol": "",
@@ -1053,7 +1053,7 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "Sin Authorization debe responder 401.\n\nCA-HU?-XX (pendiente: copiar del .md de QA): acceso sin autenticar.",
+            "description": "Sin Authorization debe responder 401.\n\nCA-HU7-24: acceso sin autenticar.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar/recalculate",
               "protocol": "",
@@ -1102,7 +1102,7 @@
                 "type": "string"
               }
             },
-            "description": "Requiere configurar manualmente {{accessTokenSinPermiso}} con el token de un usuario SIN radar:self:write (ej. empresa@umss.edu.bo).\nSi la variable esta vacia o el token tiene permiso, el test falla (no es un bug de la API).\n\nPermiso exigido: radar:self:write.\nCA-HU?-XX (pendiente: copiar del .md de QA): acceso sin permiso.",
+            "description": "Requiere configurar manualmente {{accessTokenSinPermiso}} con el token de un usuario SIN radar:self:write (ej. empresa@umss.edu.bo).\nSi la variable esta vacia o el token tiene permiso, el test falla (no es un bug de la API).\n\nPermiso exigido: radar:self:write.\nCA-HU7-24: acceso sin permiso.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar/recalculate",
               "protocol": "",
