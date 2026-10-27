@@ -42,6 +42,12 @@ import { GetApplicationDocumentUseCase } from '../../application/use-cases/get-a
 import { ReviewApplicationUseCase } from '../../application/use-cases/review-application.use-case';
 import { ActivateRegistrationUseCase } from '../../application/use-cases/activate-registration.use-case';
 import { VerifyActivationCodeUseCase } from '../../application/use-cases/verify-activation-code.use-case';
+import {
+  MAIL_EVENTS_REPOSITORY,
+  type MailEventsRepository,
+} from '../../application/ports/mail-events-repository.port';
+import { RetryMailEventsUseCase } from '../../application/use-cases/retry-mail-events.use-case';
+import { PrismaMailEventsRepository } from '../repositories/prisma-mail-events.repository';
 export const registrationsProviders: Provider[] = [
   ...[UpdateRegistrationUseCase, GetDraftDocumentUseCase].map((useCase) => ({
     provide: useCase,
@@ -153,5 +159,12 @@ export const registrationsProviders: Provider[] = [
     inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY],
     useFactory: (repository: ApplicationsRepository, security: RegistrationSecurity) =>
       new VerifyActivationCodeUseCase(repository, security),
+  },
+  PrismaMailEventsRepository,
+  { provide: MAIL_EVENTS_REPOSITORY, useExisting: PrismaMailEventsRepository },
+  {
+    provide: RetryMailEventsUseCase,
+    inject: [MAIL_EVENTS_REPOSITORY],
+    useFactory: (repository: MailEventsRepository) => new RetryMailEventsUseCase(repository),
   },
 ];
