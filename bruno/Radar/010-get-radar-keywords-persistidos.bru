@@ -1,0 +1,66 @@
+meta {
+  name: GET radar - 200 keywords persistidos tras recalcular
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/radar
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("GET no expone recalculated", function() {
+    expect(res.body.data).to.not.have.property("recalculated");
+  });
+
+  test("Devuelve el mismo topKeywords y previousAffinity que el POST del caso 006", function() {
+    const previaGuardada = bru.getVar("radarPreviousAffinityJson");
+    const topGuardado = bru.getVar("radarTopKeywordsJson");
+    expect(previaGuardada, "Ejecuta antes el caso 006").to.be.a("string").that.is.not.empty;
+    expect(topGuardado, "Ejecuta antes el caso 006").to.be.a("string").that.is.not.empty;
+
+    const previaActual = res.body.data.areas.map(function(a) {
+      return [a.area, a.previousAffinity];
+    });
+    const topActual = res.body.data.areas.map(function(a) {
+      return [a.area, a.topKeywords];
+    });
+
+    expect(JSON.stringify(previaActual)).to.equal(previaGuardada);
+    expect(JSON.stringify(topActual)).to.equal(topGuardado);
+  });
+
+  test("Cada area mantiene como maximo cinco keywords con aporte positivo", function() {
+    res.body.data.areas.forEach(function(a) {
+      expect(a.topKeywords.length).to.be.at.most(5);
+      a.topKeywords.forEach(function(k) {
+        expect(k).to.have.all.keys("keyword", "weight", "frequency", "points", "percentage");
+        expect(k.points).to.be.at.least(1);
+        expect(k.percentage).to.be.within(0, 100);
+      });
+    });
+  });
+
+  test("Tiempo de respuesta menor o igual a 3 000 ms", function() {
+    expect(res.responseTime).to.be.at.most(3000);
+  });
+}
+
+docs {
+  Ejecuta antes los casos 006 y 007 con el mismo accessToken.
+  Verifica que palabras_clave_top y previousAffinity se leen de la base de datos
+  con el mismo contenido que devolvio el recalculo (persistencia JSONB).
+
+  Permiso: radar:self:read.
+  HU-8: keywords influyentes persistidas y expuestas por GET tras el recalculo.
+}

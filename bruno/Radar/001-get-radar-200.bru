@@ -44,11 +44,26 @@ tests {
     areas.forEach(function(a) {
       expect(a.affinity).to.be.a("number");
       expect(a.affinity).to.be.within(0, 100);
-      expect(a.weighting).to.be.a("number");
-      expect(a.topKeywords).to.be.an("array");
-      if (a.previousAffinity !== null) {
-        expect(a.previousAffinity).to.be.a("number");
+      if (a.weighting !== null) {
+        expect(a.weighting).to.be.within(1, 5);
       }
+      expect(a.topKeywords).to.be.an("array").with.lengthOf.at.most(5);
+      if (a.previousAffinity !== null) {
+        expect(a.previousAffinity).to.be.a("number").within(0, 100);
+      }
+    });
+  });
+
+  test("Keywords influyentes con el contrato de HU-8", function() {
+    res.body.data.areas.forEach(function(a) {
+      a.topKeywords.forEach(function(k) {
+        expect(k).to.have.all.keys("keyword", "weight", "frequency", "points", "percentage");
+        expect(k.keyword).to.be.a("string").that.is.not.empty;
+        expect(k.weight).to.be.within(1, 5);
+        expect(k.frequency).to.be.at.least(1);
+        expect(k.points).to.be.at.least(1);
+        expect(k.percentage).to.be.within(0, 100);
+      });
     });
   });
 
