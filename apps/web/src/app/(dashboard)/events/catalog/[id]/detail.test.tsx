@@ -175,7 +175,7 @@ describe('detalle público de eventos', () => {
     expect(screen.getByText('¡Ya eres parte del evento!')).toBeInTheDocument();
     expect(screen.getByText('CONFIRMADA')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver mis eventos' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Ver mis eventos' })).toHaveAttribute('href', '/portal/eventos/mis-eventos');
     expect(screen.getByRole('button', { name: 'Ver pase QR' })).toBeDisabled();
   });
 
@@ -194,8 +194,8 @@ describe('detalle público de eventos', () => {
     expect(screen.getByText('INSCRIPCIÓN CONFIRMADA')).toBeInTheDocument();
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Confirmar inscripción' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver mis eventos' })).toBeDisabled();
-    expect(screen.getByRole('link', { name: 'Ver pase QR' })).toHaveAttribute('href', '/mis-pases');
+    expect(screen.getByRole('link', { name: 'Ver mis eventos' })).toHaveAttribute('href', '/portal/eventos/mis-eventos');
+    expect(screen.getByRole('button', { name: 'Ver pase QR' })).toBeDisabled();
   });
 
   it('muestra un error seguro y permite reintentar sin dejar dos modales abiertos', async () => {
