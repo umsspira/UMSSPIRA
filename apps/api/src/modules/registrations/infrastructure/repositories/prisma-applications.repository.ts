@@ -1,4 +1,6 @@
 import { reserveActivationResend } from './activation-resend';
+import { queueTrackedMail } from '../notifications/queue-mail';
+import { RENEWAL_MAIL_SUBJECT } from '../../application/use-cases/renew-activation.use-case';
 import { applicationTotalPages } from '../../domain/policies/application-pagination.policy';
 import { Injectable } from '@nestjs/common';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
@@ -47,7 +49,10 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     await this.prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM solicitud WHERE id = ${id}::uuid FOR UPDATE`;
-        const row = await tx.solicitud.findFirst({ where: scopedApplication(actor, id) });
+        const row = await tx.solicitud.findFirst({
+          where: scopedApplication(actor, id),
+          include: { detalle_solicitud: true },
+        });
         if (!row) {
           throw new BusinessRuleError(
             'missing',
@@ -62,6 +67,14 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             'Solo se reenvía la activación de una solicitud aprobada sin cuenta activa',
           );
         }
+        const email = row.detalle_solicitud?.email;
+        if (!email) {
+          throw new BusinessRuleError(
+            'conflict',
+            'ACTIVATION_NOT_ALLOWED',
+            'La solicitud no tiene un correo al cual reenviar el código',
+          );
+        }
         await reserveActivationResend(tx, id);
         await tx.solicitud.update({
           where: { id },
@@ -71,8 +84,13 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             activacion_intentos: 0,
           },
         });
-        await tx.correoPendiente.create({
-          data: { contenido: encryptedMail, expira_en: new Date(Date.now() + 86400000) },
+        await queueTrackedMail(tx, {
+          encrypted: encryptedMail,
+          expiresAt: new Date(Date.now() + 86400000),
+          applicationId: id,
+          type: 'otp',
+          to: email,
+          subject: RENEWAL_MAIL_SUBJECT,
         });
       },
       { timeout: 15000 },
@@ -274,19 +292,14 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             data: { es_valido: approved },
           });
         }
-        await tx.correoPendiente.create({
-          data: { contenido: encryptedMail, expira_en: new Date(Date.now() + 86400000) },
-        });
-        await tx.correoTramite.create({
-          select: { id: true },
-          data: {
-            id_solicitud: id,
-            id_dictamen: review.id,
-            tipo: mail.type,
-            email_destino: mail.to,
-            asunto: mail.subject,
-            estado: 'pendiente',
-          },
+        await queueTrackedMail(tx, {
+          encrypted: encryptedMail,
+          expiresAt: new Date(Date.now() + 86400000),
+          applicationId: id,
+          reviewId: review.id,
+          type: mail.type,
+          to: mail.to,
+          subject: mail.subject,
         });
         return {
           id: review.id,
