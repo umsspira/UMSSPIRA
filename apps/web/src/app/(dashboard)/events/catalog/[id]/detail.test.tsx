@@ -1,15 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { within, fireEvent, render, screen } from '@testing-library/react';
 import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 
 import EventDetailPage from '@/features/events/event-detail-page';
 import { ApiClientError } from '@/shared/services/api-client';
-import { getPublishedEvent, registerForEvent } from '@/shared/services/events-service';
+import { cancelEventRegistration, getPublishedEvent, registerForEvent } from '@/shared/services/events-service';
 import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
 import { formatEventDateTime } from '@/shared/utils/event-date-time';
 
 jest.mock('@/shared/services/events-service', () => ({
   getPublishedEvent: jest.fn(),
   registerForEvent: jest.fn(),
+  cancelEventRegistration: jest.fn(),
 }));
 
 jest.mock('@/modules/auth/frontend/services/auth.service', () => ({
@@ -269,5 +270,52 @@ describe('detalle público de eventos', () => {
     expect(await screen.findByRole('heading', {
       name: 'QA_FINAL_HU12_0910_B',
     })).toHaveClass('max-w-full', 'break-words');
+  });
+});
+
+
+describe('Cancelación desde la inscripción confirmada', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(getPublishedEvent).mockResolvedValue({ ...publishedEvent, startDate: '2099-11-06T14:00:00Z', endDate: '2099-11-06T18:00:00Z' });
+    jest.mocked(getCurrentUser).mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
+    jest.mocked(registerForEvent).mockResolvedValue({
+      id: 'inscripcion-1', eventId: EVENT_ID, status: 'CONFIRMADA',
+      registeredAt: '2026-11-01T10:00:00Z', currentCapacity: 1,
+    });
+    jest.mocked(cancelEventRegistration).mockReset().mockResolvedValue(undefined);
+  });
+
+  async function registeredPage() {
+    render(<EventDetailPage params={{ id: EVENT_ID }} catalogHref="/portal/eventos" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Inscribirme' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar inscripción' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar mi inscripción' }));
+  }
+
+  it('permite desistir y mantiene la inscripción confirmada sin enviar PATCH', async () => {
+    await registeredPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Mantener inscripción' }));
+    expect(screen.getByText('CONFIRMADA')).toBeInTheDocument();
+    expect(cancelEventRegistration).not.toHaveBeenCalled();
+  });
+
+  it('cancela por ID de inscripción y actualiza el resultado visible', async () => {
+    await registeredPage();
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar inscripción' }));
+    expect(await screen.findByRole('heading', { name: 'Inscripción cancelada' })).toBeInTheDocument();
+    expect(cancelEventRegistration).toHaveBeenCalledWith('inscripcion-1');
+    expect(screen.getByText('CANCELADA')).toBeInTheDocument();
+    expect(screen.queryByText('CONFIRMADA')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/portal/eventos');
+  });
+
+  it('mantiene el estado visible ante un error de cancelación', async () => {
+    jest.mocked(cancelEventRegistration).mockRejectedValue(new Error('Fallo de red'));
+    await registeredPage();
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar inscripción' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos confirmar la cancelación');
+    expect(screen.getByText('CONFIRMADA')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Inscripción cancelada' })).not.toBeInTheDocument();
   });
 });

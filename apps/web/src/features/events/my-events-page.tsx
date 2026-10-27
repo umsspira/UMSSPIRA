@@ -9,7 +9,11 @@ import {
   type MyEventRegistrationItem,
 } from '@umsspira/shared-types';
 
-import { getMyEventRegistrations } from '@/shared/services/events-service';
+import { cancelEventRegistration, getMyEventRegistrations } from '@/shared/services/events-service';
+import { CancelRegistrationAction } from './cancel-registration-action';
+import { CancellationSuccess } from './cancellation-success';
+import { ApiClientError } from '@/shared/services/api-client';
+import { SessionError } from '@/shared/services/auth-session';
 import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
 
 type StatusFilter = 'all' | 'cancelled' | 'finished';
@@ -49,17 +53,23 @@ function countLabel(filter: StatusFilter, count: number): string {
 
 export default function MyEventsPage() {
   const [items, setItems] = useState<MyEventRegistrationItem[]>([]);
+  const [cancelledEventTitle, setCancelledEventTitle] = useState<string | null>(null);
+  const [conflictNotice, setConflictNotice] = useState(false);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const [loadError, setLoadError] = useState<'session' | 'forbidden' | 'unavailable' | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
-    setHasError(false);
+    setLoadError(null);
+    setConflictNotice(false);
     try {
       setItems(await getMyEventRegistrations());
-    } catch {
-      setHasError(true);
+      return true;
+    } catch (error) {
+      const status = error instanceof ApiClientError || error instanceof SessionError ? error.status : undefined;
+      setLoadError(status === 401 ? 'session' : status === 403 ? 'forbidden' : 'unavailable');
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -69,10 +79,45 @@ export default function MyEventsPage() {
     void load();
   }, [load]);
 
+  function markCancelled(registrationId: string) {
+    const selected = items.find((item) => item.id === registrationId);
+    if (selected) setCancelledEventTitle(selected.event.title);
+    setItems((current) => current.map((item) => item.id === registrationId
+      ? {
+          ...item,
+          status: 'CANCELADA',
+          participationStatus: EVENT_PARTICIPATION_STATUS.INSCRIPCION_CANCELADA,
+        }
+      : item));
+  }
+
+  async function refreshAfterConflict() {
+    if (await load()) setConflictNotice(true);
+  }
+
   const visibleItems = useMemo(
     () => items.filter((item) => matchesFilter(item, filter)),
     [items, filter],
   );
+
+  if (cancelledEventTitle !== null) {
+    return (
+      <main className="hu2-catalog-page hu4-cancellation-confirmed-page">
+        <div className="hu2-catalog-shell">
+          <header className="hu2-catalog-header">
+            <div className="hu2-catalog-heading">
+              <h1>Mis eventos</h1>
+              <p>Tu inscripción fue actualizada correctamente.</p>
+            </div>
+          </header>
+          <CancellationSuccess
+            eventTitle={cancelledEventTitle}
+            onReturn={() => setCancelledEventTitle(null)}
+          />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="hu2-catalog-page">
@@ -93,6 +138,11 @@ export default function MyEventsPage() {
           </nav>
         </header>
 
+        {conflictNotice && !isLoading && !loadError ? (
+          <p className="hu4-cancellation-note" role="status">
+            La inscripción cambió o ya no admite cancelación. Mostramos el estado actualizado.
+          </p>
+        ) : null}
         {isLoading ? (
           <>
             <p className="hu2-results-count" role="status">
@@ -104,16 +154,24 @@ export default function MyEventsPage() {
               ))}
             </div>
           </>
-        ) : hasError ? (
+        ) : loadError ? (
           <section className="hu2-catalog-state hu2-error-state" role="alert">
             <span className="hu2-state-icon" aria-hidden="true">
               <CircleAlert size={52} />
             </span>
-            <h2>No pudimos cargar tus eventos</h2>
-            <p>Revisa tu conexión e inténtalo nuevamente. Tus inscripciones continúan guardadas.</p>
-            <button type="button" className="hu2-search-button" onClick={() => void load()}>
-              Reintentar
-            </button>
+            <h2>{loadError === 'session' ? 'Inicia sesión para ver tus eventos'
+              : loadError === 'forbidden' ? 'Esta sección requiere una cuenta de Titulado'
+              : 'No pudimos cargar tus eventos'}</h2>
+            <p>{loadError === 'session' ? 'Tu sesión no está disponible o ha expirado. Inicia sesión como Titulado para continuar.'
+              : loadError === 'forbidden' ? 'La cuenta actual no tiene permiso para consultar inscripciones de Titulado.'
+              : 'No pudimos consultar el servidor. Inténtalo nuevamente. Tus inscripciones continúan guardadas.'}</p>
+            {loadError === 'session' ? (
+              <Link href="/login" className="hu2-search-button">Iniciar sesión</Link>
+            ) : (
+              <button type="button" className="hu2-search-button" onClick={() => void load()}>
+                Reintentar
+              </button>
+            )}
           </section>
         ) : items.length === 0 ? (
           <section className="hu2-catalog-state hu9-empty" role="status">
@@ -199,6 +257,17 @@ export default function MyEventsPage() {
                             Ver pase
                           </button>
                         ) : null}
+                      {item.participationStatus === EVENT_PARTICIPATION_STATUS.VIGENTE ||
+                      item.participationStatus === EVENT_PARTICIPATION_STATUS.INSCRIPCION_CANCELADA ? (
+                        <CancelRegistrationAction
+                          variant="card"
+                          event={item.event}
+                          status={item.status}
+                          onConfirm={() => cancelEventRegistration(item.id)}
+                          onCancelled={() => markCancelled(item.id)}
+                          onConflict={refreshAfterConflict}
+                        />
+                      ) : null}
                       </div>
                     </article>
                   );
