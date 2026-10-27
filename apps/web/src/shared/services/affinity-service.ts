@@ -1,4 +1,4 @@
-﻿
+
 import {
   AFFINITY_AREAS,
   type AffinityArea,

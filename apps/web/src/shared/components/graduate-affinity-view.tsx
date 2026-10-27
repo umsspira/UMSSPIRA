@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import AffinityRadar from '@/shared/components/affinity-radar';
@@ -187,7 +187,6 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         setIsSuccessToastOpen(true);
         return;
       }
-
       setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
       const processed = processVectorAreas(result.areas as any, mockAreas);
 
