@@ -19,6 +19,12 @@ export interface ApplicationDetail {
   documentName: string;
   documentPath: string | null;
   documentFormat: string;
+  reviewAuthor?: {
+  id: string;
+  name: string | null;
+  email: string;
+  reviewedAt: string;
+  } | null;
 }
 
 export interface ApplicationPage {
@@ -46,6 +52,8 @@ export interface ReviewResult {
   category: string | null;
   note: string | null;
   reviewedBy: string;
+  reviewedByName: string | null;
+  reviewedByEmail: string;
   reviewedAt: string;
   notificationStatus: 'EN_COLA';
 }
