@@ -59,6 +59,7 @@ export const environmentSchema = z
       .min(1)
       .refine((value) => !/[\r\n]/.test(value), 'Remitente inválido')
       .default('UMSSPIRA <no-reply@umsspira.local>'),
+    BREVO_API_KEY: z.string().min(1).optional(),
     AUTH_RATE_LIMIT_STORE: z.enum(['memory', 'redis']).optional(),
     REDIS_URL: z
       .url()
