@@ -25,7 +25,12 @@ export class ReviewApplicationUseCase {
         id,
         input,
         code ? this.security.hash('activation', id + ':' + code) : null,
-        this.security.seal({ to: detail.email, subject: mail.subject, text: mail.text }),
+        this.security.seal({
+          to: detail.email,
+          subject: mail.subject,
+          text: mail.text,
+          html: mail.html,
+        }),
         { type: mail.type, to: detail.email, subject: mail.subject },
       );
     }

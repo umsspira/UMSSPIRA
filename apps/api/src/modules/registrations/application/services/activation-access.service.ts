@@ -51,6 +51,7 @@ export class ActivationAccessService {
           to: row.detalle_solicitud.email,
           subject: mail.subject,
           text: mail.text,
+          html: mail.html,
         }),
         expiresAt,
         applicationId: id,

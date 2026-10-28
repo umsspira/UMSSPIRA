@@ -1,4 +1,5 @@
 import type { ReviewInput } from '../contracts/registration-inputs';
+import { renderApprovalHtml } from './html-mail';
 
 export type ResolutionMailType = 'aprobacion' | 'observacion' | 'rechazo';
 
@@ -17,27 +18,33 @@ export interface ResolutionMail {
   type: ResolutionMailType;
   subject: string;
   text: string;
+  html?: string;
 }
 
 function greeting(fullName: string) {
   return fullName.trim() ? 'Hola ' + fullName.trim() + ',' : 'Hola,';
 }
 
+function webOrigin(): string {
+  const origin = process.env.WEB_BASE_URL || process.env.WEB_ORIGIN || 'http://localhost:3001';
+  return origin.replace(/\/+$/, '');
+}
+
 // Plantillas del dictamen. Nunca incluyen el código TIT, que es solo para administración.
 export function buildResolutionMail(input: ResolutionMailInput): ResolutionMail {
   const hello = greeting(input.fullName);
-    if (input.decision === 'APROBADA') {
+  if (input.decision === 'APROBADA') {
     if (!input.code) {
       throw new Error('Un dictamen aprobado requiere el código de activación');
     }
-    const webOrigin = process.env.WEB_BASE_URL || process.env.WEB_ORIGIN || 'http://localhost:3001';
+    const origin = webOrigin();
     const activationLink = input.activationUrl
       ? input.activationUrl
-      : `${webOrigin}/activate?applicationId=${input.applicationId}`;
+      : `${origin}/activate?applicationId=${input.applicationId}`;
 
     return {
       type: 'aprobacion',
-      subject: 'Tu solicitud en UMSSPIRA fue aprobada',
+      subject: '[UMSSPIRA] ¡Tu solicitud de registro ha sido aprobada!',
       text: [
         hello,
         '',
@@ -53,6 +60,13 @@ export function buildResolutionMail(input: ResolutionMailInput): ResolutionMail 
         '',
         'Equipo UMSSPIRA',
       ].join('\n'),
+      html: renderApprovalHtml({
+        name: input.fullName,
+        code: input.code,
+        activationLink,
+        applicationId: input.applicationId,
+        logoUrl: origin + '/umsspira-logo.png',
+      }),
     };
   }
   if (input.decision === 'OBSERVADA') {
