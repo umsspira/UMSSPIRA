@@ -19,7 +19,8 @@ describe('buildResolutionMail', () => {
     it('incluye una versión HTML con el código y el enlace en el correo de aprobación', () => {
     const mail = buildResolutionMail({ ...base, decision: 'APROBADA', code: '123456' });
     expect(mail.subject).toBe('[UMSSPIRA] ¡Tu solicitud de registro ha sido aprobada!');
-    expect(mail.html).toContain('123456');
+    const cells = (mail.html ?? '').match(/font-size:38px[^>]*>(\d)<\/td>/g) ?? [];
+    expect(cells.map((cell) => cell.slice(-6, -5)).join('')).toBe('123456');
     expect(mail.html).toContain('/activate?applicationId=' + base.applicationId);
     expect(mail.html).not.toContain('TIT-');
   });

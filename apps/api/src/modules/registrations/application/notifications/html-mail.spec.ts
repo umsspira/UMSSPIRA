@@ -15,7 +15,8 @@ describe('Correo de aprobación en HTML', () => {
 
   it('incluye el código, el botón con el enlace, la vigencia y el logo', () => {
     const html = renderApprovalHtml(base);
-    expect(html).toContain('123456');
+    const cells = html.match(/font-size:38px[^>]*>(\d)<\/td>/g) ?? [];
+    expect(cells.map((cell) => cell.slice(-6, -5)).join('')).toBe('123456');
     expect(html).toContain('href="https://umsspira.test/activate?applicationId=abc"');
     expect(html).toContain('Activar mi cuenta');
     expect(html).toContain('24 horas');

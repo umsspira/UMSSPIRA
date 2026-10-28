@@ -1,7 +1,9 @@
 // Colores del sistema de diseño (tailwind.config.ts y mockup). Se escriben como valores
 // sólidos porque los clientes de correo no soportan variables CSS ni transparencias.
 const COLOR = {
-  page: '#F5F0E8',
+  page: '#FAF6EE',
+  frame: '#EEE9DF',
+  frameLine: '#D9D2C5',
   card: '#FFFFFF',
   cardLine: '#E0D9CB',
   header: '#0F172A',
@@ -49,7 +51,14 @@ export interface ApprovalHtmlInput {
 export function renderApprovalHtml(input: ApprovalHtmlInput): string {
   const c = COLOR;
   const name = escapeHtml(input.name.trim());
-  const code = escapeHtml(input.code);
+  const cellWidth = Math.floor(100 / Math.max(input.code.length, 1));
+  const digits = input.code
+    .split('')
+    .map(
+      (digit) =>
+        `<td align="center" width="${cellWidth}%" style="padding:10px 0;font-family:${FONT};font-size:38px;line-height:44px;font-weight:700;color:${c.ink};">${escapeHtml(digit)}</td>`,
+    )
+    .join('');
   const link = escapeHtml(input.activationLink);
   const id = escapeHtml(input.applicationId);
   const origin = escapeHtml(input.origin);
@@ -76,7 +85,9 @@ export function renderApprovalHtml(input: ApprovalHtmlInput): string {
 <body style="margin:0;padding:0;background:${c.page};font-family:${FONT};color:${c.ink};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.page};">
 <tr><td align="center" style="padding:24px 12px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${c.card};border:1px solid ${c.cardLine};border-radius:14px;overflow:hidden;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:632px;background:${c.frame};border:1px solid ${c.frameLine};border-radius:18px;">
+<tr><td style="padding:16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.card};border:1px solid ${c.cardLine};border-radius:14px;overflow:hidden;">
 <tr><td style="background:${c.header};padding:16px 28px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
 <td align="left"><img src="${logo}" alt="UMSSPIRA" height="30" style="display:block;border:0;height:30px;width:auto;font-family:${FONT};font-size:18px;font-weight:700;color:#FFFFFF;"></td>
@@ -95,7 +106,7 @@ export function renderApprovalHtml(input: ApprovalHtmlInput): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.panel};border:1px solid ${c.line};border-radius:12px;"><tr>
 <td align="center" style="padding:22px 20px 18px 20px;">
 <div style="font-family:${FONT};${kicker}color:${c.muted};">Código de activación temporal (OTP)</div>
-<div style="margin:12px 0 14px 0;padding:8px 8px 8px 24px;background:#FFFFFF;border:1px solid ${c.line};border-radius:8px;font-family:${MONO};font-size:36px;line-height:42px;font-weight:700;letter-spacing:16px;color:${c.ink};">${code}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 14px 0;table-layout:fixed;background:#FFFFFF;border:1px solid ${c.line};border-radius:8px;"><tr>${digits}</tr></table>
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>
 <td valign="middle" style="padding-right:8px;"><img src="${clockIcon}" alt="" width="16" height="16" style="display:block;border:0;width:16px;height:16px;"></td>
 <td valign="middle" align="center" style="font-family:${FONT};font-size:12px;line-height:18px;color:${c.muted};">Este código tiene una vigencia de 24 horas a partir de la recepción de este mensaje.</td>
@@ -128,6 +139,8 @@ ${step(3, 'Crea tu contraseña institucional y accede a tu cuenta.')}
 </tr></table>
 </td></tr>
 <tr><td align="center" style="padding:20px 28px;border-top:1px solid ${c.cardLine};background:${c.footer};font-family:${FONT};font-size:12px;line-height:18px;color:${c.muted};"><strong style="color:${c.ink};">Universidad Mayor de San Simón</strong><br>Sistema Oficial UMSSPIRA — Cochabamba, Bolivia<br><span style="font-size:11px;line-height:16px;">Este es un mensaje institucional generado automáticamente. Por favor no responda directamente a este correo.</span></td></tr>
+</table>
+</td></tr>
 </table>
 </td></tr>
 </table>
