@@ -464,4 +464,91 @@ describe('ApplicationsPage', () => {
     expect(mockedFetchBoard).toHaveBeenCalledTimes(1);
     expect(mockedFetchMetrics).toHaveBeenCalledTimes(1);
   });
+    it('envía correctamente el dictamen de observación', async () => {
+    mockedFetchBoard.mockResolvedValue({
+      ok: true,
+      data: boardPage,
+    });
+
+    mockPendingApplicationDetail();
+    render(<ApplicationsPage />);
+
+    fireEvent.click(await screen.findByText('Alejandro Rojas'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Observar' }));
+
+    fireEvent.change(
+      screen.getByLabelText(/Categoría de la observación/),
+      {
+        target: { value: 'Documento ilegible' },
+      },
+    );
+
+    fireEvent.change(screen.getByLabelText(/Nota de observación/), {
+      target: { value: 'El documento presentado no se puede leer.' },
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirmar Observación' }),
+    );
+
+    await waitFor(() => {
+      expect(mockedAuthenticatedFetch).toHaveBeenCalledWith(
+        '/api/v1/applications/s-1/review',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            decision: 'OBSERVADA',
+            category: 'Documento ilegible',
+            note: 'El documento presentado no se puede leer.',
+            notifyDean: false,
+          }),
+        }),
+      );
+    });
+  });
+    it('envía correctamente el dictamen de rechazo', async () => {
+    mockedFetchBoard.mockResolvedValue({
+      ok: true,
+      data: boardPage,
+    });
+
+    mockPendingApplicationDetail();
+    render(<ApplicationsPage />);
+
+    fireEvent.click(await screen.findByText('Alejandro Rojas'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Rechazar' }));
+
+    fireEvent.change(
+      screen.getByLabelText(/Causal de rechazo definitivo/),
+      {
+        target: { value: 'Trámite duplicado' },
+      },
+    );
+
+    fireEvent.change(screen.getByLabelText(/Justificación del rechazo/), {
+      target: { value: 'La solicitud corresponde a un trámite duplicado.' },
+    });
+
+    fireEvent.click(
+      screen.getByLabelText(/Confirmo que he cotejado los antecedentes/),
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirmar Rechazo' }),
+    );
+
+    await waitFor(() => {
+      expect(mockedAuthenticatedFetch).toHaveBeenCalledWith(
+        '/api/v1/applications/s-1/review',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            decision: 'RECHAZADA',
+            category: 'Trámite duplicado',
+            note: 'La solicitud corresponde a un trámite duplicado.',
+          }),
+        }),
+      );
+    });
+  });
 });
