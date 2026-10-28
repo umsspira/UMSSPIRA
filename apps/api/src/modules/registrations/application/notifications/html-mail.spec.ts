@@ -22,7 +22,13 @@ describe('Correo de aprobación en HTML', () => {
     expect(html).toContain('src="https://umsspira.test/umsspira-logo.png"');
     expect(html).not.toContain('TIT-');
   });
-
+  it('explica cómo activar la cuenta y cómo pedir otro código', () => {
+    const html = renderApprovalHtml(base);
+    expect(html).toContain('Cómo activar tu cuenta');
+    expect(html).toContain('Reenviar código');
+    expect(html).toContain('5 intentos incorrectos');
+    expect(html).toContain('Aviso de seguridad institucional');
+  });
   it('no deja pasar HTML escrito en el nombre', () => {
     const html = renderApprovalHtml({ ...base, name: 'Ana <script>alert(1)</script>' });
     expect(html).not.toContain('<script>');
