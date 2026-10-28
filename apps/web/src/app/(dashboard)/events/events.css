@@ -2617,3 +2617,248 @@
   color: #1b2632;
   box-shadow: inset 0 0 0 1px #2c3b4d;
 }
+
+/* HU-7.11: Consultar mis pases QR */
+
+.qr-passes-page {
+  min-height: 100vh;
+  background: #eee9df;
+  color: #1b2632;
+  padding: 36px 24px 80px;
+}
+
+.qr-passes-container {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.qr-passes-tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 42px;
+}
+
+.qr-passes-tabs a,
+.qr-passes-tabs span {
+  padding: 11px 22px;
+  border: 1px solid #c9c1b1;
+  border-radius: 999px;
+  color: #1b2632;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.qr-passes-tabs .active {
+  background: #1b2632;
+  color: #fff;
+  border-color: #1b2632;
+}
+
+.qr-passes-heading {
+  margin-bottom: 40px;
+}
+
+.qr-passes-heading-icon {
+  color: #d77d26;
+  margin-bottom: 12px;
+}
+
+.qr-passes-heading h1 {
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.qr-passes-heading p {
+  color: #59616b;
+  line-height: 1.6;
+}
+
+.qr-passes-empty {
+  min-height: 350px;
+  border: 1px solid #c9c1b1;
+  border-radius: 16px;
+  padding: 55px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.qr-passes-empty > svg {
+  color: #d77d26;
+  margin-bottom: 18px;
+}
+
+.qr-passes-empty h2 {
+  font-size: 22px;
+  margin: 0 0 12px;
+}
+
+.qr-passes-empty p {
+  max-width: 440px;
+  color: #59616b;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.qr-passes-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #d77d26;
+  color: white;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.qr-passes-button:hover {
+  background: #b9661c;
+}
+
+/* HU-7.11: Listado y estados de pases QR */
+
+
+.qr-passes-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.qr-passes-grid > * {
+  min-width: 0;
+}
+
+
+.qr-passes-card {
+  background: #fffdf9;
+  border: 1px solid #d4cbbc;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.qr-passes-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.qr-passes-card-icon {
+  color: #d77d26;
+}
+
+.qr-passes-card h2 {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.qr-passes-card-description {
+  color: #59616b;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.qr-passes-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.qr-passes-card-details > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #46515c;
+  font-size: 14px;
+}
+
+.qr-passes-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.qr-passes-status--activo {
+  background: #dff3e5;
+  color: #176534;
+}
+
+.qr-passes-status--invalidado {
+  background: #fce3e3;
+  color: #a22c2c;
+}
+
+.qr-passes-status--vencido {
+  background: #e8e8e8;
+  color: #555b63;
+}
+
+.qr-passes-card-footer {
+  border-top: 1px solid #e5dfd5;
+  padding-top: 14px;
+  margin-top: auto;
+  color: #59616b;
+  font-size: 13px;
+}
+
+.qr-passes-button {
+  gap: 9px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.qr-passes-spinner {
+  animation: qr-passes-spin 1s linear infinite;
+}
+
+@keyframes qr-passes-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .qr-passes-page {
+    padding: 24px 16px 56px;
+  }
+
+  .qr-passes-tabs {
+    gap: 8px;
+    margin-bottom: 30px;
+  }
+
+  .qr-passes-tabs a,
+  .qr-passes-tabs span {
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+
+  .qr-passes-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qr-passes-card {
+    padding: 20px;
+  }
+}
+

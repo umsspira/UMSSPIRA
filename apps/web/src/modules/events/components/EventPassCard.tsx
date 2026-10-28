@@ -17,6 +17,9 @@ interface EventPassProps {
   qrToken?: string;
   onBack: () => void;
   onRetry?: () => void;
+  statusLabel?: string;
+  statusDescription?: string;
+  hideBackButton?: boolean;
 }
 
 export const EventPassCard: React.FC<EventPassProps> = ({
@@ -29,6 +32,9 @@ export const EventPassCard: React.FC<EventPassProps> = ({
   qrToken,
   onBack,
   onRetry,
+  statusLabel,
+  statusDescription,
+  hideBackButton = false,
 }) => {
   const isError = status === "ERROR";
   const isInvalid = status === "INVALID" || status === "INVALIDADO" || status === "VENCIDO";
@@ -118,13 +124,13 @@ export const EventPassCard: React.FC<EventPassProps> = ({
         {/* Badge de estado */}
         {!isError && !isRecovered && (
           <div className="inline-block bg-oatmeal/30 border border-oatmeal text-abyssal-blue text-[11px] font-bold py-1 px-3 rounded-full mb-8 w-fit">
-            {isInvalid ? 'EVENTO CANCELADO' : 'INSCRIPCIÓN CONFIRMADA'}
+            {statusLabel ?? (isInvalid ? 'EVENTO CANCELADO' : 'INSCRIPCIÓN CONFIRMADA')}
           </div>
         )}
 
         {isInvalid && (
           <p className="text-abyssal-blue text-[14px] mt-4 mb-12">
-            Este pase fue invalidado porque el evento ya no está activo.
+            {statusDescription ?? 'Este pase fue invalidado porque el evento ya no está activo.'}
           </p>
         )}
 
@@ -175,19 +181,20 @@ export const EventPassCard: React.FC<EventPassProps> = ({
             </p>
           </div>
         )}
-
         {/* BOTONES OFICIALES */}
         <div className="mt-auto pt-8 flex flex-col md:flex-row gap-4">
-          <Button 
-            variant="secondary"
-            onClick={onBack}
-            className="flex-1 md:flex-none"
-          >
-            {isError ? 'Volver a mis eventos' : 'Volver a mis pases'}
-          </Button>
-          
+          {!hideBackButton && (
+            <Button
+              variant="secondary"
+              onClick={onBack}
+              className="flex-1 md:flex-none"
+            >
+              {isError ? 'Volver a mis eventos' : 'Volver a mis pases'}
+            </Button>
+          )}
+
           {isError && (
-            <Button 
+            <Button
               variant="primary"
               onClick={onRetry}
               className="flex-1 md:flex-none"
@@ -197,12 +204,12 @@ export const EventPassCard: React.FC<EventPassProps> = ({
           )}
 
           {isRecovered && (
-             <Button 
-             variant="primary"
-             className="flex-1 md:flex-none"
-           >
-             Abrir pase
-           </Button>
+            <Button
+              variant="primary"
+              className="flex-1 md:flex-none"
+            >
+              Abrir pase
+            </Button>
           )}
         </div>
       </div>
