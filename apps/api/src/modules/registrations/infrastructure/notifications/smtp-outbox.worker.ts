@@ -8,7 +8,12 @@ import { describeMailError, mailRetryDelaySeconds } from '../../domain/policies/
 import { NodeRegistrationSecurity } from '../security/registration-security';
 import { mailEventKey } from './queue-mail';
 
-const messageSchema = z.object({ to: z.email(), subject: z.string(), text: z.string() });
+const messageSchema = z.object({
+  to: z.email(),
+  subject: z.string(),
+  text: z.string(),
+  html: z.string().optional(),
+});
 
 interface OutboxRow {
   id: string;
