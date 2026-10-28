@@ -2277,11 +2277,20 @@
 
 /* HU-7.11: Listado y estados de pases QR */
 
+
 .qr-passes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
 }
+
+.qr-passes-grid > * {
+  min-width: 0;
+}
+
 
 .qr-passes-card {
   background: #fffdf9;
