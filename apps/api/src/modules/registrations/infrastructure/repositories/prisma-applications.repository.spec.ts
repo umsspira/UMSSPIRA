@@ -221,8 +221,9 @@ describe('PrismaApplicationsRepository.list', () => {
 
     const statement = prisma.$queryRaw.mock.calls[0][0];
 
-    expect(statement.sql).toContain("unaccent(lower(coalesce(d.nombre, '')))");
-    expect(statement.sql).toContain("unaccent(lower(coalesce(d.apellido, '')))");
+    expect(statement.sql).toContain("extensions.unaccent(lower(coalesce(d.nombre, '')))");
+    expect(statement.sql).toContain("extensions.unaccent(lower(coalesce(d.apellido, '')))");
+    expect(statement.sql).toContain('LIKE extensions.unaccent(lower(');
     expect(statement.sql).toContain(' AND ');
     expect(statement.values).toEqual(
       expect.arrayContaining(['%Jose%', '%Garcia%']),

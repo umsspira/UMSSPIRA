@@ -113,12 +113,11 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
         // Evita que %, _ y ! se interpreten como comodines de LIKE.
         const escaped = term.replace(/[!%_]/g, '!$&');
         const pattern = `%${escaped}%`;
-
         const fields = [
-          Prisma.sql`unaccent(lower(coalesce(d.nombre, ''))) LIKE unaccent(lower(${pattern})) ESCAPE '!'`,
-          Prisma.sql`unaccent(lower(coalesce(d.apellido, ''))) LIKE unaccent(lower(${pattern})) ESCAPE '!'`,
-          Prisma.sql`coalesce(d.ci, '') LIKE ${pattern} ESCAPE '!'`,
-          Prisma.sql`lower(coalesce(d.email, '')) LIKE lower(${pattern}) ESCAPE '!'`,
+         Prisma.sql`extensions.unaccent(lower(coalesce(d.nombre, ''))) LIKE extensions.unaccent(lower(${pattern})) ESCAPE '!'`,
+         Prisma.sql`extensions.unaccent(lower(coalesce(d.apellido, ''))) LIKE extensions.unaccent(lower(${pattern})) ESCAPE '!'`,
+         Prisma.sql`coalesce(d.ci, '') LIKE ${pattern} ESCAPE '!'`,
+         Prisma.sql`lower(coalesce(d.email, '')) LIKE lower(${pattern}) ESCAPE '!'`,
         ];
 
         if (/^\d{6,9}$/.test(term)) {
