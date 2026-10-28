@@ -57,9 +57,12 @@ export const registrationsProviders: Provider[] = [
   })),
   {
     provide: RenewActivationUseCase,
-    inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY],
-    useFactory: (repository: ApplicationsRepository, security: RegistrationSecurity) =>
-      new RenewActivationUseCase(repository, security),
+        inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY, CorrectionTokenService],
+    useFactory: (
+      repository: ApplicationsRepository,
+      security: RegistrationSecurity,
+      correctionTokens: CorrectionTokenService,
+    ) => new ReviewApplicationUseCase(repository, security, correctionTokens),
   },
   PrismaRegistrationRepository,
   PrismaApplicationsRepository,
