@@ -1,11 +1,12 @@
 import { ApiClientError, apiClient } from "@/shared/services/api-client";
 
-// Solicita el enlace de recuperación de contraseña.
-// Simulado hasta que T-12.1 entregue el endpoint real; al integrarlo,
-// reemplazar solo el cuerpo de esta función manteniendo la misma firma.
+// Solicita el enlace de recuperación de contraseña (CA-12.2).
+// El backend responde siempre igual, exista o no la cuenta.
 export async function requestPasswordRecovery(email: string): Promise<void> {
-  void email;
-  await Promise.resolve();
+  await apiClient<unknown>("/api/v1/auth/password-recovery/request", {
+    method: "POST",
+    body: { email },
+  });
 }
 
 export type RecoveryLinkFailure = "expired" | "used" | "replaced" | "invalid";
