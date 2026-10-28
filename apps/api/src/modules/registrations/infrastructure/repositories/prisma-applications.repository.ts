@@ -1,4 +1,5 @@
 import { reserveActivationResend } from './activation-resend';
+import { applicationReviewSummary, assertObservationLimit } from './application-review-summary';
 import { queueTrackedMail } from '../notifications/queue-mail';
 import { RENEWAL_MAIL_SUBJECT } from '../../application/use-cases/renew-activation.use-case';
 import { applicationTotalPages } from '../../domain/policies/application-pagination.policy';
@@ -220,6 +221,8 @@ async find(actor: ActorContext, id: string) {
   }
 
   const application = toApplication(row);
+  application.reviewSummary = await applicationReviewSummary(this.prisma, id);
+  application.currentReviewer = { name: actor.name, email: actor.email };
 
   const audit = await this.prisma.auditoriaDictamen.findFirst({
     where: {
@@ -312,6 +315,9 @@ async find(actor: ActorContext, id: string) {
           );
         }
         const approved = input.decision === 'APROBADA';
+        if (input.decision === 'OBSERVADA') {
+          await assertObservationLimit(tx, id);
+        }
         const now = new Date();
         const category = approved ? null : input.category!;
         const note = approved ? null : input.note!;
