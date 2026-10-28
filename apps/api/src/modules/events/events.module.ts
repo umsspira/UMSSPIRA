@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { OptionalAuthenticationGuard } from '../../shared/http/auth/guards/optional-authentication.guard';
 import { eventsProviders } from './infrastructure/providers/events.providers';
 import { GetEventCatalogController } from './http/controllers/get-event-catalog.controller';
+import { ListMyEventRegistrationsController } from './http/controllers/list-my-event-registrations.controller';
 import { GetPublishedEventController } from './http/controllers/get-published-event.controller';
 import { ListOwnedEventsController } from './http/controllers/list-owned-events.controller';
 import { GetOwnedEventController } from './http/controllers/get-owned-event.controller';
@@ -23,11 +24,13 @@ import { GenerateEventPassService } from './application/generate-event-pass.serv
 import { ListUserPassesService } from './application/list-user-passes.service'; // <-- 1. AÑADIDO AQUÍ
 import { EventPassesController } from './http/event-passes.controller';
 import { CancelPublishedEventController } from './http/controllers/cancel-published-event.controller';
+import { CancelEventRegistrationController } from './http/controllers/cancel-event-registration.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [
     GetEventCatalogController,
+    ListMyEventRegistrationsController,
     ListOwnedEventsController,
     GetOwnedEventController,
     GetEventDraftController,
@@ -42,6 +45,7 @@ import { CancelPublishedEventController } from './http/controllers/cancel-publis
     UploadEventCoverController,
     GetPublishedEventController,
     RegisterEventController,
+    CancelEventRegistrationController,
     GetEventParticipantsController,
     EventPassesController,
     CancelPublishedEventController,

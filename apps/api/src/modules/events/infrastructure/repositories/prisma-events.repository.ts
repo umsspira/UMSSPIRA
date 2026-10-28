@@ -13,17 +13,14 @@ import {
   validateEventDates,
 } from '../../domain/policies/event.policy';
 import type { InactiveEvent, RetiredEvent } from '../../domain/entities/event';
-import { toEvent } from '../translators/event.translator';
+import { eventInclude, toEvent } from '../translators/event.translator';
+import { assertRegistrationCancellable } from '../../domain/policies/event-registration.policy';
 import type {
   EventParticipants,
   ParticipantPassStatus,
 } from '../../domain/entities/event-participants';
 import { buildOccupation } from '../../domain/policies/event-occupation.policy';
-
-const eventInclude = {
-  usuario: { select: { nombre: true } },
-  _count: { select: { inscripcion_evento_registros: { where: { estado: 'CONFIRMADA' } } } },
-};
+import type { MyEventRegistration } from '../../domain/entities/my-event-registration';
 
 @Injectable()
 export class PrismaEventsRepository implements EventsRepository {
@@ -178,6 +175,46 @@ export class PrismaEventsRepository implements EventsRepository {
       { timeout: 15000 },
     );
   }
+  async mine(userId: string): Promise<MyEventRegistration[]> {
+    const rows = await this.prisma.inscripcionEvento.findMany({
+      where: { id_usuario: userId },
+      include: { evento: true, pase_qr: { select: { id: true } } },
+      orderBy: [{ evento: { fecha_inicio: 'asc' } }, { id: 'asc' }],
+    });
+    return rows.flatMap((row) => {
+      const event = row.evento;
+      const eventStatus = event?.estado?.toUpperCase();
+      const status = row.estado?.toUpperCase();
+      if (
+        !event ||
+        !event.titulo ||
+        !event.fecha_inicio ||
+        !event.fecha_fin ||
+        !row.fecha_inscripcion ||
+        !['BORRADOR', 'PUBLICADO', 'CANCELADO'].includes(eventStatus ?? '') ||
+        !['CONFIRMADA', 'CANCELADA'].includes(status ?? '')
+      ) {
+        return [];
+      }
+      return [
+        {
+          id: row.id,
+          status: status as MyEventRegistration['status'],
+          registeredAt: row.fecha_inscripcion,
+          hasPass: row.pase_qr !== null,
+          event: {
+            id: event.id,
+            title: event.titulo,
+            startDate: event.fecha_inicio,
+            endDate: event.fecha_fin,
+            location: event.ubicacion,
+            status: eventStatus as MyEventRegistration['event']['status'],
+          },
+        },
+      ];
+    });
+  }
+
 
   async register(userId: string, eventId: string) {
     try {
@@ -260,6 +297,65 @@ export class PrismaEventsRepository implements EventsRepository {
       }
       throw error;
     }
+  }
+
+  async cancelRegistration(userId: string, registrationId: string, now: Date): Promise<void> {
+    await this.prisma.$transaction(
+      async (tx) => {
+        // El generador QR utiliza el mismo bloqueo antes de comprobar la inscripción.
+        await tx.$queryRaw`SELECT id FROM inscripcion_evento WHERE id = ${registrationId}::uuid FOR UPDATE`;
+        await this.assertCancellableWith(tx, userId, registrationId, now);
+        const result = await tx.inscripcionEvento.updateMany({
+          where: {
+            id: registrationId,
+            id_usuario: userId,
+            estado: 'CONFIRMADA',
+            evento: { is: { fecha_fin: { gt: now } } },
+          },
+          data: { estado: 'CANCELADA' },
+        });
+        // Revalidar al escribir impide dos cancelaciones aunque ambas lecturas sean válidas.
+        if (result.count !== 1) {
+          throw new BusinessRuleError(
+            'conflict',
+            'EVENT_REGISTRATION_NOT_CANCELLABLE',
+            'La inscripción ya no está disponible para cancelación',
+          );
+        }
+        await tx.paseQr.updateMany({
+          where: { id_inscripcion: registrationId },
+          data: { estado: 'INVALIDADO' },
+        });
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  async assertCancellable(userId: string, registrationId: string, now: Date): Promise<void> {
+    await this.assertCancellableWith(this.prisma, userId, registrationId, now);
+  }
+
+  private async assertCancellableWith(
+    client: Prisma.TransactionClient | PrismaService,
+    userId: string,
+    registrationId: string,
+    now: Date,
+  ): Promise<void> {
+    const registration = await client.inscripcionEvento.findFirst({
+      where: { id: registrationId, id_usuario: userId },
+      select: { estado: true, evento: { select: { fecha_fin: true } } },
+    });
+    if (!registration) {
+      throw new BusinessRuleError(
+        'missing',
+        'EVENT_REGISTRATION_NOT_FOUND',
+        'No se encontró la inscripción solicitada',
+      );
+    }
+    assertRegistrationCancellable(
+      { status: registration.estado, endDate: registration.evento?.fecha_fin ?? null },
+      now,
+    );
   }
 
   async participants(ownerId: string, eventId: string): Promise<EventParticipants> {
