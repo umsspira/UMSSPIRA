@@ -1,0 +1,154 @@
+import { fireEvent, render, screen } from '@testing-library/react';
+
+import { SurveyContainer } from './survey-container';
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ back: jest.fn() }),
+}));
+
+jest.mock('../hooks/use-survey-user-id', () => ({
+  useSurveyUserId: () => 'user-1',
+}));
+
+jest.mock('../hooks/use-survey-submit', () => ({
+  useSurveySubmit: () => ({
+    isSubmitting: false,
+    status: 'idle',
+    message: null,
+    submit: jest.fn(),
+    resetFeedback: jest.fn(),
+  }),
+}));
+
+const DRAFT_KEY = 'umsspira:survey-draft:user-1';
+
+const elegirTrabaja = () => fireEvent.click(screen.getByRole('radio', { name: /^Trabaja/ }));
+const elegirNoTrabaja = () => fireEvent.click(screen.getByRole('radio', { name: /^No trabaja/ }));
+const escribir = (placeholder: string, value: string) =>
+  fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
+const siguiente = () => fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+const valorDe = (placeholder: string) => (screen.getByPlaceholderText(placeholder) as HTMLInputElement).value;
+
+function llenarFormulario() {
+  elegirTrabaja();
+  escribir('Ej. Analista de sistemas', 'Analista');
+  escribir('Ej. Nombre de la empresa', 'Acme');
+  escribir('Ej. Desarrollo de software', 'Sistemas');
+  fireEvent.click(screen.getByRole('radio', { name: 'Remoto' }));
+  fireEvent.click(screen.getByRole('radio', { name: '3.000–5.000' }));
+  escribir('Ej. 6', '6');
+}
+
+beforeEach(() => window.localStorage.clear());
+
+describe('SurveyContainer · formulario HU-2', () => {
+  it('no deja avanzar sin elegir la condición laboral', () => {
+    render(<SurveyContainer />);
+    siguiente();
+    expect(screen.getByRole('alert').textContent).toBe('Seleccione su condición laboral actual');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('con Trabaja muestra el mensaje de cada pregunta obligatoria vacía', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    expect(screen.getByText('Ingrese su cargo')).toBeTruthy();
+    expect(screen.getByText('Ingrese la empresa')).toBeTruthy();
+    expect(screen.getByText('Ingrese el área o departamento')).toBeTruthy();
+    expect(screen.getByText('Seleccione una modalidad')).toBeTruthy();
+    expect(screen.getByText('Seleccione un rango')).toBeTruthy();
+    expect(screen.getByText('Ingrese los meses')).toBeTruthy();
+  });
+
+  it('con campos obligatorios vacíos no abre el resumen', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    siguiente();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('con No trabaja oculta los campos laborales y deja avanzar', () => {
+    render(<SurveyContainer />);
+    elegirNoTrabaja();
+    expect(screen.queryByPlaceholderText('Ej. Analista de sistemas')).toBeNull();
+    siguiente();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('con Trabaja y todo respondido abre el resumen', () => {
+    render(<SurveyContainer />);
+    llenarFormulario();
+    siguiente();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('solo una modalidad queda marcada al cambiar de opción', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    fireEvent.click(screen.getByRole('radio', { name: 'Remoto' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Híbrido' }));
+    const marcadas = screen
+      .getAllByRole('radio')
+      .filter((radio) => radio.getAttribute('aria-checked') === 'true');
+    expect(marcadas).toHaveLength(1);
+    expect(marcadas[0].textContent).toBe('Híbrido');
+  });
+
+  it('al volver desde el resumen conserva todo lo escrito', () => {
+    render(<SurveyContainer />);
+    llenarFormulario();
+    siguiente();
+    fireEvent.click(screen.getByRole('button', { name: /Volver y editar/ }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(valorDe('Ej. Analista de sistemas')).toBe('Analista');
+    expect(valorDe('Ej. Nombre de la empresa')).toBe('Acme');
+    expect(valorDe('Ej. Desarrollo de software')).toBe('Sistemas');
+    expect(valorDe('Ej. 6')).toBe('6');
+    expect(screen.getByRole('radio', { name: 'Remoto' }).getAttribute('aria-checked')).toBe('true');
+    expect((screen.getByRole('radio', { name: '3.000–5.000' }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('guarda el borrador al pasar al resumen, sin salario ni tiempo de inserción', () => {
+    render(<SurveyContainer />);
+    llenarFormulario();
+    siguiente();
+    const guardado = JSON.parse(window.localStorage.getItem(DRAFT_KEY) as string);
+    expect(guardado).toEqual({
+      workCondition: 'works',
+      cargo: 'Analista',
+      empresa: 'Acme',
+      area: 'Sistemas',
+      modalidad: 'remoto',
+    });
+  });
+
+  it('recupera el borrador al volver a abrir la encuesta', async () => {
+    window.localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        workCondition: 'works',
+        cargo: 'Analista',
+        empresa: 'Acme',
+        area: 'Sistemas',
+        modalidad: 'remoto',
+      }),
+    );
+    render(<SurveyContainer />);
+    await screen.findByDisplayValue('Analista');
+    expect(valorDe('Ej. Nombre de la empresa')).toBe('Acme');
+    expect(valorDe('Ej. Desarrollo de software')).toBe('Sistemas');
+    expect(valorDe('Ej. 6')).toBe('');
+    expect(screen.getByText('Borrador recuperado')).toBeTruthy();
+  });
+
+  it('tras recuperar el borrador la modalidad sigue marcada', async () => {
+    window.localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ workCondition: 'works', cargo: 'Analista', modalidad: 'remoto' }),
+    );
+    render(<SurveyContainer />);
+    await screen.findByDisplayValue('Analista');
+    expect(screen.getByRole('radio', { name: 'Remoto' }).getAttribute('aria-checked')).toBe('true');
+  });
+});
