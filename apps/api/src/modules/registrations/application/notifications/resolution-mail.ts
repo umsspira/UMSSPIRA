@@ -62,15 +62,16 @@ export function buildResolutionMail(input: ResolutionMailInput): ResolutionMail 
         '',
         'Aviso de seguridad institucional: si no solicitaste este trámite, ignora este mensaje.',
         '',
-        'Universidad Mayor de San Simón · Sistema Oficial UMSSPIRA',
-        'Este es un mensaje institucional generado automáticamente. Por favor no respondas directamente a este correo.',
+        'Universidad Mayor de San Simón',
+        'Sistema Oficial UMSSPIRA — Cochabamba, Bolivia',
+        'Este es un mensaje institucional generado automáticamente. Por favor no responda directamente a este correo.',
       ].join('\n'),
       html: renderApprovalHtml({
         name: input.fullName,
         code: input.code,
         activationLink,
         applicationId: input.applicationId,
-        logoUrl: origin + '/umsspira-logo.png',
+        origin,
       }),
     };
   }

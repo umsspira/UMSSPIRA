@@ -5,7 +5,7 @@ const base = {
   code: '123456',
   activationLink: 'https://umsspira.test/activate?applicationId=abc',
   applicationId: 'abc',
-  logoUrl: 'https://umsspira.test/umsspira-logo.png',
+  origin: 'https://umsspira.test',
 };
 
 describe('Correo de aprobación en HTML', () => {
@@ -19,9 +19,17 @@ describe('Correo de aprobación en HTML', () => {
     expect(html).toContain('href="https://umsspira.test/activate?applicationId=abc"');
     expect(html).toContain('Activar mi cuenta');
     expect(html).toContain('24 horas');
-    expect(html).toContain('src="https://umsspira.test/umsspira-logo.png"');
+    expect(html).toContain('src="https://umsspira.test/assets/events/umsspira-logo-desktop.png"');
     expect(html).not.toContain('TIT-');
   });
+
+  it('carga los íconos desde la web', () => {
+    const html = renderApprovalHtml(base);
+    expect(html).toContain('src="https://umsspira.test/email/check-badge.png"');
+    expect(html).toContain('src="https://umsspira.test/email/clock.png"');
+    expect(html).toContain('src="https://umsspira.test/email/shield.png"');
+  });
+
   it('explica cómo activar la cuenta y cómo pedir otro código', () => {
     const html = renderApprovalHtml(base);
     expect(html).toContain('Cómo activar tu cuenta');
@@ -29,6 +37,7 @@ describe('Correo de aprobación en HTML', () => {
     expect(html).toContain('5 intentos incorrectos');
     expect(html).toContain('Aviso de seguridad institucional');
   });
+
   it('no deja pasar HTML escrito en el nombre', () => {
     const html = renderApprovalHtml({ ...base, name: 'Ana <script>alert(1)</script>' });
     expect(html).not.toContain('<script>');
