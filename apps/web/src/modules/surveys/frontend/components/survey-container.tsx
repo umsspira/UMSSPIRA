@@ -19,6 +19,12 @@ import type { SurveyDraft, WorkCondition } from '../types/survey.types';
 import type { WorkModality } from '../types/survey-job.types';
 import { SurveyWorkConditionSelector } from './survey-work-condition-selector';
 
+const MODALITY_FROM_DRAFT: Record<NonNullable<SurveyDraft['modalidad']>, WorkModality> = {
+presencial: 'Presencial',
+remoto: 'Remoto',
+hibrido: 'Hibrido',
+};
+
 export function SurveyContainer() {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -35,7 +41,7 @@ export function SurveyContainer() {
       cargo: draft.cargo,
       empresa: draft.empresa,
       area: draft.area,
-      modalidad: draft.modalidad,
+        modalidad: draft.modalidad ? MODALITY_FROM_DRAFT[draft.modalidad] : undefined,
     });
   }, [draft]);
 
