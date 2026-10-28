@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, FolderOpen, Mail, UserRound } from 'lucide-react';
 import { Button } from '@/shared/components/button';
 import {
@@ -11,10 +11,14 @@ import {
 } from '@/modules/registration/frontend/components/review-summary-section';
 import { EXPEDITION_LABELS } from '@/modules/registration/frontend/validation/personal-data.schema';
 import type { CorrectionResult, CorrectionValues } from '../hooks/use-observed-correction';
-import { resubmitObservedApplication } from '../services/application.service';
+import {
+  resubmitObservedApplication,
+  type ResubmitProgress,
+} from '../services/application.service';
 
 type Props = {
   token: string;
+  version: number;
   result: CorrectionResult;
   currentDocument: { name: string };
   onBack: () => void;
@@ -25,6 +29,7 @@ type Phase =
   | { name: 'sending' }
   | { name: 'success' }
   | { name: 'conflict' }
+  | { name: 'email-verification' }
   | { name: 'blocked'; reason: 'invalid-link' | 'expired' }
   | { name: 'error'; message: string };
 
@@ -36,8 +41,10 @@ const BLOCKED_MESSAGES = {
 const alertClass =
   'mt-5 rounded-lg border border-truffle-trouble/40 bg-truffle-trouble/10 p-3 text-sm font-medium text-truffle-trouble';
 
-export function ObservedReviewSubmit({ token, result, currentDocument, onBack }: Props) {
+export function ObservedReviewSubmit({ token, version, result, currentDocument, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
+  // Conserva la versión y los pasos ya guardados para reintentar sin repetirlos (CA-10.5).
+  const progress = useRef<ResubmitProgress>({ version, dataSaved: false, documentSaved: false });
   const { values, changedFields, file, emailChanged } = result;
   const changed = (k: keyof CorrectionValues) => changedFields.includes(k);
   const sending = phase.name === 'sending';
@@ -45,9 +52,10 @@ export function ObservedReviewSubmit({ token, result, currentDocument, onBack }:
   async function handleSubmit() {
     if (sending || emailChanged) return;
     setPhase({ name: 'sending' });
-    const outcome = await resubmitObservedApplication(token, result);
+    const outcome = await resubmitObservedApplication(token, result, progress.current);
     if (outcome.status === 'success') setPhase({ name: 'success' });
     else if (outcome.status === 'conflict') setPhase({ name: 'conflict' });
+    else if (outcome.status === 'email-verification') setPhase({ name: 'email-verification' });
     else if (outcome.status === 'invalid-link' || outcome.status === 'expired') {
       setPhase({ name: 'blocked', reason: outcome.status });
     } else setPhase({ name: 'error', message: outcome.message });
@@ -106,6 +114,11 @@ export function ObservedReviewSubmit({ token, result, currentDocument, onBack }:
           <button type="button" className="ml-3 underline" onClick={() => window.location.reload()}>
             Actualizar
           </button>
+        </div>
+      )}
+      {phase.name === 'email-verification' && (
+        <div role="alert" className={alertClass}>
+          Guardamos tus datos, pero debes verificar tu nuevo correo antes de entregar la solicitud.
         </div>
       )}
 

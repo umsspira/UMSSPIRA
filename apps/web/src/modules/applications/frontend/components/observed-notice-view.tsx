@@ -8,6 +8,7 @@ import type { CorrectionResult, CorrectionValues } from "../hooks/use-observed-c
 type Observation = { category: string; note: string };
 
 type ObservedApplication = {
+  version: number;
   observedAt: string;
   observations: Observation[];
   form: CorrectionValues;
@@ -20,6 +21,7 @@ type ViewState =
   | { status: "invalid" | "expired" | "not-observed" };
 
 // TODO: reemplazar por la llamada real al backend (GET con el token).
+// `version` debe venir de ObservedApplicationDetail.version (CA-10.5).
 // Mapear la respuesta: 200 -> valid, 404 -> invalid, 410 -> expired, 409 -> not-observed.
 async function fetchObservedApplication(token: string): Promise<ViewState> {
   await new Promise((r) => setTimeout(r, 400));
@@ -29,6 +31,7 @@ async function fetchObservedApplication(token: string): Promise<ViewState> {
   return {
     status: "valid",
     data: {
+      version: 2,
       observedAt: "2026-10-22T11:30:00",
       observations: [
         {
@@ -176,6 +179,7 @@ function ValidView({ data, token }: { data: ObservedApplication; token: string }
       {pending && (
         <ObservedReviewSubmit
           token={token}
+          version={data.version}
           result={pending}
           currentDocument={document}
           onBack={() => setPending(null)}

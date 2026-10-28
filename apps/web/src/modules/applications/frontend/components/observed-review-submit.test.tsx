@@ -36,6 +36,7 @@ function setup(result: CorrectionResult = base) {
   render(
     <ObservedReviewSubmit
       token="abc123"
+      version={2}
       result={result}
       currentDocument={{ name: "doc.pdf" }}
       onBack={onBack}
@@ -50,16 +51,20 @@ beforeEach(() => mockedSubmit.mockReset());
 describe("ObservedReviewSubmit", () => {
   it("muestra el resumen y marca los campos modificados", () => {
     setup();
-    expect(screen.getByText("Quispe")).toBeInTheDocument();
+    expect(screen.getByText(/Quispe/)).toBeInTheDocument();
     expect(screen.getAllByText("Modificado")).toHaveLength(1);
   });
 
-  it("entrega sobre el mismo expediente (con el token) y muestra la confirmación", async () => {
+  it("entrega sobre el mismo expediente (con el token y la versión) y muestra la confirmación", async () => {
     mockedSubmit.mockResolvedValue({ status: "success" });
     setup();
     fireEvent.click(submit());
     expect(await screen.findByText("Corrección entregada")).toBeInTheDocument();
-    expect(mockedSubmit).toHaveBeenCalledWith("abc123", base);
+    expect(mockedSubmit).toHaveBeenCalledWith(
+      "abc123",
+      base,
+      expect.objectContaining({ version: 2 }),
+    );
   });
 
   it("ante un error mantiene los datos y permite reintentar", async () => {
@@ -67,11 +72,26 @@ describe("ObservedReviewSubmit", () => {
     setup();
     fireEvent.click(submit());
     expect(await screen.findByRole("alert")).toHaveTextContent("Falló el servidor");
-    expect(screen.getByText("Quispe")).toBeInTheDocument();
+    expect(screen.getByText(/Quispe/)).toBeInTheDocument();
 
     mockedSubmit.mockResolvedValueOnce({ status: "success" });
     fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
     expect(await screen.findByText("Corrección entregada")).toBeInTheDocument();
+  });
+
+  it("reutiliza el mismo progreso al reintentar", async () => {
+    mockedSubmit.mockResolvedValueOnce({ status: "error", message: "Falló" });
+    setup();
+    fireEvent.click(submit());
+    await screen.findByRole("alert");
+
+    mockedSubmit.mockResolvedValueOnce({ status: "success" });
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    await screen.findByText("Corrección entregada");
+
+    const firstProgress = mockedSubmit.mock.calls[0][2];
+    const secondProgress = mockedSubmit.mock.calls[1][2];
+    expect(secondProgress).toBe(firstProgress);
   });
 
   it("muestra el aviso de CA-10.5 ante un conflicto", async () => {
@@ -83,12 +103,26 @@ describe("ObservedReviewSubmit", () => {
     );
   });
 
+  it("avisa que debe verificar el nuevo correo si el backend lo exige", async () => {
+    mockedSubmit.mockResolvedValue({ status: "email-verification" });
+    setup();
+    fireEvent.click(submit());
+    expect(await screen.findByRole("alert")).toHaveTextContent("verificar tu nuevo correo");
+  });
+
   it("bloquea la entrega con un enlace vencido", async () => {
     mockedSubmit.mockResolvedValue({ status: "expired" });
     setup();
     fireEvent.click(submit());
     expect(await screen.findByRole("alert")).toHaveTextContent("Este enlace venció");
     expect(screen.queryByRole("button", { name: /Entregar solicitud/ })).not.toBeInTheDocument();
+  });
+
+  it("bloquea la entrega con un enlace inválido", async () => {
+    mockedSubmit.mockResolvedValue({ status: "invalid-link" });
+    setup();
+    fireEvent.click(submit());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Este enlace ya no es válido");
   });
 
   it("evita el doble envío", async () => {
