@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ObservedEditForm } from "./observed-edit-form";
-import type { CorrectionValues } from "../hooks/use-observed-correction";
+import { ObservedReviewSubmit } from "./observed-review-submit";
+import type { CorrectionResult, CorrectionValues } from "../hooks/use-observed-correction";
 
 type Observation = { category: string; note: string };
 
@@ -129,14 +130,15 @@ export function ObservedNoticeView({ token }: { token: string }) {
           state.status === "expired" ||
           state.status === "not-observed") && <StatusMessage kind={state.status} />}
 
-        {state.status === "valid" && <ValidView data={state.data} />}
+        {state.status === "valid" && <ValidView data={state.data} token={token} />}
       </div>
     </main>
   );
 }
 
-function ValidView({ data }: { data: ObservedApplication }) {
+function ValidView({ data, token }: { data: ObservedApplication; token: string }) {
   const { form, document, observations } = data;
+  const [pending, setPending] = useState<CorrectionResult | null>(null);
   return (
     <div className="flex flex-col gap-6">
       <header>
@@ -171,19 +173,26 @@ function ValidView({ data }: { data: ObservedApplication }) {
         </ul>
       </section>
 
-      <ObservedEditForm
-        initial={form}
-        currentDocument={document}
-        onCancel={() => window.history.back()}
-        onReview={(result) => {
-          // TODO T-10.7: abrir el resumen de HU-07
-          console.log("review", result);
-        }}
-        onRequireEmailVerification={(result) => {
-          // TODO: enviar al paso de verificación (email-verification)
-          console.log("verify email", result);
-        }}
-      />
+      {pending && (
+        <ObservedReviewSubmit
+          token={token}
+          result={pending}
+          currentDocument={document}
+          onBack={() => setPending(null)}
+        />
+      )}
+      <div hidden={Boolean(pending)}>
+        <ObservedEditForm
+          initial={form}
+          currentDocument={document}
+          onCancel={() => window.history.back()}
+          onReview={(result) => setPending(result)}
+          onRequireEmailVerification={(result) => {
+            // TODO: enviar al paso de verificación (email-verification)
+            console.log("verify email", result);
+          }}
+        />
+      </div>
 
       <p className="rounded-lg border border-slate-200 bg-white/60 p-3 text-center text-xs text-slate-600">
         La corrección de datos se realiza directamente sobre el mismo expediente oficial sin
