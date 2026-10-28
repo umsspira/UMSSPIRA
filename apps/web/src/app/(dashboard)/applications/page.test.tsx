@@ -90,6 +90,11 @@ function mockPendingApplicationDetail() {
       documentName: 'titulo.pdf',
       documentPath: 'solicitudes/x/y.pdf',
       documentFormat: 'PDF',
+      reviewSummary: {
+        observations: 0, maxObservations: 2,
+        rejections: 0, maxRejections: 5,
+        latestObservation: null, canObserve: true,
+      },
     },
   });
 
@@ -474,7 +479,9 @@ describe('ApplicationsPage', () => {
     render(<ApplicationsPage />);
 
     fireEvent.click(await screen.findByText('Alejandro Rojas'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Observar' }));
+    const observeButton = await screen.findByRole('button', { name: 'Observar' });
+    expect(observeButton).toBeEnabled();
+    fireEvent.click(observeButton);
 
     fireEvent.change(
       screen.getByLabelText(/Categoría de la observación/),
@@ -500,7 +507,6 @@ describe('ApplicationsPage', () => {
             decision: 'OBSERVADA',
             category: 'Documento ilegible',
             note: 'El documento presentado no se puede leer.',
-            notifyDean: false,
           }),
         }),
       );
