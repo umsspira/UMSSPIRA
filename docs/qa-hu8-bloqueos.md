@@ -75,6 +75,13 @@ Salida esperada cuando faltan exactamente los tres permisos y las cuatro asignac
 El dry-run usa una transacción READ ONLY real. Si `blocked` es `true`, un rol o un permiso
 objetivo está ausente o deshabilitado y no se debe ejecutar `--apply`.
 
+Resultado del dry-run local del 29-oct-2026: `missingPermissions` y `missingAssignments`
+vacíos. La base apuntada por `apps/api/.env` ya tiene los tres permisos y las cuatro
+asignaciones. Si QA sigue viendo seis permisos en `/auth/me`, debe renovar el login y
+verificar que la API desplegada usa esa misma base. Si la API apunta a otra base, DevOps/BD
+ejecuta este procedimiento contra la base desplegada. Si el dry-run devuelve cero faltantes,
+no se ejecuta `--apply`.
+
 ### 2. Respaldo previo
 
 DevOps/BD exporta las dos tablas antes de escribir. El comando no imprime la cadena de
