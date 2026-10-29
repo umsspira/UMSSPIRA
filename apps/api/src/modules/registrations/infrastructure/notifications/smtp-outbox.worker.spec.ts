@@ -62,6 +62,25 @@ describe('Entrega de notificaciones persistidas', () => {
     });
   });
 
+  it('envía también la versión HTML cuando el mensaje la trae', async () => {
+    database.correoPendiente.findMany.mockResolvedValue([
+      {
+        id: 'correo-de-prueba',
+        expira_en: expiresAt,
+        contenido: security.seal({
+          to: 'test@example.com',
+          subject: 'Aprobada',
+          text: 'Hola',
+          html: '<p>Hola</p>',
+        }),
+      },
+    ]);
+    await worker.drain();
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'Hola', html: '<p>Hola</p>' }),
+    );
+  });
+
   it('marca el seguimiento como enviado y cuenta el intento', async () => {
     database.correoTramite.findFirst.mockResolvedValue({
       id: 'seguimiento-1',

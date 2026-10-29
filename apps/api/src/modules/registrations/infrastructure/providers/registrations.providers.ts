@@ -121,7 +121,7 @@ export const registrationsProviders: Provider[] = [
     inject: [APPLICATIONS_REPOSITORY],
     useFactory: (repository: ApplicationsRepository) => new ListApplicationsUseCase(repository),
   },
-    {
+  {
     provide: GetApplicationMetricsUseCase,
     inject: [APPLICATIONS_REPOSITORY],
     useFactory: (repository: ApplicationsRepository) =>
@@ -156,7 +156,6 @@ export const registrationsProviders: Provider[] = [
       passwords: PasswordHasher,
     ) => new ActivateRegistrationUseCase(repository, security, passwords),
   },
-
   {
     provide: VerifyActivationCodeUseCase,
     inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY],

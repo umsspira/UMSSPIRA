@@ -47,7 +47,7 @@ describe('ReviewApplicationUseCase', () => {
     expect(mail).toEqual({
       type: 'aprobacion',
       to: 'maria@example.com',
-      subject: 'Tu solicitud en UMSSPIRA fue aprobada',
+      subject: '[UMSSPIRA] ¡Tu solicitud de registro ha sido aprobada!',
     });
   });
 
