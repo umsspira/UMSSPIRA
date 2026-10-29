@@ -4,6 +4,7 @@ import { clearSession } from '@/modules/auth/frontend/services/session';
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
 import { authStore } from '@/modules/auth/frontend/store';
 import type { NavbarProps } from './types';
+import { SESSION_EXPIRED_EVENT } from '@/modules/auth/frontend/services/session-expired';
 
 const push = jest.fn();
 const replace = jest.fn();
@@ -22,6 +23,8 @@ jest.mock('@/modules/auth/frontend/store', () => ({ useAuthStore: () => ({ acces
 jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout }: NavbarProps) => <header><span>{session ? `${session.name}: ${session.role}` : 'Visitante'}</span><button onClick={onLogout}>Cerrar sesión</button></header> }));
 
 const fetchMock = jest.mocked(authenticatedFetch);
+const expiredListener = jest.fn();
+window.addEventListener(SESSION_EXPIRED_EVENT, expiredListener);
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -86,25 +89,24 @@ it('HU-004: un administrador cierra sesión y vuelve a la bienvenida', async () 
   expect(authStore.reset).toHaveBeenCalled();
 });
 
-it('HU-004 CA-05: HTTP 401 en reportería borra el estado React y devuelve a /login', async () => {
+it('HU-004 CA-06: HTTP 401 en reportería borra el estado React y abre la alerta de sesión expirada', async () => {
   mockPathname = '/reports';
   fetchMock.mockResolvedValue({ ok: false, status: 401 } as Response);
   render(<ConnectedNavbar />);
 
   await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
   expect(authStore.reset).toHaveBeenCalled();
-  expect(replace).toHaveBeenCalledWith('/login');
-  expect(refresh).toHaveBeenCalled();
+  expect(expiredListener).toHaveBeenCalledTimes(1);
 });
 
-it('HU-004 CA-05: al fallar la renovación con 401 también limpia la sesión', async () => {
+it('HU-004 CA-06: al fallar la renovación con 401 también limpia la sesión y avisa', async () => {
   mockPathname = '/reports/encuestas';
   fetchMock.mockRejectedValue(new SessionError(401, 'Sesión expirada'));
   render(<ConnectedNavbar />);
 
   await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
   expect(authStore.reset).toHaveBeenCalled();
-  expect(replace).toHaveBeenCalledWith('/login');
+  expect(expiredListener).toHaveBeenCalledTimes(1);
 });
 
 it('HU-004: la página institucional pública no redirige por un 401 sin sesión', async () => {
@@ -114,6 +116,7 @@ it('HU-004: la página institucional pública no redirige por un 401 sin sesión
   await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
   expect(authStore.reset).toHaveBeenCalled();
   expect(replace).not.toHaveBeenCalled();
+  expect(expiredListener).not.toHaveBeenCalled();
 });
 
 it('elimina todos los borradores al cerrar sesión desde la navbar', async () => {

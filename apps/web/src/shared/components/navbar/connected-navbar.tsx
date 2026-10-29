@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { authStore, useAuthStore } from '@/modules/auth/frontend/store';
 import { clearSession } from '@/modules/auth/frontend/services/session';
+import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
 import { Navbar } from './navbar';
 import { NAVBAR_ROLE_LABEL } from './navigation';
@@ -41,10 +42,9 @@ export function ConnectedNavbar() {
       authStore.reset();
       setSession(null);
       // El portal institucional público puede mostrarse sin sesión;
-      // reportería, en cambio, requiere volver a /login.
+      // reportería, en cambio, avisa con una ventana de alerta y vuelve a /login (CA-06).
       if (pathname === '/reports' || pathname?.startsWith('/reports/')) {
-        router.replace('/login');
-        router.refresh();
+        notifySessionExpired();
       }
     };
     const synchronize = async () => {

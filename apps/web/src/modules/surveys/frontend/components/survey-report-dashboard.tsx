@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { authenticatedFetch } from '@/shared/services/auth-session';
+import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
+import { isSessionExpiredError, notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 
 type SurveyReport = {
   total: number;
@@ -20,11 +21,16 @@ export function SurveyReportDashboard() {
   useEffect(() => {
     authenticatedFetch('/api/v1/reports/surveys')
       .then(async (response) => {
+        // HU-004 CA-06: un 401 es sesión caducada y abre la ventana de alerta.
+        if (response.status === 401) throw new SessionError(401, 'Su sesión ha expirado');
         if (!response.ok) throw new Error('No se pudo cargar el reporte de encuestas');
         return (await response.json()).data as SurveyReport;
       })
       .then(setReport)
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'No se pudo cargar el reporte'));
+      .catch((reason: unknown) => {
+        if (isSessionExpiredError(reason)) return notifySessionExpired();
+        setError(reason instanceof Error ? reason.message : 'No se pudo cargar el reporte');
+      });
   }, []);
 
   if (error) return <p role="alert" className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>;
