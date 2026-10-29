@@ -61,6 +61,35 @@ export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
     this.transport?.close();
   }
 
+  private async sendViaBrevo(mail: { to: string; subject: string; text: string }): Promise<void> {
+    const apiKey = this.config.get<string>('BREVO_API_KEY');
+    const from = this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>');
+
+    const match = from.match(/^(?:(.*)<)?([^>]+)>?$/);
+    const senderName = match?.[1]?.trim() || 'UMSSPIRA';
+    const senderEmail = match?.[2]?.trim() || 'umsspira.fcyt@gmail.com';
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'api-key': apiKey!,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: mail.to }],
+        subject: mail.subject,
+        textContent: mail.text,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Brevo API Error (${response.status}): ${errorBody}`);
+    }
+  }
+
   async drain(): Promise<void> {
     if (this.running || !this.transport) {
       return;
@@ -89,11 +118,18 @@ export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
         let delivered = false;
         try {
           const mail = messageSchema.parse(this.security.open(row.contenido));
-          await this.transport.sendMail({
-            from: this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>'),
-            ...mail,
-            messageId: '<' + row.id + '@umsspira.local>',
-          });
+          const brevoKey = this.config.get<string>('BREVO_API_KEY');
+          if (brevoKey) {
+            // Si está configurada la API Key de Brevo (Producción / Render), se envía por HTTPS puerto 443
+            await this.sendViaBrevo(mail);
+          } else if (this.transport) {
+            // Si no hay API Key de Brevo (Local), usa el transporte Nodemailer hacia Mailpit
+            await this.transport.sendMail({
+              from: this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>'),
+              ...mail,
+              messageId: '<' + row.id + '@umsspira.local>',
+            });
+          }
           delivered = true;
         } catch (error) {
           this.logger.warn('No se entregó la notificación ' + row.id + '; se reintentará');

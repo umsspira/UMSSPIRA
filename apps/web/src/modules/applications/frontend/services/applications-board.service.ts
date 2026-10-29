@@ -28,6 +28,9 @@ export interface BoardItem {
 }
 
 export interface BoardDetail extends BoardItem {
+  reviewSummary?: ReviewSummary;
+  currentReviewer?: ReviewAuthor;
+  reviewAuthor?: ReviewAuthor & { id: string; reviewedAt: string } | null;
   firstName: string;
   lastName: string;
   phone: string;
@@ -35,6 +38,12 @@ export interface BoardDetail extends BoardItem {
   documentName: string;
   documentPath: string | null;
   documentFormat: string;
+}
+
+export interface ReviewAuthor { name: string | null; email: string }
+export interface ReviewSummary {
+  observations: number; maxObservations: number; rejections: number; maxRejections: number;
+  latestObservation: string | null; canObserve: boolean;
 }
 
 export interface BoardPage {

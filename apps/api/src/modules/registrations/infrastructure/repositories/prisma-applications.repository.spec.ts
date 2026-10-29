@@ -28,6 +28,7 @@ interface Setup {
  
 function createRepository({ pending, others, pendingRows = [], otherRows = [] }: Setup) {
   const prisma = {
+    $queryRaw: jest.fn().mockResolvedValue([{ id: 'solicitud-coincidente' }]),
     $transaction: jest.fn((operations: Promise<unknown>[]) => Promise.all(operations)),
     solicitud: {
       // Primero se cuenta el total y luego los pendientes, como en el repositorio.
@@ -177,21 +178,32 @@ describe('PrismaApplicationsRepository.list', () => {
     expect(where.AND[0]).toEqual({ detalle_solicitud: { is: { id_carrera: { in: ['carrera-1'] } } } });
   });
  
-  it('combina carrera, estado y búsqueda: deben cumplirse todas las condiciones (CA-08.3)', async () => {
+  it('combina carrera, estado y resultados SQL sin perder el alcance del administrador', async () => {
     const { prisma, repository } = createRepository({ pending: 0, others: 0 });
- 
-    await repository.list(actor, query({ career: 'sistemas', status: 'PENDIENTE', search: 'rojas' }));
- 
+
+    await repository.list(
+      actor,
+      query({ career: 'sistemas', status: 'PENDIENTE', search: 'rojas' }),
+    );
+
     const { where } = prisma.solicitud.count.mock.calls[0][0];
+
     expect(where.AND).toEqual(
       expect.arrayContaining([
+        { detalle_solicitud: { is: { id_carrera: { in: ['carrera-1'] } } } },
+        { id: { in: ['solicitud-coincidente'] } },
         { estado: 'PENDIENTE' },
         {
           detalle_solicitud: {
             is: {
               AND: [
-                { carrera: { is: { nombre: { contains: 'sistemas', mode: 'insensitive' } } } },
-                { OR: expect.arrayContaining([{ nombre: { contains: 'rojas', mode: 'insensitive' } }]) },
+                {
+                  carrera: {
+                    is: {
+                      nombre: { contains: 'sistemas', mode: 'insensitive' },
+                    },
+                  },
+                },
               ],
             },
           },
@@ -199,80 +211,79 @@ describe('PrismaApplicationsRepository.list', () => {
       ]),
     );
   });
- 
-  it('genera un grupo OR por palabra dentro del mismo AND', async () => {
+
+  it('emplea unaccent y lower en nombre y apellido con valores parametrizados', async () => {
     const { prisma, repository } = createRepository({ pending: 0, others: 0 });
-    await repository.list(actor, query({ search: 'Alejandro  Rojas' }));
 
-    const { where } = prisma.solicitud.count.mock.calls[0][0];
-    expect(where.AND).toContainEqual({
-      detalle_solicitud: {
-        is: {
-          AND: [
-            { OR: expect.arrayContaining([{ nombre: { contains: 'Alejandro', mode: 'insensitive' } }]) },
-            { OR: expect.arrayContaining([{ apellido: { contains: 'Rojas', mode: 'insensitive' } }]) },
-          ],
-        },
-      },
-    });
-  });
-  it('invierte el orden de los grupos OR cuando se invierten las palabras', async () => {
-    const { prisma, repository } = createRepository({ pending: 0, others: 0 });
-    await repository.list(actor, query({ search: 'Rojas Alejandro' }));
+    await repository.list(actor, query({ search: 'Jose Garcia' }));
 
-    const { where } = prisma.solicitud.count.mock.calls[0][0];
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
 
-    expect(where.AND).toContainEqual({
-      detalle_solicitud: {
-        is: {
-          AND: [
-            { OR: expect.arrayContaining([{ apellido: { contains: 'Rojas', mode: 'insensitive' } }]) },
-            { OR: expect.arrayContaining([{ nombre: { contains: 'Alejandro', mode: 'insensitive' } }]) },
-          ],
-        },
-      },
-    });
-  });
+    const statement = prisma.$queryRaw.mock.calls[0][0];
 
-  it('incluye codigo SIS exacto solo para palabras de 6 a 9 digitos', async () => {
-    const { prisma, repository } = createRepository({ pending: 0, others: 0 });
-    await repository.list(actor, query({ search: 'Alejandro 201804921 123' }));
-
-    const { where } = prisma.solicitud.count.mock.calls[0][0];
-
-    const searchFilter = where.AND.find(
-      (condition: {
-        detalle_solicitud?: { is?: { AND?: Array<{ OR?: unknown[] }> } };
-      }) => condition.detalle_solicitud?.is?.AND?.some((group) => group.OR),
+    expect(statement.sql).toContain("extensions.unaccent(lower(coalesce(d.nombre, '')))");
+    expect(statement.sql).toContain("extensions.unaccent(lower(coalesce(d.apellido, '')))");
+    expect(statement.sql).toContain('LIKE extensions.unaccent(lower(');
+    expect(statement.sql).toContain(' AND ');
+    expect(statement.values).toEqual(
+      expect.arrayContaining(['%Jose%', '%Garcia%']),
     );
-
-    expect(searchFilter).toBeDefined();
-
-    const groups = searchFilter.detalle_solicitud.is.AND;
-
-    expect(groups).toHaveLength(3);
-    expect(groups[1].OR).toContainEqual({ cod_sis: '201804921' });
-    expect(JSON.stringify(groups[2])).not.toContain('cod_sis');
+    expect(statement.sql).not.toContain('Jose');
   });
 
-  it('busca por Código SIS solo cuando el texto tiene entre 6 y 9 dígitos (CA-08.3)', async () => {
-    const withSis = createRepository({ pending: 0, others: 0 });
-    await withSis.repository.list(actor, query({ search: '201804921' }));
-    expect(JSON.stringify(withSis.prisma.solicitud.count.mock.calls[0][0])).toContain('"cod_sis":"201804921"');
- 
-    const withoutSis = createRepository({ pending: 0, others: 0 });
-    await withoutSis.repository.list(actor, query({ search: '123' }));
-    expect(JSON.stringify(withoutSis.prisma.solicitud.count.mock.calls[0][0])).not.toContain('cod_sis');
-  });
- 
-  it('busca por C.I. con coincidencia parcial (CA-08.3)', async () => {
+  it('permite nombres en orden invertido y espacios dobles', async () => {
     const { prisma, repository } = createRepository({ pending: 0, others: 0 });
- 
-    await repository.list(actor, query({ search: '68492' }));
- 
-    expect(JSON.stringify(prisma.solicitud.count.mock.calls[0][0])).toContain('{"ci":{"contains":"68492"}}');
+
+    await repository.list(actor, query({ search: 'Garcia  Jose' }));
+
+    const statement = prisma.$queryRaw.mock.calls[0][0];
+
+    expect(statement.values).toEqual(
+      expect.arrayContaining(['%Garcia%', '%Jose%']),
+    );
+    expect(statement.values.indexOf('%Garcia%')).toBeLessThan(
+      statement.values.indexOf('%Jose%'),
+    );
   });
 
+  it('mantiene coincidencia parcial por CI y SIS exacto solo con 6 a 9 digitos', async () => {
+    const withSis = createRepository({ pending: 0, others: 0 });
+
+    await withSis.repository.list(actor, query({ search: '201804921' }));
+
+    const exact = withSis.prisma.$queryRaw.mock.calls[0][0];
+
+    expect(exact.sql).toContain('d.cod_sis =');
+    expect(exact.values).toContain(201804921);
+
+    const withoutSis = createRepository({ pending: 0, others: 0 });
+
+    await withoutSis.repository.list(actor, query({ search: '68492' }));
+
+    const partial = withoutSis.prisma.$queryRaw.mock.calls[0][0];
+
+    expect(partial.sql).not.toContain('d.cod_sis =');
+    expect(partial.sql).toContain("coalesce(d.ci, '') LIKE");
+    expect(partial.values).toContain('%68492%');
+  });
+
+  it('escapa los comodines de LIKE para tratar el texto como literal', async () => {
+    const { prisma, repository } = createRepository({ pending: 0, others: 0 });
+
+    await repository.list(actor, query({ search: 'Ana_%' }));
+
+    const statement = prisma.$queryRaw.mock.calls[0][0];
+
+    expect(statement.values).toContain('%Ana!_!%%');
+  });
+
+  it('no ejecuta SQL sin texto de busqueda', async () => {
+    const { prisma, repository } = createRepository({ pending: 0, others: 0 });
+
+    await repository.list(actor, query({ search: '  ' }));
+
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
 });
  
 describe('PrismaApplicationsRepository.metrics', () => {

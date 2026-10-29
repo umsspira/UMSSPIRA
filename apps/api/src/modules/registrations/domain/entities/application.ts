@@ -1,6 +1,11 @@
 import type { ApplicationStatus } from './registration';
 
 export interface ApplicationDetail {
+  reviewSummary?: {
+    observations: number; maxObservations: number; rejections: number; maxRejections: number;
+    latestObservation: string | null; canObserve: boolean;
+  };
+  currentReviewer?: { name: string | null; email: string };
   id: string;
   code: string;
   fullName: string;
