@@ -30,6 +30,8 @@ export function SurveyContainer() {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const successNoticeRef = useRef<HTMLParagraphElement>(null);
   const [error, setError] = useState<string | undefined>();
+  // HU-001 (QA): aviso al pasar de «Trabaja» a «No trabaja».
+  const [showDiscardNotice, setShowDiscardNotice] = useState(false);
   const router = useRouter();
   const userId = useSurveyUserId();
   const { draft, status, saveDraft, clearDraft } = useSurveyDraft(userId);
@@ -73,6 +75,7 @@ export function SurveyContainer() {
   };
 
   const handleChange = (value: WorkCondition) => {
+    setShowDiscardNotice(form.values.condicion_laboral === true && value === 'not-works');
     form.setWorkCondition(value === 'works');
     if (submission.status !== 'success') submission.resetFeedback();
     setError(undefined);
@@ -243,6 +246,20 @@ export function SurveyContainer() {
               Al seleccionar No trabaja se ocultan los campos laborales y puedes
               continuar sin llenarlos.
             </p>
+          </div>
+        )}
+
+        {workCondition === 'not-works' && showDiscardNotice && (
+          <div role="alert" className="mt-4 flex gap-3 rounded-lg border border-truffle-trouble/40 bg-truffle-trouble/10 p-4 text-sm">
+            <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-truffle-trouble text-xs font-bold text-white">
+              !
+            </span>
+            <div>
+              <p className="font-semibold text-truffle-trouble">Las respuestas anteriores se descartaron</p>
+              <p className="text-abyssal-blue/80">
+                No se enviarán datos de cargo, empresa, salario o inserción que ahora están ocultos
+              </p>
+            </div>
           </div>
         )}
 
