@@ -55,6 +55,33 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(screen.getAllByText('Este campo es obligatorio')).toHaveLength(6);
   });
 
+  it('al pasar de Trabaja a No trabaja avisa que se descartaron las respuestas', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    escribir('Ej. Analista de sistemas', 'Analista');
+    elegirNoTrabaja();
+    expect(screen.getByText('Las respuestas anteriores se descartaron')).toBeTruthy();
+    expect(
+      screen.getByText('No se enviarán datos de cargo, empresa, salario o inserción que ahora están ocultos'),
+    ).toBeTruthy();
+  });
+
+  it('no muestra el aviso de descarte al elegir No trabaja desde el inicio', () => {
+    render(<SurveyContainer />);
+    elegirNoTrabaja();
+    expect(screen.queryByText('Las respuestas anteriores se descartaron')).toBeNull();
+  });
+
+  it('al volver a Trabaja oculta el aviso y los campos aparecen vacíos', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    escribir('Ej. Analista de sistemas', 'Analista');
+    elegirNoTrabaja();
+    elegirTrabaja();
+    expect(screen.queryByText('Las respuestas anteriores se descartaron')).toBeNull();
+    expect(valorDe('Ej. Analista de sistemas')).toBe('');
+  });
+
   it('con campos obligatorios vacíos no abre el resumen', () => {
     render(<SurveyContainer />);
     elegirTrabaja();
