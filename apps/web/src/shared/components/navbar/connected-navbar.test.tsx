@@ -24,6 +24,7 @@ jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout }: NavbarProps) => <
 const fetchMock = jest.mocked(authenticatedFetch);
 
 beforeEach(() => {
+  window.localStorage.clear();
   mockPathname = '/portal/institucional';
   jest.clearAllMocks();
   fetchMock.mockReset();
@@ -113,4 +114,29 @@ it('HU-004: la página institucional pública no redirige por un 401 sin sesión
   await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
   expect(authStore.reset).toHaveBeenCalled();
   expect(replace).not.toHaveBeenCalled();
+});
+
+it('elimina todos los borradores al cerrar sesión desde la navbar', async () => {
+  window.localStorage.setItem('umsspira:survey-draft:usuario-1', '{"workCondition":"works"}');
+  window.localStorage.setItem('umsspira:survey-draft:usuario-2', '{"workCondition":"not-works"}');
+  window.localStorage.setItem('configuracion-visual', 'preservada');
+
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  expect(window.localStorage.getItem('umsspira:survey-draft:usuario-1')).toBeNull();
+  expect(window.localStorage.getItem('umsspira:survey-draft:usuario-2')).toBeNull();
+  expect(window.localStorage.getItem('configuracion-visual')).toBe('preservada');
+});
+
+it('mantiene el borrador cuando falla el logout desde la navbar', async () => {
+  window.localStorage.setItem('umsspira:survey-draft:usuario-1', '{"workCondition":"works"}');
+  jest.mocked(revokeCurrentSession).mockRejectedValueOnce(new Error('Sin conexión'));
+
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo cerrar la sesión');
+  expect(window.localStorage.getItem('umsspira:survey-draft:usuario-1')).not.toBeNull();
 });

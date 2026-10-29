@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSurveyDraft } from '../hooks/use-survey-draft';
 import { useSurveyForm, type SurveyWorkFields } from '../hooks/use-survey-form';
@@ -15,18 +15,33 @@ import { SurveyProgressBar } from './survey-progress-bar';
 import { SurveyConfidentialNotice } from './survey-confidential-notice';
 import { SurveyOfflineBanner } from './survey-offline-banner';
 import { SurveyReviewModal, type SurveyReviewAnswer } from './survey-review-modal';
+import { SurveySubmissionStatusModal } from './survey-submission-status-modal';
 import type { SurveyDraft, WorkCondition } from '../types/survey.types';
 import type { WorkModality } from '../types/survey-job.types';
 import { SurveyWorkConditionSelector } from './survey-work-condition-selector';
 
+const MODALITY_FROM_DRAFT: Record<NonNullable<SurveyDraft['modalidad']>, WorkModality> = {
+presencial: 'Presencial',
+remoto: 'Remoto',
+hibrido: 'Hibrido',
+};
+
 export function SurveyContainer() {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const successNoticeRef = useRef<HTMLParagraphElement>(null);
   const [error, setError] = useState<string | undefined>();
   const router = useRouter();
   const userId = useSurveyUserId();
   const { draft, status, saveDraft, clearDraft } = useSurveyDraft(userId);
   const form = useSurveyForm();
   const submission = useSurveySubmit();
+
+  // Tras cerrar la confirmación, el mensaje de éxito recibe foco y queda visible.
+  useEffect(() => {
+    if (!isReviewOpen && submission.status === 'success') {
+      successNoticeRef.current?.focus();
+    }
+  }, [isReviewOpen, submission.status]);
 
   useEffect(() => {
     if (!draft) return;
@@ -35,7 +50,7 @@ export function SurveyContainer() {
       cargo: draft.cargo,
       empresa: draft.empresa,
       area: draft.area,
-      modalidad: draft.modalidad,
+        modalidad: draft.modalidad ? MODALITY_FROM_DRAFT[draft.modalidad] : undefined,
     });
   }, [draft]);
 
@@ -59,10 +74,17 @@ export function SurveyContainer() {
 
   const handleChange = (value: WorkCondition) => {
     form.setWorkCondition(value === 'works');
+    if (submission.status !== 'success') submission.resetFeedback();
     setError(undefined);
   };
 
+  const handleWorkFieldChange = (field: keyof SurveyWorkFields, value: string) => {
+    form.setWorkField(field, value);
+    if (submission.status !== 'success') submission.resetFeedback();
+  };
+
   const handleNext = () => {
+    if (submission.status === 'success') return;
     if (!form.canProceed) {
       setError('Seleccione su condición laboral actual');
       return;
@@ -86,9 +108,15 @@ export function SurveyContainer() {
     });
 
     if (sent) {
+      // Mostrar el éxito dentro del modal antes de permitir cerrarlo.
       clearDraft();
-      setIsReviewOpen(false);
     }
+  };
+
+  const handleCloseReview = () => {
+    if (submission.isSubmitting) return;
+    setIsReviewOpen(false);
+    if (submission.status === 'error') submission.resetFeedback();
   };
 
   const reviewAnswers = useMemo<SurveyReviewAnswer[]>(() => {
@@ -108,12 +136,12 @@ export function SurveyContainer() {
   }, [form.values]);
 
   const fieldErrors: Record<keyof SurveyWorkFields, string | undefined> = {
-    cargo: form.values.condicion_laboral && !form.values.cargo.trim() ? 'Ingrese su cargo' : undefined,
-    empresa: form.values.condicion_laboral && !form.values.empresa.trim() ? 'Ingrese la empresa' : undefined,
-    area: form.values.condicion_laboral && !form.values.area.trim() ? 'Ingrese el área o departamento' : undefined,
-    modalidad: form.values.condicion_laboral && !form.values.modalidad ? 'Seleccione una modalidad' : undefined,
-    salario_mensual: form.values.condicion_laboral && !form.values.salario_mensual ? 'Seleccione un rango' : undefined,
-    tiempo_insercion: form.values.condicion_laboral && !form.values.tiempo_insercion ? 'Ingrese los meses' : undefined,
+    cargo: form.values.condicion_laboral && !form.values.cargo.trim() ? 'Este campo es obligatorio' : undefined,
+    empresa: form.values.condicion_laboral && !form.values.empresa.trim() ? 'Este campo es obligatorio' : undefined,
+    area: form.values.condicion_laboral && !form.values.area.trim() ? 'Este campo es obligatorio' : undefined,
+    modalidad: form.values.condicion_laboral && !form.values.modalidad ? 'Este campo es obligatorio' : undefined,
+    salario_mensual: form.values.condicion_laboral && !form.values.salario_mensual ? 'Este campo es obligatorio' : undefined,
+    tiempo_insercion: form.values.condicion_laboral && !form.values.tiempo_insercion ? 'Este campo es obligatorio' : undefined,
   };
 
   const hasWorkErrors = form.values.condicion_laboral === true && Object.values(fieldErrors).some(Boolean);
@@ -131,6 +159,11 @@ export function SurveyContainer() {
         Ayúdanos a conocer tu trayectoria profesional. Solo te preguntaremos lo que
         corresponda a tu situación.
       </p>
+      {submission.status === 'success' && !isReviewOpen && (
+        <p ref={successNoticeRef} tabIndex={-1} role="status" className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
+          {submission.message}
+        </p>
+      )}
 
       <ol className="mt-6 flex items-center gap-3 text-sm">
         <li className="flex items-center gap-2 font-semibold text-abyssal-blue">
@@ -182,18 +215,18 @@ export function SurveyContainer() {
               }}
               errors={fieldErrors}
               touched={{ cargo: true, empresa: true, area: true, modalidad: true }}
-              onChange={(field, value) => form.setWorkField(field, String(value))}
+              onChange={(field, value) => handleWorkFieldChange(field, String(value))}
               onBlur={() => undefined}
             />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <SurveySalarySelector
                 value={form.values.salario_mensual}
-                onChange={(value) => form.setWorkField('salario_mensual', value)}
+                onChange={(value) => handleWorkFieldChange('salario_mensual', value)}
                 error={fieldErrors.salario_mensual}
               />
               <SurveyInsertionTimeInput
                 value={form.values.tiempo_insercion}
-                onChange={(value) => form.setWorkField('tiempo_insercion', value)}
+                onChange={(value) => handleWorkFieldChange('tiempo_insercion', value)}
                 error={fieldErrors.tiempo_insercion}
               />
             </div>
@@ -226,29 +259,24 @@ export function SurveyContainer() {
         <Button type="button" variant="secondary" onClick={() => router.back()}>
           Volver
         </Button>
-        <Button type="button" variant="primary" onClick={handleNext}>
+        <Button type="button" variant="primary" onClick={handleNext} disabled={submission.status === 'success'}>
           Siguiente →
         </Button>
       </div>
       <SurveyReviewModal
-        isOpen={isReviewOpen}
+        isOpen={isReviewOpen && !submission.isSubmitting && submission.status === 'idle'}
         answers={reviewAnswers}
-        isSubmitting={submission.isSubmitting}
-        onClose={() => setIsReviewOpen(false)}
+        isSubmitting={false}
+        onClose={handleCloseReview}
         onConfirm={handleConfirm}
       />
-      {submission.message && (
-        <p
-          role="status"
-          className={`mt-4 rounded-lg border p-3 text-sm ${
-            submission.status === 'success'
-              ? 'border-green-200 bg-green-50 text-green-800'
-              : 'border-red-200 bg-red-50 text-red-800'
-          }`}
-        >
-          {submission.message}
-        </p>
-      )}
+      <SurveySubmissionStatusModal
+        isOpen={isReviewOpen && (submission.isSubmitting || submission.status !== 'idle')}
+        status={submission.isSubmitting ? 'sending' : submission.status === 'success' ? 'success' : 'error'}
+        isConnectionError={submission.errorKind === 'connection'}
+        onClose={handleCloseReview}
+        onRetry={handleConfirm}
+      />
     </main>
   );
 }
