@@ -28,9 +28,9 @@ export function sanitizeDraft(raw: unknown): SurveyDraft | null {
 
   return {
     workCondition: 'works',
-    cargo: text(data.cargo, 150),
-    empresa: text(data.empresa, 200),
-    area: text(data.area, 150),
+    cargo: text(data.cargo, 100),
+    empresa: text(data.empresa, 100),
+    area: text(data.area, 100),
     modalidad,
   };
 }
