@@ -6,7 +6,7 @@ import { applicationTotalPages } from '../../domain/policies/application-paginat
 import { searchTerms } from '../../domain/policies/application-search.policy';
 import { Injectable } from '@nestjs/common';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { Prisma } from '../../../../generated/prisma/client';
+import type { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
@@ -106,37 +106,18 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
         carrera: { is: { nombre: { contains: query.career, mode: 'insensitive' } } },
       });
     }
-    const terms = searchTerms(query.search ?? '');
-    let matchingIds: string[] | undefined;
-    if (terms.length > 0) {
-      const wordConditions = terms.map((term) => {
-        // Evita que %, _ y ! se interpreten como comodines de LIKE.
-        const escaped = term.replace(/[!%_]/g, '!$&');
-        const pattern = `%${escaped}%`;
-        const fields = [
-         Prisma.sql`extensions.unaccent(lower(coalesce(d.nombre, ''))) LIKE extensions.unaccent(lower(${pattern})) ESCAPE '!'`,
-         Prisma.sql`extensions.unaccent(lower(coalesce(d.apellido, ''))) LIKE extensions.unaccent(lower(${pattern})) ESCAPE '!'`,
-         Prisma.sql`coalesce(d.ci, '') LIKE ${pattern} ESCAPE '!'`,
-         Prisma.sql`lower(coalesce(d.email, '')) LIKE lower(${pattern}) ESCAPE '!'`,
-        ];
-
-        if (/^\d{6,9}$/.test(term)) {
-          fields.push(Prisma.sql`d.cod_sis = ${Number(term)}`);
-        }
-
-        return Prisma.sql`(${Prisma.join(fields, ' OR ')})`;
-      });
-
-      const matchingRows = await this.prisma.$queryRaw<Array<{ id: string }>>(
-        Prisma.sql`
-          SELECT s.id
-          FROM solicitud AS s
-          JOIN detalle_solicitud AS d ON d.id = s.id_detalle_solicitud
-          WHERE ${Prisma.join(wordConditions, ' AND ')}
-        `,
-      );
-
-      matchingIds = matchingRows.map(({ id }) => id);
+    if (query.search) {
+      for (const term of searchTerms(query.search)) {
+        detailFilters.push({
+          OR: [
+            { nombre: { contains: term, mode: 'insensitive' } },
+            { apellido: { contains: term, mode: 'insensitive' } },
+            { ci: { contains: term } },
+            { email: { contains: term, mode: 'insensitive' } },
+            ...(/^\d{6,9}$/.test(term) ? [{ cod_sis: term }] : []),
+          ],
+        });
+      }
     }
     const overdue: Prisma.SolicitudWhereInput = {
       estado: 'PENDIENTE',
@@ -149,10 +130,9 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
         )
       : undefined;
 
-    const where: Prisma.SolicitudWhereInput = {
+        const where: Prisma.SolicitudWhereInput = {
       AND: [
         scopedApplication(actor),
-        ...(matchingIds !== undefined ? [{ id: { in: matchingIds } }] : []),
         ...(query.status ? [{ estado: query.status }] : []),
         ...(detailFilters.length ? [{ detalle_solicitud: { is: { AND: detailFilters } } }] : []),
         ...(query.age === 'over48'
