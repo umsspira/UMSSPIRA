@@ -287,7 +287,24 @@ async find(actor: ActorContext, id: string) {
   return application;
 }
 
-
+  async countRejections(id: string): Promise<number> {
+    // Misma identidad que assertRejectionLimit: C.I. normalizado + complemento + expedido en.
+    const rows = await this.prisma.$queryRaw<{ total: number }[]>`
+      SELECT COUNT(*)::integer AS total
+      FROM solicitud AS s
+      JOIN detalle_solicitud AS d ON d.id = s.id_detalle_solicitud
+      JOIN solicitud AS actual ON actual.id = ${id}::uuid
+      JOIN detalle_solicitud AS me ON me.id = actual.id_detalle_solicitud
+      WHERE UPPER(TRIM(s.estado)) IN ('REJECTED', 'RECHAZADO', 'RECHAZADA')
+        AND REGEXP_REPLACE(COALESCE(d.ci, ''), '[^0-9]', '', 'g')
+          = REGEXP_REPLACE(COALESCE(me.ci, ''), '[^0-9]', '', 'g')
+        AND UPPER(TRIM(COALESCE(d.extension_ci, '')))
+          = UPPER(TRIM(COALESCE(me.extension_ci, '')))
+        AND d.expedido_en::text = me.expedido_en::text
+    `;
+    return rows[0]?.total ?? 0;
+  }
+  
   async document(actor: ActorContext, id: string) {
     const row = await this.prisma.archivoRegistro.findFirst({
       where: { borrador: { solicitud: { is: scopedApplication(actor, id) } } },
