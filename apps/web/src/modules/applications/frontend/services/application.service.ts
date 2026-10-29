@@ -1,7 +1,13 @@
 import { readApiError } from '@/shared/services/api-contract';
+import type { ObservedApplicationDetail } from '@umsspira/shared-types';
 import type { CorrectionResult } from '../hooks/use-observed-correction';
 
 const OBSERVED_URL = '/api/v1/registrations/observed';
+
+export type FetchObservedApplicationResult =
+  | { status: 'success'; data: ObservedApplicationDetail }
+  | { status: 'invalid-link' }
+  | { status: 'error'; message: string };
 
 export type ResubmitOutcome =
   | { status: 'success' }
@@ -61,6 +67,27 @@ async function failure(response: Response): Promise<ResubmitOutcome> {
     message: readApiError(body as never, 'No pudimos entregar tu solicitud. Intenta nuevamente.')
       .message,
   };
+}
+
+export async function getObservedApplication(token: string): Promise<FetchObservedApplicationResult> {
+  try {
+    const res = await fetch(OBSERVED_URL, {
+      method: 'GET',
+      headers: authHeaders(token),
+      cache: 'no-store',
+    });
+    if (res.status === 404 || res.status === 410) {
+      return { status: 'invalid-link' };
+    }
+    const body = (await readBody(res)) as { data?: ObservedApplicationDetail; error?: { message?: string } } | null;
+    if (!res.ok || !body?.data) {
+      const msg = readApiError(body as never, 'No fue posible obtener los datos de la solicitud.').message;
+      return { status: 'error', message: msg };
+    }
+    return { status: 'success', data: body.data };
+  } catch {
+    return { status: 'error', message: CONNECTION_ERROR };
+  }
 }
 
 // CA-10.4: se trabaja siempre sobre el expediente del enlace; nunca se crea uno nuevo.

@@ -1,87 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ObservedApplicationDetail } from "@umsspira/shared-types";
 import { ObservedEditForm } from "./observed-edit-form";
 import { ObservedReviewSubmit } from "./observed-review-submit";
 import type { CorrectionResult, CorrectionValues } from "../hooks/use-observed-correction";
-
-type Observation = { category: string; note: string };
-
-type ObservedApplication = {
-  version: number;
-  observedAt: string;
-  observations: Observation[];
-  form: CorrectionValues;
-  document: { name: string; sizeLabel: string; uploadedAt: string; url: string; type: string };
-};
+import { getObservedApplication } from "../services/application.service";
 
 type ViewState =
   | { status: "loading" }
-  | { status: "valid"; data: ObservedApplication }
-  | { status: "invalid" | "expired" | "not-observed" };
-
-// TODO: reemplazar por la llamada real al backend (GET con el token).
-// `version` debe venir de ObservedApplicationDetail.version (CA-10.5).
-// Mapear la respuesta: 200 -> valid, 404 -> invalid, 410 -> expired, 409 -> not-observed.
-async function fetchObservedApplication(token: string): Promise<ViewState> {
-  await new Promise((r) => setTimeout(r, 400));
-  if (token === "invalido") return { status: "invalid" };
-  if (token === "vencido") return { status: "expired" };
-  if (token === "no-observada") return { status: "not-observed" };
-  return {
-    status: "valid",
-    data: {
-      version: 2,
-      observedAt: "2026-10-22T11:30:00",
-      observations: [
-        {
-          category: "Datos personales y contacto",
-          note: "El documento adjunto no es completamente legible. Adjunta una copia más clara de los sellos y firmas de egreso.",
-        },
-        {
-          category: "Documento de respaldo",
-          note: "El documento adjunto no es completamente legible. Adjunta una copia más clara de los sellos y firmas de egreso.",
-        },
-      ],
-      form: {
-        firstName: "Juan Carlos",
-        lastName: "Pérez Mamani",
-        birthDate: "1998-05-14",
-        ci: "6842109",
-        complement: "",
-        issuedIn: "CB",
-        email: "carlos.perez.m@correo.com",
-        phone: "70745821",
-        career: "Licenciatura en Ingeniería de Sistemas",
-        graduationYear: "2023",
-        sisCode: "201804921",
-        documentType: "Título en Provisión Nacional",
-      },
-      document: {
-        name: "Certificado_Conclusion_Estudios_JuanPerez.pdf",
-        sizeLabel: "4.2 MB",
-        uploadedAt: "2026-10-20",
-        url: "#",
-        type: "Título en Provisión Nacional",
-      },
-    },
-  };
-}
-
-const STATUS_MESSAGES = {
-  invalid: {
-    title: "Enlace no válido",
-    text: "Este enlace no corresponde a ninguna solicitud observada. Verifica que lo hayas copiado completo desde tu correo.",
-  },
-  expired: {
-    title: "Enlace vencido",
-    text: "Este enlace ya no está vigente. Si tu solicitud sigue observada, puedes pedir que te enviemos uno nuevo al correo verificado.",
-  },
-  "not-observed": {
-    title: "Esta solicitud ya no está observada",
-    text: "No es posible editarla desde este enlace porque su estado cambió.",
-  },
-} as const;
+  | { status: "valid"; data: ObservedApplicationDetail }
+  | { status: "invalid" }
+  | { status: "error"; message: string };
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("es-BO", {
@@ -93,16 +23,37 @@ function formatDateTime(iso: string) {
   });
 }
 
-function StatusMessage({ kind }: { kind: keyof typeof STATUS_MESSAGES }) {
-  const { title, text } = STATUS_MESSAGES[kind];
+function StatusMessage() {
   return (
     <div
       role="alert"
       className="mx-auto mt-16 max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm"
     >
-      <h1 className="text-xl font-bold text-slate-900">{title}</h1>
-      <p className="mt-3 text-sm text-slate-600">{text}</p>
-      {/* TODO (CA-10.6): botón "Solicitar enlace nuevo" en una rama posterior */}
+      <h1 className="text-xl font-bold text-slate-900">Enlace no válido o vencido</h1>
+      <p className="mt-3 text-sm text-slate-600">
+        Este enlace no corresponde a ninguna solicitud observada o ya ha vencido. Si tu solicitud sigue observada, puedes solicitar uno nuevo a tu correo registrado.
+      </p>
+    </div>
+  );
+}
+
+function NetworkErrorMessage({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="mx-auto mt-16 max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm"
+    >
+      <h1 className="text-xl font-bold text-slate-900">Error de conexión</h1>
+      <p className="mt-3 text-sm text-slate-600">{message}</p>
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-lg bg-[#B5533C] px-4 py-2 text-sm font-bold text-white hover:bg-[#9c432f]"
+        >
+          Reintentar
+        </button>
+      </div>
     </div>
   );
 }
@@ -110,14 +61,28 @@ function StatusMessage({ kind }: { kind: keyof typeof STATUS_MESSAGES }) {
 export function ObservedNoticeView({ token }: { token: string }) {
   const [state, setState] = useState<ViewState>({ status: "loading" });
 
+  const loadData = () => {
+    setState({ status: "loading" });
+    getObservedApplication(token)
+      .then((result) => {
+        if (result.status === "success") {
+          setState({ status: "valid", data: result.data });
+        } else if (result.status === "invalid-link") {
+          setState({ status: "invalid" });
+        } else {
+          setState({ status: "error", message: result.message });
+        }
+      })
+      .catch(() => {
+        setState({
+          status: "error",
+          message: "No fue posible conectar con el servidor. Intenta nuevamente.",
+        });
+      });
+  };
+
   useEffect(() => {
-    let active = true;
-    fetchObservedApplication(token)
-      .then((result) => active && setState(result))
-      .catch(() => active && setState({ status: "invalid" }));
-    return () => {
-      active = false;
-    };
+    loadData();
   }, [token]);
 
   return (
@@ -129,9 +94,11 @@ export function ObservedNoticeView({ token }: { token: string }) {
           </p>
         )}
 
-        {(state.status === "invalid" ||
-          state.status === "expired" ||
-          state.status === "not-observed") && <StatusMessage kind={state.status} />}
+        {state.status === "invalid" && <StatusMessage />}
+
+        {state.status === "error" && (
+          <NetworkErrorMessage message={state.message} onRetry={loadData} />
+        )}
 
         {state.status === "valid" && <ValidView data={state.data} token={token} />}
       </div>
@@ -139,9 +106,42 @@ export function ObservedNoticeView({ token }: { token: string }) {
   );
 }
 
-function ValidView({ data, token }: { data: ObservedApplication; token: string }) {
-  const { form, document, observations } = data;
+function ValidView({ data, token }: { data: ObservedApplicationDetail; token: string }) {
   const [pending, setPending] = useState<CorrectionResult | null>(null);
+
+  const form: CorrectionValues = {
+    firstName: data.nombres,
+    lastName: data.apellidos,
+    birthDate: data.fechaIngreso ?? "",
+    ci: data.ci,
+    complement: data.complementoCi ?? "",
+    issuedIn: data.expedidoEn,
+    email: data.correo,
+    phone: data.telefono,
+    career: data.carreraId,
+    graduationYear: String(data.anioEgreso || ""),
+    sisCode: data.codigoSis,
+    documentType: data.documento?.tipoDocumento ?? "Título en Provisión Nacional",
+  };
+
+  const document = data.documento
+    ? {
+        name: data.documento.nombre,
+        sizeLabel: `${(data.documento.sizeBytes / (1024 * 1024)).toFixed(1)} MB`,
+        uploadedAt: data.observacion?.fecha
+          ? new Date(data.observacion.fecha).toLocaleDateString("es-BO")
+          : "Reciente",
+        url: "#",
+        type: data.documento.tipoDocumento,
+      }
+    : {
+        name: "Documento previo",
+        sizeLabel: "0 MB",
+        uploadedAt: "-",
+        url: "#",
+        type: "Título en Provisión Nacional",
+      };
+
   return (
     <div className="flex flex-col gap-6">
       <header>
@@ -158,22 +158,24 @@ function ValidView({ data, token }: { data: ObservedApplication; token: string }
       <section className="rounded-xl border border-slate-200 border-l-4 border-l-[#B5533C] bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
           <span className="rounded bg-[#B5533C] px-2 py-0.5 text-xs font-bold text-white">
-            Observaciones
+            Observación
           </span>
-          <time className="text-xs text-slate-500" dateTime={data.observedAt}>
-            {formatDateTime(data.observedAt)}
-          </time>
+          {data.observacion?.fecha && (
+            <time className="text-xs text-slate-500" dateTime={data.observacion.fecha}>
+              {formatDateTime(data.observacion.fecha)}
+            </time>
+          )}
         </div>
-        <ul className="flex flex-col gap-4">
-          {observations.map((o, i) => (
-            <li key={i}>
-              <p className="mb-2 text-sm font-bold text-slate-900">Categoría: {o.category}</p>
-              <blockquote className="rounded-lg bg-[#EDE8DE] p-4 text-sm font-medium text-slate-800">
-                {o.note}
-              </blockquote>
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-2">
+          {data.observacion?.categoria && (
+            <p className="text-sm font-bold text-slate-900">
+              Categoría: {data.observacion.categoria}
+            </p>
+          )}
+          <blockquote className="rounded-lg bg-[#EDE8DE] p-4 text-sm font-medium text-slate-800">
+            {data.observacion?.justificacion || "Sin justificación registrada."}
+          </blockquote>
+        </div>
       </section>
 
       {pending && (
@@ -191,9 +193,8 @@ function ValidView({ data, token }: { data: ObservedApplication; token: string }
           currentDocument={document}
           onCancel={() => window.history.back()}
           onReview={(result) => setPending(result)}
-          onRequireEmailVerification={(result) => {
-            // TODO: enviar al paso de verificación (email-verification)
-            console.log("verify email", result);
+          onRequireEmailVerification={() => {
+            // Se procesará en el flujo de correo
           }}
         />
       </div>
