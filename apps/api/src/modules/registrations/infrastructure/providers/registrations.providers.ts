@@ -144,8 +144,8 @@ export const registrationsProviders: Provider[] = [
     useFactory: (
       repository: ApplicationsRepository,
       security: RegistrationSecurity,
-      correctionTokens: CorrectionTokenService,
-    ) => new ReviewApplicationUseCase(repository, security, correctionTokens),
+      tokenService: CorrectionTokenService,
+    ) => new ReviewApplicationUseCase(repository, security, tokenService),
   },
   {
     provide: ActivateRegistrationUseCase,

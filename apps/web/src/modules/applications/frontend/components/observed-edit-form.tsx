@@ -1,11 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DocumentDropzone } from "@/modules/documents/frontend/components/document-dropzone";
 import {
   EXPEDITION_DEPARTMENTS,
   EXPEDITION_LABELS,
 } from "@/modules/registration/frontend/validation/personal-data.schema";
+import {
+  fetchCareers,
+  type Career,
+} from "@/modules/registration/frontend/services/registration.service";
 import {
   useObservedCorrection,
   type CorrectionResult,
@@ -16,7 +20,7 @@ type Props = {
   initial: CorrectionValues;
   currentDocument: { name: string; sizeLabel: string; uploadedAt: string; url: string };
   onReview: (result: CorrectionResult) => void;
-  onRequireEmailVerification: (result: CorrectionResult) => void;
+  onRequireEmailVerification?: (result: CorrectionResult) => void;
   onCancel: () => void;
 };
 
@@ -80,6 +84,25 @@ export function ObservedEditForm({
   onCancel,
 }: Props) {
   const c = useObservedCorrection(initial);
+  const [careers, setCareers] = useState<Career[]>([]);
+  const [loadingCareers, setLoadingCareers] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetchCareers()
+      .then((data) => {
+        if (active) {
+          setCareers(data);
+          setLoadingCareers(false);
+        }
+      })
+      .catch(() => {
+        if (active) setLoadingCareers(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const text = (
     name: keyof CorrectionValues,
@@ -102,9 +125,11 @@ export function ObservedEditForm({
   function handleSubmit() {
     const result = c.validateAll();
     if (!result) return;
-    // CA-10.3: si cambia el correo, debe verificar el nuevo antes de reenviar.
-    if (result.emailChanged) onRequireEmailVerification(result);
-    else onReview(result);
+    if (result.emailChanged && onRequireEmailVerification) {
+      onRequireEmailVerification(result);
+    } else {
+      onReview(result);
+    }
   }
 
   return (
@@ -122,8 +147,10 @@ export function ObservedEditForm({
               value={c.values.issuedIn}
               onChange={(e) => c.setValue("issuedIn", e.target.value)}
               aria-invalid={Boolean(c.errors.issuedIn)}
+              aria-describedby={c.errors.issuedIn ? "issuedIn-error" : undefined}
               className={inputClass}
             >
+              <option value="">Selecciona</option>
               {EXPEDITION_DEPARTMENTS.map((d) => (
                 <option key={d} value={d}>
                   {EXPEDITION_LABELS[d]}
@@ -131,19 +158,47 @@ export function ObservedEditForm({
               ))}
             </select>
           </Field>
-          {text("email", "Correo electrónico", { required: true, type: "email" })}
+          <Field id="email" label="Correo electrónico" required error={c.errors.email}>
+            <input
+              id="email"
+              type="email"
+              value={c.values.email}
+              readOnly
+              aria-readonly="true"
+              className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600 cursor-not-allowed focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              El correo electrónico registrado no puede modificarse en este formulario. Si necesitas actualizarlo, comunícate con administración.
+            </p>
+          </Field>
           {text("phone", "Teléfono celular / WhatsApp", { required: true, type: "tel" })}
         </div>
-        {c.emailChanged && (
-          <p role="status" className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-900">
-            Cambiaste tu correo. Deberás verificar el nuevo correo antes de reenviar la solicitud.
-          </p>
-        )}
       </Card>
 
       <Card n={2} title="Datos académicos">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">{text("career", "Carrera universitaria")}</div>
+          <div className="sm:col-span-2">
+            <Field id="career" label="Carrera universitaria" required error={c.errors.career}>
+              <select
+                id="career"
+                value={c.values.career}
+                onChange={(e) => c.setValue("career", e.target.value)}
+                disabled={loadingCareers}
+                aria-invalid={Boolean(c.errors.career)}
+                aria-describedby={c.errors.career ? "career-error" : undefined}
+                className={inputClass}
+              >
+                <option value="">
+                  {loadingCareers ? "Cargando carreras..." : "Selecciona tu carrera"}
+                </option>
+                {careers.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nombre}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
           {text("graduationYear", "Año de conclusión de estudios / egreso", { required: true })}
           {text("sisCode", "Código SIS")}
         </div>
@@ -166,11 +221,18 @@ export function ObservedEditForm({
         </div>
 
         <div className="mt-4">
-          <Field id="documentType" label="Tipo de documento" required error={c.errors.documentType}>
+          <Field
+            id="documentType"
+            label="Tipo de documento que presentas"
+            required
+            error={c.errors.documentType}
+          >
             <select
               id="documentType"
               value={c.values.documentType}
               onChange={(e) => c.setValue("documentType", e.target.value)}
+              aria-invalid={Boolean(c.errors.documentType)}
+              aria-describedby={c.errors.documentType ? "documentType-error" : undefined}
               className={inputClass}
             >
               {DOCUMENT_TYPES.map((t) => (
@@ -183,6 +245,9 @@ export function ObservedEditForm({
         </div>
 
         <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold text-slate-700">
+            Reemplazar documento (opcional)
+          </p>
           <DocumentDropzone
             file={c.file}
             onFileSelect={c.setFile}
@@ -192,11 +257,11 @@ export function ObservedEditForm({
         </div>
       </Card>
 
-      <div className="flex items-center justify-between border-t border-slate-300 pt-6">
+      <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold"
+          className="text-xs font-semibold text-slate-600 hover:underline"
         >
           Cancelar
         </button>
@@ -204,9 +269,9 @@ export function ObservedEditForm({
           type="button"
           onClick={handleSubmit}
           disabled={!c.hasChanges}
-          className="rounded-lg bg-[#FFA94D] px-5 py-2 text-sm font-bold text-slate-900 disabled:opacity-50"
+          className="rounded-lg bg-[#B5533C] px-5 py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Revisar cambios →
+          Revisar cambios
         </button>
       </div>
     </div>
