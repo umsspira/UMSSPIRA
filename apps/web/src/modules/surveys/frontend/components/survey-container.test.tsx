@@ -49,9 +49,16 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-   it('con Trabaja muestra «Este campo es obligatorio» en cada pregunta vacía', () => {
+  it('con Trabaja no muestra errores hasta que el titulado intenta continuar', () => {
     render(<SurveyContainer />);
     elegirTrabaja();
+    expect(screen.queryAllByText('Este campo es obligatorio')).toHaveLength(0);
+  });
+
+  it('al presionar Siguiente con Trabaja muestra «Este campo es obligatorio» en cada pregunta vacía', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    siguiente();
     expect(screen.getAllByText('Este campo es obligatorio')).toHaveLength(6);
   });
 

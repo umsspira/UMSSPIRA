@@ -32,6 +32,8 @@ export function SurveyContainer() {
   const [error, setError] = useState<string | undefined>();
   // HU-001 (QA): aviso al pasar de «Trabaja» a «No trabaja».
   const [showDiscardNotice, setShowDiscardNotice] = useState(false);
+  // HU-002: «Este campo es obligatorio» se muestra recién cuando el titulado intenta continuar.
+  const [showErrors, setShowErrors] = useState(false);
   const router = useRouter();
   const userId = useSurveyUserId();
   const { draft, status, saveDraft, clearDraft } = useSurveyDraft(userId);
@@ -76,6 +78,7 @@ export function SurveyContainer() {
 
   const handleChange = (value: WorkCondition) => {
     setShowDiscardNotice(form.values.condicion_laboral === true && value === 'not-works');
+    setShowErrors(false);
     form.setWorkCondition(value === 'works');
     if (submission.status !== 'success') submission.resetFeedback();
     setError(undefined);
@@ -92,7 +95,10 @@ export function SurveyContainer() {
       setError('Seleccione su condición laboral actual');
       return;
     }
-    if (hasWorkErrors) return;
+    if (hasWorkErrors) {
+      setShowErrors(true);
+      return;
+    }
     persistDraft();
     setIsReviewOpen(true);
   };
@@ -148,6 +154,9 @@ export function SurveyContainer() {
   };
 
   const hasWorkErrors = form.values.condicion_laboral === true && Object.values(fieldErrors).some(Boolean);
+  const visibleErrors: Record<keyof SurveyWorkFields, string | undefined> = showErrors
+    ? fieldErrors
+    : { cargo: undefined, empresa: undefined, area: undefined, modalidad: undefined, salario_mensual: undefined, tiempo_insercion: undefined };
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
@@ -216,7 +225,7 @@ export function SurveyContainer() {
                 area: form.values.area,
                 modalidad: form.values.modalidad as WorkModality | null,
               }}
-              errors={fieldErrors}
+              errors={visibleErrors}
               touched={{ cargo: true, empresa: true, area: true, modalidad: true }}
               onChange={(field, value) => handleWorkFieldChange(field, String(value))}
               onBlur={() => undefined}
@@ -225,12 +234,12 @@ export function SurveyContainer() {
               <SurveySalarySelector
                 value={form.values.salario_mensual}
                 onChange={(value) => handleWorkFieldChange('salario_mensual', value)}
-                error={fieldErrors.salario_mensual}
+                error={visibleErrors.salario_mensual}
               />
               <SurveyInsertionTimeInput
                 value={form.values.tiempo_insercion}
                 onChange={(value) => handleWorkFieldChange('tiempo_insercion', value)}
-                error={fieldErrors.tiempo_insercion}
+                error={visibleErrors.tiempo_insercion}
               />
             </div>
             <SurveyConfidentialNotice />
