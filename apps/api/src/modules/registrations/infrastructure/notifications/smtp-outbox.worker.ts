@@ -61,7 +61,12 @@ export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
     this.transport?.close();
   }
 
-  private async sendViaBrevo(mail: { to: string; subject: string; text: string }): Promise<void> {
+  private async sendViaBrevo(mail: {
+    to: string;
+    subject: string;
+    text: string;
+    html?: string;
+  }): Promise<void> {
     const apiKey = this.config.get<string>('BREVO_API_KEY');
     const from = this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>');
 
@@ -81,6 +86,7 @@ export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
         to: [{ email: mail.to }],
         subject: mail.subject,
         textContent: mail.text,
+        htmlContent: mail.html,
       }),
     });
 
