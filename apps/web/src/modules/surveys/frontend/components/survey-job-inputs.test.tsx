@@ -28,11 +28,11 @@ describe('SurveyJobInputs', () => {
     expect(screen.getAllByText('*')).toHaveLength(4);
   });
 
-  it('limita la longitud: cargo 150, empresa 200 y área 150', () => {
+  it('limita cargo, empresa y área a 100 caracteres (CA de la HU-2)', () => {
     renderizar();
-    expect(cargo().maxLength).toBe(150);
-    expect(empresa().maxLength).toBe(200);
-    expect(area().maxLength).toBe(150);
+    expect(cargo().maxLength).toBe(100);
+    expect(empresa().maxLength).toBe(100);
+    expect(area().maxLength).toBe(100);
   });
 
   it('muestra los valores recibidos', () => {

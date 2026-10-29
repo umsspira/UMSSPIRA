@@ -39,7 +39,12 @@ function llenarFormulario() {
   escribir('Ej. 6', '6');
 }
 
-beforeEach(() => window.localStorage.clear());
+const SESSION_KEY = 'umsspira:survey-session:user-1';
+
+beforeEach(() => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
 
 describe('SurveyContainer · formulario HU-2', () => {
   it('no deja avanzar sin elegir la condición laboral', () => {
@@ -49,10 +54,44 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-   it('con Trabaja muestra «Este campo es obligatorio» en cada pregunta vacía', () => {
+  it('con Trabaja no muestra errores hasta que el titulado intenta continuar', () => {
     render(<SurveyContainer />);
     elegirTrabaja();
+    expect(screen.queryAllByText('Este campo es obligatorio')).toHaveLength(0);
+  });
+
+  it('al presionar Siguiente con Trabaja muestra «Este campo es obligatorio» en cada pregunta vacía', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    siguiente();
     expect(screen.getAllByText('Este campo es obligatorio')).toHaveLength(6);
+  });
+
+  it('al pasar de Trabaja a No trabaja avisa que se descartaron las respuestas', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    escribir('Ej. Analista de sistemas', 'Analista');
+    elegirNoTrabaja();
+    expect(screen.getByText('Las respuestas anteriores se descartaron')).toBeTruthy();
+    expect(
+      screen.getByText('No se enviarán datos de cargo, empresa, salario o inserción que ahora están ocultos'),
+    ).toBeTruthy();
+  });
+
+  it('no muestra el aviso de descarte al elegir No trabaja desde el inicio', () => {
+    render(<SurveyContainer />);
+    elegirNoTrabaja();
+    expect(screen.queryByText('Las respuestas anteriores se descartaron')).toBeNull();
+  });
+
+  it('al volver a Trabaja oculta el aviso y los campos aparecen vacíos', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    escribir('Ej. Analista de sistemas', 'Analista');
+    elegirNoTrabaja();
+    elegirTrabaja();
+    expect(screen.queryByText('Las respuestas anteriores se descartaron')).toBeNull();
+    expect(valorDe('Ej. Analista de sistemas')).toBe('');
   });
 
   it('con campos obligatorios vacíos no abre el resumen', () => {
@@ -135,6 +174,41 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(valorDe('Ej. Desarrollo de software')).toBe('Sistemas');
     expect(valorDe('Ej. 6')).toBe('');
     expect(screen.getByText('Borrador recuperado')).toBeTruthy();
+  });
+
+  it('guarda el borrador mientras escribe, sin presionar Siguiente', () => {
+    render(<SurveyContainer />);
+    elegirTrabaja();
+    escribir('Ej. Analista de sistemas', 'Analista');
+    const guardado = JSON.parse(window.localStorage.getItem(DRAFT_KEY) as string);
+    expect(guardado).toEqual({ workCondition: 'works', cargo: 'Analista' });
+  });
+
+  it('guarda salario y tiempo solo en la sesión de la pestaña, no en localStorage', () => {
+    render(<SurveyContainer />);
+    llenarFormulario();
+    expect(window.localStorage.getItem(DRAFT_KEY)).not.toContain('3.000');
+    expect(JSON.parse(window.sessionStorage.getItem(SESSION_KEY) as string)).toEqual({
+      salario_mensual: '3.000–5.000',
+      tiempo_insercion: '6',
+    });
+  });
+
+  it('al volver a la encuesta en la misma pestaña recupera también salario y tiempo', async () => {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ workCondition: 'works', cargo: 'Analista' }));
+    window.sessionStorage.setItem(SESSION_KEY, JSON.stringify({ salario_mensual: '3.000–5.000', tiempo_insercion: '6' }));
+    render(<SurveyContainer />);
+    await screen.findByDisplayValue('Analista');
+    expect(valorDe('Ej. 6')).toBe('6');
+    expect((screen.getByRole('radio', { name: '3.000–5.000' }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('al pasar a No trabaja borra salario y tiempo de la sesión', () => {
+    render(<SurveyContainer />);
+    llenarFormulario();
+    elegirNoTrabaja();
+    expect(window.sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem(DRAFT_KEY) as string)).toEqual({ workCondition: 'not-works' });
   });
 
   it('tras recuperar el borrador la modalidad sigue marcada', async () => {

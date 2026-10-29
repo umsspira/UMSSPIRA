@@ -5,9 +5,9 @@ export const submitSurveySchema = z
     id_encuesta: z.string().uuid().optional(),
     condicion_laboral: z.boolean(),
 
-    cargo: z.string().trim().min(1).max(150).optional(),
-    empresa: z.string().trim().min(1).max(200).optional(),
-    area: z.string().trim().min(1).max(150).optional(),
+    cargo: z.string().trim().min(1).max(100).optional(),
+    empresa: z.string().trim().min(1).max(100).optional(),
+    area: z.string().trim().min(1).max(100).optional(),
 
     modalidad: z.string().trim().min(1).optional(),
 

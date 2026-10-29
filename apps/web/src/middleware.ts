@@ -29,7 +29,8 @@ export async function middleware(request: NextRequest) {
     });
     if (response.status === 401 || response.status === 403) {
       // La sesión ya no es válida: eliminar cookies de autenticación, no solo redirigir.
-      const expired = redirect(loginDestination);
+      // HU-004 CA-06: en reportería el login explica que la sesión expiró.
+      const expired = redirect(isReport ? '/login?reportes=sesion-expirada' : loginDestination);
       for (const name of ['umsspira_token', 'umsspira_refresh', 'umsspira_csrf', 'umsspira_role']) {
         expired.cookies.delete(name);
       }
