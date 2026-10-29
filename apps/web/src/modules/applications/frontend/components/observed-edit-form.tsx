@@ -20,7 +20,7 @@ type Props = {
   initial: CorrectionValues;
   currentDocument: { name: string; sizeLabel: string; uploadedAt: string; url: string };
   onReview: (result: CorrectionResult) => void;
-  onRequireEmailVerification: (result: CorrectionResult) => void;
+  onRequireEmailVerification?: (result: CorrectionResult) => void;
   onCancel: () => void;
 };
 
@@ -125,9 +125,11 @@ export function ObservedEditForm({
   function handleSubmit() {
     const result = c.validateAll();
     if (!result) return;
-    // CA-10.3: si cambia el correo, debe verificar el nuevo antes de reenviar.
-    if (result.emailChanged) onRequireEmailVerification(result);
-    else onReview(result);
+    if (result.emailChanged && onRequireEmailVerification) {
+      onRequireEmailVerification(result);
+    } else {
+      onReview(result);
+    }
   }
 
   return (
@@ -156,14 +158,21 @@ export function ObservedEditForm({
               ))}
             </select>
           </Field>
-          {text("email", "Correo electrónico", { required: true, type: "email" })}
+          <Field id="email" label="Correo electrónico" required error={c.errors.email}>
+            <input
+              id="email"
+              type="email"
+              value={c.values.email}
+              readOnly
+              aria-readonly="true"
+              className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600 cursor-not-allowed focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              El correo electrónico registrado no puede modificarse en este formulario. Si necesitas actualizarlo, comunícate con administración.
+            </p>
+          </Field>
           {text("phone", "Teléfono celular / WhatsApp", { required: true, type: "tel" })}
         </div>
-        {c.emailChanged && (
-          <p role="status" className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-900">
-            Cambiaste tu correo. Deberás verificar el nuevo correo antes de reenviar la solicitud.
-          </p>
-        )}
       </Card>
 
       <Card n={2} title="Datos académicos">

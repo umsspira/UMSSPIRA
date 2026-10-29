@@ -113,14 +113,13 @@ describe("ObservedEditForm", () => {
     expect(onVerify).not.toHaveBeenCalled();
   });
 
-  it("valida el formato del correo con la regla del registro", async () => {
-    const { onReview, onVerify } = await setup();
-    fireEvent.change(screen.getByLabelText(/Correo electrónico/), { target: { value: "mal" } });
-    expect(screen.getByRole("alert")).toHaveTextContent("Ingresa un correo electrónico válido.");
-
-    fireEvent.click(reviewButton());
-    expect(onReview).not.toHaveBeenCalled();
-    expect(onVerify).not.toHaveBeenCalled();
+  it("muestra el correo de solo lectura con mensaje informativo", async () => {
+    await setup();
+    const emailInput = screen.getByLabelText(/Correo electrónico/);
+    expect(emailInput).toHaveAttribute("readonly");
+    expect(
+      screen.getByText(/El correo electrónico registrado no puede modificarse/i),
+    ).toBeInTheDocument();
   });
 
   it("valida el teléfono de 8 dígitos con la regla del registro", async () => {
@@ -143,18 +142,7 @@ describe("ObservedEditForm", () => {
     );
   });
 
-  it("avisa y envía a verificación si cambió el correo", async () => {
-    const { onReview, onVerify } = await setup();
-    fireEvent.change(screen.getByLabelText(/Correo electrónico/), {
-      target: { value: "nuevo@correo.com" },
-    });
-    expect(screen.getByRole("status")).toHaveTextContent("Cambiaste tu correo");
 
-    fireEvent.click(reviewButton());
-    expect(onVerify).toHaveBeenCalledTimes(1);
-    expect(onVerify.mock.calls[0][0].emailChanged).toBe(true);
-    expect(onReview).not.toHaveBeenCalled();
-  });
 
   it("rechaza archivos con formato inválido", async () => {
     await setup();
