@@ -57,12 +57,9 @@ export const registrationsProviders: Provider[] = [
   })),
   {
     provide: RenewActivationUseCase,
-        inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY, CorrectionTokenService],
-    useFactory: (
-      repository: ApplicationsRepository,
-      security: RegistrationSecurity,
-      correctionTokens: CorrectionTokenService,
-    ) => new ReviewApplicationUseCase(repository, security, correctionTokens),
+    inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY],
+    useFactory: (repository: ApplicationsRepository, security: RegistrationSecurity) =>
+      new RenewActivationUseCase(repository, security),
   },
   PrismaRegistrationRepository,
   PrismaApplicationsRepository,
@@ -124,7 +121,7 @@ export const registrationsProviders: Provider[] = [
     inject: [APPLICATIONS_REPOSITORY],
     useFactory: (repository: ApplicationsRepository) => new ListApplicationsUseCase(repository),
   },
-    {
+  {
     provide: GetApplicationMetricsUseCase,
     inject: [APPLICATIONS_REPOSITORY],
     useFactory: (repository: ApplicationsRepository) =>
@@ -142,6 +139,15 @@ export const registrationsProviders: Provider[] = [
       new GetApplicationDocumentUseCase(repository),
   },
   {
+    provide: ReviewApplicationUseCase,
+    inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY, CorrectionTokenService],
+    useFactory: (
+      repository: ApplicationsRepository,
+      security: RegistrationSecurity,
+      correctionTokens: CorrectionTokenService,
+    ) => new ReviewApplicationUseCase(repository, security, correctionTokens),
+  },
+  {
     provide: ActivateRegistrationUseCase,
     inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY, PASSWORD_HASHER],
     useFactory: (
@@ -150,7 +156,6 @@ export const registrationsProviders: Provider[] = [
       passwords: PasswordHasher,
     ) => new ActivateRegistrationUseCase(repository, security, passwords),
   },
-
   {
     provide: VerifyActivationCodeUseCase,
     inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY],
