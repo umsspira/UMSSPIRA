@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { isSessionExpiredError, notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
+import { ConnectionErrorBanner } from '@/modules/reports/components/connection-error-banner';
 
 type SurveyReport = {
   total: number;
@@ -16,7 +17,7 @@ type SurveyReport = {
 
 export function SurveyReportDashboard() {
   const [report, setReport] = useState<SurveyReport | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     authenticatedFetch('/api/v1/reports/surveys')
@@ -29,11 +30,12 @@ export function SurveyReportDashboard() {
       .then(setReport)
       .catch((reason: unknown) => {
         if (isSessionExpiredError(reason)) return notifySessionExpired();
-        setError(reason instanceof Error ? reason.message : 'No se pudo cargar el reporte');
+        setError(true);
       });
   }, []);
 
-  if (error) return <p role="alert" className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>;
+  // HU-004 CA-09: cualquier fallo de la API o de la red muestra el banner de conexión.
+  if (error) return <ConnectionErrorBanner className="mt-5" />;
   if (!report) return <p className="mt-5 text-sm text-abyssal-blue/70">Cargando respuestas...</p>;
 
   const groups = [['Modalidad', report.porModalidad], ['Salario mensual', report.porSalario], ['Inserción laboral', report.porInsercion]] as const;

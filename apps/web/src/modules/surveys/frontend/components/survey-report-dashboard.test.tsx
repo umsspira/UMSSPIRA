@@ -27,3 +27,20 @@ describe('HU-004 CA-06: sesión caducada al consultar encuestas', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
+
+describe('HU-004 CA-09: error al conectar con la base de datos en encuestas', () => {
+  const BANNER = 'No se pudo conectar con el servidor. Verifique su conexión o intente más tarde';
+
+  it('un error interno del servidor muestra el banner de conexión', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 500 } as Response);
+    render(<SurveyReportDashboard />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(BANNER);
+    expect(expiredListener).not.toHaveBeenCalled();
+  });
+
+  it('una falla de red también muestra el banner de conexión', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    render(<SurveyReportDashboard />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(BANNER);
+  });
+});
