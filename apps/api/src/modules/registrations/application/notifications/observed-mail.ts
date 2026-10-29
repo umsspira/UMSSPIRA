@@ -87,7 +87,7 @@ export function renderObservedHtml(input: ObservedMailInput): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${COLOR.card};border:1px solid ${COLOR.cardLine};border-radius:12px;overflow:hidden;">
 <tr><td style="background:${COLOR.header};padding:18px 24px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td align="left" style="vertical-align:middle;"><img src="${logo}" alt="UMSSPIRA" height="32" style="display:block;height:32px;width:auto;border:0;"></td>
+<td align="left" style="vertical-align:middle;"><img src="${logo}" alt="UMSSPIRA" height="32" style="display:block;height:32px;width:auto;border:0;color:#FFFFFF;font-family:${FONT};font-size:16px;font-weight:700;">
 <td align="right" style="vertical-align:middle;font-family:${FONT};font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:${COLOR.line};">Universidad Mayor de San Simón</td>
 </tr></table></td></tr>
 <tr><td align="center" style="padding:32px 32px 8px 32px;">
