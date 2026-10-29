@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useSurveySubmit } from './use-survey-submit';
+import { ApiError } from '@/shared/services/api-client';
 import { submitSurvey } from '../services/surveys.service';
 
 jest.mock('../services/surveys.service', () => ({
@@ -23,6 +24,7 @@ describe('HU-EP09-03 / T3.4 — hook de envío', () => {
     const { result } = renderHook(() => useSurveySubmit());
     expect(result.current.isSubmitting).toBe(false);
     expect(result.current.status).toBe('idle');
+    expect(result.current.errorKind).toBeNull();
     expect(result.current.message).toBeNull();
   });
 
@@ -90,6 +92,17 @@ describe('HU-EP09-03 / T3.4 — hook de envío', () => {
     expect(result.current.status).toBe('success');
     expect(mockSubmit).toHaveBeenCalledTimes(2);
     expect(mockSubmit).toHaveBeenNthCalledWith(2, input);
+  });
+
+  it('diferencia una falla de conexión de un error HTTP', async () => {
+    mockSubmit.mockRejectedValueOnce(new ApiError(0, 'Sin conexión'));
+    const { result } = renderHook(() => useSurveySubmit());
+    await act(async () => { await result.current.submit(input); });
+    expect(result.current.errorKind).toBe('connection');
+    expect(result.current.message).toBe('No se pudo enviar la encuesta. Intente nuevamente');
+    mockSubmit.mockRejectedValueOnce(new ApiError(500, 'Servidor'));
+    await act(async () => { await result.current.submit(input); });
+    expect(result.current.errorKind).toBe('http');
   });
 
   it('resetea el mensaje al editar sin borrar el formulario', async () => {

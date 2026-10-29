@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { ApiError } from '@/shared/services/api-client';
 import {
   submitSurvey,
   SURVEY_SENT_MESSAGE,
@@ -9,6 +10,7 @@ import {
 } from '../services/surveys.service';
 
 export type SurveySubmitStatus = 'idle' | 'success' | 'error';
+export type SurveySubmitErrorKind = 'connection' | 'http' | null;
 
 /**
  * T3.4 — El hook NO administra ni limpia las respuestas del formulario:
@@ -18,6 +20,7 @@ export type SurveySubmitStatus = 'idle' | 'success' | 'error';
 export function useSurveySubmit() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<SurveySubmitStatus>('idle');
+  const [errorKind, setErrorKind] = useState<SurveySubmitErrorKind>(null);
   const inFlight = useRef(false);
 
   const submit = useCallback(async (values: SurveySubmitInput): Promise<boolean> => {
@@ -26,11 +29,13 @@ export function useSurveySubmit() {
     inFlight.current = true;
     setIsSubmitting(true);
     setStatus('idle');
+    setErrorKind(null);
     try {
       await submitSurvey(values);
       setStatus('success');
       return true;
-    } catch {
+    } catch (error) {
+      setErrorKind(error instanceof ApiError && error.status === 0 ? 'connection' : 'http');
       setStatus('error');
       return false;
     } finally {
@@ -40,11 +45,15 @@ export function useSurveySubmit() {
   }, []);
 
   /** Consumir cuando el usuario modifica respuestas; no toca el formulario. */
-  const resetFeedback = useCallback(() => setStatus('idle'), []);
+  const resetFeedback = useCallback(() => {
+    setStatus('idle');
+    setErrorKind(null);
+  }, []);
 
   return {
     isSubmitting,
     status,
+    errorKind,
     message: status === 'success'
       ? SURVEY_SENT_MESSAGE
       : status === 'error' ? SURVEY_SEND_ERROR_MESSAGE : null,
