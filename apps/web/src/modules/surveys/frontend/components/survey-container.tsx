@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSurveyDraft } from '../hooks/use-survey-draft';
-import { useSurveyForm, type SurveyWorkFields } from '../hooks/use-survey-form';
+import { useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
 import { useSurveySubmit } from '../hooks/use-survey-submit';
 import { useSurveyUserId } from '../hooks/use-survey-user-id';
 import { SurveyDraftNotice } from './survey-draft-notice';
@@ -32,6 +32,8 @@ export function SurveyContainer() {
   const [error, setError] = useState<string | undefined>();
   // HU-001 (QA): aviso al pasar de «Trabaja» a «No trabaja».
   const [showDiscardNotice, setShowDiscardNotice] = useState(false);
+  // HU-002: «Este campo es obligatorio» se muestra recién cuando el titulado intenta continuar.
+  const [showErrors, setShowErrors] = useState(false);
   const router = useRouter();
   const userId = useSurveyUserId();
   const { draft, status, saveDraft, clearDraft } = useSurveyDraft(userId);
@@ -53,6 +55,8 @@ export function SurveyContainer() {
       empresa: draft.empresa,
       area: draft.area,
         modalidad: draft.modalidad ? MODALITY_FROM_DRAFT[draft.modalidad] : undefined,
+      salario_mensual: draft.salario_mensual,
+      tiempo_insercion: draft.tiempo_insercion,
     });
   }, [draft]);
 
@@ -60,29 +64,39 @@ export function SurveyContainer() {
     ? null
     : form.values.condicion_laboral ? 'works' : 'not-works';
 
-  const persistDraft = () => {
-    if (!form.values.condicion_laboral) {
+  // HU-002 (criterio 11): el borrador se guarda en cada cambio, no solo al pasar al resumen.
+  const persistDraft = (values: SurveyFormValues = form.values) => {
+    if (values.condicion_laboral === null) return;
+    if (!values.condicion_laboral) {
       saveDraft({ workCondition: 'not-works' });
       return;
     }
     saveDraft({
       workCondition: 'works',
-      cargo: form.values.cargo,
-      empresa: form.values.empresa,
-      area: form.values.area,
-      modalidad: form.values.modalidad?.toLowerCase() as SurveyDraft['modalidad'],
+      cargo: values.cargo,
+      empresa: values.empresa,
+      area: values.area,
+      modalidad: values.modalidad?.toLowerCase() as SurveyDraft['modalidad'],
+      salario_mensual: values.salario_mensual,
+      tiempo_insercion: values.tiempo_insercion,
     });
   };
 
   const handleChange = (value: WorkCondition) => {
     setShowDiscardNotice(form.values.condicion_laboral === true && value === 'not-works');
+    setShowErrors(false);
     form.setWorkCondition(value === 'works');
+    const works = value === 'works';
+    persistDraft(form.values.condicion_laboral === works
+      ? form.values
+      : { condicion_laboral: works, cargo: '', empresa: '', area: '', modalidad: '', salario_mensual: '', tiempo_insercion: '' });
     if (submission.status !== 'success') submission.resetFeedback();
     setError(undefined);
   };
 
   const handleWorkFieldChange = (field: keyof SurveyWorkFields, value: string) => {
     form.setWorkField(field, value);
+    if (form.values.condicion_laboral === true) persistDraft({ ...form.values, [field]: value });
     if (submission.status !== 'success') submission.resetFeedback();
   };
 
@@ -92,7 +106,10 @@ export function SurveyContainer() {
       setError('Seleccione su condición laboral actual');
       return;
     }
-    if (hasWorkErrors) return;
+    if (hasWorkErrors) {
+      setShowErrors(true);
+      return;
+    }
     persistDraft();
     setIsReviewOpen(true);
   };
@@ -148,6 +165,9 @@ export function SurveyContainer() {
   };
 
   const hasWorkErrors = form.values.condicion_laboral === true && Object.values(fieldErrors).some(Boolean);
+  const visibleErrors: Record<keyof SurveyWorkFields, string | undefined> = showErrors
+    ? fieldErrors
+    : { cargo: undefined, empresa: undefined, area: undefined, modalidad: undefined, salario_mensual: undefined, tiempo_insercion: undefined };
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
@@ -216,7 +236,7 @@ export function SurveyContainer() {
                 area: form.values.area,
                 modalidad: form.values.modalidad as WorkModality | null,
               }}
-              errors={fieldErrors}
+              errors={visibleErrors}
               touched={{ cargo: true, empresa: true, area: true, modalidad: true }}
               onChange={(field, value) => handleWorkFieldChange(field, String(value))}
               onBlur={() => undefined}
@@ -225,12 +245,12 @@ export function SurveyContainer() {
               <SurveySalarySelector
                 value={form.values.salario_mensual}
                 onChange={(value) => handleWorkFieldChange('salario_mensual', value)}
-                error={fieldErrors.salario_mensual}
+                error={visibleErrors.salario_mensual}
               />
               <SurveyInsertionTimeInput
                 value={form.values.tiempo_insercion}
                 onChange={(value) => handleWorkFieldChange('tiempo_insercion', value)}
-                error={fieldErrors.tiempo_insercion}
+                error={visibleErrors.tiempo_insercion}
               />
             </div>
             <SurveyConfidentialNotice />

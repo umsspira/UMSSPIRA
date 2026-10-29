@@ -7,7 +7,10 @@ import {
 
 const KEY = 'umsspira:survey-draft:user-1';
 
-beforeEach(() => window.localStorage.clear());
+beforeEach(() => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
 
 describe('sanitizeDraft', () => {
   it('descarta salario y tiempo de inserción', () => {
@@ -66,12 +69,33 @@ describe('useSurveyDraft', () => {
     expect(window.localStorage.getItem(KEY)).toBeNull();
   });
 
+  it('guarda salario y tiempo en sessionStorage y los recupera en la misma pestaña', () => {
+    const first = renderHook(() => useSurveyDraft('user-1'));
+    act(() => first.result.current.saveDraft({
+      workCondition: 'works', cargo: 'Dev', salario_mensual: '5.001–8.000', tiempo_insercion: '6',
+    }));
+    expect(window.localStorage.getItem(KEY)).not.toContain('5.001');
+    const second = renderHook(() => useSurveyDraft('user-1'));
+    expect(second.result.current.draft).toEqual({
+      workCondition: 'works', cargo: 'Dev', salario_mensual: '5.001–8.000', tiempo_insercion: '6',
+    });
+  });
+
+  it('clearDraft también borra salario y tiempo de la sesión', () => {
+    const { result } = renderHook(() => useSurveyDraft('user-1'));
+    act(() => result.current.saveDraft({ workCondition: 'works', salario_mensual: '5.001–8.000' }));
+    act(() => result.current.clearDraft());
+    expect(window.sessionStorage.getItem('umsspira:survey-session:user-1')).toBeNull();
+  });
+
   it('clearAllSurveyDrafts borra todos los borradores', () => {
+    window.sessionStorage.setItem('umsspira:survey-session:a', '{}');
     window.localStorage.setItem('umsspira:survey-draft:a', '{}');
     window.localStorage.setItem('umsspira:survey-draft:b', '{}');
     window.localStorage.setItem('otra-clave', 'x');
     clearAllSurveyDrafts();
     expect(window.localStorage.getItem('umsspira:survey-draft:a')).toBeNull();
     expect(window.localStorage.getItem('otra-clave')).toBe('x');
+    expect(window.sessionStorage.getItem('umsspira:survey-session:a')).toBeNull();
   });
 });
