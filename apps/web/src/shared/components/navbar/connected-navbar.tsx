@@ -8,6 +8,7 @@ import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared
 import { Navbar } from './navbar';
 import { NAVBAR_ROLE_LABEL } from './navigation';
 import type { NavbarRole, NavbarSession } from './types';
+import { clearAllSurveyDrafts } from '@/modules/surveys/frontend/hooks/use-survey-draft';
 
 const roles: NavbarRole[] = ['titulado', 'empresa', 'administrador'];
 
@@ -82,6 +83,7 @@ export function ConnectedNavbar() {
     setLogoutError(false);
     try {
       await revokeCurrentSession();
+      clearAllSurveyDrafts();
       clearSession();
       authStore.reset();
       setSession(null);
