@@ -61,9 +61,12 @@ export class ReviewApplicationUseCase {
     }
     try {
       return await this.correctionLinks.issueLink(id);
-    } catch {
+    } catch (error) {
       // el dictamen no depende del enlace: el titulado podra pedirlo despues
-      this.logger.error('No se pudo generar el enlace de correccion para el correo de observado');
+      this.logger.error(
+        'No se pudo generar el enlace de correccion para el correo de observado',
+        error instanceof Error ? error.message : String(error),
+      );
       return null;
     }
   }
