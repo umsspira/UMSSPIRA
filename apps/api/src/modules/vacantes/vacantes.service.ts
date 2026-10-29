@@ -1,13 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 
-export interface UpdateVacanteData {
-  titulo?: string;
-  modalidad?: string;
-  nivel_experiencia?: string;
-  descripcion_tecnica?: string;
-}
-
 @Injectable()
 export class VacantesService {
   constructor(private prisma: PrismaService) {}
@@ -31,37 +24,6 @@ export class VacantesService {
     return this.prisma.vacante.update({
       where: { id: idVacante },
       data: { estado: 'CERRADA' }
-    });
-  }
-
-  async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacanteData) {
-    const empresa = await this.prisma.empresa.findFirst({
-      where: { id_usuario: idUsuario }
-    });
-
-    if (!empresa) {
-      throw new Error('Empresa no encontrada');
-    }
-
-    const vacante = await this.prisma.vacante.findFirst({
-      where: { 
-        id: idVacante,
-        id_empresa: empresa.id 
-      }
-    });
-
-    if (!vacante) {
-      throw new Error('Vacante no encontrada o no tienes permiso para editarla');
-    }
-
-    return this.prisma.vacante.update({
-      where: { id: idVacante },
-      data: {
-        titulo: data.titulo,
-        modalidad: data.modalidad,
-        nivel_experiencia: data.nivel_experiencia,
-        descripcion_tecnica: data.descripcion_tecnica,
-      }
     });
   }
 }

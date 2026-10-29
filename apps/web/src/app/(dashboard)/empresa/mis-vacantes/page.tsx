@@ -119,7 +119,7 @@ export default function MisVacantesPage() {
   };
 
   const handleEditar = (id: string) => {
-    router.push(`/empresa/mis-vacantes/${id}/editar`);
+    router.push(`/job-postings?edit=${id}`);
   };
 
   const getBadgeStyle = (estado: string) => {
@@ -222,7 +222,7 @@ export default function MisVacantesPage() {
             </div>
           </div>
 
-          {/* TABS */}
+          {/* TABS (Estilo de la captura: activa oscura, inactivas blancas con puntitos) */}
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
             {['Todas', 'Activas', 'Pausadas', 'Cerradas', 'Borradores'].map((tab) => {
               const isActive = activeTab === tab;
@@ -245,6 +245,7 @@ export default function MisVacantesPage() {
                     transition: 'all 0.2s'
                   }}
                 >
+                  {/* Puntitos de colores */}
                   {tab === 'Todas' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#eab308' }}></div>}
                   {tab === 'Activas' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e' }}></div>}
                   {tab === 'Pausadas' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#eab308' }}></div>}
@@ -257,10 +258,10 @@ export default function MisVacantesPage() {
             })}
           </div>
 
-          {/* TABLA CORREGIDA: overflow visible */}
-          <div style={{ border: '1px solid var(--oatmeal)', borderRadius: '0.75rem', backgroundColor: '#fff' }}>
+          {/* TABLA */}
+          <div style={{ border: '1px solid var(--oatmeal)', borderRadius: '0.75rem', overflow: 'hidden' }}>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 2.5fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '1rem', backgroundColor: '#fcfcfc', borderBottom: '1px solid var(--oatmeal)', fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center', borderRadius: '0.75rem 0.75rem 0 0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 2.5fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '1rem', backgroundColor: '#fcfcfc', borderBottom: '1px solid var(--oatmeal)', fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center' }}>
               <div><input type="checkbox" style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: 'var(--flame)' }} /></div>
               <div>Título</div>
               <div>Modalidad</div>
@@ -290,13 +291,13 @@ export default function MisVacantesPage() {
                       alignItems: 'center', 
                       fontSize: '0.875rem',
                       backgroundColor: '#fff',
-                      transition: 'background-color 0.2s',
-                      borderRadius: isLast ? '0 0 0.75rem 0.75rem' : 0
+                      transition: 'background-color 0.2s'
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fdfbf7'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}
                   >
                     
+                    {/* Checkbox más grande y con un borde rosado suave para simular el focus de la imagen */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <input type="checkbox" style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--flame)', border: '1px solid #f43f5e', borderRadius: '4px' }} />
                     </div>
@@ -306,6 +307,7 @@ export default function MisVacantesPage() {
                       <div style={{ fontSize: '0.8rem', color: '#4b5563', marginTop: '0.25rem', fontWeight: 500 }}>{vacante.tecnologias}</div>
                     </div>
 
+                    {/* ICONOS DE MODALIDAD ACTUALIZADOS */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#374151', fontWeight: 500 }}>
                       {vacante.modalidad === 'Remoto' && <Laptop size={16} />}
                       {vacante.modalidad === 'Híbrido' && <Building2 size={16} />}
@@ -330,6 +332,14 @@ export default function MisVacantesPage() {
 
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', position: 'relative' }}>
                       
+                      <button 
+                        onClick={() => alert(`Ver detalle de: ${vacante.titulo}\n(Próximamente)`)}
+                        style={{ border: '1px solid var(--oatmeal)', background: '#fff', padding: '0.4rem', borderRadius: '0.4rem', cursor: 'pointer', color: '#374151', transition: 'all 0.15s' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--flame)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--flame)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = 'var(--oatmeal)'; }}>
+                        <Eye size={16} />
+                      </button>
+                      
                       <button onClick={() => handleEditar(vacante.id)} style={{ border: '1px solid var(--oatmeal)', background: '#fff', padding: '0.4rem', borderRadius: '0.4rem', cursor: 'pointer', color: '#374151', transition: 'all 0.15s' }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#111827'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#111827'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = 'var(--oatmeal)'; }}>
@@ -341,8 +351,8 @@ export default function MisVacantesPage() {
                       </button>
 
                       {menuAbierto === vacante.id && (
-                        <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: '0.5rem', backgroundColor: '#fff', border: '1px solid var(--oatmeal)', borderRadius: '0.5rem', padding: '0.5rem', width: '180px', zIndex: 50, boxShadow: '0 8px 20px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '0.25rem', textAlign: 'left' }}>
-                          <button onClick={() => alert('Ver detalle estará disponible en el próximo PR')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Eye size={14} /> Ver detalle</button>
+                        <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: '0.5rem', backgroundColor: '#fff', border: '1px solid var(--oatmeal)', borderRadius: '0.5rem', padding: '0.5rem', width: '180px', zIndex: 20, boxShadow: '0 8px 20px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '0.25rem', textAlign: 'left' }}>
+                          <button style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Eye size={14} /> Ver detalle</button>
                           <button onClick={() => handleEditar(vacante.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pencil size={14} /> Editar</button>
                           <button style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pause size={14} /> Pausar</button>
                           
