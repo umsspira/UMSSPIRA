@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSurveyDraft } from '../hooks/use-survey-draft';
-import { useSurveyForm, type SurveyWorkFields } from '../hooks/use-survey-form';
+import { useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
 import { useSurveySubmit } from '../hooks/use-survey-submit';
 import { useSurveyUserId } from '../hooks/use-survey-user-id';
 import { SurveyDraftNotice } from './survey-draft-notice';
@@ -55,6 +55,8 @@ export function SurveyContainer() {
       empresa: draft.empresa,
       area: draft.area,
         modalidad: draft.modalidad ? MODALITY_FROM_DRAFT[draft.modalidad] : undefined,
+      salario_mensual: draft.salario_mensual,
+      tiempo_insercion: draft.tiempo_insercion,
     });
   }, [draft]);
 
@@ -62,17 +64,21 @@ export function SurveyContainer() {
     ? null
     : form.values.condicion_laboral ? 'works' : 'not-works';
 
-  const persistDraft = () => {
-    if (!form.values.condicion_laboral) {
+  // HU-002 (criterio 11): el borrador se guarda en cada cambio, no solo al pasar al resumen.
+  const persistDraft = (values: SurveyFormValues = form.values) => {
+    if (values.condicion_laboral === null) return;
+    if (!values.condicion_laboral) {
       saveDraft({ workCondition: 'not-works' });
       return;
     }
     saveDraft({
       workCondition: 'works',
-      cargo: form.values.cargo,
-      empresa: form.values.empresa,
-      area: form.values.area,
-      modalidad: form.values.modalidad?.toLowerCase() as SurveyDraft['modalidad'],
+      cargo: values.cargo,
+      empresa: values.empresa,
+      area: values.area,
+      modalidad: values.modalidad?.toLowerCase() as SurveyDraft['modalidad'],
+      salario_mensual: values.salario_mensual,
+      tiempo_insercion: values.tiempo_insercion,
     });
   };
 
@@ -80,12 +86,17 @@ export function SurveyContainer() {
     setShowDiscardNotice(form.values.condicion_laboral === true && value === 'not-works');
     setShowErrors(false);
     form.setWorkCondition(value === 'works');
+    const works = value === 'works';
+    persistDraft(form.values.condicion_laboral === works
+      ? form.values
+      : { condicion_laboral: works, cargo: '', empresa: '', area: '', modalidad: '', salario_mensual: '', tiempo_insercion: '' });
     if (submission.status !== 'success') submission.resetFeedback();
     setError(undefined);
   };
 
   const handleWorkFieldChange = (field: keyof SurveyWorkFields, value: string) => {
     form.setWorkField(field, value);
+    if (form.values.condicion_laboral === true) persistDraft({ ...form.values, [field]: value });
     if (submission.status !== 'success') submission.resetFeedback();
   };
 
