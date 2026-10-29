@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ObservedApplicationDetail } from "@umsspira/shared-types";
 import { ObservedEditForm } from "./observed-edit-form";
 import { ObservedReviewSubmit } from "./observed-review-submit";
@@ -63,7 +63,7 @@ function NetworkErrorMessage({ message, onRetry }: { message: string; onRetry: (
 export function ObservedNoticeView({ token }: { token: string }) {
   const [state, setState] = useState<ViewState>({ status: "loading" });
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setState({ status: "loading" });
     getObservedApplication(token)
       .then((result) => {
@@ -81,11 +81,11 @@ export function ObservedNoticeView({ token }: { token: string }) {
           message: "No fue posible conectar con el servidor. Intenta nuevamente.",
         });
       });
-  };
+  }, [token]);
 
   useEffect(() => {
     loadData();
-  }, [token]);
+  }, [loadData]);
 
   return (
     <main className="min-h-screen bg-[#EDE8DE] px-4 py-10">
