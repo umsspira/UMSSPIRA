@@ -9,6 +9,11 @@ export type FetchObservedApplicationResult =
   | { status: 'invalid-link' }
   | { status: 'error'; message: string };
 
+export type RequestLinkResult =
+  | { status: 'success'; message: string }
+  | { status: 'rate-limited'; message: string }
+  | { status: 'error'; message: string };
+
 export type ResubmitOutcome =
   | { status: 'success' }
   | { status: 'conflict' } // CA-10.5: la solicitud cambió
@@ -85,6 +90,43 @@ export async function getObservedApplication(token: string): Promise<FetchObserv
       return { status: 'error', message: msg };
     }
     return { status: 'success', data: body.data };
+  } catch {
+    return { status: 'error', message: CONNECTION_ERROR };
+  }
+}
+
+export async function requestCorrectionLink(payload: {
+  ci: string;
+  complemento?: string;
+  expedidoEn: string;
+}): Promise<RequestLinkResult> {
+  try {
+    const res = await fetch(`${OBSERVED_URL}/request-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ci: payload.ci,
+        complemento: payload.complemento || undefined,
+        expedidoEn: payload.expedidoEn,
+      }),
+    });
+    if (res.status === 429) {
+      return {
+        status: 'rate-limited',
+        message: 'Demasiadas solicitudes; intenta más tarde',
+      };
+    }
+    const body = (await readBody(res)) as { data?: { message?: string }; error?: { message?: string } } | null;
+    if (!res.ok) {
+      const msg = readApiError(body as never, 'No se pudo procesar la solicitud.').message;
+      return { status: 'error', message: msg };
+    }
+    return {
+      status: 'success',
+      message:
+        body?.data?.message ??
+        'Si los datos corresponden a una solicitud observada, se enviará un enlace de corrección al correo registrado',
+    };
   } catch {
     return { status: 'error', message: CONNECTION_ERROR };
   }

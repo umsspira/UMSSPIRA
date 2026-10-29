@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ObservedApplicationDetail } from "@umsspira/shared-types";
 import { ObservedEditForm } from "./observed-edit-form";
 import { ObservedReviewSubmit } from "./observed-review-submit";
+import { RequestCorrectionLinkForm } from "./request-correction-link-form";
 import type { CorrectionResult, CorrectionValues } from "../hooks/use-observed-correction";
 import { getObservedApplication } from "../services/application.service";
 
@@ -31,8 +32,9 @@ function StatusMessage() {
     >
       <h1 className="text-xl font-bold text-slate-900">Enlace no válido o vencido</h1>
       <p className="mt-3 text-sm text-slate-600">
-        Este enlace no corresponde a ninguna solicitud observada o ya ha vencido. Si tu solicitud sigue observada, puedes solicitar uno nuevo a tu correo registrado.
+        Este enlace no corresponde a ninguna solicitud observada o ya ha vencido.
       </p>
+      <RequestCorrectionLinkForm />
     </div>
   );
 }
