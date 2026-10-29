@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { SurveyOfflineBanner } from "./survey-offline-banner";
 
 export interface SurveyReviewAnswer {
   id: string;
@@ -15,6 +16,9 @@ interface SurveyReviewModalProps {
   isOpen: boolean;
   answers: SurveyReviewAnswer[];
   isSubmitting?: boolean;
+  submitStatus?: 'idle' | 'success' | 'error';
+  submitMessage?: string | null;
+  isConnectionError?: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -23,6 +27,9 @@ export function SurveyReviewModal({
   isOpen,
   answers,
   isSubmitting = false,
+  submitStatus = 'idle',
+  submitMessage = null,
+  isConnectionError = false,
   onClose,
   onConfirm,
 }: SurveyReviewModalProps) {
@@ -79,6 +86,7 @@ export function SurveyReviewModal({
         ref={modalRef}
         role="dialog"
         aria-modal="true"
+        aria-busy={isSubmitting}
         aria-labelledby="survey-review-title"
         aria-describedby="survey-review-description"
         className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#c9c1b1] bg-white shadow-2xl"
@@ -101,6 +109,31 @@ export function SurveyReviewModal({
           </p>
         </div>
 
+        <div className="space-y-3 px-7 pt-3 sm:px-14">
+          {/* T3.6: el aviso offline debe ser visible incluso con el modal abierto. */}
+          <SurveyOfflineBanner />
+          {isSubmitting && (
+            <p role="status" aria-live="polite" className="mb-4 rounded-lg border border-abyssal-blue/30 bg-palladian p-3 text-abyssal-blue">
+              Enviando encuesta...
+            </p>
+          )}
+          {submitMessage && (
+            <div
+              role={submitStatus === 'error' ? 'alert' : 'status'}
+              className={`mb-4 rounded-lg border p-4 text-sm ${submitStatus === 'error'
+                ? 'border-red-300 bg-red-50 text-red-800'
+                : 'border-green-300 bg-green-50 text-green-800'}`}
+            >
+              <p className="font-semibold">{submitMessage}</p>
+              {submitStatus === 'error' && (
+                <p className="mt-1">Tus respuestas se conservaron. Puedes reintentar o volver a editarlas.</p>
+              )}
+              {submitStatus === 'error' && isConnectionError && (
+                <p className="mt-1">No fue posible conectar con el servidor. Comprueba la conexión e intenta nuevamente.</p>
+              )}
+            </div>
+          )}
+        </div>
         <div className="overflow-y-auto px-7 py-6 sm:px-14 sm:py-9">
           {answers.length === 0 ? (
             <p className="rounded-xl border border-[#c9c1b1] bg-[#f5f3ee] p-5 text-sm text-[#4f4f4f]">
@@ -145,21 +178,21 @@ export function SurveyReviewModal({
             disabled={isSubmitting}
             className="rounded-xl border border-[#c9c1b1] px-8 py-4 text-xl font-semibold text-[#1b2632] hover:bg-[#f5f3ee] disabled:opacity-50"
           >
-            Volver y editar
+            {submitStatus === 'success' ? 'Cerrar' : 'Volver y editar'}
           </button>
 
           {/*
             Integración T3.4: el contenedor debe pasar aquí el handler que
             ejecuta useSurveySubmit con el payload de useSurveyForm.
           */}
-          <button
+          {submitStatus !== 'success' && <button
             type="button"
             onClick={onConfirm}
             disabled={isSubmitting || answers.length === 0}
             className="rounded-xl bg-[#1b2632] px-8 py-4 text-xl font-semibold text-white hover:bg-[#2c3b4d] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSubmitting ? "Enviando..." : "Confirmar y enviar"}
-          </button>
+            {isSubmitting ? "Enviando..." : submitStatus === 'error' ? "Reintentar envío" : "Confirmar y enviar"}
+          </button>}
         </div>
       </div>
     </div>
