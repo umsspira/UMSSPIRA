@@ -16,4 +16,10 @@ describe("HU-004/T4.1: destino administrativo de encuestas", () => {
     expect(screen.getByText("Seguimiento institucional")).toBeInTheDocument();
     expect(screen.getByText("Reporte de encuestas")).toBeInTheDocument();
   });
+
+  it("HU-004 CA-10: el contenedor del reporte puede encogerse en móvil", () => {
+    render(<EmploymentSurveyAdminPage />);
+    const reportSection = screen.getByRole("heading", { name: "Reportes de encuestas" }).closest("section");
+    expect(reportSection).toHaveClass("min-w-0");
+  });
 });

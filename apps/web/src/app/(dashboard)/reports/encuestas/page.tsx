@@ -23,7 +23,8 @@ export default function EmploymentSurveyAdminPage() {
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <section className="rounded-lg border border-oatmeal bg-palladian p-5">
+          {/* HU-004 CA-10: min-w-0 evita que la tabla de respuestas ensanche la página en móvil. */}
+          <section className="min-w-0 rounded-lg border border-oatmeal bg-palladian p-5">
             <h3 className="font-semibold text-abyssal-blue">Reportes de encuestas</h3>
             <SurveyReportDashboard />
           </section>
