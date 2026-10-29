@@ -69,4 +69,8 @@ export async function middleware(request: NextRequest) {
 export const config = { matcher: [
   '/applications/:path*', '/reports/:path*', '/surveys/:path*', '/me/:path*', '/afinidad', '/afinidad/:path*',
   '/empresa/postulantes', '/empresa/postulantes/:path*', '/postulantes', '/postulantes/:path*',
+  // Áreas que exigen sesión (el portal institucional /portal/institucional sigue público).
+  '/portal', '/portal/empleos', '/portal/mentorias', '/portal/comunidad', '/portal/beneficios',
+  '/portal/eventos', '/portal/eventos/:path*', '/portal/mensajes',
+  '/mentorship', '/mentorship/:path*', '/job-postings',
 ] };

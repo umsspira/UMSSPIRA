@@ -19,8 +19,6 @@ type IconType = React.ComponentType<{ className?: string }>;
 
 /* ---------- Piezas reutilizables ---------- */
 
-// Imagen desde /public/images/institucional/. Si el archivo aún no existe,
-// muestra un panel ilustrado para que la página no se vea rota.
 function TabImage({
   src, alt, Icon, className = '',
 }: { src: string; alt: string; Icon: IconType; className?: string }) {
@@ -77,7 +75,6 @@ function LoginCta({ title, text }: { title: string; text: string }) {
   );
 }
 
-// Encabezado de sección
 function SectionHead({
   eyebrow, title, text, center = false,
 }: { eyebrow: string; title: string; text?: string; center?: boolean }) {
@@ -90,7 +87,6 @@ function SectionHead({
   );
 }
 
-// Pasos numerados
 function Steps({ items, cols = 'md:grid-cols-3' }: { items: { t: string; d: string }[]; cols?: string }) {
   return (
     <div className={`grid grid-cols-1 ${cols} gap-6`}>
@@ -107,7 +103,6 @@ function Steps({ items, cols = 'md:grid-cols-3' }: { items: { t: string; d: stri
   );
 }
 
-// Tarjetas con ícono
 function IconCards({
   items, cols = 'md:grid-cols-3',
 }: { items: { Icon: IconType; t: string; d: string }[]; cols?: string }) {
@@ -126,7 +121,6 @@ function IconCards({
   );
 }
 
-// Preguntas frecuentes (desplegables)
 function Faq({ items }: { items: { q: string; a: string }[] }) {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
   return (
@@ -152,7 +146,6 @@ function Faq({ items }: { items: { q: string; a: string }[] }) {
   );
 }
 
-// Contenedor estándar de sección
 function Block({ children, bg = '' }: { children: React.ReactNode; bg?: string }) {
   return (
     <section className={`py-14 px-4 sm:px-6 lg:px-8 ${bg || 'bg-[#EEE9DF]'}`}>
@@ -161,7 +154,6 @@ function Block({ children, bg = '' }: { children: React.ReactNode; bg?: string }
   );
 }
 
-// Tarjetas con foto arriba
 function PhotoCards({
   items, cols = 'md:grid-cols-3',
 }: { items: { Icon: IconType; t: string; d: string; img: string }[]; cols?: string }) {
@@ -180,7 +172,6 @@ function PhotoCards({
   );
 }
 
-// Sección con imagen a un lado y contenido al otro
 function SplitBlock({
   img, alt, Icon, reverse = false, bg = '', children,
 }: { img: string; alt: string; Icon: IconType; reverse?: boolean; bg?: string; children: React.ReactNode }) {
@@ -438,7 +429,7 @@ function HomeView() {
 
 /* ---------- COMUNIDAD ---------- */
 
-function ComunidadView() {
+export function ComunidadView() {
   return (
     <>
       <TabHero
@@ -993,7 +984,7 @@ function NosotrosView() {
 
 /* ---------- BOLSA DE TRABAJO ---------- */
 
-function EmpleosView() {
+export function EmpleosView() {
   return (
     <>
       <TabHero
@@ -1098,7 +1089,7 @@ function EmpleosView() {
 
 /* ---------- MENTORÍAS ---------- */
 
-function MentoriasView() {
+export function MentoriasView() {
   return (
     <>
       <TabHero

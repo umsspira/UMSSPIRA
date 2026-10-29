@@ -16,7 +16,6 @@ function sessionFromUser(value: unknown): NavbarSession | null {
   const user = value as { email?: unknown; role?: unknown };
   if (!roles.includes(user.role as NavbarRole)) return null;
   const role = user.role as NavbarRole;
-  // El contrato actual de /me entrega email y rol, no un nombre completo.
   const name = typeof user.email === 'string' && user.email ? user.email.split('@')[0] : NAVBAR_ROLE_LABEL[role];
   const words = name.split(/[\s._-]+/).filter(Boolean);
   const initials = words.length > 1 ? `${words[0][0]}${words[1][0]}` : name.slice(0, 2);
@@ -35,12 +34,9 @@ export function ConnectedNavbar() {
     let request: AbortController | undefined;
     let disposed = false;
     const invalidateSession = () => {
-      // HU-004 CA-05: un rechazo 401 no debe dejar el estado React autenticado.
       clearSession();
       authStore.reset();
       setSession(null);
-      // El portal institucional público puede mostrarse sin sesión;
-      // reportería, en cambio, requiere volver a /login.
       if (pathname === '/reports' || pathname?.startsWith('/reports/')) {
         router.replace('/login');
         router.refresh();
@@ -85,7 +81,6 @@ export function ConnectedNavbar() {
       clearSession();
       authStore.reset();
       setSession(null);
-      // HU-004: el administrador regresa a la bienvenida institucional.
       router.push(session?.role === 'administrador' ? '/' : '/login');
       router.refresh();
     } catch { setLogoutError(true); }

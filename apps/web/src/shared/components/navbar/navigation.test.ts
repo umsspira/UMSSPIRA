@@ -33,7 +33,6 @@ it('activa el módulo por la ruta más específica, incluidos los registros din�
   expect(activeSection('/portal/empleos')).toBe('jobs');
 });
 
-
 it('HU-004/T4.1: muestra reportes al administrador y reserva encuestas para titulado', () => {
   const adminLinks = visibleLinks(NAVBAR_ACCOUNT_LINKS, 'administrador');
   expect(adminLinks).toEqual(expect.arrayContaining([
@@ -49,7 +48,6 @@ it('HU-004/T4.1: muestra reportes al administrador y reserva encuestas para titu
   expect(graduateLinks).toEqual(expect.arrayContaining([
     expect.objectContaining({ id: 'employment-surveys', pending: expect.any(String) }),
   ]));
-  // /surveys aún no está en epic9: sin href hasta que llegue la vista.
   expect(graduateLinks.find(link => link.id === 'employment-surveys')?.href).toBeUndefined();
 
   for (const role of ['empresa', null] as const) {
