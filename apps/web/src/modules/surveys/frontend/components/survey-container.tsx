@@ -114,12 +114,12 @@ export function SurveyContainer() {
   }, [form.values]);
 
   const fieldErrors: Record<keyof SurveyWorkFields, string | undefined> = {
-    cargo: form.values.condicion_laboral && !form.values.cargo.trim() ? 'Ingrese su cargo' : undefined,
-    empresa: form.values.condicion_laboral && !form.values.empresa.trim() ? 'Ingrese la empresa' : undefined,
-    area: form.values.condicion_laboral && !form.values.area.trim() ? 'Ingrese el área o departamento' : undefined,
-    modalidad: form.values.condicion_laboral && !form.values.modalidad ? 'Seleccione una modalidad' : undefined,
-    salario_mensual: form.values.condicion_laboral && !form.values.salario_mensual ? 'Seleccione un rango' : undefined,
-    tiempo_insercion: form.values.condicion_laboral && !form.values.tiempo_insercion ? 'Ingrese los meses' : undefined,
+    cargo: form.values.condicion_laboral && !form.values.cargo.trim() ? 'Este campo es obligatorio' : undefined,
+    empresa: form.values.condicion_laboral && !form.values.empresa.trim() ? 'Este campo es obligatorio' : undefined,
+    area: form.values.condicion_laboral && !form.values.area.trim() ? 'Este campo es obligatorio' : undefined,
+    modalidad: form.values.condicion_laboral && !form.values.modalidad ? 'Este campo es obligatorio' : undefined,
+    salario_mensual: form.values.condicion_laboral && !form.values.salario_mensual ? 'Este campo es obligatorio' : undefined,
+    tiempo_insercion: form.values.condicion_laboral && !form.values.tiempo_insercion ? 'Este campo es obligatorio' : undefined,
   };
 
   const hasWorkErrors = form.values.condicion_laboral === true && Object.values(fieldErrors).some(Boolean);

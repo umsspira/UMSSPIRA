@@ -49,15 +49,10 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('con Trabaja muestra el mensaje de cada pregunta obligatoria vacía', () => {
+   it('con Trabaja muestra «Este campo es obligatorio» en cada pregunta vacía', () => {
     render(<SurveyContainer />);
     elegirTrabaja();
-    expect(screen.getByText('Ingrese su cargo')).toBeTruthy();
-    expect(screen.getByText('Ingrese la empresa')).toBeTruthy();
-    expect(screen.getByText('Ingrese el área o departamento')).toBeTruthy();
-    expect(screen.getByText('Seleccione una modalidad')).toBeTruthy();
-    expect(screen.getByText('Seleccione un rango')).toBeTruthy();
-    expect(screen.getByText('Ingrese los meses')).toBeTruthy();
+    expect(screen.getAllByText('Este campo es obligatorio')).toHaveLength(6);
   });
 
   it('con campos obligatorios vacíos no abre el resumen', () => {

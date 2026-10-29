@@ -63,23 +63,23 @@ describe('SurveyJobInputs', () => {
   });
 
   it('muestra el error de un campo solo si fue tocado', () => {
-    renderizar({ errors: { cargo: 'Ingrese su cargo' }, touched: { cargo: true } });
-    expect(screen.getByRole('alert').textContent).toBe('Ingrese su cargo');
+    renderizar({ errors: { cargo: 'Este campo es obligatorio' }, touched: { cargo: true } });
+    expect(screen.getByRole('alert').textContent).toBe('Este campo es obligatorio');
   });
 
   it('no muestra el error de un campo que no fue tocado', () => {
-    renderizar({ errors: { cargo: 'Ingrese su cargo' }, touched: {} });
+    renderizar({ errors: { cargo: 'Este campo es obligatorio' }, touched: {} });
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('con varios errores muestra solo los de campos tocados', () => {
     renderizar({
-      errors: { cargo: 'Ingrese su cargo', empresa: 'Ingrese la empresa' },
+      errors: { cargo: 'Este campo es obligatorio', empresa: 'Este campo es obligatorio' },
       touched: { empresa: true },
     });
     const alertas = screen.getAllByRole('alert');
     expect(alertas).toHaveLength(1);
-    expect(alertas[0].textContent).toBe('Ingrese la empresa');
+    expect(alertas[0].textContent).toBe('Este campo es obligatorio');
   });
 
   it('permite elegir la modalidad desde el formulario', () => {

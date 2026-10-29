@@ -43,19 +43,19 @@ describe('SurveyWorkModalitySelector', () => {
       <SurveyWorkModalitySelector
         value={null}
         touched
-        error="Seleccione una modalidad"
+        error="Este campo es obligatorio"
         onChange={jest.fn()}
         onBlur={jest.fn()}
       />,
     );
-    expect(screen.getByRole('alert').textContent).toBe('Seleccione una modalidad');
+    expect(screen.getByRole('alert').textContent).toBe('Este campo es obligatorio');
   });
 
   it('no muestra el error si el campo no fue tocado', () => {
     render(
       <SurveyWorkModalitySelector
         value={null}
-        error="Seleccione una modalidad"
+        error="Este campo es obligatorio"
         onChange={jest.fn()}
         onBlur={jest.fn()}
       />,
