@@ -19,7 +19,8 @@ export const RecalculateButton: React.FC<RecalculateButtonProps> = ({
   isLoading,
   onRecalculate,
 }) => {
-  const isDisabled = !hasPendingChanges || isLoading;
+  // Habilitamos si hay cambios pendientes O si estamos en modo de prueba/demostración
+  const isDisabled = (!hasPendingChanges && process.env.NODE_ENV !== 'development') || isLoading;
 
   return (
     <button
