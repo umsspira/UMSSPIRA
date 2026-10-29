@@ -140,9 +140,12 @@ export const registrationsProviders: Provider[] = [
   },
   {
     provide: ReviewApplicationUseCase,
-    inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY],
-    useFactory: (repository: ApplicationsRepository, security: RegistrationSecurity) =>
-      new ReviewApplicationUseCase(repository, security),
+    inject: [APPLICATIONS_REPOSITORY, REGISTRATION_SECURITY, CorrectionTokenService],
+    useFactory: (
+      repository: ApplicationsRepository,
+      security: RegistrationSecurity,
+      tokenService: CorrectionTokenService,
+    ) => new ReviewApplicationUseCase(repository, security, tokenService),
   },
   {
     provide: ActivateRegistrationUseCase,
