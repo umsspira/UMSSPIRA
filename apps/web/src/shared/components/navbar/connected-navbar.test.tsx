@@ -1,90 +1,156 @@
-'use client';
-
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { authStore, useAuthStore } from '@/modules/auth/frontend/store';
-import { clearSession } from '@/modules/auth/frontend/services/session';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { ConnectedNavbar } from './connected-navbar';
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
-import { Navbar } from './navbar';
-import { NAVBAR_ROLE_LABEL } from './navigation';
-import type { NavbarRole, NavbarSession } from './types';
+import { clearSession } from '@/modules/auth/frontend/services/session';
+import { authStore } from '@/modules/auth/frontend/store';
+import type { NavbarProps } from './types';
 
-const roles: NavbarRole[] = ['titulado', 'empresa', 'administrador'];
+// --- Mocks ---
+const push = jest.fn();
+const replace = jest.fn();
+const refresh = jest.fn();
+const mockRouter = { push, replace, refresh };
+let mockPathname = '/portal/institucional';
 
-function sessionFromUser(value: unknown): NavbarSession | null {
-  if (!value || typeof value !== 'object') return null;
-  const user = value as { email?: unknown; role?: unknown };
-  if (!roles.includes(user.role as NavbarRole)) return null;
-  const role = user.role as NavbarRole;
-  const name = typeof user.email === 'string' && user.email ? user.email.split('@')[0] : NAVBAR_ROLE_LABEL[role];
-  const words = name.split(/[\s._-]+/).filter(Boolean);
-  const initials = words.length > 1 ? `${words[0][0]}${words[1][0]}` : name.slice(0, 2);
-  return { name, role, initials: initials.toUpperCase() };
-}
+jest.mock('next/navigation', () => ({ 
+  usePathname: () => mockPathname, 
+  useRouter: () => mockRouter 
+}));
 
-/** Adaptador real. Nunca consume la sesión ficticia del laboratorio. */
-export function ConnectedNavbar() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const auth = useAuthStore();
-  const [session, setSession] = useState<NavbarSession | null>(null);
-  const [logoutError, setLogoutError] = useState(false);
+jest.mock('@/modules/auth/frontend/services/session', () => ({ 
+  getSessionToken: jest.fn(), 
+  clearSession: jest.fn() 
+}));
 
-  useEffect(() => {
-    let request: AbortController | undefined;
-    let disposed = false;
-    const invalidateSession = () => {
-      clearSession();
-      authStore.reset();
-      setSession(null);
-      if (pathname === '/reports' || pathname?.startsWith('/reports/')) {
-        router.replace('/login');
-        router.refresh();
-      }
-    };
-    const synchronize = async () => {
-      request?.abort();
-      const controller = new AbortController();
-      request = controller;
-      try {
-        const response = await authenticatedFetch('/api/v1/auth/me', {
-          signal: controller.signal,
-          cache: 'no-store',
-        });
-        const body: { data?: unknown } = response.ok ? await response.json() : {};
-        if (!disposed && !controller.signal.aborted) {
-          if (response.status === 401) invalidateSession();
-          else setSession(response.ok ? sessionFromUser(body.data) : null);
-        }
-      } catch (error) {
-        if (!disposed && !controller.signal.aborted) {
-          if (error instanceof SessionError && error.status === 401) invalidateSession();
-          else setSession(null);
-        }
-      }
-    };
-    void synchronize();
-    window.addEventListener('focus', synchronize);
-    window.addEventListener('storage', synchronize);
-    return () => {
-      disposed = true;
-      request?.abort();
-      window.removeEventListener('focus', synchronize);
-      window.removeEventListener('storage', synchronize);
-    };
-  }, [pathname, auth.accessToken, router]);
+jest.mock('@/shared/services/auth-session', () => ({
+  ...jest.requireActual('@/shared/services/auth-session'),
+  authenticatedFetch: jest.fn(),
+  revokeCurrentSession: jest.fn(),
+}));
 
-  const logout = async () => {
-    setLogoutError(false);
-    try {
-      await revokeCurrentSession();
-      clearSession();
-      authStore.reset();
-      setSession(null);
-      router.push(session?.role === 'administrador' ? '/' : '/login');
-      router.refresh();
-    } catch { setLogoutError(true); }
-  };
+jest.mock('@/shared/services/api-client', () => ({ 
+  getToken: jest.fn(), 
+  clearToken: jest.fn() 
+}));
 
-  return <><Navbar session={session} onLogout={logout} />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;
-}
+jest.mock('@/modules/auth/frontend/store', () => ({ 
+  useAuthStore: () => ({ accessToken: null }), 
+  authStore: { reset: jest.fn() } 
+}));
+
+// Mock del componente Navbar para probar el ConnectedNavbar aisladamente
+jest.mock('./navbar', () => ({ 
+  Navbar: ({ session, onLogout }: NavbarProps) => (
+    <header>
+      <span>{session ? `${session.name}: ${session.role}` : 'Visitante'}</span>
+      <button onClick={onLogout}>Cerrar sesión</button>
+    </header>
+  ) 
+}));
+
+const fetchMock = jest.mocked(authenticatedFetch);
+
+beforeEach(() => {
+  mockPathname = '/portal/institucional';
+  jest.clearAllMocks();
+  fetchMock.mockReset();
+  fetchMock.mockRejectedValue(new SessionError(401, 'Inicia sesión'));
+  jest.mocked(revokeCurrentSession).mockResolvedValue(undefined);
+});
+
+// --- Tests ---
+
+it('permanece como visitante sin una sesión real e ignora el rol del laboratorio', async () => {
+  sessionStorage.setItem('umsspira.navbar-laboratorio.rol', 'administrador');
+  render(<ConnectedNavbar />);
+  expect(screen.getByText('Visitante')).toBeInTheDocument();
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  sessionStorage.clear();
+});
+
+it('restaura el rol de empresa validado mediante el cliente autenticado', async () => {
+  fetchMock.mockResolvedValue({ 
+    ok: true, 
+    json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) 
+  } as Response);
+  
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/me', expect.objectContaining({ cache: 'no-store' }));
+});
+
+it('permanece como visitante si la API rechaza el token', async () => {
+  fetchMock.mockResolvedValue({ ok: false } as Response);
+  render(<ConnectedNavbar />);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(screen.getByText('Visitante')).toBeInTheDocument();
+});
+
+it('no presenta como autenticado un rol desconocido devuelto por la API', async () => {
+  fetchMock.mockResolvedValue({ 
+    ok: true, 
+    json: async () => ({ data: { email: 'otra@ejemplo.com', role: 'desconocido' } }) 
+  } as Response);
+  
+  render(<ConnectedNavbar />);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(screen.getByText('Visitante')).toBeInTheDocument();
+});
+
+it('revoca la sesión y limpia el estado antes de regresar al login', async () => {
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+  
+  expect(revokeCurrentSession).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(clearSession).toHaveBeenCalled());
+  expect(authStore.reset).toHaveBeenCalled();
+  expect(push).toHaveBeenCalledWith('/login');
+  expect(refresh).toHaveBeenCalled();
+});
+
+it('HU-004: un administrador cierra sesión y vuelve a la bienvenida', async () => {
+  fetchMock.mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: { email: 'admin@umss.edu.bo', role: 'administrador' } }),
+  } as Response);
+  
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('admin: administrador')).toBeInTheDocument();
+  
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/'));
+  
+  expect(revokeCurrentSession).toHaveBeenCalledTimes(1);
+  expect(clearSession).toHaveBeenCalled();
+  expect(authStore.reset).toHaveBeenCalled();
+});
+
+it('HU-004 CA-05: HTTP 401 en reportería borra el estado React y devuelve a /login', async () => {
+  mockPathname = '/reports';
+  fetchMock.mockResolvedValue({ ok: false, status: 401 } as Response);
+  render(<ConnectedNavbar />);
+
+  await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
+  expect(authStore.reset).toHaveBeenCalled();
+  expect(replace).toHaveBeenCalledWith('/login');
+  expect(refresh).toHaveBeenCalled();
+});
+
+it('HU-004 CA-05: al fallar la renovación con 401 también limpia la sesión', async () => {
+  mockPathname = '/reports/encuestas';
+  fetchMock.mockRejectedValue(new SessionError(401, 'Sesión expirada'));
+  render(<ConnectedNavbar />);
+
+  await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
+  expect(authStore.reset).toHaveBeenCalled();
+  expect(replace).toHaveBeenCalledWith('/login');
+});
+
+it('HU-004: la página institucional pública no redirige por un 401 sin sesión', async () => {
+  fetchMock.mockRejectedValue(new SessionError(401, 'Sin sesión'));
+  render(<ConnectedNavbar />);
+
+  await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
+  expect(authStore.reset).toHaveBeenCalled();
+  expect(replace).not.toHaveBeenCalled();
+});
