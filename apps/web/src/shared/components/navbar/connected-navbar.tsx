@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { authStore, useAuthStore } from '@/modules/auth/frontend/store';
 import { clearSession } from '@/modules/auth/frontend/services/session';
 import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
@@ -32,11 +32,14 @@ export function ConnectedNavbar() {
   const auth = useAuthStore();
   const [session, setSession] = useState<NavbarSession | null>(null);
   const [logoutError, setLogoutError] = useState(false);
+  // HU-004 CA-07: durante el cierre voluntario, el 401 de /me no debe redirigir por su cuenta.
+  const loggingOut = useRef(false);
 
   useEffect(() => {
     let request: AbortController | undefined;
     let disposed = false;
     const invalidateSession = () => {
+      if (loggingOut.current) return;
       // HU-004 CA-05: un rechazo 401 no debe dejar el estado React autenticado.
       clearSession();
       authStore.reset();
@@ -80,6 +83,7 @@ export function ConnectedNavbar() {
   }, [pathname, auth.accessToken, router]);
 
   const logout = async () => {
+    loggingOut.current = true;
     setLogoutError(false);
     try {
       await revokeCurrentSession();
@@ -90,7 +94,10 @@ export function ConnectedNavbar() {
       // HU-004: el administrador regresa a la bienvenida institucional.
       router.push(session?.role === 'administrador' ? '/' : '/login');
       router.refresh();
-    } catch { setLogoutError(true); }
+    } catch {
+      loggingOut.current = false;
+      setLogoutError(true);
+    }
   };
 
   return <><Navbar session={session} onLogout={logout} />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;

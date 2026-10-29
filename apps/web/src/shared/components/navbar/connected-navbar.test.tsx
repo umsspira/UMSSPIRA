@@ -89,6 +89,28 @@ it('HU-004: un administrador cierra sesión y vuelve a la bienvenida', async () 
   expect(authStore.reset).toHaveBeenCalled();
 });
 
+it('HU-004 CA-07: el administrador vuelve a la bienvenida aunque /me responda 401 durante el cierre', async () => {
+  mockPathname = '/reports';
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({ data: { email: 'admin@umss.edu.bo', role: 'administrador' } }),
+  } as Response);
+  let finishRevoke: () => void = () => undefined;
+  jest.mocked(revokeCurrentSession).mockReturnValue(new Promise<void>((resolve) => { finishRevoke = resolve; }));
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('admin: administrador')).toBeInTheDocument();
+
+  fetchMock.mockResolvedValue({ ok: false, status: 401 } as Response);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+  fireEvent.focus(window);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  finishRevoke();
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/'));
+  expect(replace).not.toHaveBeenCalled();
+  expect(expiredListener).not.toHaveBeenCalled();
+});
+
 it('HU-004 CA-06: HTTP 401 en reportería borra el estado React y abre la alerta de sesión expirada', async () => {
   mockPathname = '/reports';
   fetchMock.mockResolvedValue({ ok: false, status: 401 } as Response);
