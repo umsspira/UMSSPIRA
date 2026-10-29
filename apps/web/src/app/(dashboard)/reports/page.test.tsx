@@ -32,6 +32,9 @@ const mockGraduates = [
   },
 ];
 
+let mockIndicatorsError: string | null = null;
+let mockGraduatesError: string | null = null;
+
 jest.mock('../../../modules/reports/hooks/use-dashboard-indicators', () => ({
   useDashboardIndicators: () => ({
     data: {
@@ -41,15 +44,15 @@ jest.mock('../../../modules/reports/hooks/use-dashboard-indicators', () => ({
       activeMentors: 1,
     },
     loading: false,
-    error: null,
+    error: mockIndicatorsError,
   }),
 }));
 
 jest.mock('../../../modules/reports/hooks/use-graduates', () => ({
   useGraduates: () => ({
-    data: mockGraduates,
+    data: mockGraduatesError ? [] : mockGraduates,
     loading: false,
-    error: null,
+    error: mockGraduatesError,
   }),
 }));
 
@@ -170,3 +173,29 @@ describe('HU-004 / T4.2 QA Bug 3: Restablecimiento de filtros al salir y volver'
   });
 });
 
+describe('HU-004 CA-08: error al conectar con la base de datos en reportería', () => {
+  const BANNER = 'No se pudo conectar con el servidor. Verifique su conexión o intente más tarde';
+
+  beforeEach(() => window.localStorage.clear());
+
+  afterEach(() => {
+    mockIndicatorsError = null;
+    mockGraduatesError = null;
+    window.localStorage.clear();
+  });
+
+  it('el dashboard muestra el banner de conexión en lugar de los indicadores', () => {
+    mockIndicatorsError = 'No se pudieron cargar los indicadores';
+    render(<ReportsPage />);
+    expect(screen.getByRole('alert')).toHaveTextContent(BANNER);
+    expect(screen.queryByText('Titulados registrados')).toBeNull();
+  });
+
+  it('la pestaña Titulados muestra el banner y no una lista vacía', () => {
+    mockGraduatesError = 'No se pudo cargar el padrón de titulados';
+    render(<ReportsPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Titulados' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(BANNER);
+    expect(screen.queryByPlaceholderText('Buscar por código SIS o nombre del titulado...')).toBeNull();
+  });
+});
