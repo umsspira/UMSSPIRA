@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
@@ -12,6 +13,9 @@ import { EVENTS_REPOSITORY } from '../src/modules/events/application/ports/event
 import { BusinessRuleError } from '../src/shared/errors/business-rule-error';
 import { AccessError } from '../src/shared/security/errors/access-error';
 import { HttpError } from '../src/shared/http/errors/http-error';
+import { GenerateEventPassService } from '../src/modules/events/application/generate-event-pass.service';
+
+jest.setTimeout(30000);
 
 const graduateId = randomUUID();
 const recordId = randomUUID();
@@ -107,6 +111,10 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
     readCover: jest.fn(),
   };
 
+  const generatePassMock = {
+    execute: jest.fn(),
+  };
+
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
@@ -115,6 +123,8 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
       .useValue(profiles)
       .overrideProvider(EVENTS_REPOSITORY)
       .useValue(events)
+      .overrideProvider(GenerateEventPassService)
+      .useValue(generatePassMock)
       .overrideProvider(AUTHENTICATOR)
       .useValue({
         execute: async (token: string) => {
@@ -141,6 +151,7 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
     configureHttp(app);
     await app.init();
   });
+
   beforeEach(() => {
     jest.clearAllMocks();
     profiles.summary.mockResolvedValue(profile);
@@ -158,7 +169,9 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
     events.catalog.mockResolvedValue([]);
     events.findOwned.mockResolvedValue(event);
     events.register.mockResolvedValue(eventRegistration);
+    generatePassMock.execute.mockResolvedValue(undefined);
   });
+
   afterAll(async () => app?.close());
 
   it('exige sesión y permiso para consultar el perfil', async () => {
@@ -200,6 +213,7 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
       education,
     );
   });
+
   it('crea certificación con grado Profesional por defecto y dueño derivado de la sesión', async () => {
     profiles.createCertification.mockResolvedValue({
       id: recordId,

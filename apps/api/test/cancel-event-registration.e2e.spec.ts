@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -15,6 +16,7 @@ import { PrismaService } from '../src/shared/infrastructure/database/prisma.serv
 import type { ActorContext } from '../src/shared/security/contexts/actor-context';
 import { AccessError } from '../src/shared/security/errors/access-error';
 import { AUTHENTICATOR } from '../src/shared/security/ports/authenticator.port';
+import { GenerateEventPassService } from '../src/modules/events/application/generate-event-pass.service';
 
 const registrationId = randomUUID();
 const graduate: ActorContext = {
@@ -38,6 +40,7 @@ describe('Endpoint de cancelación de inscripción', () => {
       providers: [
         ...eventsProviders,
         { provide: PrismaService, useValue: {} },
+        { provide: GenerateEventPassService, useValue: {} },
         {
           provide: ConfigService,
           useValue: new ConfigService({ CORS_ORIGINS: ['http://localhost:3001'] }),
@@ -129,7 +132,7 @@ describe('Endpoint de cancelación de inscripción', () => {
     ['missing', 'EVENT_REGISTRATION_NOT_FOUND', 404],
     ['conflict', 'EVENT_REGISTRATION_NOT_CONFIRMED', 409],
     ['conflict', 'EVENT_REGISTRATION_NOT_CANCELLABLE', 409],
-  ] as const)('traduce el error %s / %s a HTTP %i', async (reason, code, status) => {
+  ] as ['missing' | 'conflict', string, number][])(`traduce el error %s / %s a HTTP %i`, async (reason, code, status) => {
     repository.cancelRegistration.mockRejectedValue(
       new BusinessRuleError(reason, code, 'No disponible'),
     );

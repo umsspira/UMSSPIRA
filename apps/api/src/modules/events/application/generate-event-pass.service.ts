@@ -8,6 +8,7 @@ import { PrismaService } from '../../../shared/infrastructure/database/prisma.se
 import { EventPassRules } from '../domain/event-pass.rules';
 import type { EventPassDto } from '@umsspira/shared-types';
 
+
 @Injectable()
 export class GenerateEventPassService {
   constructor(private readonly prisma: PrismaService) {}
