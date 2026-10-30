@@ -447,7 +447,7 @@ describe('GraduateAffinityView', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('no destaca áreas sin evidencias y les asigna afinidad cero', async () => {
+  it('conserva la afinidad del backend aunque no incluya evidencias', async () => {
     const areasWithoutCyberEvidence = recalculatedAreas.map((area) => {
       if (area.area !== 'cybersecurity-networks') return area;
 
@@ -467,17 +467,11 @@ describe('GraduateAffinityView', () => {
 
     await screen.findByText('Resumen de tu afinidad');
 
-    // Aunque el dato recibido diga 95, la regla del componente
-    // debe convertir a cero las áreas que no tienen evidencias.
-    expect(screen.getByText('1. Desarrollo de Software (85%)')).toBeInTheDocument();
-    expect(screen.getByText('2. Ciencia de Datos & IA (71%)')).toBeInTheDocument();
-    expect(
-      screen.getByText('3. Cloud, DevOps & Infraestructura (64%)')
-    ).toBeInTheDocument();
-
-    expect(
-      screen.queryByText(/Ciberseguridad & Redes \(\d+%\)/)
-    ).not.toBeInTheDocument();
+    // Los respaldos no forman parte del contrato HTTP del radar:
+    // su ausencia no invalida el porcentaje calculado por el motor.
+    expect(screen.getByText('1. Ciberseguridad & Redes (95%)')).toBeInTheDocument();
+    expect(screen.getByText('2. Desarrollo de Software (85%)')).toBeInTheDocument();
+    expect(screen.getByText('3. Ciencia de Datos & IA (71%)')).toBeInTheDocument();
   });
 
   it('actualiza las palabras clave después de recalcular', async () => {

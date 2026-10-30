@@ -43,12 +43,6 @@ interface RadarApiResponse {
   areas: RadarApiArea[];
 }
 
-type MockAreaWithEvidence = {
-  area: AffinityArea;
-  keywords?: string[];
-  evidence?: unknown[];
-};
-
 function normalizeArea(area: string): AffinityArea | undefined {
   if (AFFINITY_AREAS.includes(area as AffinityArea)) {
     return area as AffinityArea;
@@ -60,12 +54,6 @@ function normalizeArea(area: string): AffinityArea | undefined {
 function adaptRadarResponse(
   response: RadarApiResponse,
 ): AffinityVectorResponse {
-  const mockAreas = new Map(
-    (
-      affinityVectorMock.areas as MockAreaWithEvidence[]
-    ).map((area) => [area.area, area]),
-  );
-
   const areas = response.areas
     .map((area) => {
       const normalizedArea = normalizeArea(area.area);
@@ -73,8 +61,6 @@ function adaptRadarResponse(
       if (!normalizedArea) {
         return undefined;
       }
-
-      const mockArea = mockAreas.get(normalizedArea);
 
       return {
         area: normalizedArea,
@@ -85,7 +71,7 @@ function adaptRadarResponse(
         keywords: (area.topKeywords ?? []).map((keyword) =>
           typeof keyword === 'string' ? keyword : keyword.keyword,
         ),
-        evidence: mockArea?.evidence ?? [],
+        evidence: [],
       };
     })
     .filter((area) => area !== undefined)
