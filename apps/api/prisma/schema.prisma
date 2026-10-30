@@ -62,6 +62,8 @@ model Usuario {
   password_reset_token_registros      PasswordResetToken[]
   password_reset_solicitud_registros  PasswordResetSolicitud[]
   password_reset_evento_registros     PasswordResetEvento[]
+  empresa_invitaciones_creadas        EmpresaInvitacion[] @relation("empresa_invitacion_creado_por")
+  empresa_usuario_registros           EmpresaUsuario[]    @relation("empresa_usuario_id_usuario")
 
   @@map("usuario")
 }
@@ -322,6 +324,8 @@ model Empresa {
   perfil_empresa_registros        PerfilEmpresa[]        @relation("perfil_empresa_id_empresa_empresa")
   requerimiento_laboral_registros RequerimientoLaboral[] @relation("requerimiento_laboral_id_empresa_empresa")
   vacante_registros               Vacante[]              @relation("vacante_id_empresa_empresa")
+  empresa_invitacion_registros    EmpresaInvitacion[]
+  empresa_usuario_registros       EmpresaUsuario[]
 
   @@map("empresa")
 }
@@ -1331,4 +1335,42 @@ model ControlReenvioOtp {
   solicitud           Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("control_reenvio_otp")
+}
+
+model EmpresaInvitacion {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_empresa  String    @db.Uuid
+  correo      String    @db.VarChar(254)
+  rol         String    @db.VarChar(20)
+  estado      String    @default("pendiente") @db.VarChar(20)
+  token_hash  String    @unique(map: "empresa_invitacion_token_hash_key") @db.Text
+  creado_por  String    @db.Uuid
+  creado_en   DateTime  @default(now()) @db.Timestamptz(6)
+  expira_en   DateTime  @db.Timestamptz(6)
+  aceptado_en DateTime? @db.Timestamptz(6)
+
+  empresa Empresa @relation(fields: [id_empresa], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "empresa_invitacion_id_empresa_fkey")
+  creador Usuario @relation("empresa_invitacion_creado_por", fields: [creado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "empresa_invitacion_creado_por_fkey")
+
+  @@index([id_empresa], map: "idx_empresa_invitacion_empresa")
+  @@index([id_empresa, estado], map: "idx_empresa_invitacion_estado")
+  @@map("empresa_invitacion")
+}
+
+model EmpresaUsuario {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_empresa          String    @db.Uuid
+  id_usuario          String    @db.Uuid
+  rol                 String    @default("reclutador") @db.VarChar(20)
+  estado              String    @default("activo") @db.VarChar(20)
+  fecha_asignacion    DateTime  @default(now()) @db.Timestamptz(6)
+  fecha_desactivacion DateTime? @db.Timestamptz(6)
+
+  empresa Empresa @relation(fields: [id_empresa], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "empresa_usuario_id_empresa_fkey")
+  usuario Usuario @relation("empresa_usuario_id_usuario", fields: [id_usuario], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "empresa_usuario_id_usuario_fkey")
+
+  @@unique([id_empresa, id_usuario], map: "uq_e4_empresa_usuario")
+  @@index([id_empresa, estado], map: "idx_e4_empresa_usuario_estado")
+  @@index([id_usuario], map: "idx_e4_empresa_usuario_usuario")
+  @@map("empresa_usuario")
 }

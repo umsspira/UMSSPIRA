@@ -21,6 +21,8 @@ interface OutboxRow {
   expira_en: Date;
 }
 
+
+
 @Injectable()
 export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SmtpOutboxWorker.name);
@@ -67,6 +69,7 @@ export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
     text: string;
     html?: string;
   }): Promise<void> {
+    
     const apiKey = this.config.get<string>('BREVO_API_KEY');
     const from = this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>');
 
@@ -86,7 +89,8 @@ export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
         to: [{ email: mail.to }],
         subject: mail.subject,
         textContent: mail.text,
-        htmlContent: mail.html,
+        
+        ...(mail.html ? { htmlContent: mail.html } : {}),
       }),
     });
 

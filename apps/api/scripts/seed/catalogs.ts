@@ -4,6 +4,7 @@ import { DEMO_CAREER_ID } from './demo-accounts';
 import { AREA_IDS, CATALOG_IDS } from './demo-ids';
 import { seedRadarCatalog } from './radar-catalog';
 import { runSeedStage } from './seed-stage';
+import { seedInformaticsCareer } from './informatics-career';
 
 export const carreras: Array<Prisma.CarreraCreateManyInput & { id: string }> = [
   { id: DEMO_CAREER_ID, nombre: 'Ingeniería de Sistemas' },
@@ -54,7 +55,7 @@ export async function seedAreas(prisma: PrismaClient): Promise<void> {
         update: {},
       });
     }
-  });
+  }, { maxWait: 10000, timeout: 120000 });
 }
 
 export async function seedCatalogs(prisma: PrismaClient): Promise<void> {
@@ -67,6 +68,7 @@ export async function seedCatalogs(prisma: PrismaClient): Promise<void> {
       prisma.modalidadTrabajo.createMany({ data: modalidades, skipDuplicates: true }),
       prisma.tipoReporte.createMany({ data: tiposReporte, skipDuplicates: true }),
     ]);
+    await seedInformaticsCareer(prisma);
   });
   await runSeedStage('áreas', () => seedAreas(prisma));
   await runSeedStage('diccionario Radar', () => seedRadarCatalog(prisma));

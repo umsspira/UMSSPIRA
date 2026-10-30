@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 const MODULES = new Set([
   'auth', 'user', 'companies', 'job-postings', 'registrations', 'applications',
-  'email-verification', 'documents', 'perfil', 'events', 'mentorship', 'reports',
+  'email-verification', 'documents', 'perfil', 'events', 'mentorship', 'reports', 'surveys',
   'nlp', 'radar',
 ]);
 
