@@ -2,8 +2,16 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  User,
+  Building2,
+  Briefcase,
+  FileText,
+  Users,
+  LogOut,
+  ChevronRight,
+} from "lucide-react";
 import {
   DEMO_MODE,
   clearToken,
@@ -11,6 +19,7 @@ import {
 } from "@/shared/services/api-client";
 import { getCompanyHeader } from "@/shared/services/companies";
 
+// Si el padre pasa companyName se usa tal cual; si no, se pide a la API.
 interface CompanyDropdownProps {
   companyName?: string;
   companyRole?: string;
@@ -24,15 +33,25 @@ export function CompanyDropdown({
   const [fetchedName, setFetchedName] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const pathname = usePathname() || "";
 
+  // Esta es tu condición mágica (IF)
+  const isMock = pathname.startsWith("/portal-corporativo");
+
+  // CA14: nombre de la empresa autenticada
   useEffect(() => {
     if (companyName || (!DEMO_MODE && !hasValidSession())) return;
+
     let cancelled = false;
+
     getCompanyHeader()
       .then((h) => {
         if (!cancelled) setFetchedName(h.nombre);
       })
-      .catch(() => {});
+      .catch(() => {
+        /* Si falla, se muestra "Mi empresa" */
+      });
+
     return () => {
       cancelled = true;
     };
@@ -40,6 +59,7 @@ export function CompanyDropdown({
 
   const displayName = companyName ?? fetchedName ?? "Mi empresa";
 
+  // CA12: cerrar el menú al hacer clic fuera o con Escape
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -49,10 +69,23 @@ export function CompanyDropdown({
         setIsOpen(false);
       }
     }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
+  // CA16: cerrar sesión
   const handleLogout = () => {
     setIsOpen(false);
     clearToken();
@@ -60,77 +93,140 @@ export function CompanyDropdown({
   };
 
   return (
-    <div className="relative inline-block text-left" ref={dropdownRef}>
+    // CA18: contenedor relative para evitar superposición
+    <div className="relative inline-block" ref={dropdownRef}>
+      {/* CA1, CA11, CA13: disparador del menú */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+        className="flex items-center justify-center w-10 h-10 rounded-full bg-white text-[#1B2632] hover:bg-[#EEE9DF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFB162]"
+        aria-label="Menú de la empresa"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
       >
-        <div className="flex flex-col items-start hidden md:flex">
-          <span className="text-[14px] font-bold text-white leading-tight">
-            {displayName}
-          </span>
-          <span className="text-[11px] text-white/70 leading-tight">
-            {companyRole}
-          </span>
-        </div>
+        <User className="w-5 h-5" />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-[260px] bg-[#F9F6F0] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-[#E8E2D6] z-50 py-2">
-          
-          <div className="flex flex-col px-5 py-3 border-b border-[#E8E2D6] mb-2">
-            <span className="text-[14px] font-bold text-[#1B2632] leading-tight">
-              {displayName}
-            </span>
-            <span className="text-[12px] font-medium text-[#1B2632]/60">
-              {companyRole}
-            </span>
+        <div className="absolute right-0 mt-3 w-[300px] bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-[#EEE9DF] z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute -top-2 right-3 w-4 h-4 bg-white border-t border-l border-[#EEE9DF] transform rotate-45"></div>
+
+          {/* CA2: identificación de la empresa */}
+          <div className="relative flex items-center px-5 py-4 border-b border-[#EEE9DF] bg-white rounded-t-xl">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#EEE9DF] text-[#2C3B4D] mr-3 shrink-0">
+              <Building2 className="w-5 h-5" />
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <span className="text-[15px] font-bold text-[#1B2632] leading-tight truncate">
+                {displayName}
+              </span>
+
+              <span className="text-[12px] font-medium text-[#1B2632]/60 mt-0.5">
+                {companyRole}
+              </span>
+            </div>
           </div>
 
-          <div className="flex flex-col">
+          {/* Enlaces del menú */}
+          <div className="py-2 bg-white">
+            {/* Perfil de Empresa */}
             <Link
               href="/companies"
+              className="flex items-center justify-between px-5 py-2.5 hover:bg-[#EEE9DF]/50 transition-colors group"
               onClick={() => setIsOpen(false)}
-              className="px-5 py-3 hover:bg-[#E8E2D6]/50 transition-colors text-[14px] font-bold text-[#1B2632] border-b border-[#E8E2D6]"
             >
-              Perfil de Empresa
+              <div className="flex items-center text-[#1B2632]">
+                <Building2 className="w-[18px] h-[18px] mr-3 text-[#1B2632]/70 group-hover:text-[#FFB162] transition-colors" />
+                <span className="text-[14px] font-medium">
+                  Perfil de Empresa
+                </span>
+              </div>
+
+              <ChevronRight className="w-4 h-4 text-[#1B2632]/40" />
             </Link>
 
+            {/* HU-03: Gestión de usuarios - NUEVO */}
+            <Link
+              href="/empresa/gestion-usuarios"
+              className="flex items-center justify-between px-5 py-2.5 hover:bg-[#EEE9DF]/50 transition-colors group"
+              onClick={() => setIsOpen(false)}
+            >
+              <div className="flex items-center text-[#1B2632]">
+                <Users className="w-[18px] h-[18px] mr-3 text-[#1B2632]/70 group-hover:text-[#FFB162] transition-colors" />
+                <span className="text-[14px] font-medium">
+                  Gestión de usuarios
+                </span>
+              </div>
+
+              <ChevronRight className="w-4 h-4 text-[#1B2632]/40" />
+            </Link>
+
+            {/* Publicar Vacante */}
             <Link
               href="/empresa/vacantes/publicar"
+              className="flex items-center justify-between px-5 py-2.5 hover:bg-[#EEE9DF]/50 transition-colors group"
               onClick={() => setIsOpen(false)}
-              className="px-5 py-3 hover:bg-[#E8E2D6]/50 transition-colors text-[14px] font-bold text-[#1B2632] border-b border-[#E8E2D6]"
             >
-              Publicar Vacante
+              <div className="flex items-center text-[#1B2632]">
+                <Briefcase className="w-[18px] h-[18px] mr-3 text-[#1B2632]/70 group-hover:text-[#FFB162] transition-colors" />
+                <span className="text-[14px] font-medium">
+                  Publicar Vacante
+                </span>
+              </div>
+
+              <ChevronRight className="w-4 h-4 text-[#1B2632]/40" />
             </Link>
 
-            {/* 👇 AQUÍ ESTÁ TU ENLACE ARREGLADO 👇 */}
+            {/* Mis Vacantes */}
             <Link
-              href="/empresa/mis-vacantes"
-              onClick={() => setIsOpen(false)}
-              className="px-5 py-3 hover:bg-[#E8E2D6]/50 transition-colors text-[14px] font-bold text-[#1B2632] border-b border-[#E8E2D6]"
+              href="#"
+              className="flex items-center justify-between px-5 py-2.5 hover:bg-[#EEE9DF]/50 transition-colors group"
+              onClick={(e) => {
+                e.preventDefault();
+                alert("En el segundo sprint se implementará");
+                setIsOpen(false);
+              }}
             >
-              Mis Vacantes
-            </Link>
-            {/* 👆 FIN DEL ENLACE 👆 */}
+              <div className="flex items-center text-[#1B2632]">
+                <FileText className="w-[18px] h-[18px] mr-3 text-[#1B2632]/70 group-hover:text-[#FFB162] transition-colors" />
+                <span className="text-[14px] font-medium">
+                  Mis Vacantes
+                </span>
+              </div>
 
+              <ChevronRight className="w-4 h-4 text-[#1B2632]/40" />
+            </Link>
+
+            {/* Postulantes */}
             <Link
               href="/empresa/postulantes"
+              className="flex items-center justify-between px-5 py-2.5 hover:bg-[#EEE9DF]/50 transition-colors group"
               onClick={() => setIsOpen(false)}
-              className="px-5 py-3 hover:bg-[#E8E2D6]/50 transition-colors text-[14px] font-bold text-[#1B2632] border-b border-[#E8E2D6]"
             >
-              Postulantes
+              <div className="flex items-center text-[#1B2632]">
+                <Users className="w-[18px] h-[18px] mr-3 text-[#1B2632]/70 group-hover:text-[#FFB162] transition-colors" />
+                <span className="text-[14px] font-medium">
+                  Postulantes
+                </span>
+              </div>
+
+              <ChevronRight className="w-4 h-4 text-[#1B2632]/40" />
             </Link>
           </div>
 
-          <div className="pt-2">
+          {/* CA5: separación visual de Cerrar sesión */}
+          <div className="py-2 border-t border-[#EEE9DF] bg-white rounded-b-xl">
             <button
+              type="button"
+              className="flex w-full items-center px-5 py-2.5 hover:bg-[#EEE9DF]/50 transition-colors group"
               onClick={handleLogout}
-              className="flex w-full items-center px-5 py-3 hover:bg-[#E8E2D6]/50 transition-colors text-[14px] font-bold text-[#A35139]"
             >
-              <LogOut className="w-[18px] h-[18px] mr-3" />
-              Cerrar sesión
+              <LogOut className="w-[18px] h-[18px] mr-3 text-[#1B2632]/70 group-hover:text-[#A35139] transition-colors" />
+
+              <span className="text-[14px] font-medium text-[#1B2632] group-hover:text-[#A35139] transition-colors">
+                Cerrar sesión
+              </span>
             </button>
           </div>
         </div>
