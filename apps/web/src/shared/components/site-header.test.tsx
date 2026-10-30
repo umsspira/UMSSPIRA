@@ -2,6 +2,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { PortalSiteHeader } from "./portal-site-header";
+import { resetConnectedNavbarCache } from "./navbar/connected-navbar";
 
 const mockUsePathname = jest.fn((): string | null => null);
 
@@ -19,6 +20,7 @@ jest.mock("next/navigation", () => ({
 
 describe("PortalSiteHeader", () => {
   beforeEach(() => {
+    resetConnectedNavbarCache();
     mockUsePathname.mockReturnValue(null);
     sessionStorage.clear();
     localStorage.clear();
@@ -26,19 +28,19 @@ describe("PortalSiteHeader", () => {
 
   it.each([null, "/portal", "/portal/mensajes", "/portal/comunidad"])(
     "usa la misma barra oficial en %s",
-    (pathname) => {
+    async (pathname) => {
       mockUsePathname.mockReturnValue(pathname);
       render(<PortalSiteHeader />);
-      expect(screen.getByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
+      expect(await screen.findByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
     },
   );
 
   it.each(["/portal/institucional", "/portal/institucional/"])(
     "renderiza un único encabezado oficial en %s",
-    (pathname) => {
+    async (pathname) => {
       mockUsePathname.mockReturnValue(pathname);
       render(<PortalSiteHeader />);
-      expect(screen.getByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
+      expect(await screen.findByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
     },
   );
 });
