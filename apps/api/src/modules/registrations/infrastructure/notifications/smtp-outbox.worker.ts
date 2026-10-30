@@ -6,7 +6,8 @@ import { z } from 'zod';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { NodeRegistrationSecurity } from '../security/registration-security';
 
-const messageSchema = z.object({ to: z.email(), subject: z.string(), text: z.string() });
+const messageSchema = z.object({ to: z.email(), subject: z.string(), text: z.string(), html: z.string().optional() });
+
 
 @Injectable()
 export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
@@ -47,7 +48,7 @@ export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
     await this.task;
     this.transport?.close();
   }
-    private async sendViaBrevo(mail: { to: string; subject: string; text: string }): Promise<void> {
+    private async sendViaBrevo(mail: { to: string; subject: string; text: string; html?: string }): Promise<void> {
     const apiKey = this.config.get<string>('BREVO_API_KEY');
     const from = this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>');
 
@@ -67,6 +68,7 @@ export class SmtpOutboxWorker implements OnModuleInit, OnModuleDestroy {
         to: [{ email: mail.to }],
         subject: mail.subject,
         textContent: mail.text,
+        ...(mail.html ? { htmlContent: mail.html } : {}),
       }),
     });
 

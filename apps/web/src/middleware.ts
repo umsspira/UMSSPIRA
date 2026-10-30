@@ -68,6 +68,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = { matcher: [
-  '/applications/:path*', '/reports/:path*', '/surveys/:path*', '/me/:path*', '/afinidad', '/afinidad/:path*',
+  '/applications/:path*', '/reports/:path*', '/company-registry', '/company-registry/:path*', '/surveys/:path*', '/me/:path*', '/afinidad', '/afinidad/:path*',
   '/empresa/postulantes', '/empresa/postulantes/:path*', '/postulantes', '/postulantes/:path*',
 ] };

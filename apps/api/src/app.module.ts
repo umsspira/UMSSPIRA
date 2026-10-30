@@ -17,6 +17,7 @@ import { NlpModule } from './modules/nlp/nlp.module';
 import { RadarModule } from './modules/radar/radar.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { SurveysModule } from './modules/surveys/surveys.module';
+import { VacantesModule } from './modules/vacantes/vacantes.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { SurveysModule } from './modules/surveys/surveys.module';
     RadarModule,
     ChatModule,
     SurveysModule,
+    VacantesModule,
   ],
   controllers: [RootController, HealthController],
 })
