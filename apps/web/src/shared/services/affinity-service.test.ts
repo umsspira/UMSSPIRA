@@ -82,6 +82,32 @@ describe('getAffinityVector', () => {
     );
   });
 
+  it('consulta el endpoint real cuando la variable de mock no está definida', async () => {
+    delete process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK;
+    await setTestAccessToken();
+
+    const payload = {
+      graduateId: 'id-1',
+      calculatedAt: '2026-09-28T12:00:00.000Z',
+      areas: [],
+    };
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: payload }),
+    });
+
+    const { getAffinityVector } = await import('./affinity-service');
+    const result = await getAffinityVector();
+
+    expect(result.graduateId).toBe(payload.graduateId);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/radar'),
+      expect.anything(),
+    );
+  });
+
   it('lanza error con el estado HTTP cuando el backend responde con fallo', async () => {
     process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
     await setTestAccessToken();

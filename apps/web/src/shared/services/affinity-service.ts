@@ -102,7 +102,7 @@ function adaptRadarResponse(
 export const RECALCULATE_TIMEOUT_MS = 7000;
 
 const USE_AFFINITY_MOCK =
-  process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK !== 'false';
+  process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK === 'true';
 
 let snapshotIndex = 0;
 
