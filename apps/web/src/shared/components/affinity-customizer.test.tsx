@@ -31,8 +31,11 @@ describe('AffinityCustomizer', () => {
     });
   });
 
-  it('muestra las 6 etiquetas del contrato en orden fijo', () => {
+  it('muestra las 6 etiquetas en orden fijo con "Ciencia de Datos/IA"', async () => {
     render(<AffinityCustomizer />);
+
+    // Espera a que getAffinityConfig resuelva y se aplique setAxes (evita el warning de act)
+    await screen.findByText('Ponderación: 4');
 
     const labels = EXPECTED_LABELS.map((label) => screen.getByText(label));
 

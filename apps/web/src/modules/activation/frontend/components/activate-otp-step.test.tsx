@@ -13,6 +13,18 @@ jest.mock('../services/activation.service', () => ({
   },
 }));
 
+// El botón «Reenviar código» permanece deshabilitado hasta que `inspect` resuelve y el hook
+// aplica el estado. Con toda la suite corriendo en paralelo el 1 s por defecto de waitFor
+// puede quedarse corto, así que se da un margen explícito.
+const ESPERA_MS = 5000;
+
+async function esperarEstadoCargado() {
+  await waitFor(
+    () => expect(screen.getByRole('button', { name: /^reenviar código/i })).not.toBeDisabled(),
+    { timeout: ESPERA_MS },
+  );
+}
+
 describe('ActivateOtpStep', () => {
   const mockOnSuccess = jest.fn();
 
@@ -52,7 +64,7 @@ describe('ActivateOtpStep', () => {
     expect(screen.getByText(/activa tu cuenta de titulado/i)).toBeTruthy();
     expect(await screen.findByText(/ti\*\*\*\*s@umss\.edu\.bo/i)).toBeTruthy();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /^reenviar código/i })).not.toBeDisabled());
+    await esperarEstadoCargado();
     const inputs = screen.getAllByRole('textbox');
     expect(inputs).toHaveLength(6);
 
@@ -72,7 +84,7 @@ describe('ActivateOtpStep', () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /^reenviar código/i })).not.toBeDisabled());
+    await esperarEstadoCargado();
     const inputs = screen.getAllByRole('textbox');
     const nextBtn = screen.getByRole('button', { name: /^siguiente/i });
 
@@ -98,7 +110,7 @@ describe('ActivateOtpStep', () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /^reenviar código/i })).not.toBeDisabled());
+    await esperarEstadoCargado();
     const inputs = screen.getAllByRole('textbox');
     '123456'.split('').forEach((digit, i) => {
       fireEvent.change(inputs[i], { target: { value: digit } });
@@ -125,7 +137,7 @@ describe('ActivateOtpStep', () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /^reenviar código/i })).not.toBeDisabled());
+    await esperarEstadoCargado();
     const inputs = screen.getAllByRole('textbox');
     const fillCode = () => {
       '123456'.split('').forEach((digit, i) => {
@@ -168,7 +180,7 @@ describe('ActivateOtpStep', () => {
     );
 
     const resendBtn = screen.getByRole('button', { name: /^reenviar código/i });
-    await waitFor(() => expect(resendBtn).not.toBeDisabled());
+    await waitFor(() => expect(resendBtn).not.toBeDisabled(), { timeout: ESPERA_MS });
     fireEvent.click(resendBtn);
 
     await waitFor(() => {
@@ -192,7 +204,7 @@ describe('ActivateOtpStep', () => {
     );
 
     const btn = screen.getByRole('button', { name: /reenviar código/i });
-    await waitFor(() => expect(btn).not.toBeDisabled());
+    await waitFor(() => expect(btn).not.toBeDisabled(), { timeout: ESPERA_MS });
     fireEvent.click(btn);
 
     // Al llegar al 5to reenvío, el botón debe quedar deshabilitado y mostrar la cuenta regresiva
@@ -216,7 +228,7 @@ describe('ActivateOtpStep', () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /^reenviar código/i })).not.toBeDisabled());
+    await esperarEstadoCargado();
     const inputs = screen.getAllByRole('textbox');
     '987654'.split('').forEach((digit, i) => {
       fireEvent.change(inputs[i], { target: { value: digit } });
