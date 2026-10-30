@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ConnectedNavbar } from './connected-navbar';
+import { ConnectedNavbar, resetConnectedNavbarCache } from './connected-navbar';
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
 import { clearSession } from '@/modules/auth/frontend/services/session';
 import { authStore } from '@/modules/auth/frontend/store';
@@ -51,7 +51,8 @@ jest.mock('./navbar', () => ({
 const fetchMock = jest.mocked(authenticatedFetch);
 
 beforeEach(() => {
-  mockPathname = '/portal/institucional';
+  resetConnectedNavbarCache();
+  mockPathname = '/portal';
   jest.clearAllMocks();
   fetchMock.mockReset();
   fetchMock.mockRejectedValue(new SessionError(401, 'Inicia sesión'));
@@ -147,10 +148,32 @@ it('HU-004 CA-05: al fallar la renovación con 401 también limpia la sesión', 
 });
 
 it('HU-004: la página institucional pública no redirige por un 401 sin sesión', async () => {
+  mockPathname = '/portal/institucional';
   fetchMock.mockRejectedValue(new SessionError(401, 'Sin sesión'));
   render(<ConnectedNavbar />);
 
   await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
   expect(authStore.reset).toHaveBeenCalled();
   expect(replace).not.toHaveBeenCalled();
+});
+
+it('la portada institucional siempre muestra la barra de visitante, aunque haya sesión', async () => {
+  mockPathname = '/portal/institucional';
+  fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: { email: 'ana@umss.edu', role: 'titulado' } }) } as Response);
+  render(<ConnectedNavbar />);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(screen.getByText('Visitante')).toBeInTheDocument();
+});
+
+it('conserva la sesión al cambiar de página: no vuelve a mostrar la barra de visitante', async () => {
+  fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: { email: 'ana@umss.edu', role: 'titulado' } }) } as Response);
+  const first = render(<ConnectedNavbar />);
+  expect(await screen.findByText('ana: titulado')).toBeInTheDocument();
+  first.unmount();
+
+  // Nueva página: el componente se monta de nuevo y la sesión ya se conoce desde el primer instante.
+  mockPathname = '/profile/records';
+  render(<ConnectedNavbar />);
+  expect(screen.getByText('ana: titulado')).toBeInTheDocument();
+  expect(screen.queryByText('Visitante')).not.toBeInTheDocument();
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { authStore, useAuthStore } from '@/modules/auth/frontend/store';
 import { clearSession } from '@/modules/auth/frontend/services/session';
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
@@ -23,12 +23,32 @@ function sessionFromUser(value: unknown): NavbarSession | null {
   return { name, role, initials: initials.toUpperCase() };
 }
 
+// Última sesión conocida: sobrevive a los cambios de página (el componente se vuelve a montar)
+// para que la barra de visitante nunca parpadee mientras se revalida la sesión.
+let cachedSession: NavbarSession | null | undefined;
+
+/** Solo para pruebas: olvida la última sesión conocida. */
+export function resetConnectedNavbarCache() { cachedSession = undefined; }
+
 /** Adaptador real. Nunca consume la sesión ficticia del laboratorio. */
 export function ConnectedNavbar() {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuthStore();
-  const [session, setSession] = useState<NavbarSession | null>(null);
+  // undefined = todavía no se sabe (no se muestra ninguna barra de cuenta ni de visitante)
+  const [session, setSessionState] = useState<NavbarSession | null | undefined>(cachedSession);
+  const setSession = useCallback((value: NavbarSession | null) => {
+    cachedSession = value;
+    setSessionState(value);
+  }, []);
+  // Un fallo que no es 401 (red, 500) conserva la sesión que ya se tenía.
+  const keepOrGuest = useCallback(() => {
+    setSessionState(previous => {
+      const next = previous === undefined ? null : previous;
+      cachedSession = next;
+      return next;
+    });
+  }, []);
   const [logoutError, setLogoutError] = useState(false);
 
   useEffect(() => {
@@ -58,12 +78,13 @@ export function ConnectedNavbar() {
         const body: { data?: unknown } = response.ok ? await response.json() : {};
         if (!disposed && !controller.signal.aborted) {
           if (response.status === 401) invalidateSession();
-          else setSession(response.ok ? sessionFromUser(body.data) : null);
+          else if (response.ok) setSession(sessionFromUser(body.data));
+          else keepOrGuest();
         }
       } catch (error) {
         if (!disposed && !controller.signal.aborted) {
           if (error instanceof SessionError && error.status === 401) invalidateSession();
-          else setSession(null);
+          else keepOrGuest();
         }
       }
     };
@@ -76,7 +97,7 @@ export function ConnectedNavbar() {
       window.removeEventListener('focus', synchronize);
       window.removeEventListener('storage', synchronize);
     };
-  }, [pathname, auth.accessToken, router]);
+  }, [pathname, auth.accessToken, router, setSession, keepOrGuest]);
 
   const logout = async () => {
     setLogoutError(false);
@@ -91,5 +112,9 @@ export function ConnectedNavbar() {
     } catch { setLogoutError(true); }
   };
 
-  return <><Navbar session={session} onLogout={logout} />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;
+  // /portal/institucional es la portada pública: siempre muestra la barra de visitante
+  // (Iniciar sesión / Registro). La barra por rol solo se ve en el resto del portal.
+  const isPublicLanding = pathname === '/portal/institucional' || pathname?.startsWith('/portal/institucional/');
+
+  return <><Navbar session={isPublicLanding ? null : (session ?? null)} loading={!isPublicLanding && session === undefined} onLogout={logout} />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;
 }
