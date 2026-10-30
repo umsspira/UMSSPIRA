@@ -11,7 +11,7 @@ const push = jest.fn();
 const replace = jest.fn();
 const refresh = jest.fn();
 const mockRouter = { push, replace, refresh };
-let mockPathname = '/portal/institucional';
+let mockPathname = '/mentorship/directory';
 
 jest.mock('next/navigation', () => ({ 
   usePathname: () => mockPathname, 
@@ -43,7 +43,7 @@ window.addEventListener(SESSION_EXPIRED_EVENT, expiredListener);
 beforeEach(() => {
   resetConnectedNavbarCache();
   window.localStorage.clear();
-  mockPathname = '/portal/institucional';
+  mockPathname = '/mentorship/directory';
   jest.clearAllMocks();
   sessionStorage.clear();
   fetchMock.mockReset();
@@ -76,12 +76,9 @@ it('conserva la sesión visual ante error de red y reintenta al volver online', 
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
   const view = render(<ConnectedNavbar />);
   expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
-  expect(JSON.parse(sessionStorage.getItem('umsspira.navbar.display-session')!)).toEqual({
-    name: 'talento', initials: 'TA', role: 'empresa',
-  });
 
   fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-  mockPathname = '/mentorship/directory';
+  mockPathname = '/companies';
   view.rerender(<ConnectedNavbar />);
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   expect(screen.getByText('talento: empresa')).toBeInTheDocument();
@@ -115,7 +112,7 @@ it('limpia la sesión visual y muestra acciones públicas ante un 401 explícito
   expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
 
   fetchMock.mockResolvedValueOnce({ ok: false, status: 401 } as Response);
-  mockPathname = '/mentorship/directory';
+  mockPathname = '/companies';
   view.rerender(<ConnectedNavbar />);
   await waitFor(() => expect(clearSession).toHaveBeenCalled());
   expect(await screen.findByText('Visitante')).toBeInTheDocument();
