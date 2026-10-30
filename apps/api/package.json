@@ -24,7 +24,8 @@
     "auth:prune": "tsx scripts/accounts/prune-sessions.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\" \"*.mjs\" \"*.cjs\" \"*.json\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\" \"*.mjs\" \"*.cjs\" \"*.json\"",
-    "db:seed:demo": "tsx scripts/seed/demo.ts"
+    "db:seed:demo": "tsx scripts/seed/demo.ts",
+    "db:seed:informatica": "tsx scripts/seed/informatics.ts"
   },
   "dependencies": {
     "@nestjs/common": "10.4.22",

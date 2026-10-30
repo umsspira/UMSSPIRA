@@ -27,10 +27,8 @@ export interface SendMessageAck {
   error?: string;
 }
 
-@WebSocketGateway({
-  cors: { origin: 'http://localhost:3001', credentials: true },
-  namespace: '/chat',
-})
+// El CORS del socket lo define CorsIoAdapter (main.ts) con la variable CORS_ORIGINS.
+@WebSocketGateway({ namespace: '/chat' })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
@@ -80,7 +78,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         senderId: userId,
         content: payload.content,
       });
-      
+
       const participantIds =
         await this.chatService.getConversationParticipantIds(
           payload.conversationId,
