@@ -21,6 +21,7 @@
     "db:status": "prisma migrate status",
     "db:seed": "prisma db seed",
     "account:create": "tsx scripts/accounts/create.ts",
+    "invitation:create": "tsx scripts/invitations/create.ts",
     "auth:prune": "tsx scripts/accounts/prune-sessions.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\" \"*.mjs\" \"*.cjs\" \"*.json\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\" \"*.mjs\" \"*.cjs\" \"*.json\"",
