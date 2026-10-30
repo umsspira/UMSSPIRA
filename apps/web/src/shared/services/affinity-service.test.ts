@@ -82,6 +82,43 @@ describe('getAffinityVector', () => {
     );
   });
 
+  it('consulta el endpoint real cuando la variable de mock no está definida', async () => {
+    delete process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK;
+    await setTestAccessToken();
+
+    const payload = {
+      graduateId: 'id-1',
+      calculatedAt: '2026-09-28T12:00:00.000Z',
+      hasPendingChanges: true,
+      areas: [{
+        area: 'software-development',
+        affinity: 85,
+        weighting: 5,
+        topKeywords: [{ keyword: 'typescript', weight: 5, frequency: 2, points: 10, percentage: 25 }],
+      }],
+    };
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: payload }),
+    });
+
+    const { getAffinityVector } = await import('./affinity-service');
+    const result = await getAffinityVector();
+
+    expect(result.graduateId).toBe(payload.graduateId);
+    expect(result.hasPendingChanges).toBe(true);
+    expect(result.areas[0]).toMatchObject({
+      weighting: 5,
+      topKeywords: payload.areas[0].topKeywords,
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/radar'),
+      expect.anything(),
+    );
+  });
+
   it('lanza error con el estado HTTP cuando el backend responde con fallo', async () => {
     process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
     await setTestAccessToken();
@@ -167,7 +204,7 @@ describe('getAffinityConfig', () => {
   afterEach(async () => {
     process.env = originalEnv;
     await resetTestSession();
-
+    global.fetch = originalFetch;
   });
 
   it('devuelve los 6 ejes del mock en el orden fijo con ponderaciones enteras', async () => {
@@ -188,21 +225,23 @@ describe('getAffinityConfig', () => {
     await setTestAccessToken();
 
     const payload = {
-      axes: [
-        { area: 'it-management', weight: 2 },
-        { area: 'data-ai', weight: 3 },
-        { area: 'software-development', weight: 4 },
-        { area: 'cybersecurity-networks', weight: 3 },
-        { area: 'quality-assurance', weight: 2 },
-        { area: 'cloud-devops', weight: 3 },
+      graduateId: 'id-1',
+      calculatedAt: '2026-09-28T12:00:00.000Z',
+      hasPendingChanges: true,
+      areas: [
+        { area: 'it-management', affinity: 0, weighting: null },
+        { area: 'data-ai', affinity: 65, weighting: 3 },
+        { area: 'software-development', affinity: 85, weighting: 5 },
+        { area: 'cybersecurity-networks', affinity: 20, weighting: 1 },
+        { area: 'quality-assurance', affinity: 40, weighting: 2 },
+        { area: 'cloud-devops', affinity: 60, weighting: 4 },
       ],
     };
 
-    // apiClient.get() devuelve response.json() directamente.
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => payload,
+      json: async () => ({ data: payload }),
     });
 
     const { getAffinityConfig } = await import('./affinity-service');
@@ -211,9 +250,11 @@ describe('getAffinityConfig', () => {
     expect(config.axes.map((axis) => axis.area)).toEqual(AREAS_ORDER);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/affinity/config'),
+      expect.stringContaining('/api/v1/radar'),
       expect.anything(),
     );
+    expect(config.axes.map((axis) => axis.weight)).toEqual([5, 4, 3, 2, 1, null]);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });
 

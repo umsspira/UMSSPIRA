@@ -80,6 +80,8 @@ function adaptRadarResponse(
         area: normalizedArea,
         affinity: area.affinity,
         previousAffinity: area.previousAffinity ?? null,
+        weighting: area.weighting ?? null,
+        topKeywords: area.topKeywords ?? [],
         keywords: (area.topKeywords ?? []).map((keyword) =>
           typeof keyword === 'string' ? keyword : keyword.keyword,
         ),
@@ -102,13 +104,13 @@ function adaptRadarResponse(
 export const RECALCULATE_TIMEOUT_MS = 7000;
 
 const USE_AFFINITY_MOCK =
-  process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK !== 'false';
+  process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK === 'true';
 
 let snapshotIndex = 0;
 
 export interface AffinityAxisConfig {
   area: AffinityArea;
-  weight: number;
+  weight: number | null;
 }
 
 export interface AffinityConfigPayload {
@@ -162,9 +164,12 @@ export async function calculateAffinityVector(): Promise<AffinityVectorResponse>
 export async function getAffinityConfig(): Promise<AffinityConfigPayload> {
   const payload = USE_AFFINITY_MOCK
     ? (affinityConfigMock as AffinityConfigPayload)
-    : await apiClient.get<AffinityConfigPayload>(
-        AFFINITY_CONFIG_ENDPOINT,
-      );
+    : {
+        axes: (await getAffinityVector()).areas.map(({ area, weighting }) => ({
+          area,
+          weight: weighting ?? null,
+        })),
+      };
 
   return orderConfigAxes(payload);
 }
