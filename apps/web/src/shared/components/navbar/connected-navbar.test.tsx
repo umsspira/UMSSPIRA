@@ -4,6 +4,7 @@ import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared
 import { clearSession } from '@/modules/auth/frontend/services/session';
 import { authStore } from '@/modules/auth/frontend/store';
 import type { NavbarProps } from './types';
+import { SESSION_EXPIRED_EVENT } from '@/modules/auth/frontend/services/session-expired';
 
 // --- Mocks ---
 const push = jest.fn();
@@ -49,10 +50,13 @@ jest.mock('./navbar', () => ({
 }));
 
 const fetchMock = jest.mocked(authenticatedFetch);
+const expiredListener = jest.fn();
+window.addEventListener(SESSION_EXPIRED_EVENT, expiredListener);
 
 beforeEach(() => {
   resetConnectedNavbarCache();
-  mockPathname = '/portal';
+  window.localStorage.clear();
+  mockPathname = '/portal/institucional';
   jest.clearAllMocks();
   fetchMock.mockReset();
   fetchMock.mockRejectedValue(new SessionError(401, 'Inicia sesión'));
@@ -126,25 +130,46 @@ it('HU-004: un administrador cierra sesión y vuelve a la bienvenida', async () 
   expect(authStore.reset).toHaveBeenCalled();
 });
 
-it('HU-004 CA-05: HTTP 401 en reportería borra el estado React y devuelve a /login', async () => {
+it('HU-004 CA-07: el administrador vuelve a la bienvenida aunque /me responda 401 durante el cierre', async () => {
+  mockPathname = '/reports';
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({ data: { email: 'admin@umss.edu.bo', role: 'administrador' } }),
+  } as Response);
+  let finishRevoke: () => void = () => undefined;
+  jest.mocked(revokeCurrentSession).mockReturnValue(new Promise<void>((resolve) => { finishRevoke = resolve; }));
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('admin: administrador')).toBeInTheDocument();
+
+  fetchMock.mockResolvedValue({ ok: false, status: 401 } as Response);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+  fireEvent.focus(window);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  finishRevoke();
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/'));
+  expect(replace).not.toHaveBeenCalled();
+  expect(expiredListener).not.toHaveBeenCalled();
+});
+
+it('HU-004 CA-06: HTTP 401 en reportería borra el estado React y abre la alerta de sesión expirada', async () => {
   mockPathname = '/reports';
   fetchMock.mockResolvedValue({ ok: false, status: 401 } as Response);
   render(<ConnectedNavbar />);
 
   await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
   expect(authStore.reset).toHaveBeenCalled();
-  expect(replace).toHaveBeenCalledWith('/login');
-  expect(refresh).toHaveBeenCalled();
+  expect(expiredListener).toHaveBeenCalledTimes(1);
 });
 
-it('HU-004 CA-05: al fallar la renovación con 401 también limpia la sesión', async () => {
+it('HU-004 CA-06: al fallar la renovación con 401 también limpia la sesión y avisa', async () => {
   mockPathname = '/reports/encuestas';
   fetchMock.mockRejectedValue(new SessionError(401, 'Sesión expirada'));
   render(<ConnectedNavbar />);
 
   await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
   expect(authStore.reset).toHaveBeenCalled();
-  expect(replace).toHaveBeenCalledWith('/login');
+  expect(expiredListener).toHaveBeenCalledTimes(1);
 });
 
 it('HU-004: la página institucional pública no redirige por un 401 sin sesión', async () => {
@@ -155,6 +180,32 @@ it('HU-004: la página institucional pública no redirige por un 401 sin sesión
   await waitFor(() => expect(clearSession).toHaveBeenCalledTimes(1));
   expect(authStore.reset).toHaveBeenCalled();
   expect(replace).not.toHaveBeenCalled();
+  expect(expiredListener).not.toHaveBeenCalled();
+});
+
+it('elimina todos los borradores al cerrar sesión desde la navbar', async () => {
+  window.localStorage.setItem('umsspira:survey-draft:usuario-1', '{"workCondition":"works"}');
+  window.localStorage.setItem('umsspira:survey-draft:usuario-2', '{"workCondition":"not-works"}');
+  window.localStorage.setItem('configuracion-visual', 'preservada');
+
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  expect(window.localStorage.getItem('umsspira:survey-draft:usuario-1')).toBeNull();
+  expect(window.localStorage.getItem('umsspira:survey-draft:usuario-2')).toBeNull();
+  expect(window.localStorage.getItem('configuracion-visual')).toBe('preservada');
+});
+
+it('mantiene el borrador cuando falla el logout desde la navbar', async () => {
+  window.localStorage.setItem('umsspira:survey-draft:usuario-1', '{"workCondition":"works"}');
+  jest.mocked(revokeCurrentSession).mockRejectedValueOnce(new Error('Sin conexión'));
+
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo cerrar la sesión');
+  expect(window.localStorage.getItem('umsspira:survey-draft:usuario-1')).not.toBeNull();
 });
 
 it('la portada institucional siempre muestra la barra de visitante, aunque haya sesión', async () => {

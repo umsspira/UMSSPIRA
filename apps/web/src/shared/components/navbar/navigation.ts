@@ -62,12 +62,13 @@ export const NAVBAR_ACCOUNT_LINKS: NavbarLink[] = [
   { id: 'my-jobs', label: 'Mis Vacantes', pending: 'Próximamente', roles: employers },
   { id: 'applicants', label: 'Postulantes', href: '/empresa/postulantes', roles: employers },
   { id: 'applications', label: 'Solicitudes de registro', href: '/applications', roles: admins },
+  { id: 'company-registry', label: 'Registro de empresas', href: '/company-registry', roles: admins },
   { id: 'reports', label: 'Reportes Institucionales', href: '/reports', roles: admins },
   // HU-004 CA-04: el administrador consulta el área institucional de encuestas,
   // que NO es el formulario /surveys reservado para titulados.
   { id: 'employment-survey-admin', label: 'Encuestas de Empleabilidad', href: '/reports/encuestas', roles: admins },
-  // La vista /surveys aún pertenece a otra task; no enlazar una ruta inexistente.
-  { id: 'employment-surveys', label: 'Encuesta de empleabilidad', pending: 'Disponible al integrar la vista /surveys', roles: graduates },
+  // HU-001/HU-002: formulario de la encuesta para el titulado.
+  { id: 'employment-surveys', label: 'Encuesta de empleabilidad', href: '/surveys', roles: graduates },
   { id: 'admin-home', label: 'Panel administrativo', href: '/portal/admin', roles: admins },
 ];
 
