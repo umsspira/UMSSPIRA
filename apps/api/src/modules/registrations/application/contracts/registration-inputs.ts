@@ -74,3 +74,7 @@ export interface UpdateObservedDataUseCaseInput {
   fechaTitulacion?: string | null;
   fechaIngreso?: string | null;
 }
+
+export interface SubmitCorrectionUseCaseInput {
+  expectedVersion: number;
+}
