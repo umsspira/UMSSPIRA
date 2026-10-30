@@ -58,8 +58,11 @@ export const NAVBAR_ACCOUNT_LINKS: NavbarLink[] = [
   { id: 'my-profile', label: 'Mi perfil profesional', href: '/profile', roles: members },
   { id: 'my-company', label: 'Perfil de Empresa', href: '/companies', roles: employers },
   { id: 'account-publish-job', label: 'Publicar Vacante', href: '/empresa/vacantes/publicar', roles: employers },
-  // La vista de listado de vacantes de la empresa aún no existe: sin href hasta que llegue.
-  { id: 'my-jobs', label: 'Mis Vacantes', pending: 'Próximamente', roles: employers },
+  
+  // 👇 AQUÍ ESTÁ EL CAMBIO: Le pusimos el href y quitamos el 'Próximamente' 👇
+  { id: 'my-jobs', label: 'Mis Vacantes', href: '/empresa/mis-vacantes', roles: employers },
+  // 👆 FIN DEL CAMBIO 👆
+
   { id: 'applicants', label: 'Postulantes', href: '/empresa/postulantes', roles: employers },
   { id: 'applications', label: 'Solicitudes de registro', href: '/applications', roles: admins },
   { id: 'company-registry', label: 'Registro de empresas', href: '/company-registry', roles: admins },

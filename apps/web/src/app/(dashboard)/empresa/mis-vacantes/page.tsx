@@ -33,6 +33,8 @@ export default function MisVacantesPage() {
   
   const [vacanteACerrar, setVacanteACerrar] = useState<Vacante | null>(null);
   const [isCerrando, setIsCerrando] = useState(false);
+  const [vacanteAEliminar, setVacanteAEliminar] = useState<Vacante | null>(null);
+  const [isEliminando, setIsEliminando] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export default function MisVacantesPage() {
           if (['HIBRIDO', 'HÍBRIDO', 'HYBRID', 'HIBRIDA', 'HÍBRIDA'].includes(modalidadRaw)) modalidadUI = 'Híbrido';
 
           let nivelUI = 'Senior';
-          if (['JUNIOR', 'JR'].includes(nivelRaw)) nivelUI = 'Junior';
+          if (['JUNIOR', 'JR', 'SIN_EXPERIENCIA'].includes(nivelRaw)) nivelUI = 'Junior';
           if (['SEMI-SENIOR', 'SEMISENIOR', 'SEMI_SENIOR', 'MID'].includes(nivelRaw)) nivelUI = 'Semi-Senior';
 
           return {
@@ -94,6 +96,29 @@ export default function MisVacantesPage() {
     };
     fetchVacantes();
   }, []);
+
+  const handlePausar = async (vacante: Vacante) => {
+    try {
+      const token = getAccessToken();
+      const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${vacante.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ estado: 'PAUSADA' })
+      });
+
+      if (!response.ok) throw new Error('Error al pausar');
+      
+      setVacantes((prev) => 
+        prev.map((v) => v.id === vacante.id ? { ...v, estado: 'PAUSADA' } : v)
+      );
+      setMenuAbierto(null);
+    } catch (error) {
+      alert("Error al pausar la vacante.");
+    }
+  };
 
   const handleConfirmarCierre = async () => {
     if (!vacanteACerrar) return;
@@ -119,13 +144,31 @@ export default function MisVacantesPage() {
     }
   };
 
-  const handleEditar = (id: string) => {
-    router.push(`/empresa/mis-vacantes/${id}/editar`);
+  const handleConfirmarEliminar = async () => {
+    if (!vacanteAEliminar) return;
+    setIsEliminando(true);
+    try {
+      const token = getAccessToken();
+      const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${vacanteAEliminar.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Error al eliminar');
+      
+      setVacantes((prev) => prev.filter((v) => v.id !== vacanteAEliminar.id));
+      setVacanteAEliminar(null);
+    } catch (error) {
+      alert("Error al eliminar la vacante. Es posible que tenga postulantes asociados.");
+    } finally {
+      setIsEliminando(false);
+    }
   };
 
-  const handleVerPostulantes = (id: string) => {
-    setMenuAbierto(null);
-    router.push(`/empresa/mis-vacantes/${id}/candidatos`);
+  const handleEditar = (id: string) => {
+    router.push(`/empresa/mis-vacantes/${id}/editar`);
   };
 
   const getBadgeStyle = (estado: string) => {
@@ -156,18 +199,12 @@ export default function MisVacantesPage() {
     <div style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         
-        {/* Volver Redirigiendo a Publicar */}
-        <Link href="/empresa/vacantes/publicar" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#4b5563', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600, transition: 'all 0.2s' }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--flame)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = '#4b5563'}
-        >
+        <Link href="/empresa/vacantes/publicar" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#4b5563', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600, transition: 'all 0.2s' }}>
           <ArrowLeft size={16} /> Volver a Publicar Vacantes
         </Link>
 
-        {/* TARJETA PRINCIPAL */}
         <div style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', padding: '2.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
           
-          {/* HEADER CON BOTÓN DE PUBLICAR */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div style={{ padding: '0.75rem', backgroundColor: 'var(--flame)', borderRadius: '0.75rem', color: '#fff', boxShadow: '0 4px 12px rgba(255,177,98,0.3)' }}>
@@ -191,16 +228,12 @@ export default function MisVacantesPage() {
                 display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none',
                 boxShadow: '0 4px 12px rgba(255,177,98,0.3)', transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(255,177,98,0.4)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(255,177,98,0.3)'; }}
             >
               <Plus size={18} /> Publicar vacante
             </Link>
           </div>
 
-          {/* FILTROS */}
           <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-            
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: '220px' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Buscar</label>
               <div style={{ position: 'relative' }}>
@@ -247,7 +280,6 @@ export default function MisVacantesPage() {
             </div>
           </div>
 
-          {/* TABS */}
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
             {['Todas', 'Activas', 'Pausadas', 'Cerradas', 'Borradores'].map((tab) => {
               const isActive = activeTab === tab;
@@ -282,7 +314,6 @@ export default function MisVacantesPage() {
             })}
           </div>
 
-          {/* TABLA */}
           <div style={{ border: '1px solid var(--oatmeal)', borderRadius: '0.75rem', backgroundColor: '#fff' }}>
             
             <div style={{ display: 'grid', gridTemplateColumns: '40px 2.5fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '1rem', backgroundColor: '#fcfcfc', borderBottom: '1px solid var(--oatmeal)', fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center', borderRadius: '0.75rem 0.75rem 0 0' }}>
@@ -376,18 +407,21 @@ export default function MisVacantesPage() {
                       {menuAbierto === vacante.id && (
                         <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: '0.5rem', backgroundColor: '#fff', border: '1px solid var(--oatmeal)', borderRadius: '0.5rem', padding: '0.5rem', width: '180px', zIndex: 50, boxShadow: '0 8px 20px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '0.25rem', textAlign: 'left' }}>
                           <button onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Eye size={14} /> Ver detalle</button>
-                          
-                          {/* NUEVO: lleva a la lista de postulantes de esta vacante */}
-                          <button onClick={() => handleVerPostulantes(vacante.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Users size={14} /> Ver postulantes</button>
-                          
                           <button onClick={() => handleEditar(vacante.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pencil size={14} /> Editar</button>
-                          <button style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pause size={14} /> Pausar</button>
                           
+                          {/* 👇 AQUÍ ESTÁ EL BOTÓN CORREGIDO 👇 */}
+                          <button onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}/candidatos`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Users size={14} /> Ver postulantes</button>
+                          {/* 👆 FIN DEL BOTÓN CORREGIDO 👆 */}
+
                           {vacante.estado === 'ACTIVA' && (
-                            <button onClick={() => setVacanteACerrar(vacante)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: '#fef2f2', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Ban size={14} /> Desactivar</button>
+                            <button onClick={() => handlePausar(vacante)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pause size={14} /> Pausar</button>
                           )}
                           
-                          <button style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}><Trash2 size={14} /> Eliminar</button>
+                          {vacante.estado === 'ACTIVA' && (
+                            <button onClick={() => { setMenuAbierto(null); setVacanteACerrar(vacante); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: '#fef2f2', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Ban size={14} /> Desactivar</button>
+                          )}
+                          
+                          <button onClick={() => { setMenuAbierto(null); setVacanteAEliminar(vacante); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Trash2 size={14} /> Eliminar</button>
                         </div>
                       )}
                     </div>
@@ -398,7 +432,6 @@ export default function MisVacantesPage() {
           </div>
         </div>
 
-        {/* MODAL DE CIERRE */}
         {vacanteACerrar && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(27, 38, 50, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
             <div style={{ backgroundColor: '#fff', padding: '2rem', borderRadius: '1rem', maxWidth: '420px', width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', border: '1px solid var(--oatmeal)' }}>
@@ -410,6 +443,23 @@ export default function MisVacantesPage() {
                 <button onClick={() => setVacanteACerrar(null)} disabled={isCerrando} style={{ padding: '0.6rem 1.2rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#111827', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}>Cancelar</button>
                 <button onClick={handleConfirmarCierre} disabled={isCerrando} style={{ padding: '0.6rem 1.2rem', border: 'none', backgroundColor: 'var(--flame)', color: '#fff', borderRadius: '0.5rem', cursor: isCerrando ? 'not-allowed' : 'pointer', opacity: isCerrando ? 0.7 : 1, fontWeight: 'bold' }}>
                   {isCerrando ? 'Cerrando...' : 'Sí, cerrar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {vacanteAEliminar && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(27, 38, 50, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+            <div style={{ backgroundColor: '#fff', padding: '2rem', borderRadius: '1rem', maxWidth: '420px', width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', border: '1px solid var(--oatmeal)' }}>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: '800', marginBottom: '0.75rem', color: '#dc2626' }}>¿Eliminar vacante?</h3>
+              <p style={{ marginBottom: '1.5rem', color: '#4b5563', fontSize: '0.9rem', lineHeight: 1.5, fontWeight: 500 }}>
+                Estás a punto de eliminar permanentemente la vacante <strong style={{ color: '#111827' }}>{vacanteAEliminar.titulo}</strong>. Esta acción no se puede deshacer.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button onClick={() => setVacanteAEliminar(null)} disabled={isEliminando} style={{ padding: '0.6rem 1.2rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#111827', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}>Cancelar</button>
+                <button onClick={handleConfirmarEliminar} disabled={isEliminando} style={{ padding: '0.6rem 1.2rem', border: 'none', backgroundColor: '#dc2626', color: '#fff', borderRadius: '0.5rem', cursor: isEliminando ? 'not-allowed' : 'pointer', opacity: isEliminando ? 0.7 : 1, fontWeight: 'bold' }}>
+                  {isEliminando ? 'Eliminando...' : 'Sí, eliminar'}
                 </button>
               </div>
             </div>

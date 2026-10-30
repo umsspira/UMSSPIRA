@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Body } from '@nestjs/common';
 import { CurrentActor } from '../../shared/http/auth/decorators/current-actor.decorator';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
 import { VacantesService, UpdateVacanteData } from './vacantes.service';
@@ -9,15 +9,11 @@ export class VacantesController {
 
   @Get('mis-vacantes')
   async listar(@CurrentActor() actor: ActorContext) {
-    const idUsuario = actor.id;
-    return this.vacantesService.obtenerMisVacantes(idUsuario);
+    return this.vacantesService.obtenerMisVacantes(actor.id);
   }
 
   @Get(':id')
-  async obtenerDetalle(
-    @Param('id') id: string,
-    @CurrentActor() actor: ActorContext
-  ) {
+  async obtenerDetalle(@Param('id') id: string, @CurrentActor() actor: ActorContext) {
     return this.vacantesService.obtenerVacantePorId(id, actor.id);
   }
 
@@ -33,5 +29,10 @@ export class VacantesController {
     @CurrentActor() actor: ActorContext
   ) {
     return this.vacantesService.actualizarVacante(id, actor.id, body);
+  }
+
+  @Delete(':id')
+  async eliminar(@Param('id') id: string, @CurrentActor() actor: ActorContext) {
+    return this.vacantesService.eliminarVacante(id, actor.id);
   }
 }

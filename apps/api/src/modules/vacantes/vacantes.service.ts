@@ -6,6 +6,7 @@ export interface UpdateVacanteData {
   modalidad?: string;
   nivel_experiencia?: string;
   descripcion_tecnica?: string;
+  estado?: string; // <-- NUEVO: para poder pausar
 }
 
 @Injectable()
@@ -17,9 +18,7 @@ export class VacantesService {
       where: { id_usuario: idUsuario }
     });
 
-    if (!empresa) {
-      return [];
-    }
+    if (!empresa) {return [];}
 
     return this.prisma.vacante.findMany({
       where: { id_empresa: empresa.id },
@@ -32,15 +31,10 @@ export class VacantesService {
       where: { id_usuario: idUsuario }
     });
 
-    if (!empresa) {
-      throw new Error('Empresa no encontrada');
-    }
+    if (!empresa) {throw new Error('Empresa no encontrada');}
 
     return this.prisma.vacante.findFirst({
-      where: { 
-        id: idVacante, 
-        id_empresa: empresa.id 
-      }
+      where: { id: idVacante, id_empresa: empresa.id }
     });
   }
 
@@ -56,20 +50,13 @@ export class VacantesService {
       where: { id_usuario: idUsuario }
     });
 
-    if (!empresa) {
-      throw new Error('Empresa no encontrada');
-    }
+    if (!empresa) {throw new Error('Empresa no encontrada');}
 
     const vacante = await this.prisma.vacante.findFirst({
-      where: { 
-        id: idVacante,
-        id_empresa: empresa.id 
-      }
+      where: { id: idVacante, id_empresa: empresa.id }
     });
 
-    if (!vacante) {
-      throw new Error('Vacante no encontrada o no tienes permiso para editarla');
-    }
+    if (!vacante) {throw new Error('Vacante no encontrada o sin permiso');}
 
     return this.prisma.vacante.update({
       where: { id: idVacante },
@@ -78,7 +65,27 @@ export class VacantesService {
         modalidad: data.modalidad,
         nivel_experiencia: data.nivel_experiencia,
         descripcion_tecnica: data.descripcion_tecnica,
+        estado: data.estado, // <-- NUEVO
       }
+    });
+  }
+
+  // NUEVO MÉTODO PARA ELIMINAR
+  async eliminarVacante(idVacante: string, idUsuario: string) {
+    const empresa = await this.prisma.empresa.findFirst({
+      where: { id_usuario: idUsuario }
+    });
+
+    if (!empresa) {throw new Error('Empresa no encontrada');}
+
+    const vacante = await this.prisma.vacante.findFirst({
+      where: { id: idVacante, id_empresa: empresa.id }
+    });
+
+    if (!vacante) {throw new Error('Vacante no encontrada o sin permiso para eliminarla');}
+
+    return this.prisma.vacante.delete({
+      where: { id: idVacante }
     });
   }
 }
