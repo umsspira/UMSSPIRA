@@ -78,6 +78,20 @@ describe('SubmitSurveyController', () => {
     expect(response).toEqual({ data: { id: '123e4567-e89b-12d3-a456-426614174222' } });
   });
 
+  it('usa la encuesta más reciente cuando el cliente no envía id_encuesta', async () => {
+    prisma.encuesta.findFirst.mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000' });
+    repository.save.mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174222' });
+
+    await controller.submit(actor, { condicion_laboral: false });
+
+    expect(prisma.encuesta.findFirst).toHaveBeenCalledWith({ orderBy: { fecha_creacion: 'desc' } });
+    expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({
+      idEncuesta: '123e4567-e89b-12d3-a456-426614174000',
+      idTitulado: '123e4567-e89b-12d3-a456-426614174111',
+      condicionLaboral: false,
+    }));
+  });
+
   it('convierte errores Prisma P2002 en conflicto HTTP 409', async () => {
     prisma.encuesta.findUnique.mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000' });
     repository.save.mockRejectedValue(
