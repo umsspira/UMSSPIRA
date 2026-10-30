@@ -39,11 +39,16 @@ export function ConnectedNavbar() {
   const auth = useAuthStore();
   // undefined = todavía no se sabe (no se muestra ninguna barra de cuenta ni de visitante)
   const [session, setSessionState] = useState<NavbarSession | null | undefined>(cachedSession);
+  const [logoutError, setLogoutError] = useState(false);
+  // HU-004 CA-07: durante el cierre voluntario, el 401 de /me no debe redirigir por su cuenta.
+  const loggingOut = useRef(false);
+
   const setSession = useCallback((value: NavbarSession | null) => {
     cachedSession = value;
     setSessionState(value);
   }, []);
-  // Un fallo que no es 401 (red, 500) conserva la sesión que ya se tenía.
+
+  // Un fallo que no es 401/403 (red, 500) conserva la sesión que ya se tenía.
   const keepOrGuest = useCallback(() => {
     setSessionState(previous => {
       const next = previous === undefined ? null : previous;
@@ -51,16 +56,13 @@ export function ConnectedNavbar() {
       return next;
     });
   }, []);
-  const [logoutError, setLogoutError] = useState(false);
-  // HU-004 CA-07: durante el cierre voluntario, el 401 de /me no debe redirigir por su cuenta.
-  const loggingOut = useRef(false);
 
   useEffect(() => {
     let request: AbortController | undefined;
     let disposed = false;
     const invalidateSession = () => {
       if (loggingOut.current) return;
-      // HU-004 CA-05: un rechazo 401 no debe dejar el estado React autenticado.
+      // HU-004 CA-05: un rechazo 401/403 no debe dejar el estado React autenticado.
       clearSession();
       authStore.reset();
       setSession(null);
@@ -81,13 +83,13 @@ export function ConnectedNavbar() {
         });
         const body: { data?: unknown } = response.ok ? await response.json() : {};
         if (!disposed && !controller.signal.aborted) {
-          if (response.status === 401) invalidateSession();
+          if (response.status === 401 || response.status === 403) invalidateSession();
           else if (response.ok) setSession(sessionFromUser(body.data));
           else keepOrGuest();
         }
       } catch (error) {
         if (!disposed && !controller.signal.aborted) {
-          if (error instanceof SessionError && error.status === 401) invalidateSession();
+          if (error instanceof SessionError && (error.status === 401 || error.status === 403)) invalidateSession();
           else keepOrGuest();
         }
       }
@@ -95,11 +97,13 @@ export function ConnectedNavbar() {
     void synchronize();
     window.addEventListener('focus', synchronize);
     window.addEventListener('storage', synchronize);
+    window.addEventListener('online', synchronize);
     return () => {
       disposed = true;
       request?.abort();
       window.removeEventListener('focus', synchronize);
       window.removeEventListener('storage', synchronize);
+      window.removeEventListener('online', synchronize);
     };
   }, [pathname, auth.accessToken, router, setSession, keepOrGuest]);
 

@@ -31,10 +31,24 @@ describe('ActivateOtpStep', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
+    // Congelamos Date.now en toda la suite: el hook calcula
+    // cooldownSeconds = Math.ceil((cooldownEnd - now) / 1000) con DOS llamadas a Date.now().
+    // Si entre ambas transcurre >= 1 ms, redondea a 1 aunque `inspect` devuelva
+    // cooldownSeconds: 0, y el botón «Reenviar código» queda deshabilitado hasta el tick de
+    // 1 s del setInterval. En CI ese tick puede llegar después del timeout de 1000 ms de
+    // waitFor y los casos fallan de forma intermitente. Con el reloj fijo la diferencia es
+    // exactamente 0, así que el desbloqueo depende del fin de la promesa y no del runner.
+    // El caso de bloqueo de 15 min sigue mostrando «15:00», por lo que su aserción no cambia.
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     (activationService.inspect as jest.Mock).mockImplementation(async () => ({
       maskedEmail: 'ti****s@umss.edu.bo', expiresAt: '2026-10-25T20:00:00Z',
       cooldownSeconds: 0, resendCount: 0, failedAttempts: Math.min((activationService.verifyOtp as jest.Mock).mock.calls.length, 5),
     }));
+  });
+
+  // Devuelve el reloj real tras cada caso para no filtrar el mock a otras suites/archivos.
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('renderiza el mensaje de aprobación, el correo enmascarado y las 6 casillas OTP (CA-06.2)', async () => {
