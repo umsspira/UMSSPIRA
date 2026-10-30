@@ -24,18 +24,14 @@ describe("PortalSiteHeader", () => {
     localStorage.clear();
   });
 
-  it("mantiene el encabezado anterior si la ruta aún no está disponible", () => {
-    render(<PortalSiteHeader />);
-    const logo = screen.getByRole("link", { name: /umsspira/i });
-    expect(logo).toHaveAttribute("href", "/portal");
-  });
-
-  it("mantiene el encabezado anterior en las demás páginas del portal", () => {
-    mockUsePathname.mockReturnValue("/portal/comunidad");
-    render(<PortalSiteHeader />);
-    expect(screen.getByRole("link", { name: /umsspira/i })).toHaveAttribute("href", "/portal");
-    expect(screen.queryByRole("link", { name: "Iniciar sesión" })).not.toBeInTheDocument();
-  });
+  it.each([null, "/portal", "/portal/mensajes", "/portal/comunidad"])(
+    "usa la misma barra oficial en %s",
+    (pathname) => {
+      mockUsePathname.mockReturnValue(pathname);
+      render(<PortalSiteHeader />);
+      expect(screen.getByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
+    },
+  );
 
   it.each(["/portal/institucional", "/portal/institucional/"])(
     "renderiza un único encabezado oficial en %s",
