@@ -1,0 +1,34 @@
+13fe8cd7e9c7a12984158fd395fa13a1
+"use client";
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "SurveyOfflineBanner", {
+    enumerable: true,
+    get: function() {
+        return SurveyOfflineBanner;
+    }
+});
+const _jsxruntime = require("react/jsx-runtime");
+const _usenetworkstatus = require("../hooks/use-network-status");
+function SurveyOfflineBanner() {
+    const { isOffline } = (0, _usenetworkstatus.useNetworkStatus)();
+    if (!isOffline) return null;
+    return /*#__PURE__*/ (0, _jsxruntime.jsxs)("div", {
+        role: "alert",
+        className: "rounded-lg border border-yellow-400 bg-yellow-100 p-4 text-yellow-900",
+        children: [
+            /*#__PURE__*/ (0, _jsxruntime.jsx)("p", {
+                className: "font-semibold",
+                children: "Sin conexi\xf3n a Internet"
+            }),
+            /*#__PURE__*/ (0, _jsxruntime.jsx)("p", {
+                className: "text-sm",
+                children: "No tienes conexi\xf3n. Evita enviar la encuesta hasta recuperar el acceso a Internet."
+            })
+        ]
+    });
+}
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcTVNJXFxEZXNrdG9wXFxQUk9ZRUNUTy1JUzJcXFVNU1NQSVJBXFxhcHBzXFx3ZWJcXHNyY1xcbW9kdWxlc1xcc3VydmV5c1xcZnJvbnRlbmRcXGNvbXBvbmVudHNcXHN1cnZleS1vZmZsaW5lLWJhbm5lci50c3giXSwic291cmNlc0NvbnRlbnQiOlsiXCJ1c2UgY2xpZW50XCI7XHJcblxyXG5pbXBvcnQgeyB1c2VOZXR3b3JrU3RhdHVzIH0gZnJvbSBcIi4uL2hvb2tzL3VzZS1uZXR3b3JrLXN0YXR1c1wiO1xyXG5cclxuZXhwb3J0IGZ1bmN0aW9uIFN1cnZleU9mZmxpbmVCYW5uZXIoKSB7XHJcbiAgY29uc3QgeyBpc09mZmxpbmUgfSA9IHVzZU5ldHdvcmtTdGF0dXMoKTtcclxuXHJcbiAgaWYgKCFpc09mZmxpbmUpIHJldHVybiBudWxsO1xyXG5cclxuICBcclxuICByZXR1cm4gKFxyXG4gICAgPGRpdlxyXG4gICAgICByb2xlPVwiYWxlcnRcIlxyXG4gICAgICBjbGFzc05hbWU9XCJyb3VuZGVkLWxnIGJvcmRlciBib3JkZXIteWVsbG93LTQwMCBiZy15ZWxsb3ctMTAwIHAtNCB0ZXh0LXllbGxvdy05MDBcIlxyXG4gICAgPlxyXG4gICAgICA8cCBjbGFzc05hbWU9XCJmb250LXNlbWlib2xkXCI+XHJcbiAgICAgICAgU2luIGNvbmV4acOzbiBhIEludGVybmV0XHJcbiAgICAgIDwvcD5cclxuICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1zbVwiPlxyXG4gICAgICAgIE5vIHRpZW5lcyBjb25leGnDs24uIEV2aXRhIGVudmlhciBsYSBlbmN1ZXN0YVxyXG4gICAgICAgIGhhc3RhIHJlY3VwZXJhciBlbCBhY2Nlc28gYSBJbnRlcm5ldC5cclxuICAgICAgPC9wPlxyXG4gICAgPC9kaXY+XHJcbiAgKTtcclxuXHJcbn1cclxuIl0sIm5hbWVzIjpbIlN1cnZleU9mZmxpbmVCYW5uZXIiLCJpc09mZmxpbmUiLCJ1c2VOZXR3b3JrU3RhdHVzIiwiZGl2Iiwicm9sZSIsImNsYXNzTmFtZSIsInAiXSwibWFwcGluZ3MiOiJBQUFBOzs7OzsrQkFJZ0JBOzs7ZUFBQUE7Ozs7a0NBRmlCO0FBRTFCLFNBQVNBO0lBQ2QsTUFBTSxFQUFFQyxTQUFTLEVBQUUsR0FBR0MsSUFBQUEsa0NBQWdCO0lBRXRDLElBQUksQ0FBQ0QsV0FBVyxPQUFPO0lBR3ZCLHFCQUNFLHNCQUFDRTtRQUNDQyxNQUFLO1FBQ0xDLFdBQVU7OzBCQUVWLHFCQUFDQztnQkFBRUQsV0FBVTswQkFBZ0I7OzBCQUc3QixxQkFBQ0M7Z0JBQUVELFdBQVU7MEJBQVU7Ozs7QUFPN0IifQ==
