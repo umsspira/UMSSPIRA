@@ -9,11 +9,10 @@ import { PendingChangesDialog } from './pending-changes-dialog';
 import { RadarErrorState } from './radar-error-state';
 import { SuccessToast } from './success-toast';
 import { AffinitySkeleton } from './affinity-skeleton';
-import RadarInspection from './radar-inspection';
+import RadarInspection, { type EvidenceItem } from './radar-inspection';
 import { VariationIndicator } from './variation-indicator';
 import { clampPercentage, formatPercentage } from '../utils/percentage';
 import { sortAreasByAffinityDesc } from '../utils/affinity-math';
-import affinityVectorMock from '../mocks/affinity-vector-mock.json';
 import { useRecalculateState } from '../hooks/use-recalculate-state';
 import { DEBOUNCE_MS } from '../hooks/use-debounced-batch';
 import {
@@ -53,44 +52,23 @@ const RUTA_EPICA_2_CERTIFICACIONES = '/epica-2/certificaciones/nueva?returnTo=/a
 type InspectionAreas = NonNullable<React.ComponentProps<typeof RadarInspection>['areas']>;
 
 type CandidateArea = AffinityAreaScore & {
-  evidence?: any[];
+  evidence?: EvidenceItem[];
   keywords?: string[];
 };
 
-const mockAreas = affinityVectorMock.areas as unknown as InspectionAreas;
+// El porcentaje y los aportes provienen del backend, aunque no incluya respaldos.
+const processVectorAreas = (areas: CandidateArea[]): CandidateArea[] =>
+  areas.map((area) => ({
+    ...area,
+    previousAffinity: area.previousAffinity ?? null,
+    evidence: area.evidence ?? [],
+    topKeywords: area.topKeywords ?? [],
+    keywords: area.topKeywords?.map(({ keyword }) => keyword) ?? area.keywords ?? [],
+  }));
 
-// Obtiene evidencias priorizando las del vector recibido, o el mock como respaldo
-const getAreaEvidence = (area: { area: string; evidence?: any[] }, fallbackMock: InspectionAreas): any[] => {
-  if (area.evidence !== undefined) {
-    return area.evidence;
-  }
-  return fallbackMock.find((mock) => mock.area === area.area)?.evidence ?? [];
-};
-
-// Procesa las áreas del vector: si no tiene evidencias, se le asigna afinidad 0
-const processVectorAreas = (
-  areas: Array<AffinityAreaScore & { evidence?: any[]; keywords?: string[] }>,
-  fallbackMock: InspectionAreas
-): CandidateArea[] => {
-  return areas.map((a) => {
-    const evidence = getAreaEvidence(a, fallbackMock);
-    const hasEvidence = Array.isArray(evidence) && evidence.length > 0;
-    return {
-      area: a.area,
-      // Regla de negocio: áreas sin evidencias deben tener afinidad cero
-      affinity: hasEvidence ? (a.affinity ?? 0) : 0,
-      // La referencia anterior se conserva para calcular la variación mostrada
-      previousAffinity: a.previousAffinity ?? null,
-      evidence,
-      keywords: a.keywords ?? [],
-    };
-  });
-};
-
-// Solo extrae palabras clave de áreas que cuenten con evidencias
 const extractKeywords = (areas: CandidateArea[]): string[] =>
   areas
-    .filter((area) => (area.evidence?.length ?? 0) > 0)
+    .filter((area) => area.affinity > 0)
     .flatMap((area) => area.keywords ?? []);
 
 export interface GraduateAffinityViewProps {
@@ -110,6 +88,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasRadarError, setHasRadarError] = useState<boolean>(false);
   const [hasValidRadar, setHasValidRadar] = useState<boolean>(false);
+  const [hasLaborHistory, setHasLaborHistory] = useState<boolean | null>(null);
   const [changeVersion, setChangeVersion] = useState<number>(0);
   const [isPendingDialogOpen, setIsPendingDialogOpen] = useState<boolean>(false);
   const [isSuccessToastOpen, setIsSuccessToastOpen] = useState<boolean>(false);
@@ -176,6 +155,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         return;
       }
 
+      setHasLaborHistory(result.hasLaborHistory ?? null);
       // CA-HU8-11: sin recálculo real se conserva la variación y la referencia anterior
       if (result.recalculated === false) {
         if (changeVersionRef.current === versionAtStart) {
@@ -188,7 +168,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         return;
       }
       setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
-      const processed = processVectorAreas(result.areas as any, mockAreas);
+      const processed = processVectorAreas(result.areas);
 
       const modifiedIds: string[] = [];
       processed.forEach((newAreaItem) => {
@@ -248,7 +228,8 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         setIsLoading(true);
         const result = await getAffinityVector();
         if (!isMounted) return;
-        const processed = processVectorAreas(result.areas as any, mockAreas);
+        const processed = processVectorAreas(result.areas);
+        setHasLaborHistory(result.hasLaborHistory ?? null);
         candidateAreasRef.current = processed;
         setCandidateAreas(processed);
         setLoadedKeywords(extractKeywords(processed));
@@ -313,7 +294,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   const isEmptyVector =
     candidateAreas.length === 0 ||
     candidateAreas.every(
-      (item) => (item.affinity ?? 0) === 0 && (!item.evidence || item.evidence.length === 0)
+      (item) => (item.affinity ?? 0) === 0
     );
   const orderedCandidateAreas: CandidateArea[] = AFFINITY_AREAS.map((areaKey) => {
     const found = candidateAreas.find((item) => item.area === areaKey);
@@ -332,16 +313,13 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     area: item.area,
     affinity: item.affinity,
     previousAffinity: item.previousAffinity ?? null,
-    evidence: item.evidence ?? getAreaEvidence(item, mockAreas),
+    evidence: item.evidence ?? [],
+    topKeywords: item.topKeywords ?? [],
   }));
 
-  // Áreas con evidencias ordenadas de mayor a menor afinidad
-  const areasWithEvidence = orderedCandidateAreas.filter((item) => {
-    const ev = item.evidence ?? getAreaEvidence(item, mockAreas);
-    return ev.length > 0 && item.affinity > 0;
-  });
+  const areasWithAffinity = orderedCandidateAreas.filter((item) => item.affinity > 0);
 
-  const sortedAffinityAreas = sortAreasByAffinityDesc(areasWithEvidence);
+  const sortedAffinityAreas = sortAreasByAffinityDesc(areasWithAffinity);
 
   // Top 3 áreas con mayor afinidad identificadas (orden de mayor a menor)
   const topAffinityAreas = sortedAffinityAreas
@@ -411,6 +389,9 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                       onSelectArea={setSelectedAreaId}
                     />
                   </div>
+                  {hasValidRadar && hasLaborHistory === false && (
+                    <p className="mt-2 text-sm text-slate-600">Sin datos de historial laboral</p>
+                  )}
 
                   {isLoading && hasValidRadar && !hasRadarError && (
                     <div

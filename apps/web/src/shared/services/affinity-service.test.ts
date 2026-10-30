@@ -112,6 +112,7 @@ describe('getAffinityVector', () => {
     expect(result.areas[0]).toMatchObject({
       weighting: 5,
       topKeywords: payload.areas[0].topKeywords,
+      evidence: [],
     });
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/radar'),
