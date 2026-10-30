@@ -196,7 +196,7 @@ describe('detalle público de eventos', () => {
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Confirmar inscripción' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver mis eventos' })).toHaveAttribute('href', '/portal/eventos/mis-eventos');
-    expect(screen.getByRole('button', { name: 'Ver pase QR' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Ver pase QR' })).toHaveAttribute('href', '/mis-pases');
   });
 
   it('muestra un error seguro y permite reintentar sin dejar dos modales abiertos', async () => {
