@@ -20,7 +20,11 @@ jest.mock('@/shared/services/auth-session', () => ({
 }));
 jest.mock('@/shared/services/api-client', () => ({ getToken: jest.fn(), clearToken: jest.fn() }));
 jest.mock('@/modules/auth/frontend/store', () => ({ useAuthStore: () => ({ accessToken: null }), authStore: { reset: jest.fn() } }));
-jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout }: NavbarProps) => <header><span>{session ? `${session.name}: ${session.role}` : 'Visitante'}</span><button onClick={onLogout}>Cerrar sesión</button></header> }));
+jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout }: NavbarProps) => <header>
+  <span>{session ? `${session.name}: ${session.role}` : 'Visitante'}</span>
+  {!session && <><span>Iniciar sesión</span><span>Registro</span></>}
+  <button onClick={onLogout}>Cerrar sesión</button>
+</header> }));
 
 const fetchMock = jest.mocked(authenticatedFetch);
 const expiredListener = jest.fn();
@@ -30,6 +34,7 @@ beforeEach(() => {
   window.localStorage.clear();
   mockPathname = '/portal/institucional';
   jest.clearAllMocks();
+  sessionStorage.clear();
   fetchMock.mockReset();
   fetchMock.mockRejectedValue(new SessionError(401, 'Inicia sesión'));
   jest.mocked(revokeCurrentSession).mockResolvedValue(undefined);
@@ -48,6 +53,58 @@ it('restaura el rol de empresa validado mediante el cliente autenticado', async 
   render(<ConnectedNavbar />);
   expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/me', expect.objectContaining({ cache: 'no-store' }));
+});
+
+it('conserva la sesión visual ante error de red y reintenta al volver online', async () => {
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
+  const view = render(<ConnectedNavbar />);
+  expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
+  expect(JSON.parse(sessionStorage.getItem('umsspira.navbar.display-session')!)).toEqual({
+    name: 'talento', initials: 'TA', role: 'empresa',
+  });
+
+  fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+  mockPathname = '/mentorship/directory';
+  view.rerender(<ConnectedNavbar />);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  expect(screen.getByText('talento: empresa')).toBeInTheDocument();
+
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { email: 'actualizada@ejemplo.com', role: 'empresa' } }) } as Response);
+  fireEvent(window, new Event('online'));
+  expect(await screen.findByText('actualizada: empresa')).toBeInTheDocument();
+});
+
+it('conserva el fallback visual de sesión ante errores transitorios en cualquier módulo', async () => {
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
+  const view = render(<ConnectedNavbar />);
+  expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
+
+  fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+  mockPathname = '/companies';
+  view.rerender(<ConnectedNavbar />);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  expect(screen.getByText('talento: empresa')).toBeInTheDocument();
+
+  fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+  mockPathname = '/mentorship/directory';
+  view.rerender(<ConnectedNavbar />);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  expect(screen.getByText('talento: empresa')).toBeInTheDocument();
+});
+
+it('limpia la sesión visual y muestra acciones públicas ante un 401 explícito', async () => {
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
+  const view = render(<ConnectedNavbar />);
+  expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
+
+  fetchMock.mockResolvedValueOnce({ ok: false, status: 401 } as Response);
+  mockPathname = '/mentorship/directory';
+  view.rerender(<ConnectedNavbar />);
+  await waitFor(() => expect(clearSession).toHaveBeenCalled());
+  expect(await screen.findByText('Visitante')).toBeInTheDocument();
+  expect(screen.getByText('Iniciar sesión')).toBeInTheDocument();
+  expect(screen.getByText('Registro')).toBeInTheDocument();
+  expect(sessionStorage.getItem('umsspira.navbar.display-session')).toBeNull();
 });
 
 it('permanece como visitante si la API rechaza el token', async () => {
