@@ -10,6 +10,13 @@ export function createDatabaseClient(): PrismaClient {
     throw new Error('Falta configurar la conexión a PostgreSQL');
   }
   return new PrismaClient({
-    adapter: new PrismaPg({ connectionString, max: 1, connectionTimeoutMillis: 5000 }),
+    adapter: new PrismaPg({
+      connectionString,
+      max: 1,
+      connectionTimeoutMillis: 15000,
+      query_timeout: 120000,
+    }),
+    // Los seeds hacen varias consultas por transacción sobre PostgreSQL remoto.
+    transactionOptions: { maxWait: 15000, timeout: 120000 },
   });
 }

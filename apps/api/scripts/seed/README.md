@@ -26,16 +26,16 @@ Este comando exige `APP_ENV=epic`, `dev` o `test` y la cuenta administradora de 
 | Acceso       | Titulado, administrador y empresa con sus perfiles relacionados                                                               |
 | Épica 1      | Cuatro solicitudes: pendiente, aprobada, observada y rechazada; detalles, PDF descargables, dictámenes y auditoría de ejemplo |
 | Épica 2      | Formación, experiencia laboral vigente y certificación del titulado                                                           |
-| Épica 3      | Descripción profesional, palabras clave, alias, pesos, término no mapeado y radar de demostración                             |
+| Épica 3      | Descripción profesional; palabras clave, alias y pesos desde el catálogo compartido, sin cálculos precargados                 |
 | Épicas 4 y 5 | Empresa con teléfono, dirección y sector; requerimiento con habilidad; vacante vinculada al requerimiento                     |
 | Épica 6      | El titulado participa como mentor activo, con especialidad, interés y disponibilidad                                          |
 | Épica 7      | Un evento publicado, un borrador del administrador y una inscripción del titulado                                             |
-| Épica 8      | Reutiliza la identidad y catálogos compartidos; los dispositivos push los registra cada navegador                             |
+| Épica 8      | Dos conversaciones directas con seis mensajes; los dispositivos push los registra cada navegador                             |
 | Épica 9      | Encuesta en borrador; indicadores y listados con las solicitudes y el mentor ya cargados                                      |
 
 Son datos ficticios. No se generan sesiones, renovaciones, códigos de activación, correos pendientes ni suscripciones push. Los respaldos de certificación se cargan mediante el endpoint correspondiente: la certificación inicial está `sin_respaldo`. No se insertan aprobaciones sin evidencia ni archivos de reporte inexistentes.
 
-El radar usa `version_algoritmo=demo-seed-v1`: es un ejemplo persistido, no el resultado de ejecutar el motor NLP. La seed no indexa Elasticsearch ni inicia servicios externos.
+El seed no crea cálculos de radar, afinidades ni términos no mapeados. Carga el perfil y el diccionario que necesita el motor NLP; los resultados deben generarse mediante la aplicación. La seed no indexa Elasticsearch ni inicia servicios externos.
 
 Las fechas de los eventos se calculan para 30 y 45 días después de la primera carga. Las filas existentes mantienen sus fechas cuando se repite el comando.
 
@@ -87,7 +87,7 @@ const otraFormacion: Prisma.FormacionAcademicaCreateManyInput = {
 
 Generar cada UUID una vez y guardarlo en el archivo. Para las referencias, importar las constantes existentes; no generar IDs nuevos cada vez que corre la seed. Si se añaden cuentas en `demo-accounts.ts`, cada una necesita un `id` y un `profileId` propios; `careerId` debe existir en las carreras de `catalogs.ts` cuando corresponda. Se pueden añadir varias cuentas del mismo rol.
 
-Cada tabla se inserta con `skipDuplicates` o con `upsert` sin actualizaciones: repetir el comando agrega los registros faltantes y conserva los existentes, incluidas las contraseñas. Cambiar un objeto con el mismo UUID no actualiza la fila guardada. Un conflicto de correo con otro UUID detiene la carga de cuentas.
+Las cuentas y los registros de demostración se insertan con `skipDuplicates` o con `upsert` sin actualizaciones: repetir el comando agrega los registros faltantes y conserva los existentes, incluidas las contraseñas. Cambiar un objeto con el mismo UUID no actualiza la fila guardada. Un conflicto de correo con otro UUID detiene la carga de cuentas. La excepción es el catálogo del Radar: sincroniza los pesos de las asociaciones declaradas, conservando las palabras clave y los alias existentes. La carga explícita de permisos también restituye las asignaciones iniciales ausentes.
 
 ## Relaciones y orden
 

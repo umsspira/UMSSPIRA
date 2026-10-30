@@ -1,7 +1,7 @@
 import { normalizePhrase } from '../../src/modules/nlp/domain/policies/text-normalizer';
 import { RADAR_DICTIONARY } from '../../src/modules/radar/domain/affinity-catalog';
 import { RADAR_AREA_IDS, type RadarArea } from '../../src/modules/radar/domain/entities/radar-area';
-import type { PrismaClient } from '../../src/generated/prisma/client';
+import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
 export { RADAR_DICTIONARY } from '../../src/modules/radar/domain/affinity-catalog';
 
 export function validateRadarDictionary(): void {
@@ -151,51 +151,90 @@ export async function seedRadarCatalog(prisma: PrismaClient): Promise<void> {
         }
       }
 
-      // Crear o reutilizar keywords, alias y asociaciones.
-      for (const [term, definition] of definitions) {
-        const keyword = await tx.palabraClave.upsert({
-          where: { termino_normalizado: term },
-          create: {
-            nombre: definition.name,
-            termino_normalizado: term,
-            esta_activo: true,
-          },
-          update: {},
+      // Insertar por lotes evita cientos de viajes a PostgreSQL remoto.
+      const missingKeywords = [...definitions]
+        .filter(([term]) => !keywordByTerm.has(term))
+        .map(([term, definition]) => ({
+          nombre: definition.name,
+          termino_normalizado: term,
+          esta_activo: true,
+        }));
+      if (missingKeywords.length > 0) {
+        await tx.palabraClave.createMany({ data: missingKeywords, skipDuplicates: true });
+        const keywords = await tx.palabraClave.findMany({
+          where: { termino_normalizado: { in: terms } },
+          select: { id: true, termino_normalizado: true },
         });
+        for (const keyword of keywords) {
+          keywordByTerm.set(keyword.termino_normalizado, keyword);
+        }
+      }
 
+      const knownAliases = new Set(existingAliases.map((alias) => alias.alias_normalizado));
+      const missingAliases: Prisma.AliasPalabraClaveCreateManyInput[] = [];
+      const requestedWeights: Prisma.PalabraClaveAreaCreateManyInput[] = [];
+      for (const [term, definition] of definitions) {
+        const keyword = keywordByTerm.get(term);
+        if (!keyword) {
+          throw new Error(`No se pudo preparar la palabra clave ${term}`);
+        }
         for (const alias of definition.aliases) {
-          await tx.aliasPalabraClave.upsert({
-            where: { alias_normalizado: alias },
-            create: {
+          if (!knownAliases.has(alias)) {
+            missingAliases.push({
               id_palabra_clave: keyword.id,
               alias,
               alias_normalizado: alias,
-            },
-            update: {},
+            });
+          }
+        }
+        for (const [areaId, weight] of definition.areas) {
+          requestedWeights.push({
+            id_palabra_clave: keyword.id,
+            id_area: areaId,
+            peso: weight,
           });
         }
+      }
+      if (missingAliases.length > 0) {
+        await tx.aliasPalabraClave.createMany({ data: missingAliases, skipDuplicates: true });
+      }
 
-        for (const [areaId, weight] of definition.areas) {
-          await tx.palabraClaveArea.upsert({
+      const existingWeights = await tx.palabraClaveArea.findMany({
+        where: {
+          id_palabra_clave: {
+            in: [...definitions.keys()].map((term) => keywordByTerm.get(term)!.id),
+          },
+          id_area: { in: Object.values(RADAR_AREA_IDS) },
+        },
+        select: { id_palabra_clave: true, id_area: true, peso: true },
+      });
+      const weightByPair = new Map(
+        existingWeights.map((weight) => [`${weight.id_palabra_clave}:${weight.id_area}`, weight]),
+      );
+      const missingWeights = requestedWeights.filter(
+        (weight) => !weightByPair.has(`${weight.id_palabra_clave}:${weight.id_area}`),
+      );
+      if (missingWeights.length > 0) {
+        await tx.palabraClaveArea.createMany({ data: missingWeights, skipDuplicates: true });
+      }
+      for (const weight of requestedWeights) {
+        const existing = weightByPair.get(`${weight.id_palabra_clave}:${weight.id_area}`);
+        if (existing && Number(existing.peso) !== Number(weight.peso)) {
+          await tx.palabraClaveArea.update({
             where: {
               id_palabra_clave_id_area: {
-                id_palabra_clave: keyword.id,
-                id_area: areaId,
+                id_palabra_clave: weight.id_palabra_clave,
+                id_area: weight.id_area,
               },
             },
-            create: {
-              id_palabra_clave: keyword.id,
-              id_area: areaId,
-              peso: weight,
-            },
-            update: { peso: weight },
+            data: { peso: weight.peso },
           });
         }
       }
     },
     {
       timeout: 120000,
-      maxWait: 10000,
+      maxWait: 15000,
     },
   );
 }
