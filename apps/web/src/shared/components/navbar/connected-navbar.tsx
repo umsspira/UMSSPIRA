@@ -4,10 +4,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { authStore, useAuthStore } from '@/modules/auth/frontend/store';
 import { clearSession } from '@/modules/auth/frontend/services/session';
+import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
 import { Navbar } from './navbar';
 import { NAVBAR_ROLE_LABEL } from './navigation';
 import type { NavbarRole, NavbarSession } from './types';
+import { clearAllSurveyDrafts } from '@/modules/surveys/frontend/hooks/use-survey-draft';
 
 const roles: NavbarRole[] = ['titulado', 'empresa', 'administrador'];
 const navbarSessionCacheKey = 'umsspira.navbar.display-session';
@@ -48,6 +50,8 @@ export function ConnectedNavbar() {
   const [session, setSession] = useState<NavbarSession | null>(null);
   const sessionRef = useRef<NavbarSession | null>(null);
   const [logoutError, setLogoutError] = useState(false);
+  // HU-004 CA-07: durante el cierre voluntario, el 401 de /me no debe redirigir por su cuenta.
+  const loggingOut = useRef(false);
 
   const updateSession = useCallback((next: NavbarSession | null) => {
     sessionRef.current = next;
@@ -69,15 +73,15 @@ export function ConnectedNavbar() {
     let request: AbortController | undefined;
     let disposed = false;
     const invalidateSession = () => {
+      if (loggingOut.current) return;
       // HU-004 CA-05: un rechazo 401 no debe dejar el estado React autenticado.
       clearSession();
       authStore.reset();
       updateSession(null);
       // El portal institucional público puede mostrarse sin sesión;
-      // reportería, en cambio, requiere volver a /login.
+      // reportería, en cambio, avisa con una ventana de alerta y vuelve a /login (CA-06).
       if (pathname === '/reports' || pathname?.startsWith('/reports/')) {
-        router.replace('/login');
-        router.refresh();
+        notifySessionExpired();
       }
     };
     const synchronize = async () => {
@@ -124,16 +128,21 @@ export function ConnectedNavbar() {
   }, [pathname, auth.accessToken, router, updateSession]);
 
   const logout = async () => {
+    loggingOut.current = true;
     setLogoutError(false);
     try {
       await revokeCurrentSession();
+      clearAllSurveyDrafts();
       clearSession();
       authStore.reset();
       updateSession(null);
       // HU-004: el administrador regresa a la bienvenida institucional.
       router.push(session?.role === 'administrador' ? '/' : '/login');
       router.refresh();
-    } catch { setLogoutError(true); }
+    } catch {
+      loggingOut.current = false;
+      setLogoutError(true);
+    }
   };
 
   return <><Navbar session={session} onLogout={logout} />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;

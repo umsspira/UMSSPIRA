@@ -10,9 +10,19 @@ pnpm --filter api db:seed:demo
 
 ## Qué queda disponible
 
+El administrador de demostración queda asociado a Sistemas e Informática. Si Informática ya existe, se conserva su UUID y nombre, incluidas las variantes con o sin tilde y el nombre histórico `Ingeniera Informatica`. No se crea una segunda carrera.
+
+Para añadir únicamente Informática al administrador existente, sin cargar las demás épicas:
+
+```sh
+pnpm --filter api db:seed:informatica
+```
+
+Este comando exige `APP_ENV=epic`, `dev` o `test` y la cuenta administradora de demostración ya creada. No modifica cuentas, contraseñas ni asignaciones existentes. En bases nuevas, `db:seed:demo` ya incluye esta carga después de crear las cuentas. `db:seed` incorpora la carrera al catálogo sin crear ni asignar usuarios.
+
 | Parte        | Datos iniciales                                                                                                               |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Catálogos    | Roles, permisos, Ingeniería de Sistemas, PDF/JPG/PNG, modalidades de trabajo, cinco áreas profesionales y tipo de reporte     |
+| Catálogos    | Roles, permisos, Ingeniería de Sistemas e Ingeniería Informática, PDF/JPG/PNG, modalidades de trabajo, áreas profesionales y tipo de reporte |
 | Acceso       | Titulado, administrador y empresa con sus perfiles relacionados                                                               |
 | Épica 1      | Cuatro solicitudes: pendiente, aprobada, observada y rechazada; detalles, PDF descargables, dictámenes y auditoría de ejemplo |
 | Épica 2      | Formación, experiencia laboral vigente y certificación del titulado                                                           |
@@ -28,6 +38,8 @@ Son datos ficticios. No se generan sesiones, renovaciones, códigos de activaci�
 El radar usa `version_algoritmo=demo-seed-v1`: es un ejemplo persistido, no el resultado de ejecutar el motor NLP. La seed no indexa Elasticsearch ni inicia servicios externos.
 
 Las fechas de los eventos se calculan para 30 y 45 días después de la primera carga. Las filas existentes mantienen sus fechas cuando se repite el comando.
+
+La seed de la épica 9 agrega 39 perfiles de titulado ficticios sin cuentas de acceso y 40 respuestas asociadas a ellos y al titulado compartido. Así se respeta la restricción de una respuesta por titulado y encuesta; repetir la carga conserva los registros existentes.
 
 | Correo                 | Contraseña     | Rol           |
 | ---------------------- | -------------- | ------------- |
@@ -54,7 +66,7 @@ El mentor utiliza la cuenta de titulado; no es un rol de acceso independiente. L
 | `epic-6.ts`        | Mentores, especialidades y disponibilidad                                             |
 | `epic-7.ts`        | Eventos e inscripciones                                                               |
 | `epic-8.ts`        | Registro opcional de dispositivos para un flujo real de pruebas                       |
-| `epic-9.ts`        | Reportes y encuestas                                                                  |
+| `epic-9.ts`        | Reportes, encuestas y respuestas laborales con titulados ficticios para pruebas       |
 
 Cada equipo puede ampliar los arreglos tipados de su archivo. Los catálogos que consumen varios módulos se mantienen en `catalogs.ts`, para no duplicarlos en cada épica. Se conservan los UUID de las tres cuentas y las cinco áreas que ya existían.
 
