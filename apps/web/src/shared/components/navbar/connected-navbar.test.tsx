@@ -1,25 +1,52 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ConnectedNavbar } from './connected-navbar';
-import { clearSession } from '@/modules/auth/frontend/services/session';
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
+import { clearSession } from '@/modules/auth/frontend/services/session';
 import { authStore } from '@/modules/auth/frontend/store';
 import type { NavbarProps } from './types';
 
+// --- Mocks ---
 const push = jest.fn();
 const replace = jest.fn();
 const refresh = jest.fn();
 const mockRouter = { push, replace, refresh };
 let mockPathname = '/portal/institucional';
-jest.mock('next/navigation', () => ({ usePathname: () => mockPathname, useRouter: () => mockRouter }));
-jest.mock('@/modules/auth/frontend/services/session', () => ({ getSessionToken: jest.fn(), clearSession: jest.fn() }));
+
+jest.mock('next/navigation', () => ({ 
+  usePathname: () => mockPathname, 
+  useRouter: () => mockRouter 
+}));
+
+jest.mock('@/modules/auth/frontend/services/session', () => ({ 
+  getSessionToken: jest.fn(), 
+  clearSession: jest.fn() 
+}));
+
 jest.mock('@/shared/services/auth-session', () => ({
   ...jest.requireActual('@/shared/services/auth-session'),
   authenticatedFetch: jest.fn(),
   revokeCurrentSession: jest.fn(),
 }));
-jest.mock('@/shared/services/api-client', () => ({ getToken: jest.fn(), clearToken: jest.fn() }));
-jest.mock('@/modules/auth/frontend/store', () => ({ useAuthStore: () => ({ accessToken: null }), authStore: { reset: jest.fn() } }));
-jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout }: NavbarProps) => <header><span>{session ? `${session.name}: ${session.role}` : 'Visitante'}</span><button onClick={onLogout}>Cerrar sesión</button></header> }));
+
+jest.mock('@/shared/services/api-client', () => ({ 
+  getToken: jest.fn(), 
+  clearToken: jest.fn() 
+}));
+
+jest.mock('@/modules/auth/frontend/store', () => ({ 
+  useAuthStore: () => ({ accessToken: null }), 
+  authStore: { reset: jest.fn() } 
+}));
+
+// Mock del componente Navbar para probar el ConnectedNavbar aisladamente
+jest.mock('./navbar', () => ({ 
+  Navbar: ({ session, onLogout }: NavbarProps) => (
+    <header>
+      <span>{session ? `${session.name}: ${session.role}` : 'Visitante'}</span>
+      <button onClick={onLogout}>Cerrar sesión</button>
+    </header>
+  ) 
+}));
 
 const fetchMock = jest.mocked(authenticatedFetch);
 
@@ -31,6 +58,8 @@ beforeEach(() => {
   jest.mocked(revokeCurrentSession).mockResolvedValue(undefined);
 });
 
+// --- Tests ---
+
 it('permanece como visitante sin una sesión real e ignora el rol del laboratorio', async () => {
   sessionStorage.setItem('umsspira.navbar-laboratorio.rol', 'administrador');
   render(<ConnectedNavbar />);
@@ -40,7 +69,11 @@ it('permanece como visitante sin una sesión real e ignora el rol del laboratori
 });
 
 it('restaura el rol de empresa validado mediante el cliente autenticado', async () => {
-  fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
+  fetchMock.mockResolvedValue({ 
+    ok: true, 
+    json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) 
+  } as Response);
+  
   render(<ConnectedNavbar />);
   expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/me', expect.objectContaining({ cache: 'no-store' }));
@@ -54,7 +87,11 @@ it('permanece como visitante si la API rechaza el token', async () => {
 });
 
 it('no presenta como autenticado un rol desconocido devuelto por la API', async () => {
-  fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: { email: 'otra@ejemplo.com', role: 'desconocido' } }) } as Response);
+  fetchMock.mockResolvedValue({ 
+    ok: true, 
+    json: async () => ({ data: { email: 'otra@ejemplo.com', role: 'desconocido' } }) 
+  } as Response);
+  
   render(<ConnectedNavbar />);
   await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   expect(screen.getByText('Visitante')).toBeInTheDocument();
@@ -63,6 +100,7 @@ it('no presenta como autenticado un rol desconocido devuelto por la API', async 
 it('revoca la sesión y limpia el estado antes de regresar al login', async () => {
   render(<ConnectedNavbar />);
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+  
   expect(revokeCurrentSession).toHaveBeenCalledTimes(1);
   await waitFor(() => expect(clearSession).toHaveBeenCalled());
   expect(authStore.reset).toHaveBeenCalled();
@@ -70,16 +108,18 @@ it('revoca la sesión y limpia el estado antes de regresar al login', async () =
   expect(refresh).toHaveBeenCalled();
 });
 
-
 it('HU-004: un administrador cierra sesión y vuelve a la bienvenida', async () => {
   fetchMock.mockResolvedValue({
     ok: true,
     json: async () => ({ data: { email: 'admin@umss.edu.bo', role: 'administrador' } }),
   } as Response);
+  
   render(<ConnectedNavbar />);
   expect(await screen.findByText('admin: administrador')).toBeInTheDocument();
+  
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
   await waitFor(() => expect(push).toHaveBeenCalledWith('/'));
+  
   expect(revokeCurrentSession).toHaveBeenCalledTimes(1);
   expect(clearSession).toHaveBeenCalled();
   expect(authStore.reset).toHaveBeenCalled();

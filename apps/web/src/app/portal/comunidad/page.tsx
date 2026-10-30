@@ -1,6 +1,9 @@
-﻿export default function ComunidadPage() {
-  return <div className="p-6">Comunidad (próximamente)</div>;
+﻿import { ComunidadView } from '../institucional/institucional-views';
+
+export default function ComunidadPage() {
+  return (
+    <div className="bg-[#EEE9DF]">
+      <ComunidadView />
+    </div>
+  );
 }
-
-
-

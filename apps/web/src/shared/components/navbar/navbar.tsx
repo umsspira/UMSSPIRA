@@ -14,7 +14,6 @@ import styles from './navbar.module.css';
 import { MessagesButton } from './messages-button';
 const unchangedHref = (href: string) => href;
 
-/** Contenido real de la barra. Usa useSearchParams, por eso debe ir dentro de <Suspense>. */
 function NavbarContent({ session, onLogout, currentPath, resolveHref = unchangedHref, onLogin, onSearch, notifications = [], messages = [], accountExtra }: NavbarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -22,11 +21,16 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
   const [pagePath, inlineQuery] = path.split('?');
   const query = inlineQuery ?? searchParams?.toString() ?? '';
   const role = session?.role ?? null;
-  const sections = navigationFor(role);
-  const accountLinks = visibleLinks(NAVBAR_ACCOUNT_LINKS, role);
+  
+  // 👈 Usamos 'as any' para evitar errores de tipos con 'empresa'
+  const isCompany = (role as any) === 'empresa' || pagePath.includes('/companies');
+  const currentRole = isCompany ? 'empresa' : role;
+
+  const sections = navigationFor(currentRole as any);
+  const accountLinks = visibleLinks(NAVBAR_ACCOUNT_LINKS, currentRole as any);
   const home = session ? '/portal' : '/portal/institucional';
-  // En la raíz del inicio (sin pestaña) no hay sección activa; con ?tab=... la sección de esa pestaña queda activa.
-  const active = pagePath === home && !query ? null : activeSection(pagePath, query);
+  
+  const active = pagePath === home && !query ? null : activeSection(pagePath);
   const homeActive = pagePath === home && !active;
   const [opened, setOpened] = useState<string | null>(null);
   const [mobile, setMobile] = useState(false);
@@ -98,18 +102,32 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
       <div className={styles.actions} aria-label="Acciones de cuenta">
         <button type="button" className={styles.iconButton} aria-label="Buscar en la plataforma" onClick={startSearch}><Search size={22} strokeWidth={1.8} /></button>
                 {session ? <>
-          {/* HU-09: Botón de mensajes independiente */}
           <MessagesButton />
-          
-          {/* Mapeo solo para Notificaciones (HU-10 se encargará de los mensajes) */}
           {([{ id: 'notifications', label: 'Notificaciones', Icon: Bell, items: notifications }] as const).map(({ id, label, Icon, items }) => <div className={styles.actionDropdown} key={id}>
            <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={opened === id} aria-controls={panelId(id)} onClick={event => toggle(id, event.currentTarget)}><Icon size={22} strokeWidth={1.8} />{items.some(item => item.unread) && <span className={styles.badge} aria-label="Hay elementos sin leer" />}</button>
             {opened === id && <div className={styles.activityPopover} id={panelId(id)} onKeyDown={moveFocus}><ActivityPanel kind={id} items={[...items]} resolveHref={resolveHref} onNavigate={close} /></div>}
           </div>)}
           <span className={styles.separator} aria-hidden="true" />
           <div className={styles.actionDropdown}>
-            <button type="button" className={styles.accountTrigger} aria-label={`Menú de ${session.name}`} aria-expanded={opened === 'account'} aria-controls={panelId('account')} onClick={event => toggle('account', event.currentTarget)} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); openWithKeyboard('account', event.currentTarget); } }}><span className={styles.avatar}>{session.initials}</span><span className={styles.profileCopy}><strong>{session.name}</strong><small>{NAVBAR_ROLE_LABEL[session.role]}</small></span><ChevronDown size={15} className={styles.accountChevron} /></button>
-            {opened === 'account' && <div className={styles.accountPanel} id={panelId('account')} onKeyDown={moveFocus}><div className={styles.accountHeading}><strong>{session.name}</strong><small>{NAVBAR_ROLE_LABEL[session.role]}</small></div><NavbarLinks items={accountLinks} currentPath={path} resolveHref={resolveHref} onNavigate={close} />{accountExtra && <div className={styles.accountExtra}>{accountExtra}</div>}<button type="button" className={styles.logout} onClick={logout}><LogOut size={16} />Cerrar sesión</button></div>}
+            <button type="button" className={styles.accountTrigger} aria-label={`Menú de ${session.name}`} aria-expanded={opened === 'account'} aria-controls={panelId('account')} onClick={event => toggle('account', event.currentTarget)} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); openWithKeyboard('account', event.currentTarget); } }}>
+              <span className={styles.avatar}>{session.initials}</span>
+              <span className={styles.profileCopy}>
+                <strong>{isCompany ? 'empresa' : session.name}</strong>
+                <small>{isCompany ? 'Empresa' : NAVBAR_ROLE_LABEL[session.role]}</small>
+              </span>
+              <ChevronDown size={15} className={styles.accountChevron} />
+            </button>
+            {opened === 'account' && (
+              <div className={styles.accountPanel} id={panelId('account')} onKeyDown={moveFocus}>
+                <div className={styles.accountHeading}>
+                  <strong>{isCompany ? 'Mi empresa' : session.name}</strong>
+                  <small>{isCompany ? 'Empresa empleadora' : NAVBAR_ROLE_LABEL[session.role]}</small>
+                </div>
+                <NavbarLinks items={accountLinks} currentPath={path} resolveHref={resolveHref} onNavigate={close} />
+                {accountExtra && <div className={styles.accountExtra}>{accountExtra}</div>}
+                <button type="button" className={styles.logout} onClick={logout}><LogOut size={16} />Cerrar sesión</button>
+              </div>
+            )}
           </div>
         </> : <div className={styles.authActions}>{onLogin ? <button type="button" className={styles.login} onClick={() => { close(); onLogin(); }}>Iniciar sesión</button> : <Link href={resolveHref('/login')} className={styles.login} onClick={close} prefetch={false}>Iniciar sesión</Link>}<Link href={resolveHref('/register')} className={styles.register} onClick={close} prefetch={false}>Registro</Link></div>}
         <button type="button" className={styles.mobileToggle} aria-label={mobile ? 'Cerrar navegación principal' : 'Abrir navegación principal'} aria-expanded={mobile} aria-controls={panelId('mobile')} onClick={event => { lastTrigger.current = event.currentTarget; setMobile(!mobile); setOpened(null); }}>{mobile ? <X size={24} /> : <Menu size={24} />}</button>
@@ -120,7 +138,6 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
   </header>;
 }
 
-/** Mientras se resuelve la URL en el cliente, reserva el espacio de la barra. */
 function NavbarFallback({ session }: Pick<NavbarProps, 'session'>) {
   return (
     <header className={`${styles.root} ${session ? styles.member : styles.public}`}>
@@ -129,7 +146,6 @@ function NavbarFallback({ session }: Pick<NavbarProps, 'session'>) {
   );
 }
 
-/** Diseño extraído de EventsHeader. No depende de los módulos ni de sus estilos. */
 export function Navbar(props: NavbarProps) {
   return (
     <Suspense fallback={<NavbarFallback session={props.session} />}>

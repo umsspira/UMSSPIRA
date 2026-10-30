@@ -8,6 +8,8 @@ const members = ['titulado', 'administrador'] as const;
 const employers = ['empresa', 'administrador'] as const;
 const admins = ['administrador'] as const;
 const graduates = ['titulado'] as const;
+// Visitantes (sin sesión) solo ven lo básico: el resto exige iniciar sesión.
+const signedIn = ['titulado', 'empresa', 'administrador'] as const;
 
 /** Agregar destinos aquí mantiene iguales los menús de escritorio y móvil. */
 export const NAVBAR_SECTIONS: NavbarSection[] = [
@@ -15,12 +17,12 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
     { id: 'inst-comunidad', label: 'Comunidad institucional', href: '/portal/institucional?tab=comunidad' },
     { id: 'inst-carreras', label: 'Carreras', href: '/portal/institucional?tab=carreras' },
     { id: 'institutional', label: 'Sobre nosotros', href: '/portal/institucional?tab=nosotros' },
-    { id: 'portal', label: 'Portal de egresados', href: '/portal' },
-    { id: 'community', label: 'Comunidad de egresados', href: '/portal/comunidad' },
-    { id: 'benefits', label: 'Beneficios y convenios', href: '/portal/beneficios' },
+    { id: 'portal', label: 'Portal de egresados', href: '/portal', roles: signedIn },
+    { id: 'community', label: 'Comunidad de egresados', href: '/portal/comunidad', roles: signedIn },
+    { id: 'benefits', label: 'Beneficios y convenios', href: '/portal/beneficios', roles: signedIn },
   ] },
   { id: 'directory', label: 'Directorio', items: [
-    { id: 'graduate-directory', label: 'Directorio de egresados', href: '/portal/institucional?tab=directorio' },
+    { id: 'graduate-directory', label: 'Directorio de egresados', href: '/portal/institucional?tab=directorio', roles: signedIn },
     { id: 'profile', label: 'Mi perfil profesional', href: '/profile', roles: members },
     { id: 'records', label: 'Mis registros', href: '/profile/records', roles: members },
     { id: 'complete-profile', label: 'Completar mi perfil', href: '/profile/completar', roles: members },
@@ -28,19 +30,20 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
   ] },
   { id: 'jobs', label: 'Bolsa de trabajo', items: [
     { id: 'inst-empleos', label: 'Sobre la bolsa de trabajo', href: '/portal/institucional?tab=empleos' },
-    { id: 'jobs', label: 'Oportunidades laborales', href: '/portal/empleos' },
-    { id: 'job-postings', label: 'Ofertas laborales actuales', href: '/job-postings' },
+    { id: 'jobs', label: 'Oportunidades laborales', href: '/portal/empleos', roles: signedIn },
+    { id: 'job-postings', label: 'Ofertas laborales actuales', href: '/job-postings', roles: signedIn },
     { id: 'company', label: 'Perfil de mi empresa', href: '/companies', roles: employers },
     { id: 'publish-job', label: 'Publicar una vacante', href: '/empresa/vacantes/publicar', roles: employers },
   ] },
   { id: 'mentorship', label: 'Mentorías', items: [
     { id: 'inst-mentorias', label: 'Sobre las mentorías', href: '/portal/institucional?tab=mentorias' },
-    { id: 'mentorship', label: 'Red de mentorías', href: '/mentorship' },
+    { id: 'mentorship', label: 'Red de mentorías', href: '/mentorship', roles: signedIn },
     { id: 'mentor-profile', label: 'Mi perfil de mentor', href: '/mentorship/profile', roles: members },
     { id: 'mentor-information', label: 'Información de mi perfil', href: '/mentorship/profile/information', roles: members },
     { id: 'mentor-areas', label: 'Áreas técnicas', href: '/mentorship/profile/areas', roles: members },
     { id: 'mentor-interests', label: 'Intereses de mentoría', href: '/mentorship/profile/interests', roles: members },
     { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: members },
+    { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests', roles: members },
   ] },
   { id: 'events', label: 'Eventos', items: [
     { id: 'inst-events', label: 'Eventos institucionales', href: '/portal/institucional?tab=eventos' },
@@ -53,7 +56,11 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
 
 export const NAVBAR_ACCOUNT_LINKS: NavbarLink[] = [
   { id: 'my-profile', label: 'Mi perfil profesional', href: '/profile', roles: members },
-  { id: 'my-company', label: 'Mi empresa', href: '/companies', roles: employers },
+  { id: 'my-company', label: 'Perfil de Empresa', href: '/companies', roles: employers },
+  { id: 'account-publish-job', label: 'Publicar Vacante', href: '/empresa/vacantes/publicar', roles: employers },
+  // La vista de listado de vacantes de la empresa aún no existe: sin href hasta que llegue.
+  { id: 'my-jobs', label: 'Mis Vacantes', pending: 'Próximamente', roles: employers },
+  { id: 'applicants', label: 'Postulantes', href: '/empresa/postulantes', roles: employers },
   { id: 'applications', label: 'Solicitudes de registro', href: '/applications', roles: admins },
   { id: 'reports', label: 'Reportes Institucionales', href: '/reports', roles: admins },
   // HU-004 CA-04: el administrador consulta el área institucional de encuestas,
@@ -69,7 +76,9 @@ export function visibleLinks(items: NavbarLink[], role: NavbarRole | null) {
 }
 
 export function navigationFor(role: NavbarRole | null): NavbarSection[] {
-  return NAVBAR_SECTIONS.map(section => ({ ...section, items: visibleLinks(section.items, role) }));
+  return NAVBAR_SECTIONS
+    .map(section => ({ ...section, items: visibleLinks(section.items, role) }))
+    .filter(section => section.items.length > 0);
 }
 
 /**
