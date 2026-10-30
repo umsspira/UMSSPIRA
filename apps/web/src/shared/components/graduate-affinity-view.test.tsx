@@ -564,7 +564,7 @@ describe('GraduateAffinityView', () => {
       expect(screen.getAllByText(/^Ponderación: /)).toHaveLength(6);
     });
 
-    expect(screen.getByText('Ponderación: 4')).toBeInTheDocument();
+    expect(await screen.findByText('Ponderación: 4')).toBeInTheDocument();
     expect(mockGetAffinityConfig).toHaveBeenCalledTimes(1);
   });
 
