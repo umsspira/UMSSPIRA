@@ -177,7 +177,7 @@ describe('detalle público de eventos', () => {
     expect(screen.getByText('CONFIRMADA')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver mis eventos' })).toHaveAttribute('href', '/portal/eventos/mis-eventos');
-    expect(screen.getByRole('button', { name: 'Ver pase QR' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Ver pase QR' })).toHaveAttribute('href', '/mis-pases');
   });
 
   it('muestra la variante visual de inscripción duplicada', async () => {
