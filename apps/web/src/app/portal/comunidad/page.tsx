@@ -1,9 +1,10 @@
-﻿import { EmpleosView } from '../institucional/institucional-views';
+﻿import { ComunidadView } from '../institucional/institucional-views';
 
-export default function EmpleosPage() {
+export default function ComunidadPage() {
   return (
     <div className="bg-[#EEE9DF]">
-      <EmpleosView />
+      <ComunidadView />
     </div>
   );
 }
+
