@@ -5,7 +5,10 @@ import {
   REGISTRATION_SECURITY,
   type RegistrationSecurity,
 } from '../../../registrations/application/ports/registration-security.port';
-import type { CompanyRegistryQuery, RegistryCompanyRecord } from '../../application/contracts/company-registry';
+import type {
+  CompanyRegistryQuery,
+  RegistryCompanyRecord,
+} from '../../application/contracts/company-registry';
 import type {
   ActivateInvitationInput,
   CompanyInvitationRepository,
@@ -21,7 +24,10 @@ import {
   type InvitationStatus,
 } from '../../domain/entities/company-invitation.entity';
 import { checkInvitationAvailability } from '../../domain/policies/company-invitation.policy';
-import { companyInvitationSelect, toCompanyInvitation } from '../translators/company-invitation.translator';
+import {
+  companyInvitationSelect,
+  toCompanyInvitation,
+} from '../translators/company-invitation.translator';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -45,7 +51,11 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
     return record ? toCompanyInvitation(record) : null;
   }
 
-  async activate({ tokenHash, passwordHash, now }: ActivateInvitationInput): Promise<InvitationActivationResult> {
+  async activate({
+    tokenHash,
+    passwordHash,
+    now,
+  }: ActivateInvitationInput): Promise<InvitationActivationResult> {
     try {
       return await this.prisma.$transaction(async (tx): Promise<InvitationActivationResult> => {
         const record = await tx.empresaInvitacion.findUnique({
@@ -89,7 +99,7 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
         const user = await tx.usuario.create({
           data: {
             correo: email,
-            nombre: invitation.companyName || null,
+            nombre: invitation.name || invitation.companyName || null,
             rol: 'empresa',
             estado: 'ACTIVO',
             cuenta_acceso: { create: { password_hash: passwordHash } },
@@ -125,7 +135,7 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
     }
   }
 
-    async findEmailsWithAccount(emails: string[]): Promise<string[]> {
+  async findEmailsWithAccount(emails: string[]): Promise<string[]> {
     if (emails.length === 0) {
       return [];
     }
@@ -144,7 +154,9 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
     return Boolean(company);
   }
 
-  async createCompanyWithInvitations(input: NewCompanyRegistration): Promise<{ companyId: string }> {
+  async createCompanyWithInvitations(
+    input: NewCompanyRegistration,
+  ): Promise<{ companyId: string }> {
     return this.prisma.$transaction(async (tx) => {
       const company = await tx.empresa.create({
         data: {
@@ -178,7 +190,7 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
       return { companyId: company.id };
     });
   }
-    async findById(id: string): Promise<CompanyInvitation | null> {
+  async findById(id: string): Promise<CompanyInvitation | null> {
     const record = await this.prisma.empresaInvitacion.findUnique({
       where: { id },
       select: companyInvitationSelect,
@@ -260,7 +272,11 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
     return this.prisma.$transaction(async (tx) => {
       // Primero se cancela la anterior: el índice único admite una sola pendiente por correo y empresa.
       const cancelled = await tx.empresaInvitacion.updateMany({
-        where: { id: input.previousId, estado: { in: ['pendiente', 'vencida'] }, aceptado_en: null },
+        where: {
+          id: input.previousId,
+          estado: { in: ['pendiente', 'vencida'] },
+          aceptado_en: null,
+        },
         data: { estado: 'cancelada' },
       });
       if (cancelled.count === 0) {
@@ -271,6 +287,13 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
           id_empresa: input.companyId,
           correo: input.email,
           rol: input.role,
+          nombre:
+            (
+              await tx.empresaInvitacion.findUnique({
+                where: { id: input.previousId },
+                select: { nombre: true },
+              })
+            )?.nombre ?? null,
           token_hash: input.tokenHash,
           creado_por: input.createdBy,
           creado_en: input.createdAt,

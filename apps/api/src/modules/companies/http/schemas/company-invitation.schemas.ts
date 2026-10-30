@@ -21,7 +21,6 @@ export const activateCompanyInvitationSchema = z
     message: 'Las contraseñas no coinciden',
     path: ['confirmPassword'],
   });
-  
 
 export type ActivateCompanyInvitationBody = z.output<typeof activateCompanyInvitationSchema>;
 
@@ -55,3 +54,9 @@ export const companyRegistryQuerySchema = z.object({
 });
 
 export type CompanyRegistryQueryInput = z.output<typeof companyRegistryQuerySchema>;
+
+export const inviteCompanyMemberSchema = z.strictObject({
+  nombre: z.string().trim().min(2, 'Ingresa un nombre válido').max(120),
+  correo: z.string().trim().toLowerCase().max(254).pipe(z.email('Correo no válido')),
+  rol: z.enum(['Administrador', 'Reclutador']),
+});
