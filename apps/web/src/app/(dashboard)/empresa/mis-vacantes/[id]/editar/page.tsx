@@ -8,6 +8,7 @@ import {
   Lightbulb, Save, X
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
+import { API_BASE_URL } from '@/shared/config/api';
 
 export default function EditarVacantePage() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function EditarVacantePage() {
     const fetchVacante = async () => {
       try {
         const token = getAccessToken();
-        const response = await fetch('http://localhost:3000/api/v1/vacantes/mis-vacantes', {
+        const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -35,8 +36,7 @@ export default function EditarVacantePage() {
           }
         });
         if (response.ok) {
-          const data = await response.json();
-          const encontrada = data.find((v: any) => v.id === id);
+          const encontrada = await response.json();
           if (encontrada) {
             setTitulo(encontrada.titulo);
             
@@ -46,7 +46,7 @@ export default function EditarVacantePage() {
             else setModalidad('Presencial');
 
             const niv = String(encontrada.nivel_experiencia).toUpperCase().trim();
-            if (niv === 'JUNIOR') setNivel('Junior');
+            if (niv === 'JUNIOR' || niv === 'SIN_EXPERIENCIA') setNivel('Junior');
             else if (niv === 'SEMI-SENIOR') setNivel('Semi-Senior');
             else setNivel('Senior');
 
@@ -69,8 +69,7 @@ export default function EditarVacantePage() {
     setIsSaving(true);
     try {
       const token = getAccessToken();
-      // LLAMADA REAL AL BACKEND
-      const response = await fetch(`http://localhost:3000/api/v1/vacantes/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -141,8 +140,8 @@ export default function EditarVacantePage() {
                   <input 
                     type="text" 
                     value={titulo} 
-                    onChange={(e) => setTitulo(e.target.value)}
-                    style={{ width: '100%', height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#111827', fontSize: '0.875rem', outline: 'none', fontWeight: 500 }} 
+                    readOnly 
+                    style={{ width: '100%', height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#f9fafb', color: '#6b7280', fontSize: '0.875rem', outline: 'none', cursor: 'not-allowed' }} 
                   />
                 </div>
                 <div>

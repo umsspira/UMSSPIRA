@@ -16,16 +16,15 @@ import { RequirePermissions } from '../../shared/http/auth/decorators/require-pe
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
 
 import { CompanyUsersService } from './company-users.service';
+import { InviteCompanyMemberUseCase } from './application/use-cases/invite-company-member.use-case';
+import { inviteCompanyMemberSchema } from './http/schemas/company-invitation.schemas';
+import { ZodValidationPipe } from '../../shared/http/pipes/zod-validation.pipe';
 
 // Roles permitidos por la base de datos
-export type RolEmpresa =
-  | 'Administrador'
-  | 'Reclutador';
+export type RolEmpresa = 'Administrador' | 'Reclutador';
 
 // Estados permitidos
-export type EstadoUsuarioEmpresa =
-  | 'Activo'
-  | 'Inactivo';
+export type EstadoUsuarioEmpresa = 'Activo' | 'Inactivo';
 
 // Datos para invitar un usuario
 export interface InvitarUsuarioDto {
@@ -44,6 +43,7 @@ export interface ActualizarUsuarioDto {
 export class CompanyUsersController {
   constructor(
     private readonly companyUsersService: CompanyUsersService,
+    private readonly inviteMember: InviteCompanyMemberUseCase,
   ) {}
 
   // HU-03: Listar usuarios de una empresa
@@ -53,11 +53,7 @@ export class CompanyUsersController {
     @CurrentActor() actor: ActorContext,
     @Param('companyId', ParseUUIDPipe) companyId: string,
   ) {
-    const usuarios =
-      await this.companyUsersService.listarUsuarios(
-        actor,
-        companyId,
-      );
+    const usuarios = await this.companyUsersService.listarUsuarios(actor, companyId);
 
     return {
       data: usuarios,
@@ -70,57 +66,9 @@ export class CompanyUsersController {
   async invitarUsuario(
     @CurrentActor() actor: ActorContext,
     @Param('companyId', ParseUUIDPipe) companyId: string,
-    @Body() datos: InvitarUsuarioDto,
+    @Body(new ZodValidationPipe(inviteCompanyMemberSchema)) datos: InvitarUsuarioDto,
   ) {
-    if (!datos || typeof datos !== 'object') {
-      throw new BadRequestException(
-        'Debes proporcionar los datos de la invitación',
-      );
-    }
-
-    if (
-      typeof datos.nombre !== 'string' ||
-      datos.nombre.trim().length < 2
-    ) {
-      throw new BadRequestException(
-        'Ingresa un nombre válido',
-      );
-    }
-
-    if (
-      typeof datos.correo !== 'string' ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        datos.correo.trim(),
-      )
-    ) {
-      throw new BadRequestException(
-        'Ingresa un correo electrónico válido',
-      );
-    }
-
-    if (
-      datos.rol !== 'Administrador' &&
-      datos.rol !== 'Reclutador'
-    ) {
-      throw new BadRequestException(
-        'El rol debe ser Administrador o Reclutador',
-      );
-    }
-
-    const invitacion =
-      await this.companyUsersService.invitarUsuario(
-        actor,
-        companyId,
-        {
-          nombre: datos.nombre.trim(),
-          correo: datos.correo.trim().toLowerCase(),
-          rol: datos.rol,
-        },
-      );
-
-    return {
-      data: invitacion,
-    };
+    return { data: await this.inviteMember.execute(actor, companyId, datos) };
   }
 
   // HU-03: Modificar rol o estado de un colaborador
@@ -133,47 +81,27 @@ export class CompanyUsersController {
     @Body() datos: ActualizarUsuarioDto,
   ) {
     if (!datos || typeof datos !== 'object') {
-      throw new BadRequestException(
-        'Debes proporcionar los datos del usuario',
-      );
+      throw new BadRequestException('Debes proporcionar los datos del usuario');
     }
 
-    if (
-      datos.rol === undefined &&
-      datos.estado === undefined
-    ) {
-      throw new BadRequestException(
-        'Debes indicar un rol o un estado',
-      );
+    if (datos.rol === undefined && datos.estado === undefined) {
+      throw new BadRequestException('Debes indicar un rol o un estado');
     }
 
-    if (
-      datos.rol !== undefined &&
-      datos.rol !== 'Administrador' &&
-      datos.rol !== 'Reclutador'
-    ) {
-      throw new BadRequestException(
-        'El rol debe ser Administrador o Reclutador',
-      );
+    if (datos.rol !== undefined && datos.rol !== 'Administrador' && datos.rol !== 'Reclutador') {
+      throw new BadRequestException('El rol debe ser Administrador o Reclutador');
     }
 
-    if (
-      datos.estado !== undefined &&
-      datos.estado !== 'Activo' &&
-      datos.estado !== 'Inactivo'
-    ) {
-      throw new BadRequestException(
-        'El estado debe ser Activo o Inactivo',
-      );
+    if (datos.estado !== undefined && datos.estado !== 'Activo' && datos.estado !== 'Inactivo') {
+      throw new BadRequestException('El estado debe ser Activo o Inactivo');
     }
 
-    const usuario =
-      await this.companyUsersService.actualizarUsuario(
-        actor,
-        companyId,
-        memberId,
-        datos,
-      );
+    const usuario = await this.companyUsersService.actualizarUsuario(
+      actor,
+      companyId,
+      memberId,
+      datos,
+    );
 
     return {
       data: usuario,
@@ -189,5 +117,4 @@ export class CompanyUsersController {
     await this.companyUsersService.cancelarInvitacion(actor, companyId, invitationId);
     return { data: { message: 'Invitación cancelada' } };
   }
-
 }

@@ -1,19 +1,13 @@
-
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 
-import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
-import type {
-  InvitarUsuarioDto,
-  ActualizarUsuarioDto,
-} from './company-users.controller';
+import type { ActualizarUsuarioDto } from './company-users.controller';
 
 type RolBD = 'administrador' | 'reclutador';
 type EstadoBD = 'activo' | 'inactivo';
@@ -61,15 +55,11 @@ export class CompanyUsersService {
     if (rol?.toLowerCase() === 'reclutador') {
       return 'reclutador';
     }
-    throw new BadRequestException(
-      'El rol debe ser Administrador o Reclutador',
-    );
+    throw new BadRequestException('El rol debe ser Administrador o Reclutador');
   }
 
   private mostrarRol(rol: string): 'Administrador' | 'Reclutador' {
-    return rol.toLowerCase() === 'administrador'
-      ? 'Administrador'
-      : 'Reclutador';
+    return rol.toLowerCase() === 'administrador' ? 'Administrador' : 'Reclutador';
   }
 
   private mostrarEstado(estado: string): 'Activo' | 'Inactivo' {
@@ -80,13 +70,8 @@ export class CompanyUsersService {
     actor: ActorContext,
     companyId: string,
   ): Promise<EmpresaRow> {
-    if (
-      actor.role !== 'empresa' ||
-      !actor.scopes.companyIds.includes(companyId)
-    ) {
-      throw new ForbiddenException(
-        'No tienes acceso a esta empresa',
-      );
+    if (actor.role !== 'empresa' || !actor.scopes.companyIds.includes(companyId)) {
+      throw new ForbiddenException('No tienes acceso a esta empresa');
     }
 
     const empresas = await this.prisma.$queryRaw<EmpresaRow[]>`
@@ -106,9 +91,7 @@ export class CompanyUsersService {
       return empresa;
     }
 
-    const administradores = await this.prisma.$queryRaw<
-      { id: string }[]
-    >`
+    const administradores = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT id
       FROM empresa_usuario
       WHERE id_empresa = ${companyId}::uuid
@@ -119,23 +102,15 @@ export class CompanyUsersService {
     `;
 
     if (administradores.length === 0) {
-      throw new ForbiddenException(
-        'Solo un administrador puede gestionar usuarios',
-      );
+      throw new ForbiddenException('Solo un administrador puede gestionar usuarios');
     }
 
     return empresa;
   }
 
   // LISTAR COLABORADORES E INVITACIONES
-  async listarUsuarios(
-    actor: ActorContext,
-    companyId: string,
-  ): Promise<UsuarioEmpresaResponse[]> {
-    const empresa = await this.verificarAdministrador(
-      actor,
-      companyId,
-    );
+  async listarUsuarios(actor: ActorContext, companyId: string): Promise<UsuarioEmpresaResponse[]> {
+    const empresa = await this.verificarAdministrador(actor, companyId);
 
     const miembros = await this.prisma.$queryRaw<MiembroRow[]>`
       SELECT
@@ -152,25 +127,18 @@ export class CompanyUsersService {
       ORDER BY eu.fecha_asignacion DESC
     `;
 
-    const usuarios: UsuarioEmpresaResponse[] = miembros.map(
-      (m) => ({
-        id: m.id,
-        id_usuario: m.id_usuario,
-        nombre: m.nombre?.trim() || 'Sin nombre',
-        correo: m.correo ?? '',
-        rol: this.mostrarRol(m.rol),
-        estado: this.mostrarEstado(m.estado),
-        esTitular: m.id_usuario === empresa.id_usuario,
-      }),
-    );
+    const usuarios: UsuarioEmpresaResponse[] = miembros.map((m) => ({
+      id: m.id,
+      id_usuario: m.id_usuario,
+      nombre: m.nombre?.trim() || 'Sin nombre',
+      correo: m.correo ?? '',
+      rol: this.mostrarRol(m.rol),
+      estado: this.mostrarEstado(m.estado),
+      esTitular: m.id_usuario === empresa.id_usuario,
+    }));
 
     // Incluir titular de empresa cuando no sea miembro registrado.
-    if (
-      empresa.id_usuario &&
-      !usuarios.some(
-        (u) => u.id_usuario === empresa.id_usuario,
-      )
-    ) {
+    if (empresa.id_usuario && !usuarios.some((u) => u.id_usuario === empresa.id_usuario)) {
       const titulares = await this.prisma.$queryRaw<
         {
           usuario_id: string;
@@ -200,9 +168,7 @@ export class CompanyUsersService {
     }
 
     // Leer el nombre real de cada invitación.
-    const invitaciones = await this.prisma.$queryRaw<
-      InvitacionRow[]
-    >`
+    const invitaciones = await this.prisma.$queryRaw<InvitacionRow[]>`
       SELECT id, nombre, correo, rol, estado
       FROM empresa_invitacion
       WHERE id_empresa = ${companyId}::uuid
@@ -215,9 +181,7 @@ export class CompanyUsersService {
       usuarios.push({
         id: invitacion.id,
         id_usuario: null,
-        nombre:
-          invitacion.nombre?.trim() ||
-          invitacion.correo.split('@')[0],
+        nombre: invitacion.nombre?.trim() || invitacion.correo.split('@')[0],
         correo: invitacion.correo,
         rol: this.mostrarRol(invitacion.rol),
         estado: 'Pendiente',
@@ -228,115 +192,6 @@ export class CompanyUsersService {
     return usuarios;
   }
 
-  // INVITAR USUARIO Y GUARDAR SU NOMBRE
-  async invitarUsuario(
-    actor: ActorContext,
-    companyId: string,
-    datos: InvitarUsuarioDto,
-  ): Promise<UsuarioEmpresaResponse> {
-    await this.verificarAdministrador(actor, companyId);
-
-    const nombre = datos.nombre?.trim();
-    const correo = datos.correo?.trim().toLowerCase();
-    const rol = this.convertirRol(datos.rol);
-
-    if (!nombre || nombre.length < 2) {
-      throw new BadRequestException('Ingresa un nombre válido');
-    }
-
-    if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
-      throw new BadRequestException('Ingresa un correo válido');
-    }
-
-    const miembros = await this.prisma.$queryRaw<
-      { id: string }[]
-    >`
-      SELECT eu.id
-      FROM empresa_usuario eu
-      INNER JOIN usuario u
-        ON u.usuario_id = eu.id_usuario
-      WHERE eu.id_empresa = ${companyId}::uuid
-        AND LOWER(u.correo) = ${correo}
-      LIMIT 1
-    `;
-
-    if (miembros.length > 0) {
-      throw new ConflictException(
-        'Este usuario ya pertenece a la empresa',
-      );
-    }
-
-    const pendientes = await this.prisma.$queryRaw<
-      { id: string }[]
-    >`
-      SELECT id
-      FROM empresa_invitacion
-      WHERE id_empresa = ${companyId}::uuid
-        AND LOWER(correo) = ${correo}
-        AND estado = 'pendiente'
-        AND expira_en > NOW()
-      LIMIT 1
-    `;
-
-    if (pendientes.length > 0) {
-      throw new ConflictException(
-        'Ya existe una invitación pendiente para este correo',
-      );
-    }
-
-    const token = randomBytes(32).toString('hex');
-    const tokenHash = createHash('sha256')
-      .update(token)
-      .digest('hex');
-
-    const guardadas = await this.prisma.$queryRaw<
-      { id: string }[]
-    >`
-      INSERT INTO empresa_invitacion (
-        id_empresa,
-        nombre,
-        correo,
-        rol,
-        estado,
-        token_hash,
-        creado_por,
-        expira_en
-      )
-      VALUES (
-        ${companyId}::uuid,
-        ${nombre},
-        ${correo},
-        ${rol},
-        'pendiente',
-        ${tokenHash},
-        ${actor.id}::uuid,
-        NOW() + INTERVAL '7 days'
-      )
-      RETURNING id
-    `;
-
-    const invitacion = guardadas[0];
-
-    if (!invitacion) {
-      throw new BadRequestException(
-        'No se pudo registrar la invitación',
-      );
-    }
-
-    // Pendiente: integrar envío de correo real mediante HU-01.
-    // No afirmar que el correo fue enviado antes de integrarlo.
-
-    return {
-      id: invitacion.id,
-      id_usuario: null,
-      nombre,
-      correo,
-      rol: this.mostrarRol(rol),
-      estado: 'Pendiente',
-      esTitular: false,
-    };
-  }
-
   // ACTUALIZAR ROL O ESTADO
   async actualizarUsuario(
     actor: ActorContext,
@@ -344,15 +199,10 @@ export class CompanyUsersService {
     memberId: string,
     datos: ActualizarUsuarioDto,
   ): Promise<UsuarioEmpresaResponse> {
-    const empresa = await this.verificarAdministrador(
-      actor,
-      companyId,
-    );
+    const empresa = await this.verificarAdministrador(actor, companyId);
 
     if (!datos.rol && !datos.estado) {
-      throw new BadRequestException(
-        'Indica un rol o estado',
-      );
+      throw new BadRequestException('Indica un rol o estado');
     }
 
     const miembros = await this.prisma.$queryRaw<MiembroRow[]>`
@@ -374,20 +224,14 @@ export class CompanyUsersService {
     const miembro = miembros[0];
 
     if (!miembro) {
-      throw new NotFoundException(
-        'Colaborador no encontrado',
-      );
+      throw new NotFoundException('Colaborador no encontrado');
     }
 
     if (miembro.id_usuario === empresa.id_usuario) {
-      throw new ForbiddenException(
-        'No se puede modificar al titular de la empresa',
-      );
+      throw new ForbiddenException('No se puede modificar al titular de la empresa');
     }
 
-    const nuevoRol = datos.rol
-      ? this.convertirRol(datos.rol)
-      : this.convertirRol(miembro.rol);
+    const nuevoRol = datos.rol ? this.convertirRol(datos.rol) : this.convertirRol(miembro.rol);
 
     let nuevoEstado: EstadoBD;
 
@@ -403,17 +247,12 @@ export class CompanyUsersService {
 
     if (
       miembro.id_usuario === actor.id &&
-      (nuevoRol !== 'administrador' ||
-        nuevoEstado !== 'activo')
+      (nuevoRol !== 'administrador' || nuevoEstado !== 'activo')
     ) {
-      throw new ForbiddenException(
-        'No puedes quitarte tus propios permisos',
-      );
+      throw new ForbiddenException('No puedes quitarte tus propios permisos');
     }
 
-    const actualizados = await this.prisma.$queryRaw<
-      { id: string; rol: string; estado: string }[]
-    >`
+    const actualizados = await this.prisma.$queryRaw<{ id: string; rol: string; estado: string }[]>`
       UPDATE empresa_usuario
       SET
         rol = ${nuevoRol},
@@ -432,9 +271,7 @@ export class CompanyUsersService {
     const actualizado = actualizados[0];
 
     if (!actualizado) {
-      throw new NotFoundException(
-        'No se pudo actualizar el usuario',
-      );
+      throw new NotFoundException('No se pudo actualizar el usuario');
     }
 
     return {
@@ -456,9 +293,7 @@ export class CompanyUsersService {
   ): Promise<void> {
     await this.verificarAdministrador(actor, companyId);
 
-    const canceladas = await this.prisma.$queryRaw<
-      { id: string }[]
-    >`
+    const canceladas = await this.prisma.$queryRaw<{ id: string }[]>`
       UPDATE empresa_invitacion
       SET estado = 'cancelada'
       WHERE id = ${invitationId}::uuid
@@ -468,9 +303,7 @@ export class CompanyUsersService {
     `;
 
     if (canceladas.length === 0) {
-      throw new NotFoundException(
-        'No se encontró una invitación pendiente',
-      );
+      throw new NotFoundException('No se encontró una invitación pendiente');
     }
   }
 }

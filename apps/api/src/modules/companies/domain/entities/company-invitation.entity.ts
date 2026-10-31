@@ -14,4 +14,5 @@ export interface CompanyInvitation {
   status: InvitationStatus;
   expiresAt: Date;
   acceptedAt: Date | null;
+  name?: string | null;
 }

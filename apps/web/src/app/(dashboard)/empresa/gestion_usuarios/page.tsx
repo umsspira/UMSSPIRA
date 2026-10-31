@@ -403,7 +403,7 @@ export default function GestionUsuariosPage() {
               Se registró la invitación para <strong>{invitacionCreada}</strong>.
             </p>
             <p className="mt-2 text-sm text-gray-500">
-              El envío del correo requiere integrar el servicio de correo.
+              El correo de activación quedó pendiente de envío.
             </p>
             <button type="button" onClick={() => setInvitacionCreada(null)}
               className="mt-6 w-full rounded-lg bg-orange-500 p-3 font-semibold text-white">

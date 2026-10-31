@@ -14,6 +14,7 @@ export const companyInvitationSelect = {
   estado: true,
   expira_en: true,
   aceptado_en: true,
+  nombre: true,
   empresa: { select: { razon_social: true } },
 } as const;
 
@@ -25,6 +26,7 @@ interface CompanyInvitationRecord {
   estado: string;
   expira_en: Date;
   aceptado_en: Date | null;
+  nombre?: string | null;
   empresa: { razon_social: string | null };
 }
 
@@ -44,5 +46,6 @@ export function toCompanyInvitation(record: CompanyInvitationRecord): CompanyInv
     status: record.estado as InvitationStatus,
     expiresAt: record.expira_en,
     acceptedAt: record.aceptado_en,
+    name: record.nombre ?? null,
   };
 }
