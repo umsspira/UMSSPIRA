@@ -154,7 +154,8 @@ describe('catálogo de eventos', () => {
       .toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('link', { name: 'Mis eventos' }))
       .toHaveAttribute('href', '/portal/eventos/mis-eventos');
-    expect(screen.getByRole('button', { name: 'Mis pases' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Mis pases' }))
+      .toHaveAttribute('href', '/events/catalog/passes');
   });
 
   it('distingue eventos publicados, sin cupos y cancelados', async () => {

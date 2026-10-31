@@ -127,9 +127,7 @@ export default function EventsCatalogPage({
               Explorar
             </button>
             <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
-            <button type="button" disabled title="Disponible al integrar HU10">
-              Mis pases
-            </button>
+            <Link href="/events/catalog/passes">Mis pases</Link>
           </nav>
         </header>
 

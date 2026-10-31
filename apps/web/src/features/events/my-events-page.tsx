@@ -15,6 +15,7 @@ import { CancellationSuccess } from './cancellation-success';
 import { ApiClientError } from '@/shared/services/api-client';
 import { SessionError } from '@/shared/services/auth-session';
 import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
+import { EventsMobileBottomNav } from './events-mobile-bottom-nav';
 
 type StatusFilter = 'all' | 'cancelled' | 'finished';
 type Tone = 'active' | 'cancelled' | 'finished';
@@ -115,6 +116,7 @@ export default function MyEventsPage() {
             onReturn={() => setCancelledEventTitle(null)}
           />
         </div>
+        <EventsMobileBottomNav />
       </main>
     );
   }
@@ -132,9 +134,7 @@ export default function MyEventsPage() {
             <button type="button" className="is-active" aria-current="page">
               Mis eventos
             </button>
-            <button type="button" disabled title="Disponible al integrar HU10">
-              Mis pases
-            </button>
+            <Link href="/events/catalog/passes">Mis pases</Link>
           </nav>
         </header>
 
@@ -244,18 +244,13 @@ export default function MyEventsPage() {
                         </p>
                       </div>
                       <div className="hu9-event-actions">
-                        <Link href={`/portal/eventos/${item.event.id}`} className="hu9-action">
+                        <Link href={`/portal/eventos/${item.event.id}`} className={`hu9-action${canOpenPass ? ' hu9-detail-action' : ''}`}>
                           Ver detalle
                         </Link>
                         {canOpenPass ? (
-                          <button
-                            type="button"
-                            className="hu9-action"
-                            disabled
-                            title="Disponible al integrar HU10"
-                          >
+                          <Link href="/events/catalog/passes" className="hu9-action">
                             Ver pase
-                          </button>
+                          </Link>
                         ) : null}
                       {item.participationStatus === EVENT_PARTICIPATION_STATUS.VIGENTE ||
                       item.participationStatus === EVENT_PARTICIPATION_STATUS.INSCRIPCION_CANCELADA ? (
@@ -277,6 +272,7 @@ export default function MyEventsPage() {
           </>
         )}
       </div>
+      <EventsMobileBottomNav />
     </main>
   );
 }

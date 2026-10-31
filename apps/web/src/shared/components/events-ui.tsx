@@ -527,6 +527,9 @@ export function EventInactiveContent({
             retirarlos para quitarlos de la administración activa.
           </p>
         </div>
+        <Link href="/events" className="event-button event-button-secondary event-inactive-back">
+          Volver a gestión
+        </Link>
       </div>
 
       <EventAdminTabs active="inactive" />

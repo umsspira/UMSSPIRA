@@ -3,7 +3,7 @@ import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 
 import EventDetailPage from '@/features/events/event-detail-page';
 import { ApiClientError } from '@/shared/services/api-client';
-import { cancelEventRegistration, getPublishedEvent, registerForEvent } from '@/shared/services/events-service';
+import { cancelEventRegistration, getMyEventRegistrations, getPublishedEvent, registerForEvent } from '@/shared/services/events-service';
 import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
 import { formatEventDateTime } from '@/shared/utils/event-date-time';
 
@@ -11,6 +11,7 @@ jest.mock('@/shared/services/events-service', () => ({
   getPublishedEvent: jest.fn(),
   registerForEvent: jest.fn(),
   cancelEventRegistration: jest.fn(),
+  getMyEventRegistrations: jest.fn(),
 }));
 
 jest.mock('@/modules/auth/frontend/services/auth.service', () => ({
@@ -34,6 +35,7 @@ const publishedEvent: EventItem = {
 describe('detalle público de eventos', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
   });
 
   it('rechaza un identificador malformado sin consultar la API', () => {
@@ -74,6 +76,41 @@ describe('detalle público de eventos', () => {
     expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
   });
 
+  it('muestra el detalle histórico solo de un evento cancelado inscrito por el Titulado', async () => {
+    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
+    jest.mocked(getMyEventRegistrations).mockResolvedValueOnce([{
+      id: 'registration-1', status: 'CONFIRMADA', participationStatus: 'EVENTO_CANCELADO',
+      registeredAt: '2026-10-01T12:00:00Z', hasPass: false,
+      event: { id: EVENT_ID, title: 'Evento histórico', startDate: publishedEvent.startDate,
+        endDate: publishedEvent.endDate, location: 'Campus Central', status: EVENT_STATUS.CANCELADO },
+    }]);
+
+    render(<EventDetailPage params={{ id: EVENT_ID }} catalogHref="/portal/eventos" />);
+
+    expect(await screen.findByRole('heading', { name: 'Evento histórico' })).toBeInTheDocument();
+    expect(screen.getByText('EVENTO CANCELADO')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Volver a mis eventos/ }))
+      .toHaveAttribute('href', '/portal/eventos/mis-eventos');
+    expect(screen.queryByRole('button', { name: 'Inscribirme' })).not.toBeInTheDocument();
+    expect(getPublishedEvent).not.toHaveBeenCalled();
+    expect(getMyEventRegistrations).toHaveBeenCalledTimes(1);
+    expect(registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it('no revela un evento cancelado sin inscripción propia', async () => {
+    jest.mocked(getPublishedEvent).mockRejectedValueOnce(new ApiClientError('no publicado', 404));
+    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
+    jest.mocked(getMyEventRegistrations).mockResolvedValueOnce([]);
+
+    render(<EventDetailPage params={{ id: EVENT_ID }} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'El evento no fue encontrado o ya no está disponible.',
+    );
+    expect(screen.queryByRole('heading', { name: 'Evento histórico' })).not.toBeInTheDocument();
+    expect(getPublishedEvent).toHaveBeenCalledTimes(1);
+  });
+
   it('permite reintentar un fallo temporal sin exponer el error interno', async () => {
     jest.mocked(getPublishedEvent)
       .mockRejectedValueOnce(new Error('fallo de Supabase'))
@@ -104,6 +141,7 @@ describe('detalle público de eventos', () => {
     expect(screen.getByText('1 persona')).toBeInTheDocument();
     expect(screen.getAllByText(publishedEvent.description!)).toHaveLength(1);
     expect(screen.queryByText(/Mock|Supabase|Tarea 11/i)).not.toBeInTheDocument();
+    expect(getPublishedEvent).toHaveBeenCalledTimes(1);
   });
 
   it('usa plural para capacidades distintas de uno', async () => {
@@ -144,6 +182,37 @@ describe('detalle público de eventos', () => {
 
     expect(await screen.findByRole('button', { name: 'Inscribirme' })).toBeInTheDocument();
     expect(getCurrentUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('reconoce una inscripción confirmada al abrir el detalle y no ofrece duplicarla', async () => {
+    jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
+    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
+    jest.mocked(getMyEventRegistrations).mockResolvedValueOnce([{
+      id: 'registration-1', status: 'CONFIRMADA', participationStatus: 'VIGENTE',
+      registeredAt: '2026-10-01T12:00:00Z', hasPass: true,
+      event: { id: EVENT_ID, title: publishedEvent.title, startDate: publishedEvent.startDate,
+        endDate: publishedEvent.endDate, location: publishedEvent.location,
+        status: EVENT_STATUS.PUBLICADO },
+    }]);
+
+    render(<EventDetailPage params={{ id: EVENT_ID }} />);
+
+    expect(await screen.findByText(/Ya tienes una inscripción confirmada/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inscribirme' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver pase QR' })).toHaveAttribute('href', '/events/catalog/passes');
+    expect(registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it('bloquea la inscripción si no puede verificar las inscripciones del Titulado', async () => {
+    jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
+    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
+    jest.mocked(getMyEventRegistrations).mockRejectedValueOnce(new Error('fallo de red'));
+
+    render(<EventDetailPage params={{ id: EVENT_ID }} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos verificar tu inscripción');
+    expect(screen.queryByRole('button', { name: 'Inscribirme' })).not.toBeInTheDocument();
+    expect(registerForEvent).not.toHaveBeenCalled();
   });
 
   it('cierra la confirmación con Volver sin enviar la inscripción', async () => {
@@ -277,6 +346,7 @@ describe('detalle público de eventos', () => {
 describe('Cancelación desde la inscripción confirmada', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
     jest.mocked(getPublishedEvent).mockResolvedValue({ ...publishedEvent, startDate: '2099-11-06T14:00:00Z', endDate: '2099-11-06T18:00:00Z' });
     jest.mocked(getCurrentUser).mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent).mockResolvedValue({
