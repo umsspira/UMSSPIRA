@@ -85,6 +85,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [profileState, setProfileState] = useState<'calculated' | 'customizing'>('calculated');
+  const [isFirstLoad, setIsFirstLoad] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasRadarError, setHasRadarError] = useState<boolean>(false);
   const [hasValidRadar, setHasValidRadar] = useState<boolean>(false);
@@ -109,16 +110,41 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
 
   const { hasPendingChanges, markPendingChanges, clearPendingChanges } = useRecalculateState();
 
+  const isMountedRef = useRef<boolean>(true);
   const candidateAreasRef = useRef<CandidateArea[]>(candidateAreas);
   const hasPendingChangesRef = useRef<boolean>(hasPendingChanges);
   const hasRadarErrorRef = useRef<boolean>(hasRadarError);
+  const failedOperationRef = useRef<'load' | 'recalculate' | null>(null);
   const recalculateRequestIdRef = useRef<number>(0);
   const autoRecalculateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const changeVersionRef = useRef<number>(0);
 
   candidateAreasRef.current = candidateAreas;
   hasPendingChangesRef.current = hasPendingChanges;
   hasRadarErrorRef.current = hasRadarError;
+
+  const createRadarTimeout = useCallback(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        if (timeoutId !== null) {
+          activeTimeoutsRef.current.delete(timeoutId);
+        }
+        reject(new Error('No se pudo actualizar tu radar'));
+      }, DEFAULT_RECALCULATE_TIMEOUT_MS);
+      activeTimeoutsRef.current.add(timeoutId);
+    });
+
+    const clear = () => {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        activeTimeoutsRef.current.delete(timeoutId);
+      }
+    };
+
+    return { timeoutPromise, clear };
+  }, []);
 
   useEffect(() => {
     if (changeVersion === 0 || !hasPendingChanges) return;
@@ -134,24 +160,20 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     }
 
     const requestId = ++recalculateRequestIdRef.current;
+    setIsFirstLoad(false);
     setIsLoading(true);
     hasRadarErrorRef.current = false;
     setHasRadarError(false);
     setIsPendingDialogOpen(false);
     const versionAtStart = changeVersionRef.current;
 
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const timeoutPromise = new Promise<never>((_resolve, reject) => {
-      timeoutId = setTimeout(() => {
-        reject(new Error('No se pudo actualizar tu radar'));
-      }, DEFAULT_RECALCULATE_TIMEOUT_MS);
-    });
+    const { timeoutPromise, clear } = createRadarTimeout();
 
     try {
       const previousAreas = [...candidateAreasRef.current];
       const result = await Promise.race([recalculateAffinity(), timeoutPromise]);
 
-      if (requestId !== recalculateRequestIdRef.current) {
+      if (!isMountedRef.current || requestId !== recalculateRequestIdRef.current) {
         return;
       }
 
@@ -162,6 +184,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
           hasPendingChangesRef.current = false;
           clearPendingChanges();
         }
+        failedOperationRef.current = null;
         hasRadarErrorRef.current = false;
         setHasRadarError(false);
         setIsSuccessToastOpen(true);
@@ -190,25 +213,25 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         hasPendingChangesRef.current = false;
         clearPendingChanges();
       }
+      failedOperationRef.current = null;
       hasRadarErrorRef.current = false;
       setHasRadarError(false);
       setHasValidRadar(true);
       setIsSuccessToastOpen(true);
     } catch {
-      if (requestId !== recalculateRequestIdRef.current) {
+      if (!isMountedRef.current || requestId !== recalculateRequestIdRef.current) {
         return;
       }
+      failedOperationRef.current = 'recalculate';
       hasRadarErrorRef.current = true;
       setHasRadarError(true);
     } finally {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-      }
-      if (requestId === recalculateRequestIdRef.current) {
+      clear();
+      if (isMountedRef.current && requestId === recalculateRequestIdRef.current) {
         setIsLoading(false);
       }
     }
-  }, [clearPendingChanges]);
+  }, [clearPendingChanges, createRadarTimeout]);
 
   const scheduleDebouncedRecalculate = useCallback(() => {
     if (autoRecalculateTimerRef.current !== null) {
@@ -220,14 +243,44 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     }, DEBOUNCE_MS);
   }, [handleRecalculate]);
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadInitialVector = useCallback(
+    async ({ isRetry = false }: { isRetry?: boolean } = {}) => {
+      if (autoRecalculateTimerRef.current !== null) {
+        clearTimeout(autoRecalculateTimerRef.current);
+        autoRecalculateTimerRef.current = null;
+      }
 
-    async function loadInitialVector() {
+      const requestId = ++recalculateRequestIdRef.current;
+      if (isRetry) {
+        setIsFirstLoad(false);
+      }
+      setIsLoading(true);
+      hasRadarErrorRef.current = false;
+      setHasRadarError(false);
+
+      let timedOut = false;
+      const timeoutId = setTimeout(() => {
+        timedOut = true;
+        activeTimeoutsRef.current.delete(timeoutId);
+        if (isMountedRef.current && requestId === recalculateRequestIdRef.current) {
+          failedOperationRef.current = 'load';
+          hasRadarErrorRef.current = true;
+          setHasRadarError(true);
+          setIsFirstLoad(false);
+          setIsLoading(false);
+        }
+      }, DEFAULT_RECALCULATE_TIMEOUT_MS);
+      activeTimeoutsRef.current.add(timeoutId);
+
       try {
-        setIsLoading(true);
         const result = await getAffinityVector();
-        if (!isMounted) return;
+        if (
+          timedOut ||
+          !isMountedRef.current ||
+          requestId !== recalculateRequestIdRef.current
+        ) {
+          return;
+        }
         const processed = processVectorAreas(result.areas);
         setHasLaborHistory(result.hasLaborHistory ?? null);
         candidateAreasRef.current = processed;
@@ -235,6 +288,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         setLoadedKeywords(extractKeywords(processed));
         setHasValidRadar(true);
         setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
+        failedOperationRef.current = null;
         hasRadarErrorRef.current = false;
         setHasRadarError(false);
 
@@ -244,27 +298,55 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
           scheduleDebouncedRecalculate();
         }
       } catch {
-        if (isMounted) {
+        if (
+          !timedOut &&
+          isMountedRef.current &&
+          requestId === recalculateRequestIdRef.current
+        ) {
+          failedOperationRef.current = 'load';
           hasRadarErrorRef.current = true;
           setHasRadarError(true);
         }
       } finally {
-        if (isMounted) {
+        clearTimeout(timeoutId);
+        activeTimeoutsRef.current.delete(timeoutId);
+        if (
+          !timedOut &&
+          isMountedRef.current &&
+          requestId === recalculateRequestIdRef.current
+        ) {
+          setIsFirstLoad(false);
           setIsLoading(false);
         }
       }
-    }
+    },
+    [markPendingChanges, scheduleDebouncedRecalculate],
+  );
 
-    loadInitialVector();
+  useEffect(() => {
+    isMountedRef.current = true;
+    const timeouts = activeTimeoutsRef.current;
+
+    void loadInitialVector();
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
       if (autoRecalculateTimerRef.current !== null) {
         clearTimeout(autoRecalculateTimerRef.current);
         autoRecalculateTimerRef.current = null;
       }
+      timeouts.forEach((timerId) => clearTimeout(timerId));
+      timeouts.clear();
     };
-  }, [markPendingChanges, scheduleDebouncedRecalculate]);
+  }, [loadInitialVector]);
+
+  const handleRetry = useCallback(() => {
+    if (failedOperationRef.current === 'load' && !hasValidRadar) {
+      void loadInitialVector({ isRetry: true });
+      return;
+    }
+    void handleRecalculate({ force: true });
+  }, [hasValidRadar, loadInitialVector, handleRecalculate]);
 
   const handleProfileChange = useCallback(() => {
     changeVersionRef.current += 1;
@@ -282,10 +364,22 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   }, []);
 
   const triggerTimeoutSimulation = useCallback(async () => {
+    const requestId = ++recalculateRequestIdRef.current;
+    setIsFirstLoad(false);
     setIsLoading(true);
     hasRadarErrorRef.current = false;
     setHasRadarError(false);
-    await new Promise((resolve) => setTimeout(resolve, DEFAULT_RECALCULATE_TIMEOUT_MS));
+    await new Promise<void>((resolve) => {
+      const timerId = setTimeout(() => {
+        activeTimeoutsRef.current.delete(timerId);
+        resolve();
+      }, DEFAULT_RECALCULATE_TIMEOUT_MS);
+      activeTimeoutsRef.current.add(timerId);
+    });
+    if (!isMountedRef.current || requestId !== recalculateRequestIdRef.current) {
+      return;
+    }
+    failedOperationRef.current = 'recalculate';
     hasRadarErrorRef.current = true;
     setHasRadarError(true);
     setIsLoading(false);
@@ -301,12 +395,12 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     return found || { area: areaKey, affinity: 0, evidence: [] };
   });
 
-  const radarData = hasRadarError && !hasValidRadar
+  const radarData = !hasValidRadar
     ? orderedCandidateAreas.map((item) => ({ ...item, affinity: Number.NaN }))
     : orderedCandidateAreas;
 
-  // Mientras no llega el primer vector ni ocurre un error, se muestra el skeleton
-  const isInitialLoading = !hasValidRadar && !hasRadarError;
+  // Mientras no concluye la primera lectura ni ocurre un error, se muestra el skeleton
+  const isInitialLoading = isFirstLoad && !hasValidRadar && !hasRadarError;
 
   // Respaldos inspeccionables preservando las evidencias recibidas en el vector
   const inspectionAreas: InspectionAreas = orderedCandidateAreas.map((item) => ({
@@ -393,7 +487,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                     <p className="mt-2 text-sm text-slate-600">Sin datos de historial laboral</p>
                   )}
 
-                  {isLoading && hasValidRadar && !hasRadarError && (
+                  {isLoading && !hasRadarError && (
                     <div
                       role="status"
                       aria-live="polite"
@@ -403,7 +497,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                     </div>
                   )}
 
-                  {hasValidRadar && isEmptyVector && (
+                  {hasValidRadar && isEmptyVector && !hasRadarError && !isLoading && (
                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center bg-white/40 backdrop-blur-[3px] rounded-xl border border-white/50 shadow-sm">
                       <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
                         <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,9 +522,9 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   )}
 
                   {hasRadarError && (
-                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
                       <RadarErrorState
-                        onRetry={() => handleRecalculate({ force: true })}
+                        onRetry={handleRetry}
                         isRetrying={isLoading}
                       />
                     </div>
@@ -615,4 +709,3 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
 };
 
 export default GraduateAffinityView;
-

@@ -1,4 +1,4 @@
-﻿
+
 /// <reference types="jest" />
 
 import snapshotsMock from '../mocks/affinity-snapshots-mock.json';
@@ -37,6 +37,7 @@ describe('getAffinityVector', () => {
   afterEach(async () => {
     process.env = originalEnv;
     await resetTestSession();
+    jest.useRealTimers();
     global.fetch = originalFetch;
   });
 
@@ -140,6 +141,70 @@ describe('getAffinityVector', () => {
     await expect(getAffinityVector()).rejects.toMatchObject({
       status: 500,
     });
+  });
+
+  it('lanza error 503 cuando el servidor responde Service Unavailable', async () => {
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
+    await setTestAccessToken();
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'Servicio temporalmente no disponible',
+        },
+      }),
+    });
+
+    const { getAffinityVector } = await import('./affinity-service');
+
+    await expect(getAffinityVector()).rejects.toMatchObject({
+      status: 503,
+    });
+  });
+
+  it('aborta a los 7000 ms en la carga inicial y lanza el mensaje exacto del criterio', async () => {
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
+    await setTestAccessToken();
+
+    jest.useFakeTimers();
+
+    const fetchMock = jest.fn().mockImplementation(
+      (_input: unknown, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            const error = new Error('The operation was aborted');
+            error.name = 'AbortError';
+            reject(error);
+          });
+        }),
+    );
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { getAffinityVector } = await import('./affinity-service');
+
+    let settled = false;
+
+    const pending = getAffinityVector().finally(() => {
+      settled = true;
+    });
+
+    const assertion = expect(pending).rejects.toThrow(
+      'No se pudo actualizar tu radar',
+    );
+
+    await jest.advanceTimersByTimeAsync(6999);
+
+    expect(settled).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(1);
+    await assertion;
+
+    expect(settled).toBe(true);
   });
 });
 

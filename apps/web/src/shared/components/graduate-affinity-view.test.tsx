@@ -1018,4 +1018,136 @@ describe('GraduateAffinityView', () => {
       );
     });
   });
+
+  it('al hacer clic en "Reintentar" tras un fallo 503 o de red en la carga inicial muestra "Actualizando tu afinidad…" sin volver al skeleton y recupera el radar', async () => {
+    let resolveRetry!: (value: unknown) => void;
+
+    mockGetAffinityVector
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Servicio no disponible'), { status: 503 }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRetry = resolve;
+          }),
+      );
+
+    render(<GraduateAffinityView />);
+
+    expect(
+      await screen.findByText('No se pudo actualizar tu radar'),
+    ).toBeInTheDocument();
+
+    const retryButton = screen.getByRole('button', { name: /reintentar/i });
+    expect(retryButton).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(retryButton);
+    });
+
+    expect(screen.getByText('Actualizando tu afinidad…')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: 'Cargando tu radar de afinidad' }),
+    ).not.toBeInTheDocument();
+    expect(mockGetAffinityVector).toHaveBeenCalledTimes(2);
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveRetry(makeVector());
+    });
+
+    expect(
+      await screen.findByText('Resumen de tu afinidad'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Actualizando tu afinidad…'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('No se pudo actualizar tu radar'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('muestra la superposición de error con "Reintentar" a los 7 s de timeout en la carga inicial y permite reintentar', async () => {
+    jest.useFakeTimers();
+
+    let resolveRetry!: (value: unknown) => void;
+    mockGetAffinityVector
+      .mockImplementationOnce(() => new Promise(() => {}))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRetry = resolve;
+          }),
+      );
+
+    render(<GraduateAffinityView />);
+
+    expect(
+      screen.getByRole('status', { name: 'Cargando tu radar de afinidad' }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      jest.advanceTimersByTime(7000);
+    });
+
+    expect(
+      await screen.findByText('No se pudo actualizar tu radar'),
+    ).toBeInTheDocument();
+
+    const retryButton = screen.getByRole('button', { name: /reintentar/i });
+    expect(retryButton).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(retryButton);
+    });
+
+    expect(screen.getByText('Actualizando tu afinidad…')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveRetry(makeVector());
+    });
+
+    expect(
+      await screen.findByText('Resumen de tu afinidad'),
+    ).toBeInTheDocument();
+  });
+
+  it('muestra "Actualizando tu afinidad…" al pulsar "Reintentar" tras un error 503 en recálculo', async () => {
+    let resolveRetry!: (value: unknown) => void;
+
+    mockRecalculateAffinity
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Service Unavailable'), { status: 503 }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRetry = resolve;
+          }),
+      );
+
+    render(<GraduateAffinityView />);
+    await screen.findByText('Resumen de tu afinidad');
+
+    await clickSimulateProfileChange();
+
+    expect(
+      await screen.findByText('No se pudo actualizar tu radar'),
+    ).toBeInTheDocument();
+
+    const retryButton = screen.getByRole('button', { name: /reintentar/i });
+    await act(async () => {
+      fireEvent.click(retryButton);
+    });
+
+    expect(screen.getByText('Actualizando tu afinidad…')).toBeInTheDocument();
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolveRetry(makeVector());
+    });
+
+    expect(await screen.findByText('Radar actualizado')).toBeInTheDocument();
+  });
 });

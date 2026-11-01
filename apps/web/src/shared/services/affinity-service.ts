@@ -121,12 +121,45 @@ function orderConfigAxes(
   return { axes };
 }
 
+async function fetchWithRadarTimeout<T>(
+  requestFn: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error('No se pudo actualizar tu radar'));
+    }, RECALCULATE_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([requestFn(controller.signal), timeoutPromise]);
+  } catch (error) {
+    if (
+      controller.signal.aborted ||
+      (error instanceof Error && error.name === 'AbortError')
+    ) {
+      throw new Error('No se pudo actualizar tu radar');
+    }
+
+    throw error;
+  } finally {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export async function getAffinityVector(): Promise<AffinityVectorResponse> {
   if (USE_AFFINITY_MOCK) {
     return affinityVectorMock as AffinityVectorResponse;
   }
 
-  const response = await apiFetch<RadarApiResponse>(AFFINITY_ENDPOINT);
+  const response = await fetchWithRadarTimeout((signal) =>
+    apiFetch<RadarApiResponse>(AFFINITY_ENDPOINT, { signal }),
+  );
 
   return adaptRadarResponse(response);
 }
@@ -186,33 +219,12 @@ export async function recalculateAffinity(): Promise<AffinityVectorResponse> {
     } as AffinityVectorResponse;
   }
 
-  const controller = new AbortController();
-
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    RECALCULATE_TIMEOUT_MS,
+  const response = await fetchWithRadarTimeout((signal) =>
+    apiFetch<RadarApiResponse>(RADAR_RECALCULATE_ENDPOINT, {
+      method: 'POST',
+      signal,
+    }),
   );
 
-  try {
-    const response = await apiFetch<RadarApiResponse>(
-      RADAR_RECALCULATE_ENDPOINT,
-      {
-        method: 'POST',
-        signal: controller.signal,
-      },
-    );
-
-    return adaptRadarResponse(response);
-  } catch (error) {
-    if (
-      controller.signal.aborted ||
-      (error instanceof Error && error.name === 'AbortError')
-    ) {
-      throw new Error('No se pudo actualizar tu radar');
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return adaptRadarResponse(response);
 }
