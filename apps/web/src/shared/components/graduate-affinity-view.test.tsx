@@ -669,6 +669,42 @@ describe('GraduateAffinityView', () => {
     expect(screen.getByText('92%')).toBeInTheDocument();
   });
 
+  it('recalcula automáticamente cuando el perfil se actualiza mientras el radar está montado', async () => {
+  jest.useFakeTimers();
+
+  const updatedAreas = recalculatedAreas.map((area) =>
+    area.area === 'software-development'
+      ? { ...area, affinity: 92 }
+      : area
+  );
+
+  mockGetAffinityVector.mockResolvedValueOnce(
+    makeVector(recalculatedAreas, { hasPendingChanges: false })
+  );
+  mockRecalculateAffinity.mockResolvedValueOnce(makeVector(updatedAreas));
+
+  render(<GraduateAffinityView />);
+
+  await screen.findByText('Resumen de tu afinidad');
+
+  expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+
+  await act(async () => {
+    window.dispatchEvent(new Event('umsspira:profile-updated'));
+  });
+
+  await act(async () => {
+    jest.advanceTimersByTime(DEBOUNCE_MS);
+  });
+
+  await waitFor(() => {
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(1);
+  });
+
+  expect(await screen.findByText('Radar actualizado')).toBeInTheDocument();
+  expect(screen.getByText('92%')).toBeInTheDocument();
+});
+
   it('mantiene visible el radar previo con el estado "Actualizando tu afinidad…" durante el recálculo', async () => {
     let resolveRecalculate!: (value: unknown) => void;
     mockRecalculateAffinity.mockImplementationOnce(

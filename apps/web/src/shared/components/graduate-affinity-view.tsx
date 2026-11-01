@@ -292,6 +292,19 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     markPendingChanges();
   }, [markPendingChanges]);
 
+  useEffect(() => {
+  const handleProfileUpdated = () => {
+    handleProfileChange();
+    scheduleDebouncedRecalculate();
+  };
+
+  window.addEventListener('umsspira:profile-updated', handleProfileUpdated);
+
+  return () => {
+    window.removeEventListener('umsspira:profile-updated', handleProfileUpdated);
+  };
+}, [handleProfileChange, scheduleDebouncedRecalculate]);
+
   const handleDismissPendingChanges = useCallback(() => {
     setIsPendingDialogOpen(false);
   }, []);

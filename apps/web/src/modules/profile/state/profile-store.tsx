@@ -104,9 +104,21 @@ useEffect(() => {
   };
 }, [cargarDesdeApi, loadAttempt]);
   const addRecord = useCallback((section: RecordSection, record: NewRecord<ProfileRecord>) => {
-    const created = { ...record, id: record.id ?? createId(section), ownerId: CURRENT_GRADUATE_ID } as ProfileRecord;
-    setRecords((current) => ({ ...current, [section]: [...current[section], created] }));
-  }, []);
+  const created = {
+    ...record,
+    id: record.id ?? createId(section),
+    ownerId: CURRENT_GRADUATE_ID,
+  } as ProfileRecord;
+
+  setRecords((current) => ({
+    ...current,
+    [section]: [...current[section], created],
+  }));
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('umsspira:profile-updated'));
+  }
+}, []);
 
   const updateRecord = useCallback((section: RecordSection, record: ProfileRecord) => {
     setRecords((current) => ({
