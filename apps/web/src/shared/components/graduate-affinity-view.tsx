@@ -13,7 +13,10 @@ import RadarInspection, { type EvidenceItem } from './radar-inspection';
 import { VariationIndicator } from './variation-indicator';
 import { clampPercentage, formatPercentage } from '../utils/percentage';
 import { sortAreasByAffinityDesc } from '../utils/affinity-math';
-import { useRecalculateState } from '../hooks/use-recalculate-state';
+import {
+  hasPendingProfileChanges,
+  useRecalculateState,
+} from '../hooks/use-recalculate-state';
 import { DEBOUNCE_MS } from '../hooks/use-debounced-batch';
 import {
   recalculateAffinity,
@@ -242,6 +245,12 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
           hasPendingChangesRef.current = true;
           markPendingChanges();
           scheduleDebouncedRecalculate();
+        } else if (hasPendingProfileChanges()) {
+          // Hubo cambios en el perfil (p. ej. un registro eliminado): habilita Recalcular y avisa
+          changeVersionRef.current += 1;
+          setChangeVersion(changeVersionRef.current);
+          hasPendingChangesRef.current = true;
+          markPendingChanges();
         }
       } catch {
         if (isMounted) {
