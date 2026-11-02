@@ -173,6 +173,7 @@ export default function MisVacantesPage() {
   };
 
   const getBadgeStyle = (estado: string) => {
+    // Convertimos todo a mayúsculas para que no falle si llega como "Pausada" o "pausada"
     const estadoNormalizado = estado?.toUpperCase() || 'BORRADOR'; 
     
     switch(estadoNormalizado) {
