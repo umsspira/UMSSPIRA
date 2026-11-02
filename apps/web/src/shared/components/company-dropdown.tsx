@@ -148,7 +148,7 @@ export function CompanyDropdown({
 
             {/* HU-03: Gestión de usuarios - NUEVO */}
             <Link
-              href="/empresa/Gestion_usuarios"
+              href="/empresa/gestion_usuarios"
               className="flex items-center justify-between px-5 py-2.5 hover:bg-[#EEE9DF]/50 transition-colors group"
               onClick={() => setIsOpen(false)}
             >
