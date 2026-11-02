@@ -73,11 +73,18 @@ export default function MisVacantesPage() {
   };
 
   const getBadgeStyle = (estado: string) => {
-    switch(estado) {
-      case 'ACTIVA': return { bg: '#dcfce7', color: '#166534' };
-      case 'PAUSADA': return { bg: '#f3f4f6', color: '#4b5563' };
-      case 'CERRADA': return { bg: '#e5e7eb', color: '#374151' };
-      default: return { bg: '#f9fafb', color: '#9ca3af' };
+    // Convertimos todo a mayúsculas para que no falle si llega como "Pausada" o "pausada"
+    const estadoNormalizado = estado?.toUpperCase() || 'BORRADOR'; 
+
+    switch(estadoNormalizado) {
+      case 'ACTIVA': 
+        return { bg: '#dcfce7', color: '#166534' }; // Verde
+      case 'PAUSADA': 
+      case 'CERRADA': 
+      case 'BORRADOR':
+      default: 
+        // Unificamos todos los estados inactivos en un gris oscuro/legible (CA-08)
+        return { bg: '#f3f4f6', color: '#4b5563' }; 
     }
   };
 
