@@ -16,6 +16,7 @@ import { AuthenticatedUserProvider } from '@/modules/auth/frontend/components/au
 import { EventDraftEditor } from '@/shared/components/event-draft-editor';
 import {
   EventDraftsContent,
+  EventInactiveContent,
   EventManagementContent,
 } from '@/shared/components/events-ui';
 import {
@@ -30,6 +31,9 @@ const mockGetAdminEvent = jest.fn();
 const mockGetAdminDraft = jest.fn();
 const mockUpdateDraftEvent = jest.fn();
 const mockPublishDraftEvent = jest.fn();
+const mockCancelPublishedEvent = jest.fn();
+const mockGetInactiveEvents = jest.fn();
+const mockRetireEvent = jest.fn();
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/events',
@@ -43,6 +47,9 @@ jest.mock('@/shared/services/events-service', () => ({
   getAdminDraft: (...args: unknown[]) => mockGetAdminDraft(...args),
   updateDraftEvent: (...args: unknown[]) => mockUpdateDraftEvent(...args),
   publishDraftEvent: (...args: unknown[]) => mockPublishDraftEvent(...args),
+  cancelPublishedEvent: (...args: unknown[]) => mockCancelPublishedEvent(...args),
+  getInactiveEvents: (...args: unknown[]) => mockGetInactiveEvents(...args),
+  retireEvent: (...args: unknown[]) => mockRetireEvent(...args),
 }));
 
 const publishedEvent: EventItem = {
@@ -86,6 +93,7 @@ describe('Gestión administrativa de eventos HU1', () => {
     mockGetAdminDraft.mockReset();
     mockUpdateDraftEvent.mockReset();
     mockPublishDraftEvent.mockReset();
+    mockCancelPublishedEvent.mockReset();
     mockGetAdminEvent.mockReset();
   });
 
@@ -136,13 +144,105 @@ describe('Gestión administrativa de eventos HU1', () => {
     expect(mockPush).toHaveBeenCalledWith('/events/published-1');
   });
 
-  it('no muestra un affordance de menú sin acciones autorizadas', async () => {
+  it('cancela un evento publicado tras confirmar y actualiza su estado', async () => {
+    mockGetAdminEvents.mockResolvedValueOnce([publishedEvent]);
+    mockCancelPublishedEvent.mockResolvedValueOnce({
+      event: {
+        ...publishedEvent,
+        status: EVENT_STATUS.CANCELADO,
+      },
+      registrationsCount: 1,
+      invalidatedPassesCount: 1,
+    });
+
+    render(<EventManagementContent userId="user-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Acciones para ${publishedEvent.title}`,
+      }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Cancelar evento' }),
+    );
+
+    const dialog = screen.getByRole('dialog', {
+      name: 'Cancelar evento publicado',
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Confirmar cancelación' }),
+    );
+
+    await waitFor(() => {
+      expect(mockCancelPublishedEvent).toHaveBeenCalledWith(
+        'published-1',
+        'user-1',
+      );
+    });
+
+    expect(
+      await screen.findByText('Cancelado', {
+        selector: '.event-status.is-cancelled',
+      }),
+    ).toBeInTheDocument();
+  });
+
+
+  it('muestra un error cuando falla la cancelación del evento', async () => {
+    mockGetAdminEvents.mockResolvedValueOnce([publishedEvent]);
+    mockCancelPublishedEvent.mockRejectedValueOnce(
+      new Error('No se pudo cancelar el evento.'),
+    );
+
+    render(<EventManagementContent userId="user-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Acciones para ${publishedEvent.title}`,
+      }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^cancelar evento$/i }),
+    );
+
+    const dialog = screen.getByRole('dialog', {
+      name: 'Cancelar evento publicado',
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Confirmar cancelación' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo cancelar el evento.',
+    );
+    expect(screen.getByRole('dialog', {
+      name: 'Cancelar evento publicado',
+    })).toBeInTheDocument();
+    expect(mockCancelPublishedEvent).toHaveBeenCalledWith(
+      'published-1',
+      'user-1',
+    );
+  });
+
+  it('muestra las acciones y participantes de un publicado dentro del menú', async () => {
     mockGetAdminEvents.mockResolvedValueOnce([publishedEvent]);
 
     render(<EventManagementContent userId="user-1" />);
 
-    const viewButton = await screen.findByRole('button', { name: /ver/i });
-    expect(viewButton.parentElement?.querySelectorAll('svg')).toHaveLength(1);
+    expect(
+      await screen.findByRole('button', {
+        name: `Acciones para ${publishedEvent.title}`,
+      }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Ver participantes' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', {
+      name: `Acciones para ${publishedEvent.title}`,
+    }));
+    expect(screen.getByRole('link', { name: 'Ver participantes' })).toHaveAttribute(
+      'href',
+      '/events/published-1/participants',
+    );
   });
 
   it('filtra los eventos por estado y mes elegidos', async () => {
@@ -350,8 +450,7 @@ describe('Edición de borrador HU1', () => {
     mockUpdateDraftEvent.mockReset();
   });
 
-  it('precarga EventForm y actualiza el mismo id manteniendo el flujo de borrador', async () => {
-    mockGetAdminDraft.mockResolvedValueOnce(draftEvent);
+  it('precarga EventForm y actualiza el mismo id manteniendo el flujo de borrador', async () => {    mockGetAdminDraft.mockResolvedValueOnce(draftEvent);
     mockUpdateDraftEvent.mockImplementationOnce(
       (_eventId: string, changes: object) => Promise.resolve({
         ...draftEvent,
@@ -405,5 +504,130 @@ describe('Edición de borrador HU1', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Borrador no encontrado.');
     expect(screen.queryByPlaceholderText('Ej. Feria de Oportunidades UMSS')).not.toBeInTheDocument();
+  });
+});
+
+const inactiveWithHistory = {
+  ...draftEvent,
+  id: 'inactive-1',
+  title: 'Feria cancelada con historial',
+  status: EVENT_STATUS.CANCELADO,
+  inactiveStatus: 'CANCELADO' as const,
+  registrationsCount: 3,
+  passesCount: 2,
+};
+
+const inactiveWithoutHistory = {
+  ...draftEvent,
+  id: 'inactive-2',
+  title: 'Encuentro finalizado sin historial',
+  status: EVENT_STATUS.PUBLICADO,
+  startDate: '2025-11-03T14:00:00',
+  endDate: '2025-11-03T16:00:00',
+  inactiveStatus: 'FINALIZADO' as const,
+  registrationsCount: 0,
+  passesCount: 0,
+};
+
+describe('Eventos inactivos HU7', () => {
+  beforeEach(() => {
+    mockGetInactiveEvents.mockReset();
+    mockRetireEvent.mockReset();
+  });
+
+  it('lista solo los eventos inactivos con su estado y conteos', async () => {
+    mockGetInactiveEvents.mockResolvedValueOnce([
+      inactiveWithHistory,
+      inactiveWithoutHistory,
+    ]);
+
+    render(<EventInactiveContent userId="user-1" />);
+
+    expect(
+      await screen.findByText('Feria cancelada con historial'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Encuentro finalizado sin historial')).toBeInTheDocument();
+    expect(screen.getByText('Cancelado')).toBeInTheDocument();
+    expect(screen.getByText('Finalizado')).toBeInTheDocument();
+    expect(screen.getByText('3 inscripciones · 2 pases')).toBeInTheDocument();
+    expect(screen.getByText('0 inscripciones · 0 pases')).toBeInTheDocument();
+    expect(mockGetInactiveEvents).toHaveBeenCalledWith('user-1');
+  });
+
+  it('muestra el aviso de archivado cuando hay historial', async () => {
+    mockGetInactiveEvents.mockResolvedValueOnce([inactiveWithHistory]);
+
+    render(<EventInactiveContent userId="user-1" />);
+
+    await screen.findByText('Feria cancelada con historial');
+    fireEvent.click(screen.getByRole('button', { name: /retirar/i }));
+
+    const dialog = screen.getByRole('dialog', { name: '¿Retirar este evento?' });
+    expect(within(dialog).getByText(/se archivará para preservar el historial/i)).toBeInTheDocument();
+  });
+
+  it('retira el evento, lo quita del listado y muestra la confirmación', async () => {
+    mockGetInactiveEvents.mockResolvedValueOnce([inactiveWithHistory]);
+    mockRetireEvent.mockResolvedValueOnce({
+      id: 'inactive-1',
+      registrationsCount: 3,
+      passesCount: 2,
+    });
+
+    render(<EventInactiveContent userId="user-1" />);
+
+    await screen.findByText('Feria cancelada con historial');
+    fireEvent.click(screen.getByRole('button', { name: /retirar/i }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: '¿Retirar este evento?' }))
+        .getByRole('button', { name: 'Retirar evento' }),
+    );
+
+    expect(await screen.findByText('¡Evento retirado correctamente!')).toBeInTheDocument();
+    expect(mockRetireEvent).toHaveBeenCalledWith('inactive-1', 'user-1');
+    expect(screen.queryByText('Feria cancelada con historial')).not.toBeInTheDocument();
+    expect(screen.getByText('0 eventos inactivos')).toBeInTheDocument();
+  });
+
+  it('no retira si se cancela el diálogo', async () => {
+    mockGetInactiveEvents.mockResolvedValueOnce([inactiveWithHistory]);
+
+    render(<EventInactiveContent userId="user-1" />);
+
+    await screen.findByText('Feria cancelada con historial');
+    fireEvent.click(screen.getByRole('button', { name: /retirar/i }));
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancelar' }),
+    );
+
+    expect(mockRetireEvent).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Feria cancelada con historial')).toBeInTheDocument();
+  });
+
+  it('muestra el estado vacío cuando no hay eventos inactivos', async () => {
+    mockGetInactiveEvents.mockResolvedValueOnce([]);
+
+    render(<EventInactiveContent userId="user-1" />);
+
+    expect(
+      await screen.findByText('No hay eventos cancelados o finalizados por retirar.'),
+    ).toBeInTheDocument();
+  });
+
+  it('muestra el error de la consulta y bloquea sin identidad', async () => {
+    mockGetInactiveEvents.mockRejectedValueOnce(new Error('Fallo al cargar inactivos.'));
+
+    render(<EventInactiveContent userId="user-1" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Fallo al cargar inactivos.');
+  });
+
+  it('no consulta inactivos sin usuario autenticado', async () => {
+    render(<EventInactiveContent />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No hay un usuario autenticado disponible para consultar los eventos.',
+    );
+    expect(mockGetInactiveEvents).not.toHaveBeenCalled();
   });
 });

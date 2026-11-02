@@ -59,6 +59,7 @@ export const environmentSchema = z
       .min(1)
       .refine((value) => !/[\r\n]/.test(value), 'Remitente inválido')
       .default('UMSSPIRA <no-reply@umsspira.local>'),
+    BREVO_API_KEY: z.string().min(1).optional(),
     AUTH_RATE_LIMIT_STORE: z.enum(['memory', 'redis']).optional(),
     REDIS_URL: z
       .url()
@@ -80,6 +81,8 @@ export const environmentSchema = z
       .enum(['true', 'false'])
       .transform((value) => value === 'true')
       .optional(),
+    CORRECTION_LINK_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
+    WEB_BASE_URL: z.string().url().default('http://localhost:3001'),
   })
   .superRefine((env, context) => {
     const store = env.AUTH_RATE_LIMIT_STORE ?? (env.NODE_ENV === 'production' ? 'redis' : 'memory');

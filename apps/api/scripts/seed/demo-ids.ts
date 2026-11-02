@@ -1,3 +1,5 @@
+import { RADAR_AREA_IDS } from '../../src/modules/radar/domain/entities/radar-area';
+
 // Se reutilizan estos UUID en relaciones entre épicas; no cambian entre ejecuciones.
 export const DEMO_IDS = {
   systemAdmin: '11000000-0000-4000-8000-000000000001',
@@ -25,9 +27,14 @@ export const DEMO_IDS = {
 export const AREA_IDS = {
   technology: '60000000-0000-4000-8000-000000000001',
   management: '60000000-0000-4000-8000-000000000002',
-  software: '60000000-0000-4000-8000-000000000003',
+  software: RADAR_AREA_IDS['software-development'],
   data: '60000000-0000-4000-8000-000000000004',
   projects: '60000000-0000-4000-8000-000000000005',
+  cloudDevops: RADAR_AREA_IDS['cloud-devops'],
+  dataAi: RADAR_AREA_IDS['data-ai'],
+  qualityAssurance: RADAR_AREA_IDS['quality-assurance'],
+  cybersecurityNetworks: RADAR_AREA_IDS['cybersecurity-networks'],
+  itManagement: RADAR_AREA_IDS['it-management'],
 } as const;
 
 export const CATALOG_IDS = {

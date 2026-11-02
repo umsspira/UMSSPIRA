@@ -1,41 +1,100 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/shared/components/button';
 import { ApplicationDrawer } from '@/modules/applications/frontend/components/application-drawer';
 import {
   fetchApplicationsBoard,
+  fetchApplicationsMetrics,
+  type BoardMetrics,
   type BoardPage,
 } from '@/modules/applications/frontend/services/applications-board.service';
+import {
+  changeFilters,
+  changePage,
+  changePageSize,
+  clampPage,
+  parseApplicationsUrl,
+  toApplicationsParams,
+  type ApplicationsUrlState,
+} from '@/modules/applications/frontend/services/application-query';
 import { EMPTY_FILTERS, RequestsFilters, type BoardFilters } from './_components/requests-filters';
-import { PAGE_SIZE, RequestsTable } from './_components/requests-table';
+import { PeriodFiltersForm } from './_components/period-filters';
+import { RequestsMetrics } from './_components/requests-metrics';
+import { RequestsTable } from './_components/requests-table';
 
 const CAREERS_URL = '/api/v1/registrations/careers';
+const SEARCH_DELAY_MS = 400;
 
 // Bandeja de solicitudes del backoffice (HU-04): lista, filtros, expediente y dictamen.
-export default function ApplicationsPage() {
-  const [filters, setFilters] = useState<BoardFilters>(EMPTY_FILTERS);
-  const [searchInput, setSearchInput] = useState('');
-  const [page, setPage] = useState(1);
+function ApplicationsBoardView() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
+  const query = useMemo(
+    () => parseApplicationsUrl(new URLSearchParams(queryString)),
+    [queryString],
+  );
+  const queryRef = useRef<ApplicationsUrlState>(query);
+  queryRef.current = query;
+
+  const [searchInput, setSearchInput] = useState(query.search);
   const [board, setBoard] = useState<BoardPage | null>(null);
+  const [metrics, setMetrics] = useState<BoardMetrics | null>(null);
+  const [isMetricsLoading, setIsMetricsLoading] = useState(true);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
   const [careers, setCareers] = useState<{ id: string; nombre: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [needsLogin, setNeedsLogin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const requestId = useRef(0);
 
-  const loadBoard = useCallback(async (activeFilters: BoardFilters, activePage: number) => {
+  const updateQuery = useCallback((next: ApplicationsUrlState) => {
+    queryRef.current = next;
+    const params = toApplicationsParams(next).toString();
+    router.replace(params ? `${pathname}?${params}` : pathname, { scroll: false });
+  }, [pathname, router]);
+
+  const loadMetrics = useCallback(async () => {
+    setIsMetricsLoading(true);
+    const result = await fetchApplicationsMetrics();
+    if (result.ok) {
+      setMetrics(result.data);
+      setMetricsError(null);
+    } else {
+      setMetrics(null);
+      setMetricsError(result.message);
+    }
+    setIsMetricsLoading(false);
+  }, []);
+
+  const loadBoard = useCallback(async (activeQuery: ApplicationsUrlState) => {
+    const currentRequestId = ++requestId.current;
     setIsLoading(true);
     setError(null);
     const result = await fetchApplicationsBoard({
-      page: activePage,
-      pageSize: PAGE_SIZE,
-      career: activeFilters.career || undefined,
-      status: activeFilters.status || undefined,
-      search: activeFilters.search || undefined,
+      page: activeQuery.page,
+      pageSize: activeQuery.pageSize,
+      career: activeQuery.career || undefined,
+      status: activeQuery.status || undefined,
+      search: activeQuery.search || undefined,
+      period: activeQuery.period || undefined,
+      year: activeQuery.year,
+      from: activeQuery.from || undefined,
+      to: activeQuery.to || undefined,
     });
+    if (currentRequestId !== requestId.current) return;
+
     if (result.ok) {
+      const clampedQuery = clampPage(activeQuery, result.data.total);
+      if (clampedQuery.page !== activeQuery.page) {
+        updateQuery(clampedQuery);
+        return;
+      }
       setBoard(result.data);
       setNeedsLogin(false);
     } else {
@@ -43,23 +102,27 @@ export default function ApplicationsPage() {
       setError(result.message);
     }
     setIsLoading(false);
-  }, []);
+  }, [updateQuery]);
 
-  // El buscador espera 400 ms después de dejar de escribir (CA-04.2: búsqueda en tiempo real).
   useEffect(() => {
+    setSearchInput(query.search);
+  }, [query.search]);
+
+  useEffect(() => {
+    if (query.search === searchInput.trim()) return;
     const timer = setTimeout(() => {
-      setFilters((current) => {
-        if (current.search === searchInput) return current;
-        setPage(1);
-        return { ...current, search: searchInput };
-      });
-    }, 400);
+      updateQuery(changeFilters(queryRef.current, { search: searchInput }));
+    }, SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [query.search, searchInput, updateQuery]);
 
   useEffect(() => {
-    loadBoard(filters, page);
-  }, [filters, page, loadBoard]);
+    void loadBoard(query);
+  }, [query, loadBoard]);
+
+  useEffect(() => {
+    void loadMetrics();
+  }, [loadMetrics]);
 
   useEffect(() => {
     fetch(CAREERS_URL, { cache: 'no-store' })
@@ -72,8 +135,14 @@ export default function ApplicationsPage() {
 
   function handleFiltersChange(next: BoardFilters) {
     setSearchInput(next.search);
-    setFilters({ ...next, search: '' });
-    setPage(1);
+    const currentQuery = queryRef.current;
+    if (next.career !== currentQuery.career || next.status !== currentQuery.status) {
+      updateQuery(changeFilters(currentQuery, {
+        search: next.search,
+        career: next.career,
+        status: next.status,
+      }));
+    }
   }
 
   if (needsLogin) {
@@ -92,29 +161,58 @@ export default function ApplicationsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-6xl space-y-3 px-4 py-6">
       <header>
-        <h1 className="text-[28px] font-bold text-abyssal-blue sm:text-4xl">
+        <h1 className="text-2xl font-bold tracking-tight text-abyssal-blue">
           Bandeja de Solicitudes{' '}
-          <span className="ml-2 inline-block rounded-full bg-oatmeal/60 px-3 py-1 align-middle text-xs font-semibold text-abyssal-blue">
+          <span className="ml-1 inline-block rounded-full bg-oatmeal/60 px-2 py-1 align-middle text-[10px] font-semibold text-abyssal-blue">
             {board ? `${board.total} en total` : '…'}
           </span>
         </h1>
-        <p className="mt-1 text-sm text-abyssal-blue/70">
-          Gestión y auditoría de expedientes de titulados de Ingeniería de Sistemas e Ingeniería Informática 
+        <p className="mt-0.5 text-xs text-abyssal-blue/70">
+          Gestión y auditoría de expedientes de egresados de Ingeniería de Sistemas
         </p>
       </header>
 
-      <RequestsFilters
-        filters={{ ...filters, search: searchInput }}
-        careers={careers}
-        onChange={handleFiltersChange}
-        onClear={() => {
-          setSearchInput('');
-          setFilters(EMPTY_FILTERS);
-          setPage(1);
-        }}
-      />
+      <section
+        aria-label="Filtros de solicitudes"
+        className="grid grid-cols-1 gap-2 rounded-xl border border-oatmeal bg-white p-2.5 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.65fr)_auto] lg:items-center sm:p-3"
+      >
+        <RequestsFilters
+          filters={{ ...query, search: searchInput }}
+          careers={careers}
+          onChange={handleFiltersChange}
+          onClear={() => {
+            setSearchInput('');
+            updateQuery(changeFilters(queryRef.current, {
+              ...EMPTY_FILTERS,
+              period: '',
+              year: undefined,
+              from: '',
+              to: '',
+            }));
+          }}
+        />
+        <PeriodFiltersForm
+          key={JSON.stringify([query.period, query.year, query.from, query.to])}
+          filters={query}
+          onApply={(periodFilters) =>
+            updateQuery(
+              changeFilters(queryRef.current, {
+                ...periodFilters,
+                search: searchInput.trim(),
+              }),
+            )
+          }
+        />
+      </section>
+
+      <RequestsMetrics metrics={metrics} isLoading={isMetricsLoading} />
+      {metricsError && (
+        <p role="alert" className="text-sm text-truffle-trouble">
+          No se pudieron cargar los indicadores: {metricsError}
+        </p>
+      )}
 
       {error && (
         <div role="alert" className="rounded-lg border border-truffle-trouble/40 bg-truffle-trouble/10 p-3 text-sm font-medium text-truffle-trouble">
@@ -133,7 +231,10 @@ export default function ApplicationsPage() {
             total={board.total}
             page={board.page}
             pageSize={board.pageSize}
-            onPageChange={setPage}
+            onPageChange={(page) => updateQuery(changePage(queryRef.current, page))}
+            onPageSizeChange={(pageSize) =>
+              updateQuery(changePageSize(queryRef.current, pageSize))
+            }
             onSelect={setSelectedId}
           />
         )
@@ -145,9 +246,18 @@ export default function ApplicationsPage() {
         onClose={() => setSelectedId(null)}
         onReviewed={() => {
           setSelectedId(null);
-          loadBoard(filters, page);
+          void loadBoard(queryRef.current);
+          void loadMetrics();
         }}
       />
     </main>
+  );
+}
+
+export default function ApplicationsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ApplicationsBoardView />
+    </Suspense>
   );
 }

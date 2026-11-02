@@ -1,16 +1,35 @@
+import { reserveActivationResend } from './activation-resend';
+import { applicationReviewSummary, assertObservationLimit } from './application-review-summary';
+import { queueTrackedMail } from '../notifications/queue-mail';
+import { RENEWAL_MAIL_SUBJECT } from '../../application/use-cases/renew-activation.use-case';
+import { applicationTotalPages } from '../../domain/policies/application-pagination.policy';
+import { searchTerms } from '../../domain/policies/application-search.policy';
 import { Injectable } from '@nestjs/common';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import type { Prisma } from '../../../../generated/prisma/client';
+import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
-import type { ApplicationsRepository } from '../../application/ports/applications-repository.port';
+import type {
+  ActivationCheck,
+  ApplicationsRepository,
+  ResolutionMailRecord,
+  ActivationResult,
+} from '../../application/ports/applications-repository.port';
+
 import type {
   ApplicationQuery,
   ReviewInput,
 } from '../../application/contracts/registration-inputs';
 import { toApplication } from '../translators/application.translator';
 import { applicationInclude, toRegistrationFile } from '../translators/registration.translator';
+import type { ApplicationMetrics } from '../../domain/entities/application';
+import {
+  BOLIVIA_TIME_ZONE,
+  resolveApplicationPeriod,
+  todayRange,
+  urgentCutoff,
+} from '../../domain/policies/application-period.policy';
 
 export function scopedApplication(actor: ActorContext, id?: string): Prisma.SolicitudWhereInput {
   return {
@@ -32,7 +51,10 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     await this.prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM solicitud WHERE id = ${id}::uuid FOR UPDATE`;
-        const row = await tx.solicitud.findFirst({ where: scopedApplication(actor, id) });
+        const row = await tx.solicitud.findFirst({
+          where: scopedApplication(actor, id),
+          include: { detalle_solicitud: true },
+        });
         if (!row) {
           throw new BusinessRuleError(
             'missing',
@@ -40,13 +62,22 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             'La solicitud no existe o no está a tu cargo',
           );
         }
-        if (row.estado !== 'APPROVED' || row.activada_en) {
+        if (!['APROBADA', 'APPROVED'].includes(row.estado ?? '') || row.activada_en) {
           throw new BusinessRuleError(
             'conflict',
             'ACTIVATION_NOT_ALLOWED',
             'Solo se reenvía la activación de una solicitud aprobada sin cuenta activa',
           );
         }
+        const email = row.detalle_solicitud?.email;
+        if (!email) {
+          throw new BusinessRuleError(
+            'conflict',
+            'ACTIVATION_NOT_ALLOWED',
+            'La solicitud no tiene un correo al cual reenviar el código',
+          );
+        }
+        await reserveActivationResend(tx, id);
         await tx.solicitud.update({
           where: { id },
           data: {
@@ -55,8 +86,13 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             activacion_intentos: 0,
           },
         });
-        await tx.correoPendiente.create({
-          data: { contenido: encryptedMail, expira_en: new Date(Date.now() + 86400000) },
+        await queueTrackedMail(tx, {
+          encrypted: encryptedMail,
+          expiresAt: new Date(Date.now() + 86400000),
+          applicationId: id,
+          type: 'otp',
+          to: email,
+          subject: RENEWAL_MAIL_SUBJECT,
         });
       },
       { timeout: 15000 },
@@ -70,25 +106,53 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
         carrera: { is: { nombre: { contains: query.career, mode: 'insensitive' } } },
       });
     }
-    if (query.search) {
-      const search = query.search;
-      detailFilters.push({
-        OR: [
-          { nombre: { contains: search, mode: 'insensitive' } },
-          { apellido: { contains: search, mode: 'insensitive' } },
-          { ci: { contains: search } },
-          { email: { contains: search, mode: 'insensitive' } },
-          ...(/^\d{6,9}$/.test(search) ? [{ cod_sis: search }] : []),
-        ],
+    const terms = searchTerms(query.search ?? '');
+    let matchingIds: string[] | undefined;
+    if (terms.length > 0) {
+      const wordConditions = terms.map((term) => {
+        // Evita que %, _ y ! se interpreten como comodines de LIKE.
+        const escaped = term.replace(/[!%_]/g, '!$&');
+        const pattern = `%${escaped}%`;
+        const fields = [
+         Prisma.sql`extensions.unaccent(lower(coalesce(d.nombre, ''))) LIKE extensions.unaccent(lower(${pattern})) ESCAPE '!'`,
+         Prisma.sql`extensions.unaccent(lower(coalesce(d.apellido, ''))) LIKE extensions.unaccent(lower(${pattern})) ESCAPE '!'`,
+         Prisma.sql`coalesce(d.ci, '') LIKE ${pattern} ESCAPE '!'`,
+         Prisma.sql`lower(coalesce(d.email, '')) LIKE lower(${pattern}) ESCAPE '!'`,
+        ];
+
+        if (/^\d{6,9}$/.test(term)) {
+          fields.push(Prisma.sql`d.cod_sis = ${Number(term)}`);
+        }
+
+        return Prisma.sql`(${Prisma.join(fields, ' OR ')})`;
       });
+
+      const matchingRows = await this.prisma.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`
+          SELECT s.id
+          FROM solicitud AS s
+          JOIN detalle_solicitud AS d ON d.id = s.id_detalle_solicitud
+          WHERE ${Prisma.join(wordConditions, ' AND ')}
+        `,
+      );
+
+      matchingIds = matchingRows.map(({ id }) => id);
     }
     const overdue: Prisma.SolicitudWhereInput = {
-      estado: 'PENDING',
+      estado: 'PENDIENTE',
       fecha_creacion: { lt: new Date(Date.now() - 48 * 3600000) },
     };
+    const period = query.period
+      ? resolveApplicationPeriod(
+          { period: query.period, year: query.year, from: query.from, to: query.to },
+          new Date(),
+        )
+      : undefined;
+
     const where: Prisma.SolicitudWhereInput = {
       AND: [
         scopedApplication(actor),
+        ...(matchingIds !== undefined ? [{ id: { in: matchingIds } }] : []),
         ...(query.status ? [{ estado: query.status }] : []),
         ...(detailFilters.length ? [{ detalle_solicitud: { is: { AND: detailFilters } } }] : []),
         ...(query.age === 'over48'
@@ -96,18 +160,19 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
           : query.age === 'within48'
             ? [{ NOT: overdue }]
             : []),
+        ...(period ? [{ fecha_creacion: period }] : []),
       ],
     };
     // Primero pendientes antiguos; luego expedientes dictaminados recientes.
     const [total, pending] = await this.prisma.$transaction([
       this.prisma.solicitud.count({ where }),
-      this.prisma.solicitud.count({ where: { AND: [where, { estado: 'PENDING' }] } }),
+      this.prisma.solicitud.count({ where: { AND: [where, { estado: 'PENDIENTE' }] } }),
     ]);
     const offset = (query.page - 1) * query.pageSize;
     const pendingRows =
       offset < pending
         ? await this.prisma.solicitud.findMany({
-            where: { AND: [where, { estado: 'PENDING' }] },
+            where: { AND: [where, { estado: 'PENDIENTE' }] },
             include: applicationInclude,
             orderBy: [{ fecha_creacion: 'asc' }, { id: 'asc' }],
             skip: offset,
@@ -118,7 +183,7 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     const otherRows =
       remaining > 0
         ? await this.prisma.solicitud.findMany({
-            where: { AND: [where, { estado: { not: 'PENDING' } }] },
+            where: { AND: [where, { estado: { not: 'PENDIENTE' } }] },
             include: applicationInclude,
             orderBy: [{ fecha_creacion: 'desc' }, { id: 'asc' }],
             skip: Math.max(0, offset - pending),
@@ -130,24 +195,116 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
       total,
       page: query.page,
       pageSize: query.pageSize,
+      totalPages: applicationTotalPages(total, query.pageSize),
     };
   }
 
-  async find(actor: ActorContext, id: string) {
-    const row = await this.prisma.solicitud.findFirst({
-      where: scopedApplication(actor, id),
-      include: applicationInclude,
-    });
-    if (!row) {
-      throw new BusinessRuleError(
-        'missing',
-        'APPLICATION_NOT_FOUND',
-        'La solicitud no existe o no está a tu cargo',
-      );
-    }
-    return toApplication(row);
+   async metrics(actor: ActorContext, now: Date): Promise<ApplicationMetrics> {
+    const scope = scopedApplication(actor);
+    const today = todayRange(now);
+    const [receivedToday, pending, urgent, resolved] = await this.prisma.$transaction([
+      this.prisma.solicitud.count({ where: { AND: [scope, { fecha_creacion: today }] } }),
+      this.prisma.solicitud.count({ where: { AND: [scope, { estado: 'PENDIENTE' }] } }),
+      this.prisma.solicitud.count({
+        where: { AND: [scope, { estado: 'PENDIENTE', fecha_creacion: { lt: urgentCutoff(now) } }] },
+      }),
+      // Una solicitud con varios dictámenes el mismo día se cuenta una sola vez.
+      this.prisma.dictamen.findMany({
+        where: { fecha_creacion: today, solicitud: { is: scope } },
+        distinct: ['id_solicitud'],
+        select: { id_solicitud: true },
+      }),
+    ]);
+    return {
+      receivedToday,
+      pending,
+      urgent,
+      resolvedToday: resolved.length,
+      generatedAt: now.toISOString(),
+      timeZone: BOLIVIA_TIME_ZONE,
+    };
   }
 
+  
+async find(actor: ActorContext, id: string) {
+  const row = await this.prisma.solicitud.findFirst({
+    where: scopedApplication(actor, id),
+    include: applicationInclude,
+  });
+
+  if (!row) {
+    throw new BusinessRuleError(
+      'missing',
+      'APPLICATION_NOT_FOUND',
+      'La solicitud no existe o no está a tu cargo',
+    );
+  }
+
+  const application = toApplication(row);
+  application.reviewSummary = await applicationReviewSummary(this.prisma, id);
+  application.currentReviewer = { name: actor.name, email: actor.email };
+
+  const audit = await this.prisma.auditoriaDictamen.findFirst({
+    where: {
+      id_solicitud: id,
+      accion: 'emision',
+      resultado: 'exitoso',
+    },
+    orderBy: [
+      { created_at: 'desc' },
+      { id: 'desc' },
+    ],
+  });
+
+  const detail = audit?.detalle;
+
+  const author =
+    detail &&
+    typeof detail === 'object' &&
+    !Array.isArray(detail)
+      ? detail
+      : null;
+
+  application.reviewAuthor =
+  audit &&
+  author &&
+  typeof author.revisorId === 'string' &&
+  typeof author.revisorCorreo === 'string'
+    ? {
+        id: author.revisorId,
+        name:
+          typeof author.revisorNombre === 'string'
+            ? author.revisorNombre
+            : null,
+        email: author.revisorCorreo,
+        reviewedAt:
+          typeof author.fechaDictamen === 'string'
+            ? author.fechaDictamen
+            : audit.created_at.toISOString(),
+      }
+    : null;
+
+  return application;
+}
+
+  async countRejections(id: string): Promise<number> {
+    // Misma identidad que assertRejectionLimit: C.I. normalizado + complemento + expedido en.
+    const rows = await this.prisma.$queryRaw<{ total: number }[]>`
+      SELECT COUNT(*)::integer AS total
+      FROM solicitud AS s
+      JOIN detalle_solicitud AS d ON d.id = s.id_detalle_solicitud
+      JOIN solicitud AS actual ON actual.id = ${id}::uuid
+      JOIN detalle_solicitud AS me ON me.id = actual.id_detalle_solicitud
+      WHERE UPPER(TRIM(s.estado)) IN ('REJECTED', 'RECHAZADO', 'RECHAZADA')
+        AND REGEXP_REPLACE(COALESCE(d.ci, ''), '[^0-9]', '', 'g')
+          = REGEXP_REPLACE(COALESCE(me.ci, ''), '[^0-9]', '', 'g')
+        AND UPPER(TRIM(COALESCE(d.extension_ci, '')))
+          = UPPER(TRIM(COALESCE(me.extension_ci, '')))
+        AND d.expedido_en::text = me.expedido_en::text
+    `;
+    return rows[0]?.total ?? 0;
+  }
+  
   async document(actor: ActorContext, id: string) {
     const row = await this.prisma.archivoRegistro.findFirst({
       where: { borrador: { solicitud: { is: scopedApplication(actor, id) } } },
@@ -164,6 +321,8 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     input: ReviewInput,
     activationHash: string | null,
     encryptedMail: string,
+    mail: ResolutionMailRecord,
+
   ) {
     return this.prisma.$transaction(
       async (tx) => {
@@ -179,14 +338,23 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             'La solicitud no existe o no está a tu cargo',
           );
         }
-        if (row.estado !== 'PENDING') {
+        const isPending =
+          row.estado === 'PENDIENTE' ||
+          row.estado === 'PENDING' ||
+          row.estado?.toUpperCase() === 'PENDIENTE' ||
+          row.estado?.toUpperCase() === 'PENDING';
+
+        if (!isPending) {
           throw new BusinessRuleError(
             'conflict',
             'APPLICATION_ALREADY_REVIEWED',
-            'La solicitud ya fue dictaminada',
+            'Esta solicitud ya fue revisada',
           );
         }
-        const approved = input.decision === 'APPROVED';
+        const approved = input.decision === 'APROBADA';
+        if (input.decision === 'OBSERVADA') {
+          await assertObservationLimit(tx, id);
+        }
         const now = new Date();
         const category = approved ? null : input.category!;
         const note = approved ? null : input.note!;
@@ -201,6 +369,26 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             subsanada: false,
           },
         });
+        
+        await tx.auditoriaDictamen.create({
+          data: {
+          id_solicitud: id,
+          id_dictamen: review.id,
+          accion: 'emision',
+          estado_anterior: row.estado,
+          estado_nuevo: input.decision,
+          resultado: 'exitoso',
+          created_at: now,
+          detalle: {
+          revisorId: actor.id,
+          revisorNombre: actor.name,
+          revisorCorreo: actor.email,
+          fechaDictamen: now.toISOString(),
+          decision: input.decision,
+            },
+          },
+        });
+
         await tx.solicitud.update({
           where: { id },
           data: {
@@ -215,8 +403,14 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             data: { es_valido: approved },
           });
         }
-        await tx.correoPendiente.create({
-          data: { contenido: encryptedMail, expira_en: new Date(Date.now() + 86400000) },
+        await queueTrackedMail(tx, {
+          encrypted: encryptedMail,
+          expiresAt: new Date(Date.now() + 86400000),
+          applicationId: id,
+          reviewId: review.id,
+          type: mail.type,
+          to: mail.to,
+          subject: mail.subject,
         });
         return {
           id: review.id,
@@ -226,24 +420,65 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
           category,
           note,
           reviewedBy: actor.id,
+          reviewedByName: actor.name,
+          reviewedByEmail: actor.email,
           reviewedAt: now.toISOString(),
-          notificationStatus: 'QUEUED' as const,
+          notificationStatus: 'EN_COLA' as const,
         };
       },
       { timeout: 15000 },
     );
   }
 
-  async activate(id: string, codeHash: string, passwordHash: string): Promise<string> {
+    async verifyActivation(id: string, codeHash: string): Promise<ActivationCheck> {
     return this.prisma.$transaction(
       async (tx) => {
+        await tx.$queryRaw`SELECT id FROM solicitud WHERE id = ${id}::uuid FOR UPDATE`;
+        const row = await tx.solicitud.findUnique({ where: { id } });
+        if (!row || !['APROBADA', 'APPROVED'].includes(row.estado ?? '') || row.activada_en || !row.activacion_hash) {
+          return { result: 'invalid' };
+        }
+        if (!row.activacion_expira_en || row.activacion_expira_en.getTime() <= Date.now()) {
+          return { result: 'expired' };
+        }
+        if (row.activacion_intentos >= 5) {
+          return { result: 'locked' };
+        }
+        if (!timingSafeEqual(Buffer.from(row.activacion_hash), Buffer.from(codeHash))) {
+          // El contador se confirma al devolver el resultado, sin lanzar error ni revertir.
+          await tx.solicitud.update({
+            where: { id },
+            data: { activacion_intentos: { increment: 1 } },
+          });
+          return { result: row.activacion_intentos + 1 >= 5 ? 'locked' : 'invalid' };
+        }
+        return { result: 'verified', binding: row.activacion_hash };
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  async activate(
+  id: string,
+  passwordHash: string,
+  matchesBinding: (binding: string) => boolean,
+  ): Promise<ActivationResult> {
+    return this.prisma.$transaction(
+      async (tx): Promise<ActivationResult> => {
         await tx.$queryRaw`SELECT id FROM solicitud WHERE id = ${id}::uuid FOR UPDATE`;
         const row = await tx.solicitud.findUnique({
           where: { id },
           include: { detalle_solicitud: true },
         });
-        if (!row || row.estado !== 'APPROVED' || row.activada_en || !row.activacion_hash) {
+                if (!row || !['APROBADA', 'APPROVED'].includes(row.estado ?? '')) {
           return 'invalid';
+        }
+        if (row.activada_en) {
+          return 'already';
+        }
+        if (!row.activacion_hash || !matchesBinding(row.activacion_hash)) {
+     
+        return 'invalid';
         }
         if (!row.activacion_expira_en || row.activacion_expira_en.getTime() <= Date.now()) {
           return 'expired';
@@ -251,14 +486,10 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
         if (row.activacion_intentos >= 5) {
           return 'locked';
         }
-        if (!timingSafeEqual(Buffer.from(row.activacion_hash), Buffer.from(codeHash))) {
-          await tx.solicitud.update({
-            where: { id },
-            data: { activacion_intentos: { increment: 1 } },
-          });
+        const detail = row.detalle_solicitud;
+        if (!detail?.email) {
           return 'invalid';
         }
-        const detail = row.detalle_solicitud!;
         const role = await tx.rolAcceso.findUnique({ where: { codigo: 'titulado' } });
         if (!role?.habilitado) {
           throw new BusinessRuleError(
@@ -267,42 +498,77 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
             'El rol titulado no está habilitado; revisa el catálogo de permisos',
           );
         }
-        const user = await tx.usuario.create({
-          data: {
-            nombre: [detail.nombre, detail.apellido].filter(Boolean).join(' '),
-            correo: detail.email!,
-            rol: 'titulado',
-            estado: 'ACTIVO',
-            usuario_id: randomUUID(),
-            cuenta_acceso: { create: { password_hash: passwordHash } },
-          },
+        const name = [detail.nombre, detail.apellido].filter(Boolean).join(' ');
+        const existing = await tx.usuario.findUnique({
+          where: { correo: detail.email },
+          include: { cuenta_acceso: true },
         });
-        await tx.titulado.create({
-          data: {
-            id_usuario: user.usuario_id,
-            id_carrera: detail.id_carrera,
-            nombre: detail.nombre,
-            apellido: detail.apellido,
-            ci: detail.ci,
-            extension_ci: detail.extension_ci,
-            cod_sis: detail.cod_sis,
-            anio_ingreso: detail.fecha_ingreso?.getUTCFullYear(),
-          },
-        });
-        await tx.usuarioSolicitud.create({
-          data: {
-            id_usuario: user.usuario_id,
-            id_solicitud: id,
-            detalle_solicitud_id: detail.id,
-          },
+        // Todos los conflictos se resuelven antes de escribir: devolver un resultado
+        // confirmaría la transacción y dejaría filas a medias.
+        if (
+          existing &&
+          (existing.estado !== 'PENDIENTE' ||
+            existing.cuenta_acceso ||
+            (existing.rol && existing.rol !== 'titulado'))
+        ) {
+          return 'account-exists';
+        }
+        const found =
+          (row.id_titulado
+            ? await tx.titulado.findUnique({ where: { id: row.id_titulado } })
+            : null) ??
+          (existing
+            ? await tx.titulado.findUnique({ where: { id_usuario: existing.usuario_id } })
+            : null);
+        if (found?.id_usuario && found.id_usuario !== existing?.usuario_id) {
+          return 'account-exists';
+        }
+        let userId: string;
+        if (existing) {
+          await tx.usuario.update({
+            where: { usuario_id: existing.usuario_id },
+            data: {
+              nombre: name,
+              rol: 'titulado',
+              estado: 'ACTIVO',
+              cuenta_acceso: { create: { password_hash: passwordHash } },
+            },
+          });
+          userId = existing.usuario_id;
+        } else {
+          const user = await tx.usuario.create({
+            data: {
+              nombre: name,
+              correo: detail.email,
+              rol: 'titulado',
+              estado: 'ACTIVO',
+              usuario_id: randomUUID(),
+              cuenta_acceso: { create: { password_hash: passwordHash } },
+            },
+          });
+          userId = user.usuario_id;
+        }
+        const titulado = found
+          ? await tx.titulado.update({ where: { id: found.id }, data: { id_usuario: userId } })
+          : await tx.titulado.create({
+              data: {
+                id_usuario: userId,
+                id_carrera: detail.id_carrera,
+                nombre: detail.nombre,
+                apellido: detail.apellido,
+                ci: detail.ci,
+                extension_ci: detail.extension_ci,
+                cod_sis: detail.cod_sis,
+                anio_ingreso: detail.fecha_ingreso?.getUTCFullYear(),
+              },
+            });
+        await tx.usuarioSolicitud.createMany({
+          data: [{ id_usuario: userId, id_solicitud: id, detalle_solicitud_id: detail.id }],
+          skipDuplicates: true,
         });
         await tx.solicitud.update({
           where: { id },
-          data: {
-            activada_en: new Date(),
-            activacion_hash: null,
-            activacion_intentos: { increment: 1 },
-          },
+          data: { activada_en: new Date(), activacion_hash: null, id_titulado: titulado.id },
         });
         return 'activated';
       },

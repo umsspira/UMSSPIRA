@@ -2,8 +2,10 @@ import { assertDemoEnvironment } from '../scripts/seed/demo-environment';
 import type { PrismaClient } from '../src/generated/prisma/client';
 import { seedBase } from '../scripts/seed/base';
 import { DEMO_ACCOUNTS } from '../scripts/seed/demo-accounts';
+import { seedInformaticsAdmin } from '../scripts/seed/informatics-career';
 
 jest.mock('../scripts/seed/catalogs', () => ({ seedCatalogs: jest.fn() }));
+jest.mock('../scripts/seed/informatics-career', () => ({ seedInformaticsAdmin: jest.fn() }));
 
 describe('Destino del seed de demostración', () => {
   it.each(['production', undefined])('rechaza APP_ENV=%s', (APP_ENV) => {
@@ -49,6 +51,7 @@ describe('Cuentas de demostración', () => {
     expect(create).toHaveBeenCalledTimes(DEMO_ACCOUNTS.length);
     expect(hash).toHaveBeenCalledTimes(DEMO_ACCOUNTS.length);
     expect(create.mock.calls[0][0].data.titulado.create.id).toBe(DEMO_ACCOUNTS[0].profileId);
+    expect(seedInformaticsAdmin).toHaveBeenCalled();
   });
 
   it('rechaza un correo que ya pertenece a otro UUID sin modificar esa cuenta', async () => {

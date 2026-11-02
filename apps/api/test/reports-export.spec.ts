@@ -13,7 +13,7 @@ import type { GraduateReport } from '../src/modules/reports/domain/entities/grad
 
 const report: GraduateReport = {
   careerNames: ['Ingeniería de Sistemas'],
-  status: 'REJECTED',
+  status: 'RECHAZADA',
   generatedAt: new Date('2026-10-18'),
   records: [
     {
@@ -35,7 +35,7 @@ const report: GraduateReport = {
       reviewedAt: null,
       justification: '@SUM(1,2)',
       wantsMentorship: false,
-      status: 'REJECTED',
+      status: 'RECHAZADA',
     },
   ],
 };
@@ -61,7 +61,7 @@ describe('Exportación institucional y reglas de disponibilidad', () => {
     expect(file.bytes.subarray(0, 5).toString()).toBe('%PDF-');
     expect(file.bytes.subarray(-20).toString()).toContain('%%EOF');
     expect(file.mime).toBe('application/pdf');
-    expect(file.name).toBe('reporte-titulados-rejected-2026-10-18.pdf');
+    expect(file.name).toBe('reporte-titulados-rechazada-2026-10-18.pdf');
   });
   it('calcula meses completos y no inventa fechas ni duraciones', () => {
     expect(careerDuration(new Date('2020-02-20'), new Date('2025-05-19'))).toBe('5 años, 2 meses');
@@ -71,10 +71,10 @@ describe('Exportación institucional y reglas de disponibilidad', () => {
     expect(reportDate(new Date('2026-10-18'))).toBe('18/10/2026');
   });
   it('solo un mentor activo y disponible puede recibir solicitudes', () => {
-    expect(canReceiveMentorship(true, 'AVAILABLE')).toBe(true);
-    expect(canReceiveMentorship(false, 'AVAILABLE')).toBe(false);
-    expect(canReceiveMentorship(true, 'PAUSED')).toBe(false);
-    expect(canReceiveMentorship(true, 'UNAVAILABLE')).toBe(false);
+    expect(canReceiveMentorship(true, 'DISPONIBLE')).toBe(true);
+    expect(canReceiveMentorship(false, 'DISPONIBLE')).toBe(false);
+    expect(canReceiveMentorship(true, 'EN_PAUSA')).toBe(false);
+    expect(canReceiveMentorship(true, 'NO_DISPONIBLE')).toBe(false);
     expect(canReceiveMentorship(true, null)).toBe(false);
   });
 });

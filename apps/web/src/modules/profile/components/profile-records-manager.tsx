@@ -24,14 +24,19 @@ const TOAST_DURATION_MS = 3000;
 
 type ProfileRecordsManagerProps = {
   initialRecords?: ProfileRecords;
+  // Pestaña abierta al entrar (por ejemplo, al cancelar la edición de una experiencia)
+  initialSection?: RecordSection;
 };
 
-export function ProfileRecordsManager({ initialRecords = PROFILE_RECORDS_MOCK }: ProfileRecordsManagerProps) {
+export function ProfileRecordsManager({
+  initialRecords = PROFILE_RECORDS_MOCK,
+  initialSection = 'education',
+}: ProfileRecordsManagerProps) {
   // Dentro de las pantallas del perfil usa el estado compartido; sin proveedor (pruebas) usa su propio estado
   const store = useOptionalProfileStore();
   const [localRecords, setLocalRecords] = useState<ProfileRecords>(initialRecords);
   const records = store?.records ?? localRecords;
-  const [activeSection, setActiveSection] = useState<RecordSection>('education');
+  const [activeSection, setActiveSection] = useState<RecordSection>(initialSection);
   const [recordToDelete, setRecordToDelete] = useState<ProfileRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<DeleteRecordErrorCode | null>(null);
@@ -58,7 +63,7 @@ export function ProfileRecordsManager({ initialRecords = PROFILE_RECORDS_MOCK }:
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      await deleteProfileRecord(recordToDelete);
+      await deleteProfileRecord(activeSection, recordToDelete);
       // Se actualiza solo la lista en memoria, sin recargar la pantalla
       if (store) {
         store.removeRecord(activeSection, recordToDelete.id);
@@ -124,7 +129,28 @@ export function ProfileRecordsManager({ initialRecords = PROFILE_RECORDS_MOCK }:
         })}
       </div>
 
-      <ProfileRecordsTable section={activeSection} records={records[activeSection]} onDelete={openDeleteModal} />
+      {/* Mientras llega GET /perfil no se muestran los datos de prueba; si falla se puede reintentar */}
+      {store?.isLoading ? (
+        <p role="status" className="rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-10 text-center text-sm text-blue-fantastic/70">
+          Cargando tus registros…
+        </p>
+      ) : store?.loadError ? (
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-3 rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-6 text-sm"
+        >
+          <p>No se pudieron cargar tus registros. {store.loadError}</p>
+          <button
+            type="button"
+            onClick={store.retryLoad}
+            className="rounded-lg bg-burning-flame px-4 py-2 font-bold text-abyssal-blue"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : (
+        <ProfileRecordsTable section={activeSection} records={records[activeSection]} onDelete={openDeleteModal} />
+      )}
 
       {recordToDelete && (
         <DeleteRecordModal

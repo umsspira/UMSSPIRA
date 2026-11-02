@@ -16,10 +16,11 @@ import { assertUniqueEducation } from '../../domain/policies/education.policy';
 import {
   toBackup,
   toCertification,
+  toDescription,
   toEducation,
   toExperience,
 } from '../translators/profile.translator';
-import { lockGraduate, profileRecordMissing } from './profile-transaction';
+import { lockGraduate, profileRecordMissing, rejectProfileRecord } from './profile-transaction';
 
 const certificationInclude = {
   certificacion_respaldo_registros: {
@@ -27,6 +28,9 @@ const certificationInclude = {
     take: 1,
   },
 };
+
+// La descripción es una sola fila de perfil_area por titulado; si hubiera más, manda la más antigua
+const descriptionOrder = [{ fecha_creacion: 'asc' as const }, { id: 'asc' as const }];
 
 @Injectable()
 export class PrismaProfileRepository implements ProfileRepository {
@@ -51,6 +55,7 @@ export class PrismaProfileRepository implements ProfileRepository {
           ],
           include: certificationInclude,
         },
+        perfil_area_registros: { orderBy: descriptionOrder, take: 1 },
       },
     });
     if (!row) {
@@ -70,6 +75,7 @@ export class PrismaProfileRepository implements ProfileRepository {
       education: row.formacion_academica_registros.map(toEducation),
       experience: row.experiencia_laboral_registros.map(toExperience),
       certifications: row.certificacion_registros.map(toCertification),
+      description: toDescription(row.perfil_area_registros[0]),
     };
   }
 
@@ -163,7 +169,7 @@ export class PrismaProfileRepository implements ProfileRepository {
         switch (change.section) {
           case 'formacion-academica': {
             if (!(await tx.formacionAcademica.findFirst({ where, select: { id: true } }))) {
-              profileRecordMissing();
+              await rejectProfileRecord(tx.formacionAcademica.findUnique({ where: { id } }));
             }
             await this.checkEducation(tx, scope, change.data, id);
             return toEducation(
@@ -180,7 +186,7 @@ export class PrismaProfileRepository implements ProfileRepository {
           }
           case 'experiencia-laboral': {
             if (!(await tx.experienciaLaboral.findFirst({ where, select: { id: true } }))) {
-              profileRecordMissing();
+              await rejectProfileRecord(tx.experienciaLaboral.findUnique({ where: { id } }));
             }
             return toExperience(
               await tx.experienciaLaboral.update({
@@ -196,7 +202,7 @@ export class PrismaProfileRepository implements ProfileRepository {
           }
           case 'certificaciones': {
             if (!(await tx.certificacion.findFirst({ where, select: { id: true } }))) {
-              profileRecordMissing();
+              await rejectProfileRecord(tx.certificacion.findUnique({ where: { id } }));
             }
             return toCertification(
               await tx.certificacion.update({
@@ -232,14 +238,18 @@ export class PrismaProfileRepository implements ProfileRepository {
             break;
           case 'certificaciones':
             if (!(await tx.certificacion.findFirst({ where, select: { id: true } }))) {
-              profileRecordMissing();
+              await rejectProfileRecord(tx.certificacion.findUnique({ where: { id } }));
             }
             await tx.certificacionRespaldo.deleteMany({ where: { id_certificacion: id } });
             count = (await tx.certificacion.deleteMany({ where })).count;
             break;
         }
         if (!count) {
-          profileRecordMissing();
+          await rejectProfileRecord(
+            section === 'formacion-academica'
+              ? tx.formacionAcademica.findUnique({ where: { id } })
+              : tx.experienciaLaboral.findUnique({ where: { id } }),
+          );
         }
       },
       { timeout: 15000 },
@@ -255,7 +265,9 @@ export class PrismaProfileRepository implements ProfileRepository {
           select: { id: true },
         });
         if (!certificate) {
-          profileRecordMissing();
+          await rejectProfileRecord(
+            tx.certificacion.findUnique({ where: { id: certificationId } }),
+          );
         }
         await tx.certificacionRespaldo.deleteMany({ where: { id_certificacion: certificationId } });
         const row = await tx.certificacionRespaldo.create({
@@ -281,16 +293,81 @@ export class PrismaProfileRepository implements ProfileRepository {
   }
 
   async readBackup(scope: ProfileScope, certificationId: string): Promise<StoredFile> {
-    const row = await this.prisma.archivoPerfil.findFirst({
-      where: {
-        respaldo: {
-          id_certificacion: certificationId,
-          certificacion: {
-            id_titulado: scope.graduateId,
-            titulado: { id_usuario: scope.userId },
-          },
-        },
+    return this.loadBackup({
+      id_certificacion: certificationId,
+      certificacion: {
+        id_titulado: scope.graduateId,
+        titulado: { id_usuario: scope.userId },
       },
+    });
+  }
+
+  async findBackupOwner(certificationId: string) {
+    const row = await this.prisma.certificacion.findUnique({
+      where: { id: certificationId },
+      select: {
+        id_titulado: true,
+        titulado: { select: { id_usuario: true } },
+        _count: { select: { certificacion_respaldo_registros: true } },
+      },
+    });
+    if (!row) {
+      return null;
+    }
+    return {
+      graduateId: row.id_titulado,
+      userId: row.titulado.id_usuario,
+      hasBackup: row._count.certificacion_respaldo_registros > 0,
+    };
+  }
+
+  async readBackupFile(certificationId: string): Promise<StoredFile> {
+    return this.loadBackup({ id_certificacion: certificationId });
+  }
+
+  async findDescription(scope: ProfileScope) {
+    const row = await this.prisma.perfilArea.findFirst({
+      where: { id_titulado: scope.graduateId, titulado: { id_usuario: scope.userId } },
+      orderBy: descriptionOrder,
+    });
+    return toDescription(row);
+  }
+
+  async saveDescription(scope: ProfileScope, text: string) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        // El bloqueo del titulado evita que dos guardados simultáneos creen dos filas
+        await lockGraduate(tx, scope);
+        const now = new Date();
+        const current = await tx.perfilArea.findFirst({
+          where: { id_titulado: scope.graduateId },
+          orderBy: descriptionOrder,
+          select: { id: true },
+        });
+        // Solo se toca la descripción: el área y el radar quedan a cargo de la Épica 3
+        const row = current
+          ? await tx.perfilArea.update({
+              where: { id: current.id },
+              data: { descripcion_profesional: text, fecha_actualizacion: now },
+            })
+          : await tx.perfilArea.create({
+              data: {
+                id_titulado: scope.graduateId,
+                area_id: null,
+                descripcion_profesional: text,
+                fecha_creacion: now,
+                fecha_actualizacion: now,
+              },
+            });
+        return toDescription(row);
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  private async loadBackup(where: Prisma.CertificacionRespaldoWhereInput): Promise<StoredFile> {
+    const row = await this.prisma.archivoPerfil.findFirst({
+      where: { respaldo: where },
       orderBy: { respaldo: { fecha_subida: 'desc' } },
     });
     if (!row) {

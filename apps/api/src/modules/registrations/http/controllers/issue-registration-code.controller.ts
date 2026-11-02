@@ -12,6 +12,6 @@ export class IssueRegistrationCodeController {
   @Post('resend')
   @PublicRegistration()
   async handle(@Body(new ZodValidationPipe(issueCodeSchema)) body: IssueEmailCodeInput) {
-    return { data: await this.useCase.execute(body.registrationId) };
+    return { data: await this.useCase.execute(body.registrationId, body.email) };
   }
 }

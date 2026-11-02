@@ -63,6 +63,12 @@ describe('Configuración del entorno', () => {
     expect(() => validateEnvironment({})).toThrow('DATABASE_URL');
   });
 
+  it('asigna valores por defecto al enlace de correccion', () => {
+    const env = validateEnvironment(database);
+    expect(env.CORRECTION_LINK_TTL_DAYS).toBe(7);
+    expect(env.WEB_BASE_URL).toBe('http://localhost:3001');
+  });
+
   it('rechaza puertos inválidos', () => {
     expect(() => validateEnvironment({ ...database, PORT: '0' })).toThrow('PORT');
   });

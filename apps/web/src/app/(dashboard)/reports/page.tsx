@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { KpiCard } from '../../../modules/reports/components/kpi-card';
 import { GraduatesTable } from '../../../modules/reports/components/graduates-table';
 import { EmptyState } from '../../../modules/reports/components/empty-state';
+import { ConnectionErrorBanner } from '../../../modules/reports/components/connection-error-banner';
 import { GraduatesSearch } from '../../../modules/reports/components/graduates-search';
 import {
   GraduatesStatusFilter,
@@ -15,6 +16,7 @@ import { useDashboardIndicators } from '../../../modules/reports/hooks/use-dashb
 import { useGraduates } from '../../../modules/reports/hooks/use-graduates';
 import type { Graduate } from '../../../modules/reports/data/graduates.mock';
 import { RotateCcw } from 'lucide-react';
+import { searchAndRankGraduates } from '../../../modules/reports/utils/graduate-search';
 
 // HU 4: Exportación institucional en PDF
 import {
@@ -31,50 +33,6 @@ const REPORTS_ACTIVE_TAB_KEY = 'umsspira:reports-active-tab';
 
 type ActiveTab = 'dashboard' | 'graduates';
 
-interface ReportsListState {
-  searchTerm: string;
-  selectedStatus: StatusFilterOption;
-  currentPage: number;
-}
-
-function readReportsListState(): ReportsListState | null {
-  try {
-    const storedState = window.localStorage.getItem(REPORTS_LIST_STATE_KEY);
-    if (!storedState) return null;
-
-    const parsedState = JSON.parse(storedState) as Partial<ReportsListState>;
-    const { currentPage, searchTerm, selectedStatus } = parsedState;
-
-    if (
-      typeof searchTerm !== 'string' ||
-      (selectedStatus !== 'TODOS' &&
-        selectedStatus !== 'VERIFICADO' &&
-        selectedStatus !== 'OBSERVADO') ||
-      typeof currentPage !== 'number' ||
-      !Number.isInteger(currentPage) ||
-      currentPage <= 0
-    ) {
-      return null;
-    }
-
-    return {
-      searchTerm: searchTerm.slice(0, 60),
-      selectedStatus,
-      currentPage,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function normalizeText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-}
-
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
 
@@ -83,7 +41,11 @@ export default function ReportsPage() {
     loading: loadingIndicators,
     error: errorIndicators,
   } = useDashboardIndicators();
-  const { data: graduates, loading: loadingGraduates } = useGraduates();
+  const {
+    data: graduates,
+    loading: loadingGraduates,
+    error: errorGraduates,
+  } = useGraduates();
 
   // Estados de filtrado (HU 2)
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,7 +55,6 @@ export default function ReportsPage() {
   // Estados de paginación y modal (HU 3)
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedGraduate, setSelectedGraduate] = useState<Graduate | null>(null);
-  const [hasRestoredListState, setHasRestoredListState] = useState(false);
 
   useEffect(() => {
     try {
@@ -101,18 +62,13 @@ export default function ReportsPage() {
       if (savedTab === 'dashboard' || savedTab === 'graduates') {
         setActiveTab(savedTab);
       }
+      // HU-004 QA Bug 3: eliminar filtros heredados de versiones anteriores.
+      // Los filtros permanecen solamente en estado React: al salir de /reports
+      // se desmonta la página y al volver empiezan en sus valores por defecto.
+      window.localStorage.removeItem(REPORTS_LIST_STATE_KEY);
     } catch {
-      // noop
+      // La navegación continúa aunque localStorage esté bloqueado.
     }
-
-    const storedState = readReportsListState();
-    if (storedState) {
-      setSearchTerm(storedState.searchTerm);
-      setSelectedStatus(storedState.selectedStatus);
-      setCurrentPage(storedState.currentPage);
-    }
-
-    setHasRestoredListState(true);
   }, []);
 
   const handleTabChange = (tab: ActiveTab) => {
@@ -130,21 +86,12 @@ export default function ReportsPage() {
   }, [selectedStatus]);
 
   const filteredGraduates = useMemo(() => {
-    if (!graduates) return [];
-
-    const normalizedQuery = normalizeText(searchTerm);
-
-    return graduates.filter((graduate) => {
-      const matchesStatus =
-        selectedStatus === 'TODOS' || graduate.status === selectedStatus;
-
-      const matchesSearch =
-        !normalizedQuery ||
-        normalizeText(graduate.fullName).includes(normalizedQuery) ||
-        normalizeText(graduate.sisCode).includes(normalizedQuery);
-
-      return matchesStatus && matchesSearch;
-    });
+    // HU-004 QA Bugs 1, 2 y 4: normalizar espacios, comas y tildes;
+    // priorizar coincidencias exactas y al inicio en la búsqueda.
+    const byStatus = graduates.filter((graduate) =>
+      selectedStatus === 'TODOS' || graduate.status === selectedStatus,
+    );
+    return searchAndRankGraduates(byStatus, searchTerm);
   }, [graduates, selectedStatus, searchTerm]);
 
   const handleSearchChange = (term: string) => {
@@ -170,41 +117,12 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (loadingGraduates) return;
-
     const totalPages = Math.max(
       1,
       Math.ceil(filteredGraduates.length / ITEMS_PER_PAGE),
     );
-
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-      return;
-    }
-
-    if (!hasRestoredListState) return;
-
-    const listState: ReportsListState = {
-      searchTerm,
-      selectedStatus,
-      currentPage,
-    };
-
-    try {
-      window.localStorage.setItem(
-        REPORTS_LIST_STATE_KEY,
-        JSON.stringify(listState),
-      );
-    } catch {
-      // noop
-    }
-  }, [
-    currentPage,
-    filteredGraduates.length,
-    hasRestoredListState,
-    loadingGraduates,
-    searchTerm,
-    selectedStatus,
-  ]);
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, filteredGraduates.length, loadingGraduates]);
 
   if (loadingIndicators || loadingGraduates) {
     return (
@@ -254,10 +172,9 @@ export default function ReportsPage() {
             </p>
           </div>
 
+          {/* HU-004 CA-08: banner de conexión en lugar de un error genérico. */}
           {errorIndicators ? (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-600">
-              {errorIndicators}
-            </div>
+            <ConnectionErrorBanner />
           ) : (
             indicators && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -283,8 +200,15 @@ export default function ReportsPage() {
         </section>
       )}
 
+      {/* HU-004 CA-08: si falla el padrón no se presenta como una lista vacía. */}
+      {activeTab === 'graduates' && errorGraduates && (
+        <section aria-label="Titulados">
+          <ConnectionErrorBanner />
+        </section>
+      )}
+
       {/* Pestaña: Titulados (Filtros, Acciones y Tabla Base) */}
-      {activeTab === 'graduates' && (
+      {activeTab === 'graduates' && !errorGraduates && (
         <section aria-labelledby="graduates-heading" className="space-y-4">
           <div className="flex flex-col gap-4 rounded-lg border border-[#C9C1B1] bg-[#EEE9DF] p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">

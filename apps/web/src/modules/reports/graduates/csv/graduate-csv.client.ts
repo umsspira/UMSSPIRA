@@ -123,7 +123,7 @@ export async function requestGraduateCsv(
   const params = new URLSearchParams();
   const status = filters.status ?? 'TODOS';
 
-  if (status !== 'TODOS') params.set('status', status === 'VERIFICADO' ? 'APPROVED' : 'OBSERVED');
+  if (status !== 'TODOS') params.set('status', status === 'VERIFICADO' ? 'APROBADA' : 'OBSERVADA');
 
   if (filters.career?.trim()) {
     const selected = filters.career.trim();

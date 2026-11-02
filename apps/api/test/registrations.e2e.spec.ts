@@ -15,7 +15,7 @@ import {
   type RegistrationSecurity,
 } from '../src/modules/registrations/application/ports/registration-security.port';
 import { BusinessRuleError } from '../src/shared/errors/business-rule-error';
-
+import { issueActivationToken } from '../src/modules/registrations/application/security/activation-token';
 const careerId = randomUUID();
 const token = randomUUID();
 const applicationId = randomUUID();
@@ -47,6 +47,8 @@ describe('Registro documental: fronteras HTTP y permisos', () => {
   const repository = {
     listCareers: jest.fn(),
     createDraft: jest.fn(),
+    updateDraft: jest.fn(),
+    draftDocument: jest.fn(),
     findDraft: jest.fn(),
     issueCode: jest.fn(),
     verifyCode: jest.fn(),
@@ -58,6 +60,7 @@ describe('Registro documental: fronteras HTTP y permisos', () => {
     list: jest.fn(),
     document: jest.fn(),
     review: jest.fn(),
+    verifyActivation: jest.fn(),
     activate: jest.fn(),
     renewActivation: jest.fn(),
   };
@@ -114,6 +117,39 @@ describe('Registro documental: fronteras HTTP y permisos', () => {
     expect(JSON.stringify(response.body)).not.toContain('ci');
   });
 
+  it('actualiza el borrador por token y normaliza el correo nuevo', async () => {
+    repository.updateDraft.mockResolvedValue({ verifiedEmail: data.correo });
+    await request(app.getHttpServer())
+      .patch('/api/v1/registrations/sessions/' + token)
+      .send({ ...data, correo: ' NUEVO@EXAMPLE.COM ' })
+      .expect(200);
+    expect(repository.updateDraft).toHaveBeenCalledWith(
+      security.hash('draft', token),
+      expect.objectContaining({ correo: 'nuevo@example.com' }),
+    );
+  });
+
+  it('no acepta que el cliente declare un correo como verificado', async () => {
+    await request(app.getHttpServer())
+      .patch('/api/v1/registrations/sessions/' + token)
+      .send({ ...data, verifiedEmail: data.correo })
+      .expect(400);
+    expect(repository.updateDraft).not.toHaveBeenCalled();
+  });
+
+  it('recupera el documento con el token del borrador y sin caché pública', async () => {
+    repository.draftDocument.mockResolvedValue({
+      mime: 'application/pdf',
+      bytes: Buffer.from('%PDF-1.4'),
+    });
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/registrations/sessions/' + token + '/document')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(repository.draftDocument).toHaveBeenCalledWith(security.hash('draft', token));
+  });
+
   it('valida UUID y rechaza campos de privilegios antes de persistir', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/registrations/sessions')
@@ -162,6 +198,124 @@ describe('Registro documental: fronteras HTTP y permisos', () => {
       security.hash('draft', token),
       security.hash('otp', token + ':123456'),
     );
+  });
+
+    it('entrega un pase de activación sin exponer el hash del código', async () => {
+    applications.verifyActivation.mockResolvedValue({
+      result: 'verified',
+      binding: 'hash-vigente-secreto',
+    });
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate/verify')
+      .send({ applicationId, code: '123456' })
+      .expect(200);
+    expect(response.body.data.activationToken).toEqual(expect.any(String));
+    expect(response.body.data.expiresInSeconds).toBe(600);
+    expect(JSON.stringify(response.body)).not.toContain('hash-vigente-secreto');
+    expect(applications.verifyActivation).toHaveBeenCalledWith(
+      applicationId,
+      security.hash('activation', applicationId + ':123456'),
+    );
+  });
+
+  it.each([
+    ['invalid', 400, 'INVALID_ACTIVATION'],
+    ['expired', 410, 'ACTIVATION_EXPIRED'],
+    ['locked', 429, 'ACTIVATION_ATTEMPTS_EXCEEDED'],
+  ])('traduce el resultado de activación %s sin emitir pase', async (result, status, code) => {
+    applications.verifyActivation.mockResolvedValue({ result });
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate/verify')
+      .send({ applicationId, code: '123456' })
+      .expect(status);
+    expect(response.body.error.code).toBe(code);
+    expect(response.body.data).toBeUndefined();
+  });
+
+  it('rechaza códigos mal formados y campos extra antes de consultar la solicitud', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate/verify')
+      .send({ applicationId, code: '12345' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate/verify')
+      .send({ applicationId, code: '123456', password: 'no-corresponde-al-paso-1' })
+      .expect(400);
+    expect(applications.verifyActivation).not.toHaveBeenCalled();
+  });
+
+    it('activa la cuenta con el pase del paso 1 y entrega al repositorio solo el hash de la contraseña', async () => {
+    applications.activate.mockImplementation(async (_id, _hash, matches) =>
+      matches('hash-vigente') ? 'activated' : 'invalid',
+    );
+    const activationToken = issueActivationToken(security, applicationId, 'hash-vigente');
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate')
+      .send({ applicationId, activationToken, password: 'Abcdef1!' })
+      .expect(200);
+    expect(response.body.data).toEqual({ activated: true });
+    const [, passwordHash] = applications.activate.mock.calls[0];
+    expect(passwordHash).not.toContain('Abcdef1!');
+  });
+
+  it('rechaza el pase de otra solicitud y el firmado con un código anterior', async () => {
+    applications.activate.mockImplementation(async (_id, _hash, matches) =>
+      matches('hash-vigente') ? 'activated' : 'invalid',
+    );
+    const foreign = issueActivationToken(security, randomUUID(), 'hash-vigente');
+    const first = await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate')
+      .send({ applicationId, activationToken: foreign, password: 'Abcdef1!' })
+      .expect(400);
+    expect(first.body.error.code).toBe('INVALID_ACTIVATION_TOKEN');
+    expect(applications.activate).not.toHaveBeenCalled();
+    const stale = issueActivationToken(security, applicationId, 'hash-anterior');
+    const second = await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate')
+      .send({ applicationId, activationToken: stale, password: 'Abcdef1!' })
+      .expect(400);
+    expect(second.body.error.code).toBe('INVALID_ACTIVATION');
+  });
+
+  it('pide validar el código otra vez cuando el pase venció', async () => {
+    const expired = issueActivationToken(
+      security,
+      applicationId,
+      'hash-vigente',
+      Date.now() - 11 * 60 * 1000,
+    );
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate')
+      .send({ applicationId, activationToken: expired, password: 'Abcdef1!' })
+      .expect(410);
+    expect(response.body.error.code).toBe('ACTIVATION_TOKEN_EXPIRED');
+    expect(applications.activate).not.toHaveBeenCalled();
+  });
+
+  it('no acepta el código en el paso 2 ni contraseñas que incumplen la política', async () => {
+    const activationToken = issueActivationToken(security, applicationId, 'hash-vigente');
+    await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate')
+      .send({ applicationId, activationToken, code: '123456', password: 'Abcdef1!' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate')
+      .send({ applicationId, activationToken, password: 'sinmayuscula1!' })
+      .expect(400);
+    expect(applications.activate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['already', 'ACTIVATION_ALREADY_DONE'],
+    ['account-exists', 'ACCOUNT_ALREADY_EXISTS'],
+  ])('responde 409 cuando el resultado es %s', async (result, code) => {
+    applications.activate.mockResolvedValue(result);
+    const activationToken = issueActivationToken(security, applicationId, 'hash-vigente');
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/registrations/activate')
+      .send({ applicationId, activationToken, password: 'Abcdef1!' })
+      .expect(409);
+    expect(response.body.error.code).toBe(code);
   });
 
   it('bloquea archivos disfrazados aunque declaren application/pdf', async () => {
@@ -217,9 +371,53 @@ describe('Registro documental: fronteras HTTP y permisos', () => {
     await request(app.getHttpServer())
       .post('/api/v1/applications/' + applicationId + '/review')
       .set('Authorization', 'Bearer admin')
-      .send({ decision: 'REJECTED' })
+      .send({ decision: 'RECHAZADA' })
       .expect(400);
     expect(applications.review).not.toHaveBeenCalled();
+  });
+
+  it('acepta el dictamen en español y conserva el contrato de notificación', async () => {
+    applications.find.mockResolvedValueOnce({ email: 'maria@example.com', fullName: 'Maria Rojas' });
+    applications.review.mockResolvedValueOnce({
+      id: randomUUID(),
+      applicationId,
+      decision: 'APROBADA',
+      status: 'APROBADA',
+      notificationStatus: 'EN_COLA',
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/applications/' + applicationId + '/review')
+      .set('Authorization', 'Bearer admin')
+      .send({ decision: 'APROBADA' })
+      .expect(201);
+
+    expect(response.body.data.status).toBe('APROBADA');
+    expect(response.body.data.notificationStatus).toBe('EN_COLA');
+    expect(applications.review).toHaveBeenCalledWith(
+      actor,
+      applicationId,
+      { decision: 'APROBADA' },
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ type: 'aprobacion' }),
+    );
+  });
+
+  it('rechaza los estados anteriores en inglés antes de llamar al repositorio', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/applications/' + applicationId + '/review')
+      .set('Authorization', 'Bearer admin')
+      .send({ decision: 'APPROVED' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/api/v1/applications?status=PENDING')
+      .set('Authorization', 'Bearer admin')
+      .expect(400);
+
+    expect(applications.find).not.toHaveBeenCalled();
+    expect(applications.review).not.toHaveBeenCalled();
+    expect(applications.list).not.toHaveBeenCalled();
   });
 
   it('mantiene privado el contenido del respaldo', async () => {
