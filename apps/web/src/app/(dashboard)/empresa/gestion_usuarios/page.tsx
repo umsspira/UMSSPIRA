@@ -50,7 +50,7 @@ export default function GestionUsuariosPage() {
     return (
       limpio.length >= 2 &&
       limpio.length <= 80 &&
-      /^[\p{L}]+(?:[ '-][\p{L}]+)*$/u.test(limpio)
+      /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:[ '-][A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$/.test(limpio)
     );
   };
 
@@ -545,7 +545,7 @@ export default function GestionUsuariosPage() {
                   onChange={(e) => {
                     // Solo letras, espacios, guiones y apóstrofos.
                     const valor = e.target.value
-                      .replace(/[^\p{L}\s'-]/gu, "")
+                      .replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s'-]/g, "")
                       .slice(0, 80);
 
                     setNombre(valor);
