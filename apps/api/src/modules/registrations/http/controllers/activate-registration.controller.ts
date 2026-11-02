@@ -16,6 +16,8 @@ export class ActivateRegistrationController {
     @Body(new ZodValidationPipe(activateAccountSchema))
     body: ActivateRegistrationInput,
   ) {
-    return { data: await this.useCase.execute(body.applicationId, body.code, body.password) };
+    return {
+      data: await this.useCase.execute(body.applicationId, body.activationToken, body.password),
+    };
   }
 }

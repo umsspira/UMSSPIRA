@@ -23,3 +23,10 @@ AGENTS.md
 !apps/api-antigua/.env.localstack.example
 .context/
 .vscode/
+tmp/
+
+apps/api/.agents/
+apps/api/.claude/
+apps/api/.windsurf/
+apps/api/skills-lock.json
+holaaa

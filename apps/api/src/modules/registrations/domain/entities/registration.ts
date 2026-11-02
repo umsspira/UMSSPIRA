@@ -29,4 +29,4 @@ export interface RegistrationFile {
   size: number;
 }
 
-export type ApplicationStatus = 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED';
+export type ApplicationStatus = 'PENDIENTE' | 'APROBADA' | 'OBSERVADA' | 'RECHAZADA';

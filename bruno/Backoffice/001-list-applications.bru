@@ -14,9 +14,13 @@ params:query {
   page: 1
   pageSize: 15
   ~career:
-  ~status: PENDING
+  ~status: PENDIENTE
   ~search:
   ~age: over48
+  ~period: last15
+  ~year:
+  ~from:
+  ~to:
 }
 
 auth:bearer {
@@ -25,6 +29,8 @@ auth:bearer {
 
 docs {
   Requiere administrador. Los filtros desmarcados son opcionales; career filtra por texto del nombre de carrera. Copia el UUID de una solicitud a applicationId.
-
-  Permiso: solicitudes:read.
+  pageSize admite 10, 15, 25 o 50 (por defecto 15); otro valor responde 400. La respuesta trae items, total, page, pageSize y totalPages.
+  search separa el texto en hasta 6 palabras distintas. Cada palabra debe coincidir con nombre, apellido, C.I., correo o Codigo SIS. Nombre y apellido ignoran
+  tildes y mayusculas: "Jose Garcia" encuentra "José García". El orden de las palabras no importa. C.I. mantiene coincidencia parcial;
+  Codigo SIS mantiene coincidencia exacta para 6 a 9 digitos. Requiere unaccent habilitada en PostgreSQL. Los filtros se combinan: deben cumplirse todos.
 }

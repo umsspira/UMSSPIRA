@@ -105,3 +105,21 @@ export async function checkRegistrationSession(sessionToken: string): Promise<Se
     return { status: 'unknown' };
   }
 }
+
+
+export async function updateRegistrationSession(sessionToken: string, data: Record<string, unknown>): Promise<
+  { ok: true; verifiedEmail: string | null } | { ok: false; message: string }
+> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/registrations/sessions/${encodeURIComponent(sessionToken)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const body = await readJson<{ data?: { verifiedEmail: string | null } } & ApiErrorBody>(response);
+    if (!response.ok || !body?.data) return { ok: false, message: getErrorMessage(body, 'No se pudieron guardar los cambios.') };
+    return { ok: true, verifiedEmail: body.data.verifiedEmail };
+  } catch {
+    return { ok: false, message: CONNECTION_ERROR_MESSAGE };
+  }
+}

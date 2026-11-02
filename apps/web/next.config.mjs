@@ -1,6 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: process.env.NODE_ENV === 'production' ? '.next' : '.next-dev',
+  async redirects() {
+    return [
+      {
+        // La raíz muestra primero el portal institucional (público).
+        source: '/',
+        destination: '/portal/institucional',
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {

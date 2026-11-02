@@ -6,12 +6,12 @@ import { readApiError } from "@/shared/services/api-contract";
 
 const API_BASE_URL = "/api/v1";
 
-export type ReviewDecision = "APPROVED" | "OBSERVED" | "REJECTED";
+export type ReviewDecision = "APROBADA" | "OBSERVADA" | "RECHAZADA";
 
 export type ReviewPayload = {
   decision: ReviewDecision;
-  category?: string; // obligatoria si OBSERVED o REJECTED (causal)
-  note?: string; // mínimo 10 caracteres si OBSERVED o REJECTED
+  category?: string; // obligatoria si OBSERVADA o RECHAZADA (causal)
+  note?: string; // mínimo 10 caracteres si OBSERVADA o RECHAZADA
   notifyDean?: boolean; // checkbox del diseño de Observar
 };
 

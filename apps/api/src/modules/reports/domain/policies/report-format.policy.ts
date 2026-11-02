@@ -1,10 +1,10 @@
 import type { ReportStatus } from '../entities/graduate-report';
 
 export const REPORT_LABELS: Record<ReportStatus, string> = {
-  PENDING: 'Pendiente',
-  APPROVED: 'Aprobado',
-  OBSERVED: 'Observado',
-  REJECTED: 'Rechazado',
+  PENDIENTE: 'Pendiente',
+  APROBADA: 'Aprobado',
+  OBSERVADA: 'Observado',
+  RECHAZADA: 'Rechazado',
 };
 
 export function reportDate(value: Date | null): string {

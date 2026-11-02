@@ -56,6 +56,21 @@ export function decideAccess(
     return { allowed: false, redirectTo: USER_HOME };
   }
 
+  // HU-004: reportería institucional y sus subrutas requieren rol administrador.
+  // La API también comprueba los permisos reales mediante sus guards.
+  if (matchesRoute(pathname, "/reports") && role !== "administrador") {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+    // US-1.4: el registro de empresas es exclusivo del administrador UMSS.
+  if (matchesRoute(pathname, "/company-registry") && role !== "administrador") {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+
+  // T4.1: la encuesta y todas sus subrutas pertenecen únicamente al titulado.
+  if (matchesRoute(pathname, "/surveys") && role !== "titulado") {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+
   // Empresa y Administrador: /afinidad/reclutador, /empresa/postulantes y /postulantes
   const isRecruiterRoute = RECRUITER_ROUTES.some((route) =>
     matchesRoute(pathname, route),

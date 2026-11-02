@@ -3,6 +3,7 @@ import type {
   ExperienciaLaboral,
   Certificacion,
   CertificacionRespaldo,
+  PerfilArea,
 } from '../../../../generated/prisma/client';
 import type {
   CertificationBackup,
@@ -10,6 +11,7 @@ import type {
   EducationRecord,
   ExperienceRecord,
 } from '../../domain/entities/profile-record';
+import type { ProfessionalDescription } from '../../domain/entities/professional-description';
 
 export function toEducation(row: FormacionAcademica): EducationRecord {
   return {
@@ -62,5 +64,15 @@ export function toCertification(
     backup: row.certificacion_respaldo_registros?.[0]
       ? toBackup(row.certificacion_respaldo_registros[0])
       : null,
+  };
+}
+
+// Sin fila en perfil_area el titulado aún no registró su descripción
+export function toDescription(
+  row: Pick<PerfilArea, 'descripcion_profesional' | 'fecha_actualizacion'> | null | undefined,
+): ProfessionalDescription {
+  return {
+    text: row?.descripcion_profesional ?? '',
+    updatedAt: row?.fecha_actualizacion ?? null,
   };
 }

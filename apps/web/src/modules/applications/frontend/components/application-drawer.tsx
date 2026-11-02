@@ -16,6 +16,8 @@ import { ApproveDialog } from "./approve-dialog";
 import { ObserveDialog } from "./observe-dialog";
 import { RejectDialog } from "./reject-dialog";
 import { btnAccent, btnDanger, btnSecondary } from "./review-ui";
+import { ReviewSummaryNotice } from './review-summary-notice';
+import type { BoardDetail } from '../services/applications-board.service';
 
 type Props = {
   open: boolean;
@@ -36,6 +38,7 @@ export function ApplicationDrawer({
   const [application, setApplication] = useState<Application | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [reviewData, setReviewData] = useState<BoardDetail | null>(null);
 
   // CA-04.3: trae el expediente real y la URL firmada del documento (5 min).
   useEffect(() => {
@@ -44,6 +47,8 @@ export function ApplicationDrawer({
     setIsLoading(true);
     setLoadError(null);
     setApplication(null);
+    setReviewData(null);
+    setActiveDialog(null);
     (async () => {
       const detail = await fetchApplicationDetail(applicationId);
       if (cancelled) return;
@@ -55,6 +60,7 @@ export function ApplicationDrawer({
       const doc = await fetchDocumentUrl(applicationId);
       if (cancelled) return;
       const data = detail.data;
+      setReviewData(data);
       setApplication({
         id: data.id,
         code: data.code,
@@ -73,6 +79,7 @@ export function ApplicationDrawer({
         procedureMode: "Original",
         documentName: data.documentName || "documento",
         documentUrl: doc.ok ? doc.data.url : "",
+        documentFormat: data.documentFormat,
         checklist: [{ label: "Expediente recibido en la bandeja", checked: true }],
       });
       setIsLoading(false);
@@ -84,7 +91,7 @@ export function ApplicationDrawer({
 
   if (!open || !applicationId) return null;
 
-  const canReview = application?.status === "PENDING";
+  const canReview = application?.status === "PENDIENTE" || (application?.status as string)?.toUpperCase() === "PENDING"; 
   const overdue = application ? hoursSince(application.submittedAt) > OVERDUE_HOURS : false;
   const applicantName = application ? `${application.firstName} ${application.lastName}` : "";
 
@@ -106,19 +113,19 @@ export function ApplicationDrawer({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-[#1B2632]/40"
+        className="fixed inset-x-0 bottom-0 top-[70px] z-40 bg-[#1B2632]/40 min-[601px]:top-[76px] min-[1261px]:top-[84px]"
         onClick={onClose}
         aria-hidden="true"
       />
 
       <aside
-        className="fixed right-0 top-0 z-40 flex h-full w-full max-w-6xl flex-col bg-[#EEE9DF] shadow-xl"
+        className="fixed bottom-0 right-0 top-[70px] z-40 flex min-h-0 w-full max-w-6xl flex-col overflow-hidden bg-[#EEE9DF] shadow-xl min-[601px]:top-[76px] min-[1261px]:top-[84px]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="drawer-title"
       >
         {/* Encabezado */}
-        <header className="flex items-start justify-between gap-4 border-b border-[#C9C1B1] bg-white px-6 py-4">
+        <header className="shrink-0 flex items-start justify-between gap-4 border-b border-[#C9C1B1] bg-white px-4 py-3 sm:px-6 sm:py-4">
           <div className="space-y-1">
             <button
               type="button"
@@ -154,7 +161,7 @@ export function ApplicationDrawer({
         </header>
 
         {/* Contenido con scroll */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
           {isLoading && (
             <p className="py-10 text-center text-sm text-[#2C3B4D]">Cargando expediente…</p>
           )}
@@ -163,11 +170,15 @@ export function ApplicationDrawer({
               {loadError}
             </p>
           )}
-          {application && !isLoading && <ApplicationDetail application={application} />}
+          {application && !isLoading && <>
+            <ReviewSummaryNotice summary={reviewData?.reviewSummary} currentReviewer={reviewData?.currentReviewer}
+              reviewAuthor={reviewData?.reviewAuthor} pending={canReview} />
+            <ApplicationDetail application={application} />
+          </>}
         </div>
 
         {/* Barra inferior: ID, prioridad y acciones */}
-        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-[#C9C1B1] bg-white px-6 py-4">
+        <footer className="shrink-0 flex flex-col items-stretch justify-between gap-3 border-t border-[#C9C1B1] bg-white px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6 sm:py-4">
           <p className="text-[13px] font-medium leading-5 text-[#2C3B4D]">
             Expediente ID:{" "}
             <strong className="text-[#1B2632]">#{application?.code ?? "…"}</strong>
@@ -179,7 +190,7 @@ export function ApplicationDrawer({
           </p>
 
           {canReview && (
-            <div className="flex flex-wrap gap-3">
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:gap-3">
               <button
                 type="button"
                 onClick={() => setActiveDialog("reject")}
@@ -189,7 +200,9 @@ export function ApplicationDrawer({
               </button>
               <button
                 type="button"
-                onClick={() => setActiveDialog("observe")}
+                onClick={() => { if (reviewData?.reviewSummary?.canObserve) setActiveDialog("observe"); }}
+                disabled={!reviewData?.reviewSummary?.canObserve}
+                title={reviewData?.reviewSummary?.canObserve ? undefined : 'Consulta el aviso de observaciones del expediente'}
                 className={btnSecondary}
               >
                 Observar

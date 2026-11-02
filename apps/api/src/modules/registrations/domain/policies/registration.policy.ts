@@ -2,7 +2,7 @@ import { BusinessRuleError } from '../../../../shared/errors/business-rule-error
 import type { RegistrationDraft } from '../entities/registration';
 
 export const DRAFT_SECONDS = 7200;
-export const CODE_SECONDS = 600;
+export const CODE_SECONDS = 300;
 export const RESEND_SECONDS = 60;
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 

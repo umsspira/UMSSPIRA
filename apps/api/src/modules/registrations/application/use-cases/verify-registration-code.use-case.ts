@@ -8,10 +8,11 @@ export class VerifyRegistrationCodeUseCase {
     private readonly security: RegistrationSecurity,
   ) {}
 
-  async execute(token: string, code: string) {
+  async execute(token: string, code: string, expectedEmail?: string) {
     const result = await this.repository.verifyCode(
       this.security.hash('draft', token),
       this.security.hash('otp', token + ':' + code),
+      ...(expectedEmail ? [expectedEmail] : []),
     );
     if (result === 'expired') {
       throw new BusinessRuleError('expired', 'CODE_EXPIRED', 'El código venció; solicita otro');

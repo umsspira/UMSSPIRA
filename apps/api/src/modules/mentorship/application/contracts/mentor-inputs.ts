@@ -21,5 +21,5 @@ export interface MentorInterestsInput {
 }
 
 export interface MentorAvailabilityInput {
-  availabilityStatus: 'AVAILABLE' | 'PAUSED' | 'UNAVAILABLE';
+  availabilityStatus: 'DISPONIBLE' | 'EN_PAUSA' | 'NO_DISPONIBLE';
 }

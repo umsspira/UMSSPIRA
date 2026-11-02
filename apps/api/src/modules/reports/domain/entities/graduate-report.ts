@@ -1,4 +1,4 @@
-export const REPORT_STATUSES = ['PENDING', 'APPROVED', 'OBSERVED', 'REJECTED'] as const;
+export const REPORT_STATUSES = ['PENDIENTE', 'APROBADA', 'OBSERVADA', 'RECHAZADA'] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 export interface GraduateReportRecord {

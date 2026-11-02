@@ -21,6 +21,7 @@ function educationItem(record: EducationRecord): TimelineItem {
     subtitle: record.title,
     date: record.graduationYear,
     document: record.backupFile,
+    documentUrl: record.backupUrl,
   };
 }
 
@@ -37,6 +38,7 @@ function certificationItem(record: CertificationRecord): TimelineItem {
   if (record.backupFile) status = record.backupVerified ? 'verified' : 'pending';
 
   return {
+    id: record.id,
     title: record.name,
     subtitle: `${record.issuer} · ${record.issueYear}`,
     detail: `Grado: ${record.degree}`,
@@ -44,6 +46,7 @@ function certificationItem(record: CertificationRecord): TimelineItem {
     year: record.issueYear,
     grade: record.degree,
     document: record.backupFile,
+    documentUrl: record.backupUrl,
     status,
   };
 }
@@ -52,7 +55,7 @@ function certificationItem(record: CertificationRecord): TimelineItem {
 export function recordsToTimeline(records: ProfileRecords): TimelineSection[] {
   return [
     {
-      title: 'EDUCACIÓN',
+      title: 'FORMACIÓN ACADÉMICA',
       dateTone: 'accent',
       items: (records.education as EducationRecord[]).map(educationItem),
     },

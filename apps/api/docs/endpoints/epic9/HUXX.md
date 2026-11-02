@@ -41,8 +41,8 @@ Errores comunes: 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`.
 ```
 
 - `totalGraduates`: número de solicitudes, incluyendo todos sus estados.
-- `verifiedGraduates`: solicitudes APPROVED.
-- `observedGraduates`: solicitudes OBSERVED.
+- `verifiedGraduates`: solicitudes APROBADA.
+- `observedGraduates`: solicitudes OBSERVADA.
 - `activeMentors`: perfiles de mentor activos de titulados con cuentas activas de las carreras autorizadas.
 
 Se conservan los nombres de los indicadores del cliente anterior. Los tres primeros cuentan solicitudes, no personas únicas. `activeMentors` no usa la intención de ser mentor del formulario y no cambia al pausar disponibilidad.
@@ -58,7 +58,7 @@ Se conservan los nombres de los indicadores del cliente anterior. Los tres prime
 | Parámetro | Tipo y regla                                     |
 | --------- | ------------------------------------------------ |
 | careerId  | UUID opcional, asignado al actor                 |
-| status    | PENDING, APPROVED, OBSERVED o REJECTED; opcional |
+| status    | PENDIENTE, APROBADA, OBSERVADA o RECHAZADA; opcional |
 | search    | Texto opcional, máximo 100 caracteres            |
 | page      | Entero desde 1 hasta 100000; predeterminado 1    |
 | limit     | Entero desde 1 hasta 1000; predeterminado 10     |
@@ -87,7 +87,7 @@ Se conservan los nombres de los indicadores del cliente anterior. Los tres prime
         "anioEgreso": null,
         "codSis": "202012345",
         "deseaMentor": true,
-        "estado": "APPROVED",
+        "estado": "APROBADA",
         "fechaCreacion": "2026-10-18T12:00:00.000Z",
         "fechaRevision": "2026-10-18T13:00:00.000Z",
         "justificacion": null
@@ -116,7 +116,7 @@ Orden por creación descendente y UUID ascendente. Una página fuera de rango o 
 {
   "data": {
     "careerNames": ["Ingeniería de Sistemas"],
-    "status": "APPROVED",
+    "status": "APROBADA",
     "total": 1,
     "generatedAt": "2026-10-18T14:00:00.000Z",
     "graduates": [
@@ -132,7 +132,7 @@ Orden por creación descendente y UUID ascendente. Una página fuera de rango o 
         "graduationDate": "01/05/2025",
         "careerDuration": "5 años, 3 meses",
         "statusDate": "18/10/2026",
-        "status": "APPROVED",
+        "status": "APROBADA",
         "statusLabel": "Aprobado",
         "justification": null
       }
@@ -178,7 +178,7 @@ El UUID representa una solicitud documental, no un usuario ni un titulado. El li
 ## Casos borde
 
 - Cada consulta aplica carreras autorizadas y los mismos filtros en persistencia; no hay fallback a fixtures.
-- APPROVED y REJECTED permiten exportar aprobados y rechazados. PENDING y OBSERVED conservan la consulta de otros estados existentes.
+- APROBADA y RECHAZADA permiten exportar aprobados y rechazados. PENDIENTE y OBSERVADA conservan la consulta de otros estados existentes.
 - Sin resultados, el listado devuelve 200 vacío; vista previa y archivos devuelven 404 REPORT_EMPTY.
 - Una página usa una instantánea consistente para filas y total. La vista previa y una descarga posterior son peticiones independientes y pueden reflejar cambios nuevos.
 - El máximo de exportación es 10000 registros. El archivo se genera en memoria y no queda guardado como un reporte histórico.

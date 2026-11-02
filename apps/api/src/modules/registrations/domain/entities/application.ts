@@ -1,6 +1,11 @@
 import type { ApplicationStatus } from './registration';
 
 export interface ApplicationDetail {
+  reviewSummary?: {
+    observations: number; maxObservations: number; rejections: number; maxRejections: number;
+    latestObservation: string | null; canObserve: boolean;
+  };
+  currentReviewer?: { name: string | null; email: string };
   id: string;
   code: string;
   fullName: string;
@@ -19,6 +24,12 @@ export interface ApplicationDetail {
   documentName: string;
   documentPath: string | null;
   documentFormat: string;
+  reviewAuthor?: {
+  id: string;
+  name: string | null;
+  email: string;
+  reviewedAt: string;
+  } | null;
 }
 
 export interface ApplicationPage {
@@ -26,16 +37,28 @@ export interface ApplicationPage {
   total: number;
   page: number;
   pageSize: number;
+  totalPages: number;
+}
+
+export interface ApplicationMetrics {
+  receivedToday: number;
+  pending: number;
+  urgent: number;
+  resolvedToday: number;
+  generatedAt: string;
+  timeZone: string;
 }
 
 export interface ReviewResult {
   id: string;
   applicationId: string;
-  decision: Exclude<ApplicationStatus, 'PENDING'>;
-  status: Exclude<ApplicationStatus, 'PENDING'>;
+  decision: Exclude<ApplicationStatus, 'PENDIENTE'>;
+  status: Exclude<ApplicationStatus, 'PENDIENTE'>;
   category: string | null;
   note: string | null;
   reviewedBy: string;
+  reviewedByName: string | null;
+  reviewedByEmail: string;
   reviewedAt: string;
-  notificationStatus: 'QUEUED';
+  notificationStatus: 'EN_COLA';
 }

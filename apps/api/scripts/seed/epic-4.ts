@@ -55,6 +55,21 @@ export async function seedEpic4(prisma: PrismaClient): Promise<void> {
   if (empresas.length > 0) {
     await prisma.empresa.createMany({ data: empresas, skipDuplicates: true });
   }
+  const propietarios = await prisma.empresa.findMany({
+    where: { id_usuario: { not: null } },
+    select: { id: true, id_usuario: true },
+  });
+  if (propietarios.length > 0) {
+    await prisma.empresaUsuario.createMany({
+      data: propietarios.map((empresa) => ({
+        id_empresa: empresa.id,
+        id_usuario: empresa.id_usuario!,
+        rol: 'administrador',
+        estado: 'activo',
+      })),
+      skipDuplicates: true,
+    });
+  }
   await prisma.telefonoEmpresa.createMany({ data: telefonos, skipDuplicates: true });
   await prisma.direccionEmpresa.createMany({ data: direcciones, skipDuplicates: true });
   await prisma.sectorEmpresa.createMany({ data: sectores, skipDuplicates: true });
