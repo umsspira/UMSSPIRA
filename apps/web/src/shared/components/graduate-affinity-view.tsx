@@ -428,7 +428,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   )}
 
                   {hasRadarError && (
-                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-white/80 backdrop-blur-sm rounded-xl">
                       <RadarErrorState
                         onRetry={() => handleRecalculate({ force: true })}
                         isRetrying={isLoading}
