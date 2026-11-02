@@ -38,7 +38,7 @@ export function buildCompanyInvitationEmail({
   activationUrl,
   logoUrl,
 }: CompanyInvitationEmailInput): CompanyInvitationEmail {
-  const subject = '¡Estás invitado a unirte a UMSSPIRA!';
+  const subject = 'Invitación para unirse a UMSSPIRA';
   const validity = `Este enlace es válido por ${INVITATION_VALIDITY_DAYS} días.`;
 
   const text = [
@@ -84,7 +84,7 @@ export function buildCompanyInvitationEmail({
               <td style="padding:16px 40px 0;font-size:14px;line-height:20px;color:${COLORS.text};">
                 <p style="margin:0 0 12px;">Hola,</p>
                 <p style="margin:0 0 12px;">Tu empresa ${safeCompany} ha sido invitada a formar parte de UMSSPIRA como empresa empleadora.</p>
-                <p style="margin:0;">Para activar tu cuenta y configurar tu contraseña inicial, haz clic en el siguiente botón:</p>
+                <p style="margin:0;">Para activar tu cuenta y configurar tu contraseña inicial, haz clic en el siguiente enlace:</p>
               </td>
             </tr>
             <tr>
