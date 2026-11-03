@@ -279,7 +279,9 @@ export function SurveyContainer() {
               onChange={(field, value) => handleWorkFieldChange(field, String(value))}
               onBlur={() => undefined}
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* HU-001 (bug 1 de QA): como en el mock-up, el salario ocupa todo el ancho
+                y el tiempo de inserción va debajo, no en dos columnas. */}
+            <div className="space-y-5">
               <SurveySalarySelector
                 value={form.values.salario_mensual}
                 onChange={(value) => handleWorkFieldChange('salario_mensual', value)}
