@@ -4,6 +4,8 @@ import {
   type JobPostingRepository,
 } from '../../application/ports/job-posting-repository.port';
 import { CreateJobPostingUseCase } from '../../application/use-cases/create-job-posting.use-case';
+import { GetPublishedJobPostingUseCase } from '../../application/use-cases/get-published-job-posting.use-case';
+import { ListPublishedJobPostingsUseCase } from '../../application/use-cases/list-published-job-postings.use-case';
 import { PrismaJobPostingRepository } from '../repositories/prisma-job-posting.repository';
 
 export const jobPostingsProviders: Provider[] = [
@@ -13,5 +15,17 @@ export const jobPostingsProviders: Provider[] = [
     provide: CreateJobPostingUseCase,
     inject: [JOB_POSTING_REPOSITORY],
     useFactory: (repository: JobPostingRepository) => new CreateJobPostingUseCase(repository),
+  },
+  {
+    provide: ListPublishedJobPostingsUseCase,
+    inject: [JOB_POSTING_REPOSITORY],
+    useFactory: (repository: JobPostingRepository) =>
+      new ListPublishedJobPostingsUseCase(repository),
+  },
+  {
+    provide: GetPublishedJobPostingUseCase,
+    inject: [JOB_POSTING_REPOSITORY],
+    useFactory: (repository: JobPostingRepository) =>
+      new GetPublishedJobPostingUseCase(repository),
   },
 ];

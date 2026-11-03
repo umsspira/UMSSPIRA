@@ -16,6 +16,7 @@ describe("useAuth", () => {
   beforeEach(() => {
     mockPush.mockClear();
     authStore.reset();
+    window.history.replaceState({}, "", "/login");
     // Emula el endpoint real POST /api/auth/login (USE_MOCK = false).
     global.fetch = jest.fn(async (_url: unknown, options?: { body?: unknown }) => {
       const body = JSON.parse(String((options?.body ?? "{}") as string));
@@ -51,6 +52,28 @@ describe("useAuth", () => {
 
     expect(result.current.status).toBe("authenticated");
     expect(result.current.role).toBe("titulado");
+    expect(mockPush).toHaveBeenCalledWith("/portal");
+  });
+
+  it("regresa a la vacante solicitada tras iniciar sesión", async () => {
+    window.history.replaceState({}, "", "/login?next=%2Fjob-postings%2F123");
+    const { result } = renderHook(() => useAuth());
+
+    await act(async () => {
+      await result.current.signIn({ email: "titulado@umss.edu.bo", password: "titulado1234" });
+    });
+
+    expect(mockPush).toHaveBeenCalledWith("/job-postings/123");
+  });
+
+  it("ignora destinos externos y utiliza la ruta predeterminada del rol", async () => {
+    window.history.replaceState({}, "", "/login?next=%2F%2Fevil.example");
+    const { result } = renderHook(() => useAuth());
+
+    await act(async () => {
+      await result.current.signIn({ email: "titulado@umss.edu.bo", password: "titulado1234" });
+    });
+
     expect(mockPush).toHaveBeenCalledWith("/portal");
   });
 
