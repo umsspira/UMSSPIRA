@@ -78,6 +78,8 @@ describe("ObservedNoticeView", () => {
     fireEvent.click(screen.getByRole("button", { name: /Revisar cambios/ }));
 
     expect(await screen.findByText("Revisión de solicitud")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Entregar solicitud/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Declaración de veracidad/ }));
     expect(screen.getByRole("button", { name: /Entregar solicitud/ })).toBeEnabled();
     expect(screen.getAllByText("Modificado")).toHaveLength(1);
 

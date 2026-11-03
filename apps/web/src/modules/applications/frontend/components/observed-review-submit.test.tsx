@@ -31,7 +31,7 @@ const base: CorrectionResult = {
   emailChanged: false,
 };
 
-function setup(result: CorrectionResult = base) {
+function setup(result: CorrectionResult = base, acceptDeclaration = true) {
   const onBack = jest.fn();
   render(
     <ObservedReviewSubmit
@@ -42,6 +42,7 @@ function setup(result: CorrectionResult = base) {
       onBack={onBack}
     />,
   );
+  if (acceptDeclaration) fireEvent.click(screen.getByRole('checkbox'));
   return { onBack };
 }
 const submit = () => screen.getByRole("button", { name: /Entregar solicitud|Reintentar/ });
@@ -49,6 +50,14 @@ const submit = () => screen.getByRole("button", { name: /Entregar solicitud|Rein
 beforeEach(() => mockedSubmit.mockReset());
 
 describe("ObservedReviewSubmit", () => {
+  it('exige aceptar la declaración también al reenviar una corrección', () => {
+    setup(base, false);
+    expect(submit()).toBeDisabled();
+    fireEvent.click(submit());
+    expect(mockedSubmit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(submit()).toBeEnabled();
+  });
   it("muestra el resumen y marca los campos modificados", () => {
     setup();
     expect(screen.getByText(/Quispe/)).toBeInTheDocument();
