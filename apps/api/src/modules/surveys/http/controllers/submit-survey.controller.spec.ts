@@ -13,6 +13,9 @@ describe('SubmitSurveyController', () => {
       findUnique: jest.Mock;
       findFirst: jest.Mock;
     };
+    respuestaEncuesta: {
+      findFirst: jest.Mock;
+    };
   };
 
   const actor: ActorContext = {
@@ -47,12 +50,49 @@ describe('SubmitSurveyController', () => {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
       },
+      respuestaEncuesta: {
+        findFirst: jest.fn(),
+      },
     };
 
     controller = new SubmitSurveyController(
       prisma as unknown as PrismaService,
       repository as unknown as SurveyRepositoryPort,
     );
+  });
+
+  it('informa si el titulado ya respondió la encuesta vigente', async () => {
+    prisma.encuesta.findFirst.mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000' });
+    prisma.respuestaEncuesta.findFirst.mockResolvedValue({ id: 'respuesta-existente' });
+
+    await expect(controller.getStatus(actor)).resolves.toEqual({
+      data: { submitted: true },
+    });
+    expect(prisma.respuestaEncuesta.findFirst).toHaveBeenCalledWith({
+      where: {
+        idEncuesta: '123e4567-e89b-12d3-a456-426614174000',
+        idTitulado: actor.scopes.graduateId,
+      },
+      select: { id: true },
+    });
+  });
+
+  it('informa que no hay respuesta si el titulado aún no envió la encuesta vigente', async () => {
+    prisma.encuesta.findFirst.mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000' });
+    prisma.respuestaEncuesta.findFirst.mockResolvedValue(null);
+
+    await expect(controller.getStatus(actor)).resolves.toEqual({
+      data: { submitted: false },
+    });
+  });
+
+  it('informa que no hay respuesta cuando no existe una encuesta vigente', async () => {
+    prisma.encuesta.findFirst.mockResolvedValue(null);
+
+    await expect(controller.getStatus(actor)).resolves.toEqual({
+      data: { submitted: false },
+    });
+    expect(prisma.respuestaEncuesta.findFirst).not.toHaveBeenCalled();
   });
 
   it('registra una respuesta nueva usando la identidad del titulado autenticado', async () => {

@@ -4,6 +4,7 @@ import {
   Controller,
   ConflictException,
   Inject,
+  Get,
   HttpCode,
   HttpStatus,
   InternalServerErrorException,
@@ -29,6 +30,29 @@ export class SubmitSurveyController {
     @Inject(SURVEY_REPOSITORY_PORT)
     private readonly repository: SurveyRepositoryPort,
   ) {}
+
+  @Get('status')
+  @HttpCode(HttpStatus.OK)
+  @Roles('titulado')
+  async getStatus(@CurrentActor() actor: ActorContext) {
+    const tituladoId = actor.scopes.graduateId;
+    if (!tituladoId) {
+      throw new NotFoundException('Perfil de titulado no encontrado');
+    }
+
+    const survey = await this.prisma.encuesta.findFirst({
+      orderBy: { fecha_creacion: 'desc' },
+    });
+    if (!survey) {
+      return { data: { submitted: false } };
+    }
+
+    const response = await this.prisma.respuestaEncuesta.findFirst({
+      where: { idEncuesta: survey.id, idTitulado: tituladoId },
+      select: { id: true },
+    });
+    return { data: { submitted: response !== null } };
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
