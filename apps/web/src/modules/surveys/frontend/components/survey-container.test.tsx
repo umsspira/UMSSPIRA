@@ -81,6 +81,17 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(screen.getAllByText('Este campo es obligatorio')).toHaveLength(6);
   });
 
+  it('muestra el salario a todo el ancho y el tiempo de inserción debajo, como en el mock-up', async () => {
+    await renderSurvey();
+    elegirTrabaja();
+    const salario = screen.getByRole('group', { name: /Salario mensual/ });
+    const tiempo = screen.getByLabelText(/Tiempo de inserción laboral \(meses\)/);
+    const contenedor = salario.parentElement as HTMLElement;
+    expect(contenedor).toContainElement(tiempo);
+    expect(contenedor.className).not.toMatch(/grid-cols-2/);
+    expect(salario.compareDocumentPosition(tiempo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('al pasar de Trabaja a No trabaja avisa que se descartaron las respuestas', async () => {
     await renderSurvey();
     elegirTrabaja();
