@@ -1,6 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { SurveyContainer } from './survey-container';
+import { getSurveySubmissionStatus } from '../services/surveys.service';
+
+jest.mock('../services/surveys.service', () => ({
+  ...jest.requireActual('../services/surveys.service'),
+  getSurveySubmissionStatus: jest.fn().mockResolvedValue(false),
+}));
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ back: jest.fn() }),
@@ -41,34 +47,42 @@ function llenarFormulario() {
 
 const SESSION_KEY = 'umsspira:survey-session:user-1';
 
+const mockedSubmissionStatus = getSurveySubmissionStatus as jest.Mock;
+
 beforeEach(() => {
   window.localStorage.clear();
   window.sessionStorage.clear();
+  mockedSubmissionStatus.mockResolvedValue(false);
 });
 
+async function renderSurvey() {
+  render(<SurveyContainer />);
+  await screen.findByRole('button', { name: /Siguiente/ });
+}
+
 describe('SurveyContainer · formulario HU-2', () => {
-  it('no deja avanzar sin elegir la condición laboral', () => {
-    render(<SurveyContainer />);
+  it('no deja avanzar sin elegir la condición laboral', async () => {
+    await renderSurvey();
     siguiente();
     expect(screen.getByRole('alert').textContent).toBe('Seleccione su condición laboral actual');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('con Trabaja no muestra errores hasta que el titulado intenta continuar', () => {
-    render(<SurveyContainer />);
+  it('con Trabaja no muestra errores hasta que el titulado intenta continuar', async () => {
+    await renderSurvey();
     elegirTrabaja();
     expect(screen.queryAllByText('Este campo es obligatorio')).toHaveLength(0);
   });
 
-  it('al presionar Siguiente con Trabaja muestra «Este campo es obligatorio» en cada pregunta vacía', () => {
-    render(<SurveyContainer />);
+  it('al presionar Siguiente con Trabaja muestra «Este campo es obligatorio» en cada pregunta vacía', async () => {
+    await renderSurvey();
     elegirTrabaja();
     siguiente();
     expect(screen.getAllByText('Este campo es obligatorio')).toHaveLength(6);
   });
 
-  it('al pasar de Trabaja a No trabaja avisa que se descartaron las respuestas', () => {
-    render(<SurveyContainer />);
+  it('al pasar de Trabaja a No trabaja avisa que se descartaron las respuestas', async () => {
+    await renderSurvey();
     elegirTrabaja();
     escribir('Ej. Analista de sistemas', 'Analista');
     elegirNoTrabaja();
@@ -78,14 +92,14 @@ describe('SurveyContainer · formulario HU-2', () => {
     ).toBeTruthy();
   });
 
-  it('no muestra el aviso de descarte al elegir No trabaja desde el inicio', () => {
-    render(<SurveyContainer />);
+  it('no muestra el aviso de descarte al elegir No trabaja desde el inicio', async () => {
+    await renderSurvey();
     elegirNoTrabaja();
     expect(screen.queryByText('Las respuestas anteriores se descartaron')).toBeNull();
   });
 
-  it('al volver a Trabaja oculta el aviso y los campos aparecen vacíos', () => {
-    render(<SurveyContainer />);
+  it('al volver a Trabaja oculta el aviso y los campos aparecen vacíos', async () => {
+    await renderSurvey();
     elegirTrabaja();
     escribir('Ej. Analista de sistemas', 'Analista');
     elegirNoTrabaja();
@@ -94,30 +108,30 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(valorDe('Ej. Analista de sistemas')).toBe('');
   });
 
-  it('con campos obligatorios vacíos no abre el resumen', () => {
-    render(<SurveyContainer />);
+  it('con campos obligatorios vacíos no abre el resumen', async () => {
+    await renderSurvey();
     elegirTrabaja();
     siguiente();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('con No trabaja oculta los campos laborales y deja avanzar', () => {
-    render(<SurveyContainer />);
+  it('con No trabaja oculta los campos laborales y deja avanzar', async () => {
+    await renderSurvey();
     elegirNoTrabaja();
     expect(screen.queryByPlaceholderText('Ej. Analista de sistemas')).toBeNull();
     siguiente();
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
-  it('con Trabaja y todo respondido abre el resumen', () => {
-    render(<SurveyContainer />);
+  it('con Trabaja y todo respondido abre el resumen', async () => {
+    await renderSurvey();
     llenarFormulario();
     siguiente();
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
-  it('solo una modalidad queda marcada al cambiar de opción', () => {
-    render(<SurveyContainer />);
+  it('solo una modalidad queda marcada al cambiar de opción', async () => {
+    await renderSurvey();
     elegirTrabaja();
     fireEvent.click(screen.getByRole('radio', { name: 'Remoto' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Híbrido' }));
@@ -128,8 +142,8 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(marcadas[0].textContent).toBe('Híbrido');
   });
 
-  it('al volver desde el resumen conserva todo lo escrito', () => {
-    render(<SurveyContainer />);
+  it('al volver desde el resumen conserva todo lo escrito', async () => {
+    await renderSurvey();
     llenarFormulario();
     siguiente();
     fireEvent.click(screen.getByRole('button', { name: /Volver y editar/ }));
@@ -143,8 +157,8 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect((screen.getByRole('radio', { name: '3.000–5.000' }) as HTMLInputElement).checked).toBe(true);
   });
 
-  it('guarda el borrador al pasar al resumen, sin salario ni tiempo de inserción', () => {
-    render(<SurveyContainer />);
+  it('guarda el borrador al pasar al resumen, sin salario ni tiempo de inserción', async () => {
+    await renderSurvey();
     llenarFormulario();
     siguiente();
     const guardado = JSON.parse(window.localStorage.getItem(DRAFT_KEY) as string);
@@ -176,16 +190,16 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(screen.getByText('Borrador recuperado')).toBeTruthy();
   });
 
-  it('guarda el borrador mientras escribe, sin presionar Siguiente', () => {
-    render(<SurveyContainer />);
+  it('guarda el borrador mientras escribe, sin presionar Siguiente', async () => {
+    await renderSurvey();
     elegirTrabaja();
     escribir('Ej. Analista de sistemas', 'Analista');
     const guardado = JSON.parse(window.localStorage.getItem(DRAFT_KEY) as string);
     expect(guardado).toEqual({ workCondition: 'works', cargo: 'Analista' });
   });
 
-  it('guarda salario y tiempo solo en la sesión de la pestaña, no en localStorage', () => {
-    render(<SurveyContainer />);
+  it('guarda salario y tiempo solo en la sesión de la pestaña, no en localStorage', async () => {
+    await renderSurvey();
     llenarFormulario();
     expect(window.localStorage.getItem(DRAFT_KEY)).not.toContain('3.000');
     expect(JSON.parse(window.sessionStorage.getItem(SESSION_KEY) as string)).toEqual({
@@ -203,8 +217,8 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect((screen.getByRole('radio', { name: '3.000–5.000' }) as HTMLInputElement).checked).toBe(true);
   });
 
-  it('al pasar a No trabaja borra salario y tiempo de la sesión', () => {
-    render(<SurveyContainer />);
+  it('al pasar a No trabaja borra salario y tiempo de la sesión', async () => {
+    await renderSurvey();
     llenarFormulario();
     elegirNoTrabaja();
     expect(window.sessionStorage.getItem(SESSION_KEY)).toBeNull();
@@ -219,5 +233,14 @@ describe('SurveyContainer · formulario HU-2', () => {
     render(<SurveyContainer />);
     await screen.findByDisplayValue('Analista');
     expect(screen.getByRole('radio', { name: 'Remoto' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('bloquea la encuesta después de verificar un envío previo en el servidor', async () => {
+    mockedSubmissionStatus.mockResolvedValue(true);
+    render(<SurveyContainer />);
+
+    expect(await screen.findByText('Esta encuesta ya fue enviada. No es posible enviarla nuevamente.')).toBeInTheDocument();
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Siguiente/ })).toBeNull();
   });
 });

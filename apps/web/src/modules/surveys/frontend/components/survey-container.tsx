@@ -6,6 +6,7 @@ import { useSurveyDraft } from '../hooks/use-survey-draft';
 import { useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
 import { useSurveySubmit } from '../hooks/use-survey-submit';
 import { useSurveyUserId } from '../hooks/use-survey-user-id';
+import { getSurveySubmissionStatus } from '../services/surveys.service';
 import { SurveyDraftNotice } from './survey-draft-notice';
 import { Button } from '@/shared/components/button';
 import { SurveyJobInputs } from './survey-job-inputs';
@@ -34,11 +35,26 @@ export function SurveyContainer() {
   const [showDiscardNotice, setShowDiscardNotice] = useState(false);
   // HU-002: «Este campo es obligatorio» se muestra recién cuando el titulado intenta continuar.
   const [showErrors, setShowErrors] = useState(false);
+  const [submissionCheck, setSubmissionCheck] = useState<'checking' | 'available' | 'submitted' | 'error'>('checking');
+  const [statusCheckAttempt, setStatusCheckAttempt] = useState(0);
   const router = useRouter();
   const userId = useSurveyUserId();
   const { draft, status, saveDraft, clearDraft } = useSurveyDraft(userId);
   const form = useSurveyForm();
   const submission = useSurveySubmit();
+
+  useEffect(() => {
+    let active = true;
+    setSubmissionCheck('checking');
+    getSurveySubmissionStatus().then((submitted) => {
+      if (active) setSubmissionCheck(submitted ? 'submitted' : 'available');
+    }).catch(() => {
+      if (active) setSubmissionCheck('error');
+    });
+    return () => {
+      active = false;
+    };
+  }, [statusCheckAttempt]);
 
   // Tras cerrar la confirmación, el mensaje de éxito recibe foco y queda visible.
   useEffect(() => {
@@ -101,7 +117,7 @@ export function SurveyContainer() {
   };
 
   const handleNext = () => {
-    if (submission.status === 'success') return;
+    if (submissionCheck !== 'available' || submission.status === 'success') return;
     if (!form.canProceed) {
       setError('Seleccione su condición laboral actual');
       return;
@@ -115,7 +131,7 @@ export function SurveyContainer() {
   };
 
   const handleConfirm = async () => {
-    if (form.values.condicion_laboral === null || hasWorkErrors) return;
+    if (submissionCheck !== 'available' || form.values.condicion_laboral === null || hasWorkErrors) return;
 
     const sent = await submission.submit({
       condicion_laboral: form.values.condicion_laboral,
@@ -128,6 +144,7 @@ export function SurveyContainer() {
     });
 
     if (sent) {
+      setSubmissionCheck('submitted');
       // Mostrar el éxito dentro del modal antes de permitir cerrarlo.
       clearDraft();
     }
@@ -182,12 +199,33 @@ export function SurveyContainer() {
         Ayúdanos a conocer tu trayectoria profesional. Solo te preguntaremos lo que
         corresponda a tu situación.
       </p>
-      {submission.status === 'success' && !isReviewOpen && (
+      {submission.status === 'success' && submissionCheck !== 'submitted' && !isReviewOpen && (
         <p ref={successNoticeRef} tabIndex={-1} role="status" className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
           {submission.message}
         </p>
       )}
 
+      {submissionCheck === 'checking' && (
+        <p role="status" className="mt-6 rounded-lg border border-abyssal-blue/30 bg-palladian p-4 text-abyssal-blue">
+          Verificando si ya enviaste esta encuesta...
+        </p>
+      )}
+      {submissionCheck === 'error' && (
+        <div role="alert" className="mt-6 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">
+          <p>No se pudo verificar si la encuesta ya fue enviada. Por seguridad, el formulario está bloqueado.</p>
+          <Button type="button" variant="secondary" onClick={() => setStatusCheckAttempt((attempt) => attempt + 1)}>
+            Reintentar verificación
+          </Button>
+        </div>
+      )}
+      {submissionCheck === 'submitted' && (
+        <p role="status" className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
+          {submission.message ?? 'Esta encuesta ya fue enviada. No es posible enviarla nuevamente.'}
+        </p>
+      )}
+
+      {submissionCheck === 'available' && (
+        <>
       <ol className="mt-6 flex items-center gap-3 text-sm">
         <li className="flex items-center gap-2 font-semibold text-abyssal-blue">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-abyssal-blue text-xs text-white">
@@ -300,6 +338,8 @@ export function SurveyContainer() {
           Siguiente →
         </Button>
       </div>
+        </>
+      )}
       <SurveyReviewModal
         isOpen={isReviewOpen && !submission.isSubmitting && submission.status === 'idle'}
         answers={reviewAnswers}
