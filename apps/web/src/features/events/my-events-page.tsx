@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CircleAlert, Info } from 'lucide-react';
-import {
-  EVENT_PARTICIPATION_STATUS,
-  type EventParticipationStatus,
-  type MyEventRegistrationItem,
+import type {
+  EventParticipationStatus,
+  MyEventRegistrationItem,
 } from '@umsspira/shared-types';
 
 import { cancelEventRegistration, getMyEventRegistrations } from '@/shared/services/events-service';
@@ -34,14 +33,14 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
 ];
 
 function toneOf(status: EventParticipationStatus): Tone {
-  if (status === EVENT_PARTICIPATION_STATUS.VIGENTE) return 'active';
-  if (status === EVENT_PARTICIPATION_STATUS.FINALIZADO) return 'finished';
+  if (status === 'VIGENTE') return 'active';
+  if (status === 'FINALIZADO') return 'finished';
   return 'cancelled';
 }
 
 function matchesFilter(item: MyEventRegistrationItem, filter: StatusFilter): boolean {
   if (filter === 'cancelled') return toneOf(item.participationStatus) === 'cancelled';
-  if (filter === 'finished') return item.participationStatus === EVENT_PARTICIPATION_STATUS.FINALIZADO;
+  if (filter === 'finished') return item.participationStatus === 'FINALIZADO';
   return true;
 }
 
@@ -87,7 +86,7 @@ export default function MyEventsPage() {
       ? {
           ...item,
           status: 'CANCELADA',
-          participationStatus: EVENT_PARTICIPATION_STATUS.INSCRIPCION_CANCELADA,
+          participationStatus: 'INSCRIPCION_CANCELADA',
         }
       : item));
   }
@@ -134,7 +133,9 @@ export default function MyEventsPage() {
             <button type="button" className="is-active" aria-current="page">
               Mis eventos
             </button>
-            <Link href="/events/catalog/passes">Mis pases</Link>
+            <Link href="/mis-pases">
+              Mis pases
+            </Link>
           </nav>
         </header>
 
@@ -224,8 +225,7 @@ export default function MyEventsPage() {
               <div className="hu9-list">
                 {visibleItems.map((item) => {
                   const tone = toneOf(item.participationStatus);
-                  const canOpenPass =
-                    item.hasPass && item.participationStatus === EVENT_PARTICIPATION_STATUS.VIGENTE;
+                  const canOpenPass = item.hasPass && item.participationStatus === 'VIGENTE';
 
                   return (
                     <article key={item.id} className={`hu9-event-card is-${tone}`}>
@@ -248,12 +248,12 @@ export default function MyEventsPage() {
                           Ver detalle
                         </Link>
                         {canOpenPass ? (
-                          <Link href="/events/catalog/passes" className="hu9-action">
+                          <Link href="/mis-pases" className="hu9-action">
                             Ver pase
                           </Link>
                         ) : null}
-                      {item.participationStatus === EVENT_PARTICIPATION_STATUS.VIGENTE ||
-                      item.participationStatus === EVENT_PARTICIPATION_STATUS.INSCRIPCION_CANCELADA ? (
+                      {item.participationStatus === 'VIGENTE' ||
+                      item.participationStatus === 'INSCRIPCION_CANCELADA' ? (
                         <CancelRegistrationAction
                           variant="card"
                           event={item.event}

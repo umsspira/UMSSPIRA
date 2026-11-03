@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
 import type { PasswordHasher } from '../../src/modules/auth/application/ports/password-hasher.port';
 import { Argon2PasswordHasher } from '../../src/modules/auth/infrastructure/security/argon2-password.hasher';
 import { seedCatalogs } from './catalogs';
+import { seedInformaticsAdmin } from './informatics-career';
 import {
   DEMO_ACCOUNTS,
   DEMO_CAREER_ID,
@@ -101,4 +102,6 @@ export async function seedBase(
       },
     });
   }
+
+  await seedInformaticsAdmin(prisma);
 }

@@ -19,11 +19,14 @@ import { ReadEventCoverUseCase } from '../../application/use-cases/read-event-co
 import { UploadEventCoverUseCase } from '../../application/use-cases/upload-event-cover.use-case';
 import { RegisterEventUseCase } from '../../application/use-cases/register-event.use-case';
 import { CancelEventRegistrationUseCase } from '../../application/use-cases/cancel-event-registration.use-case';
-
 import { GetEventParticipantsUseCase } from '../../application/use-cases/get-event-participants.use-case';
 import { ListInactiveEventsUseCase } from '../../application/use-cases/list-inactive-events.use-case';
 import { RetireEventUseCase } from '../../application/use-cases/retire-event.use-case';
 import { ListMyEventRegistrationsUseCase } from '../../application/use-cases/list-my-event-registrations.use-case';
+
+// 1. IMPORTACIÓN DEL SERVICIO QR
+import { GenerateEventPassService } from '../../application/generate-event-pass.service';
+
 export const eventsProviders: Provider[] = [
   PrismaEventsRepository,
   { provide: EVENTS_REPOSITORY, useExisting: PrismaEventsRepository },
@@ -72,10 +75,11 @@ export const eventsProviders: Provider[] = [
     inject: [EVENTS_REPOSITORY],
     useFactory: (repository: EventsRepository) => new PublishEventDraftUseCase(repository),
   },
- {
+  // 2. CASO DE USO DE INSCRIPCIÓN CORREGIDO CON EL GENERADOR DE QR
+  {
     provide: RegisterEventUseCase,
-    inject: [EVENTS_REPOSITORY],
-    useFactory: (repository: EventsRepository) => new RegisterEventUseCase(repository),
+    inject: [EVENTS_REPOSITORY, GenerateEventPassService],
+    useFactory: (repository: EventsRepository, generatePassService: GenerateEventPassService) => new RegisterEventUseCase(repository, generatePassService),
   },
   {
     provide: CancelEventRegistrationUseCase,
@@ -117,7 +121,6 @@ export const eventsProviders: Provider[] = [
     inject: [EVENTS_REPOSITORY],
     useFactory: (repository: EventsRepository) => new RetireEventUseCase(repository),
   },
-
   {
     provide: ListMyEventRegistrationsUseCase,
     inject: [EVENTS_REPOSITORY],

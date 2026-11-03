@@ -238,9 +238,9 @@ export default function EventDetailPage({
             <Link href="/portal/eventos/mis-eventos" className="hu3-result-action">
                  Ver mis eventos
             </Link>
-              <button type="button" className="hu3-result-action hu3-result-action-primary" disabled title="El pase estará disponible cuando se genere">
+              <Link href="/mis-pases" className="hu3-result-action hu3-result-action-primary">
                 Ver pase QR
-              </button>
+              </Link>
             </div>
             </> : null}
             {isTitulado ? (
@@ -386,9 +386,9 @@ export default function EventDetailPage({
             <Link href="/portal/eventos/mis-eventos" className="hu3-result-action">
                    Ver mis eventos
                  </Link>
-              <button type="button" className="hu3-result-action hu3-result-action-primary" disabled title="El pase estará disponible cuando se genere">
+              <Link href="/mis-pases" className="hu3-result-action hu3-result-action-primary">
                 Ver pase QR
-              </button>
+              </Link>
             </div>
           </section>
         </div>
