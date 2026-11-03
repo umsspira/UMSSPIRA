@@ -1,0 +1,57 @@
+/* HU8 adaptations; the original board, detail and header styles stay scoped. */
+.hu8-mode-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; color: #52677c; font-size: 13px; }
+.hu8-demo-banner { margin-bottom: 24px; border: 1px solid #d1ad70; border-radius: 10px; background: #fff4d9; padding: 16px 20px; color: #65451d; font-size: 13px; }
+.hu8-demo-banner .hu8-mode-controls { margin-bottom: 8px; color: #65451d; }
+.hu8-demo-banner p { margin: 0; }
+.hu8-demo-scenarios { margin-top: 12px; }
+.hu8-demo-scenarios summary { cursor: pointer; font-weight: 600; }
+.hu8-demo-scenarios nav { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 12px; }
+.hu8-demo-scenarios .hu8-board-button { min-height: 38px; padding: 6px 12px; font-size: 12px; }
+.hu8-demo-scenarios [aria-current] { border-color: #8c6229; background: #f8dfb5; }
+.hu8-lookup-close { display: flex; justify-content: flex-end; margin-top: 24px; }
+.hu8-demo-id-field { padding-left: 14px; }
+.hu8-demo-hero-skeleton { height: 110px; margin-top: 28px; }
+.hu8-demo-card-skeleton { min-height: 240px; }
+.hu8-shell { --jobs-border: #ded6c9; --jobs-muted: #566b82; display: flex; min-height: 100vh; flex-direction: column; background: #f5f2ec; color: #192940; font-family: 'HU8 Detail Inter', Arial, Helvetica, sans-serif; }
+.hu8-shell .hu8-board-page { min-height: auto; flex: 1; font-family: inherit; }
+.hu8-shell .hu8-header-header { font-family: inherit; }
+.hu8-shell .hu8-header-header { height: auto; min-height: 72px; }
+.hu8-shell .hu8-header-header .hu8-header-item[aria-disabled] { opacity: .55; cursor: default; }
+.hu8-shell button:disabled, .hu8-shell input:disabled, .hu8-shell select:disabled { cursor: not-allowed; opacity: .6; }
+.hu8-shell .hu8-board-field, .hu8-shell .hu8-board-field::placeholder { color: #52677c; }
+.hu8-shell a:focus-visible, .hu8-shell button:focus-visible, .hu8-shell input:focus-visible, .hu8-shell select:focus-visible, .hu8-shell summary:focus-visible, .hu8-shell [tabindex]:focus-visible { outline: 3px solid #c67e2d; outline-offset: 4px; }
+.hu8-skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-160%); border-radius: 6px; background: #fff; padding: 12px; color: #192940; }
+.hu8-skip-link:focus { transform: translateY(0); }
+.hu8-board-headingActions { display: flex; flex-shrink: 0; flex-wrap: wrap; gap: 10px; }
+.hu8-board-refresh { display: grid; width: 32px; height: 32px; flex-shrink: 0; place-items: center; border-radius: 6px; }
+.hu8-listing-unavailable { display: flex; min-height: 190px; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; }
+.hu8-listing-unavailable > svg { color: #71829a; }
+.hu8-listing-unavailable h2 { font-size: 20px; font-weight: 600; }
+.hu8-listing-unavailable p { max-width: 580px; color: #566b82; }
+.hu8-consultation-lookup { margin-top: 32px; scroll-margin-top: 96px; }
+.hu8-consultation-form { display: flex; align-items: flex-end; gap: 12px; margin: 20px 0; }
+.hu8-consultation-input { min-width: 0; flex: 1; }
+.hu8-consultation-submit { border-color: #ffb15f; background: #ffb15f; font-weight: 600; }
+.hu8-consultation-submit:hover { background: #f3a14e; }
+.hu8-consultation .hu8-consultation-id { margin-bottom: 20px; color: #566b82; font-size: 12px; overflow-wrap: anywhere; }
+.hu8-consultation-errorText { color: #a12727; }
+.hu8-consultation-error { border: 1px solid #efc9c0; border-radius: 10px; background: #fff9f6; padding: 20px; color: #8e3024; }
+.hu8-consultation-error > svg { margin-bottom: 12px; }
+.hu8-consultation-error h3 { margin-bottom: 12px; }
+.hu8-consultation-empty { border-radius: 8px; background: #f5f2ec; padding: 18px; color: #566b82; }
+.hu8-consultation-detailLink { display: flex; align-items: center; gap: 20px; margin-top: 24px; border-top: 1px solid #ded6c9; padding-top: 20px; }
+.hu8-consultation .hu8-consultation-detailLink p { margin: 0; font-size: 12px; }
+.hu8-consultation-detailLink .hu8-board-offer { width: auto; min-width: 130px; flex-shrink: 0; }
+.hu8-requirement-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 8px 0; color: #526982; font-size: 12px; }
+.hu8-requirement-meta span { border-radius: 20px; background: #eef1f5; padding: 3px 10px; }
+.hu8-requirement-meta .hu8-requirement-desirable { background: #fff0df; color: #945229; }
+.hu8-requirements-skeleton { display: grid; gap: 16px; margin-top: 20px; }
+.hu8-requirements-skeleton .hu8-board-skeleton { height: 24px; }
+.hu8-detail-hero-top { flex-wrap: wrap; }
+.hu8-detail-hero-meta { overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .hu8-board-headingActions { margin-left: 54px; }
+  .hu8-consultation-form, .hu8-consultation-detailLink { align-items: stretch; flex-direction: column; }
+  .hu8-consultation-form { gap: 16px; }
+  .hu8-header-avatar { flex-shrink: 0; }
+}

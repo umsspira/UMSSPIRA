@@ -1,0 +1,63 @@
+/* Scoped to HU8 consultation detail; no rules for the shared navigation/list. */
+@font-face { font-family: 'HU8 Detail Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/hu8/InterVariable.woff2') format('woff2'); }
+.hu8-detail-page { --jobs-bg: #f5f2ec; --jobs-ink: #192940; --jobs-muted: #697f99; --jobs-border: #dcd0bf; font-family: 'HU8 Detail Inter', Inter, Arial, Helvetica, sans-serif; }
+.hu8-detail-content { width: 100%; max-width: 1440px; flex: 1; margin: 0 auto; padding: 24px 5% 40px; }
+.hu8-detail-back { display: flex; width: fit-content; color: #345e78; }
+.hu8-detail-hero { margin-top: 24px; border-radius: 14px; background: #1b2d38; padding: 32px; color: #fff; }
+.hu8-detail-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 26px; }
+.hu8-detail-company { margin: 0; font-size: 14px; font-weight: 600; line-height: 22px; }
+.hu8-detail-status { flex-shrink: 0; border-radius: 20px; background: #e5e9ed; padding: 3px 12px; color: #334859; font-size: 12px; line-height: 20px; }
+.hu8-detail-status-open { background: #e8f5ec; color: #23734b; }
+.hu8-detail-hero h1 { margin: 20px 0 18px; color: #fff; font-size: 34px; font-weight: 700; letter-spacing: -0.5px; line-height: 42px; overflow-wrap: anywhere; }
+.hu8-detail-location { display: flex; align-items: center; gap: 8px; margin: 0; color: #e0e7ee; font-size: 14px; line-height: 22px; }
+.hu8-detail-location svg { flex-shrink: 0; color: #c4d0da; }
+.hu8-detail-hero-meta { margin: 20px 0 0; color: #c5d0da; font-size: 12px; line-height: 17px; }
+.hu8-detail-panorama { height: 110px; margin-top: 20px; border-radius: 8px; background-image: linear-gradient(90deg, #172b37f2, #172b3770 45%, #172b371a), url('/hu8/buildings-panorama.jpg'); background-position: center, center 36%; background-size: cover; }
+.hu8-detail-grid { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); align-items: start; gap: 24px; margin-top: 24px; }
+.hu8-detail-stack, .hu8-detail-sidebar { display: flex; min-width: 0; flex-direction: column; gap: 20px; }
+.hu8-detail-card { min-width: 0; border: 1px solid var(--jobs-border); border-radius: 14px; background: #fff; padding: 22px 23px; font-size: 14px; line-height: 21px; overflow-wrap: anywhere; }
+.hu8-detail-card h2, .hu8-detail-card h3 { display: flex; align-items: center; gap: 20px; margin: 0 0 16px; font-size: 16px; font-weight: 700; line-height: 24px; }
+.hu8-detail-card h2 { padding-left: 10px; }
+.hu8-detail-card h2:has(svg) { padding-left: 0; }
+.hu8-detail-card h2 svg { flex-shrink: 0; color: #808080; stroke-width: 1.6; }
+.hu8-detail-card p { margin: 0 0 16px; white-space: pre-line; }
+.hu8-detail-card p:last-child { margin-bottom: 0; }
+.hu8-detail-muted { color: var(--jobs-muted); }
+.hu8-detail-bullets { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0 0 0 18px; list-style: disc; }
+.hu8-detail-bullets li { padding-left: 0; }
+.hu8-detail-bullets li::marker { color: #ad5032; font-size: 12px; }
+.hu8-detail-desirable { margin-top: 16px; border-top: 1px solid var(--jobs-border); padding-top: 14px; }
+.hu8-detail-desirable h3 { margin-bottom: 14px; }
+.hu8-detail-company-facts { color: var(--jobs-muted); font-size: 12px; line-height: 20px; }
+.hu8-detail-company-link { border: 0; background: transparent; padding: 0; color: #b55739; font-size: 12px; line-height: 20px; text-align: left; }
+.hu8-detail-company-link:disabled { opacity: .8; }
+.hu8-detail-facts { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+.hu8-detail-facts dt { margin-bottom: 4px; color: var(--jobs-muted); font-size: 12px; line-height: 18px; }
+.hu8-detail-facts dd { margin: 0; font-weight: 600; line-height: 22px; }
+.hu8-detail-actions { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; border-top: 1px solid var(--jobs-border); padding-top: 16px; }
+.hu8-detail-apply, .hu8-detail-save { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--jobs-border); border-radius: 8px; padding: 10px 14px; font-size: 14px; line-height: 22px; }
+.hu8-detail-apply { border-color: #ffb15f; background: #ffb15f; color: #142634; }
+.hu8-detail-save { background: #fff; color: var(--jobs-ink); }
+.hu8-detail-save svg { color: var(--jobs-muted); }
+.hu8-detail-apply:disabled, .hu8-detail-save:disabled { opacity: .85; }
+.hu8-detail-actions p { margin: -4px 0 0; color: var(--jobs-muted); font-size: 11px; line-height: 16px; text-align: center; }
+.hu8-detail-notice { display: flex; align-items: flex-start; gap: 12px; border-radius: 10px; background: #fff0df; padding: 16px; font-size: 12px; line-height: 18px; }
+.hu8-detail-notice svg { flex-shrink: 0; margin-top: 1px; color: #69839a; }
+.hu8-detail-notice p { margin: 0; }
+.hu8-detail-footer { border-top: 1px solid var(--jobs-border); color: var(--jobs-muted); font-size: 11px; line-height: 18px; }
+.hu8-detail-footer > div { display: flex; width: 100%; max-width: 1440px; justify-content: space-between; gap: 24px; margin: 0 auto; padding: 18px 5%; }
+.hu8-detail-footer span:last-child { color: #b55739; }
+.hu8-detail-loading-hero .hu8-board-skeleton { background: #3a4b56; }
+@media (max-width: 960px) {
+  .hu8-detail-grid { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+  .hu8-detail-card { padding: 20px; }
+}
+@media (max-width: 720px) {
+  .hu8-detail-content { padding: 24px 20px 36px; }
+  .hu8-detail-hero { padding: 24px; }
+  .hu8-detail-hero h1 { font-size: 28px; line-height: 36px; }
+  .hu8-detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .hu8-detail-panorama { height: 100px; }
+  .hu8-detail-card h2 { padding-left: 0; }
+  .hu8-detail-footer > div { flex-wrap: wrap; gap: 8px; padding: 18px 20px; }
+}

@@ -1,0 +1,29 @@
+.hu8-header-header { position: sticky; top: 0; z-index: 50; height: 72px; background: #10182b; color: #cbd3df; font-family: Inter, Arial, Helvetica, sans-serif; }
+.hu8-header-inner { display: flex; width: 100%; max-width: 1440px; height: 72px; align-items: center; justify-content: space-between; gap: 28px; margin: 0 auto; padding: 0 48px; }
+.hu8-header-logo { display: flex; width: 172px; flex-shrink: 0; align-items: center; }
+.hu8-header-logo img { width: 172px; height: auto; }
+.hu8-header-nav { display: flex; height: 100%; align-items: center; gap: 8px; }
+.hu8-header-item { position: relative; display: inline-flex; height: 52px; align-items: center; gap: 9px; border-radius: 7px; padding: 0 11px; color: #cbd3df; font-size: 14px; line-height: 20px; white-space: nowrap; }
+.hu8-header-active { background: #1e2c3e; }
+.hu8-header-active::after { position: absolute; right: 10px; bottom: 9px; left: 10px; height: 3px; border-radius: 3px; background: #e39a44; content: ''; }
+.hu8-header-item[href]:hover { background: #1e2c3e; }
+.hu8-header-account { display: flex; flex-shrink: 0; align-items: center; gap: 18px; }
+.hu8-header-profile { display: flex; align-items: center; gap: 20px; color: #cbd3df; }
+.hu8-header-avatar { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: #fff; color: #17233c; }
+.hu8-header-mobile { display: none; }
+@media (max-width: 1190px) {
+  .hu8-header-inner { gap: 18px; padding-right: 28px; padding-left: 28px; }
+  .hu8-header-nav { gap: 0; }
+  .hu8-header-item { gap: 6px; padding-right: 8px; padding-left: 8px; font-size: 12px; }
+  .hu8-header-logo, .hu8-header-logo img { width: 150px; }
+}
+@media (max-width: 940px) {
+  .hu8-header-inner { padding-right: 20px; padding-left: 20px; }
+  .hu8-header-nav { display: none; }
+  .hu8-header-mobile { display: block; margin-left: auto; }
+  .hu8-header-mobile summary { display: grid; width: 40px; height: 40px; cursor: pointer; list-style: none; place-items: center; }
+  .hu8-header-mobile summary::-webkit-details-marker { display: none; }
+  .hu8-header-mobileNav { position: absolute; top: 72px; right: 0; left: 0; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #2a3548; background: #10182b; padding: 12px 20px 20px; }
+  .hu8-header-account { gap: 14px; }
+  .hu8-header-profile { gap: 10px; }
+}
