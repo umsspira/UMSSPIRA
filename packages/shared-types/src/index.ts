@@ -1,3 +1,2 @@
-export type PingResponse = { status: string; message: string; timestamp: string; };
-export * from './company';
-export * from './job-posting';
+﻿export type PingResponse = { status: string; message: string; timestamp: string; };
+export type { TechnicalVacancyRequirement } from './technical-vacancy-requirement';
