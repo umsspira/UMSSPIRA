@@ -16,7 +16,6 @@ import { SessionError } from '@/shared/services/auth-session';
 import { authStore } from '@/modules/auth/frontend/store';
 
 import { getMyEventPasses } from './event-passes-service';
-import { EventPassQrCard } from './event-pass-qr-card';
 import { EventsMobileBottomNav } from '@/features/events/events-mobile-bottom-nav';
 
 type LoadState = 'loading' | 'success' | 'error';
@@ -34,16 +33,14 @@ function passSchedule(pass: EventPassDto): string {
   }).format(new Date(value));
 }
 
-export default function MyQrPassesPage() {
+export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }: { passesHref?: string }) {
   const [passes, setPasses] = useState<EventPassDto[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [loadError, setLoadError] = useState<'session' | 'forbidden' | 'unavailable' | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [filter, setFilter] = useState<PassFilter>('all');
-  const [openedPassId, setOpenedPassId] = useState<string | null>(null);
   const validCount = passes.filter(isValidPass).length;
   const visiblePasses = filter === 'inactive' ? passes.filter((pass) => !isValidPass(pass)) : passes;
-  const openedPass = passes.find((pass) => pass.id === openedPassId);
 
   const retry = useCallback(() => {
     setRetryCount((value) => value + 1);
@@ -55,7 +52,6 @@ export default function MyQrPassesPage() {
       if (authStore.getState().status !== 'idle') return;
       controller.abort();
       setPasses([]);
-      setOpenedPassId(null);
       setLoadError('session');
       setLoadState('error');
     });
@@ -105,7 +101,7 @@ export default function MyQrPassesPage() {
           <nav className="qr-passes-tabs" aria-label="Navegación de eventos">
             <Link href="/portal/eventos">Explorar</Link>
             <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
-            <Link href="/events/catalog/passes" aria-current="page" className="active">Mis pases</Link>
+            <Link href={passesHref} aria-current="page" className="active">Mis pases</Link>
           </nav>
         </div>
 
@@ -210,21 +206,15 @@ export default function MyQrPassesPage() {
                         <h2>{pass.eventDetails?.name || 'Evento sin nombre'}</h2>
                         <span className={`qr-passes-list-status${valid ? '' : ' is-inactive'}`}>{valid ? 'VÁLIDO' : pass.status === 'VENCIDO' ? 'VENCIDO' : 'PASE INVALIDADO'}</span>
                         <p>{valid ? `${passSchedule(pass)} · ${pass.eventDetails?.location || 'Ubicación no disponible'}` : 'El pase asociado ya no es válido para acceso.'}</p>
-                        <button type="button" className="qr-passes-open" onClick={() => setOpenedPassId(pass.id)}>
+                        <Link className="qr-passes-open" href={`/mis-pases/${encodeURIComponent(pass.id)}${passesHref === '/events/catalog/passes' ? '?from=catalog' : ''}`}>
                           {valid ? 'Abrir pase' : 'Ver detalle'}
-                        </button>
+                        </Link>
                       </div>
                     </article>
                   );
                 })}
               </section>
             )}
-            {openedPass ? (
-              <section className="qr-passes-opened" aria-label="Detalle del pase">
-                <button type="button" className="qr-passes-close" onClick={() => setOpenedPassId(null)}>← Volver a mis pases</button>
-                <EventPassQrCard pass={openedPass} />
-              </section>
-            ) : null}
           </>
         )}
       </div>

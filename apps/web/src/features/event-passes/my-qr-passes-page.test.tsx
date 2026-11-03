@@ -33,9 +33,9 @@ it('filtra pases reales y abre el componente de pase sin mostrar QR en el invali
   fireEvent.click(screen.getByRole('button', { name: 'TODOS' }));
   expect(screen.getByText('Feria de empleo')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'NO VIGENTES' }));
-  fireEvent.click(within(invalidCard).getByRole('button', { name: 'Ver detalle' }));
-  expect(screen.getByRole('region', { name: 'Detalle del pase' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /Volver a mis pases/ }));
+  expect(within(invalidCard).getByRole('link', { name: 'Ver detalle' })).toHaveAttribute('href', '/mis-pases/pass-2?from=catalog');
+  fireEvent.click(screen.getByRole('button', { name: 'TODOS' }));
+  expect(screen.getByRole('link', { name: 'Abrir pase' })).toHaveAttribute('href', '/mis-pases/pass-1?from=catalog');
   expect(screen.queryByRole('region', { name: 'Detalle del pase' })).not.toBeInTheDocument();
 });
 
@@ -43,8 +43,7 @@ it('elimina pases y detalle abierto al invalidarse la sesión', async () => {
   jest.mocked(getMyEventPasses).mockResolvedValueOnce([activePass]);
   render(<MyQrPassesPage />);
   expect(await screen.findByText('Feria de empleo')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Abrir pase' }));
-  expect(screen.getByRole('region', { name: 'Detalle del pase' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Abrir pase' })).not.toHaveAttribute('target', '_blank');
 
   act(() => authStore.reset());
 
@@ -61,6 +60,24 @@ it('navega entre Explorar, Mis eventos y Mis pases usando rutas existentes', asy
   expect(screen.getByRole('link', { name: 'Explorar' })).toHaveAttribute('href', '/portal/eventos');
   expect(screen.getByRole('link', { name: 'Mis eventos' })).toHaveAttribute('href', '/portal/eventos/mis-eventos');
   expect(screen.getByRole('link', { name: 'Mis pases' })).toHaveAttribute('href', '/events/catalog/passes');
+});
+
+it('mantiene la pestaña Mis pases en la ruta compatible del portal', async () => {
+  jest.mocked(getMyEventPasses).mockResolvedValueOnce([]);
+  render(<MyQrPassesPage passesHref="/mis-pases" />);
+
+  expect(await screen.findByText('Todavía no tienes pases QR')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Mis pases' })).toHaveAttribute('href', '/mis-pases');
+});
+
+it('desde /mis-pases abre el detalle en la misma pestaña y conserva la vuelta a esa ruta', async () => {
+  jest.mocked(getMyEventPasses).mockResolvedValueOnce([activePass]);
+  render(<MyQrPassesPage passesHref="/mis-pases" />);
+
+  const openLink = await screen.findByRole('link', { name: 'Abrir pase' });
+  expect(openLink).toHaveAttribute('href', '/mis-pases/pass-1');
+  expect(openLink).not.toHaveAttribute('target', '_blank');
+  expect(screen.queryByRole('region', { name: 'Detalle del pase' })).not.toBeInTheDocument();
 });
 
 it('envía a iniciar sesión cuando la consulta de pases responde 401', async () => {
