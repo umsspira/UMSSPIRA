@@ -7,6 +7,7 @@ interface SurveyWorkConditionSelectorProps {
   value: WorkCondition | null;
   onChange: (value: WorkCondition) => void;
   error?: string;
+  disabled?: boolean;
 }
 
 const OPTIONS: { value: WorkCondition; title: string; hint: string }[] = [
@@ -18,9 +19,10 @@ export function SurveyWorkConditionSelector({
   value,
   onChange,
   error,
+  disabled = false,
 }: SurveyWorkConditionSelectorProps) {
   return (
-    <fieldset className="min-w-0">
+    <fieldset className="min-w-0" disabled={disabled}>
       <legend className="text-lg font-semibold text-abyssal-blue">
         1. ¿Cuál es tu situación laboral actual?
       </legend>
@@ -35,7 +37,8 @@ export function SurveyWorkConditionSelector({
             <label
               key={option.value}
               className={cn(
-                'flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors',
+                'flex items-start gap-3 rounded-lg border p-4 transition-colors',
+                disabled ? 'cursor-not-allowed' : 'cursor-pointer',
                 'focus-within:ring-2 focus-within:ring-truffle-trouble/40',
                 selected && 'border-truffle-trouble bg-truffle-trouble/10',
                 !selected && !error && 'border-oatmeal bg-white hover:bg-palladian',

@@ -22,16 +22,18 @@ export function useSurveySubmit() {
   const [status, setStatus] = useState<SurveySubmitStatus>('idle');
   const [errorKind, setErrorKind] = useState<SurveySubmitErrorKind>(null);
   const inFlight = useRef(false);
+  const completed = useRef(false);
 
   const submit = useCallback(async (values: SurveySubmitInput): Promise<boolean> => {
     // Ref inmediata para impedir doble envío incluso entre dos clicks del mismo render.
-    if (inFlight.current) return false;
+    if (inFlight.current || completed.current) return false;
     inFlight.current = true;
     setIsSubmitting(true);
     setStatus('idle');
     setErrorKind(null);
     try {
       await submitSurvey(values);
+      completed.current = true;
       setStatus('success');
       return true;
     } catch (error) {
@@ -46,6 +48,7 @@ export function useSurveySubmit() {
 
   /** Consumir cuando el usuario modifica respuestas; no toca el formulario. */
   const resetFeedback = useCallback(() => {
+    if (completed.current) return;
     setStatus('idle');
     setErrorKind(null);
   }, []);

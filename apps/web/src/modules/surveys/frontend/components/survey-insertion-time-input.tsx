@@ -21,13 +21,14 @@ interface SurveyInsertionTimeInputProps {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  disabled?: boolean;
 }
 
 /**
  * HU-002 / T2.2: tiempo de inserción laboral en número de meses.
  * Impide ingresar valores no numéricos, al escribir o al pegar (CA de la HU-2).
  */
-export function SurveyInsertionTimeInput({ value, onChange, error }: SurveyInsertionTimeInputProps) {
+export function SurveyInsertionTimeInput({ value, onChange, error, disabled = false }: SurveyInsertionTimeInputProps) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const next = nextInsertionTime(value, event.target.value);
     if (next !== value) onChange(next);
@@ -46,6 +47,7 @@ export function SurveyInsertionTimeInput({ value, onChange, error }: SurveyInser
         autoComplete="off"
         placeholder="Ej. 6"
         value={value}
+        disabled={disabled}
         onChange={handleChange}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? 'tiempo-insercion-error' : undefined}

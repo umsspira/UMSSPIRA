@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 /**
  * HU-EP09-01 / T1.2 (Anelis): estado de situación laboral.
@@ -88,9 +88,13 @@ export function toSurveySubmissionPayload(values: SurveyFormValues): SurveySubmi
  */
 export function useSurveyForm(initialValues?: Partial<SurveyFormValues>) {
   const [values, setValues] = useState<SurveyFormValues>(() => createSurveyFormValues(initialValues));
+  const lockedRef = useRef(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   const setWorkCondition = useCallback((condition: SurveyWorkCondition) => {
+    if (lockedRef.current) return;
     setValues((current) => {
+      if (lockedRef.current) return current;
       if (current.condicion_laboral === condition) return current;
       // También se purgan al volver a «Trabaja» tras haber elegido «No trabaja».
       return { condicion_laboral: condition, ...EMPTY_WORK_FIELDS };
@@ -98,7 +102,9 @@ export function useSurveyForm(initialValues?: Partial<SurveyFormValues>) {
   }, []);
 
   const setWorkField = useCallback((field: keyof SurveyWorkFields, value: string) => {
+    if (lockedRef.current) return;
     setValues((current) => {
+      if (lockedRef.current) return current;
       // Ignorar escrituras de inputs ocultos o efectos asíncronos antiguos.
       if (current.condicion_laboral !== true) return current;
       return { ...current, [field]: value };
@@ -106,22 +112,34 @@ export function useSurveyForm(initialValues?: Partial<SurveyFormValues>) {
   }, []);
 
   const replaceValues = useCallback((next: Partial<SurveyFormValues>) => {
-    setValues(createSurveyFormValues(next));
+    if (!lockedRef.current) setValues(createSurveyFormValues(next));
   }, []);
 
   const resetForm = useCallback(() => {
-    setValues(createSurveyFormValues());
+    if (!lockedRef.current) setValues(createSurveyFormValues());
   }, []);
 
   const getSubmissionPayload = useCallback(
-    () => toSurveySubmissionPayload(values),
+    () => {
+      if (lockedRef.current) throw new Error('La encuesta ya fue enviada');
+      return toSurveySubmissionPayload(values);
+    },
     [values],
   );
 
+  /** Solo una respuesta confirmada por el servidor puede bloquear el formulario. */
+  const lockForm = useCallback((saved?: Partial<SurveyFormValues>) => {
+    lockedRef.current = true;
+    if (saved) setValues(createSurveyFormValues(saved));
+    setIsLocked(true);
+  }, []);
+
   return {
     values,
+    isLocked,
+    lockForm,
     showWorkFields: values.condicion_laboral === true,
-    canProceed: values.condicion_laboral !== null,
+    canProceed: !isLocked && values.condicion_laboral !== null,
     setWorkCondition,
     setWorkField,
     replaceValues,

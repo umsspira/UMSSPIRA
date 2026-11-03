@@ -68,3 +68,37 @@ export async function submitSurvey(input: SurveySubmitInput): Promise<void> {
     throw error;
   }
 }
+
+/**
+ * T3.4: estado y respuesta persistida para el titulado autenticado.
+ * El servidor decide si fue respondida; nunca utilizar localStorage como fuente.
+ */
+export const SURVEY_STATUS_PATH = '/api/v1/surveys/me';
+
+export interface SurveyPersistedAnswer {
+  condicion_laboral: boolean;
+  cargo: string | null;
+  empresa: string | null;
+  area: string | null;
+  modalidad: string | null;
+  salario_mensual: string | null;
+  tiempo_insercion: string | null;
+}
+
+export interface SurveyRecordedStatus {
+  responded: boolean;
+  response: SurveyPersistedAnswer | null;
+}
+
+export async function getMySurveyStatus(signal?: AbortSignal): Promise<SurveyRecordedStatus> {
+  const result = await apiFetch<SurveyRecordedStatus>(SURVEY_STATUS_PATH, {
+    method: 'GET',
+    cache: 'no-store',
+    signal,
+  });
+  if (!result || typeof result.responded !== 'boolean' ||
+      (result.responded && !result.response)) {
+    throw new Error('Respuesta inválida al consultar el estado de la encuesta');
+  }
+  return result;
+}

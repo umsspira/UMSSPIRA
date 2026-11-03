@@ -19,6 +19,12 @@ jest.mock('next/image', () => {
   };
 });
 
+jest.mock('../hooks/use-survey-recorded-status', () => ({
+  useSurveyRecordedStatus: () => ({
+    phase: 'editable', response: null, retry: jest.fn(), markSubmitted: jest.fn(),
+  }),
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ back: jest.fn() }),
 }));

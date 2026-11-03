@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useSurveyDraft } from '../hooks/use-survey-draft';
 import { useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
 import { useSurveySubmit } from '../hooks/use-survey-submit';
+import { useSurveyRecordedStatus } from '../hooks/use-survey-recorded-status';
+import type { SurveyPersistedAnswer } from '../services/surveys.service';
 import { useSurveyUserId } from '../hooks/use-survey-user-id';
 import { SurveyDraftNotice } from './survey-draft-notice';
 import { Button } from '@/shared/components/button';
@@ -21,10 +23,22 @@ import type { WorkModality } from '../types/survey-job.types';
 import { SurveyWorkConditionSelector } from './survey-work-condition-selector';
 
 const MODALITY_FROM_DRAFT: Record<NonNullable<SurveyDraft['modalidad']>, WorkModality> = {
-presencial: 'Presencial',
-remoto: 'Remoto',
-hibrido: 'Hibrido',
+  presencial: 'Presencial',
+  remoto: 'Remoto',
+  hibrido: 'Hibrido',
 };
+
+function persistedToForm(answer: SurveyPersistedAnswer): Partial<SurveyFormValues> {
+  return {
+    condicion_laboral: answer.condicion_laboral,
+    cargo: answer.cargo ?? '',
+    empresa: answer.empresa ?? '',
+    area: answer.area ?? '',
+    modalidad: answer.modalidad ?? '',
+    salario_mensual: answer.salario_mensual ?? '',
+    tiempo_insercion: answer.tiempo_insercion ?? '',
+  };
+}
 
 export function SurveyContainer() {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -39,6 +53,22 @@ export function SurveyContainer() {
   const { draft, status, saveDraft, clearDraft } = useSurveyDraft(userId);
   const form = useSurveyForm();
   const submission = useSurveySubmit();
+  const recorded = useSurveyRecordedStatus();
+  const canEdit = recorded.phase === 'editable' && !form.isLocked &&
+    !submission.isSubmitting && submission.status !== 'success' && !isReviewOpen;
+
+  // El servidor es la única fuente de verdad del registro definitivo.
+  // El valor guardado se restaura incluso si al enviar recibimos HTTP 409.
+  useEffect(() => {
+    if (recorded.phase === 'answered') {
+      form.lockForm(recorded.response ? persistedToForm(recorded.response) : undefined);
+    }
+  }, [recorded.phase, recorded.response, form.lockForm]);
+
+  // El borrador local nunca debe sustituir una respuesta ya enviada.
+  useEffect(() => {
+    if (recorded.phase === 'answered' && userId) clearDraft();
+  }, [recorded.phase, userId, clearDraft]);
 
   // Tras cerrar la confirmación, el mensaje de éxito recibe foco y queda visible.
   useEffect(() => {
@@ -48,17 +78,17 @@ export function SurveyContainer() {
   }, [isReviewOpen, submission.status]);
 
   useEffect(() => {
-    if (!draft) return;
+    if (!draft || recorded.phase !== 'editable' || form.isLocked) return;
     form.replaceValues({
       condicion_laboral: draft.workCondition === 'works',
       cargo: draft.cargo,
       empresa: draft.empresa,
       area: draft.area,
-        modalidad: draft.modalidad ? MODALITY_FROM_DRAFT[draft.modalidad] : undefined,
+      modalidad: draft.modalidad ? MODALITY_FROM_DRAFT[draft.modalidad] : undefined,
       salario_mensual: draft.salario_mensual,
       tiempo_insercion: draft.tiempo_insercion,
     });
-  }, [draft]);
+  }, [draft, recorded.phase, form.isLocked, form.replaceValues]);
 
   const workCondition: WorkCondition | null = form.values.condicion_laboral === null
     ? null
@@ -83,6 +113,7 @@ export function SurveyContainer() {
   };
 
   const handleChange = (value: WorkCondition) => {
+    if (!canEdit) return;
     setShowDiscardNotice(form.values.condicion_laboral === true && value === 'not-works');
     setShowErrors(false);
     form.setWorkCondition(value === 'works');
@@ -95,13 +126,14 @@ export function SurveyContainer() {
   };
 
   const handleWorkFieldChange = (field: keyof SurveyWorkFields, value: string) => {
+    if (!canEdit) return;
     form.setWorkField(field, value);
     if (form.values.condicion_laboral === true) persistDraft({ ...form.values, [field]: value });
     if (submission.status !== 'success') submission.resetFeedback();
   };
 
   const handleNext = () => {
-    if (submission.status === 'success') return;
+    if (!canEdit) return;
     if (!form.canProceed) {
       setError('Seleccione su condición laboral actual');
       return;
@@ -115,7 +147,9 @@ export function SurveyContainer() {
   };
 
   const handleConfirm = async () => {
-    if (form.values.condicion_laboral === null || hasWorkErrors) return;
+    if (recorded.phase !== 'editable' || form.isLocked ||
+        submission.isSubmitting || submission.status === 'success' ||
+        form.values.condicion_laboral === null || hasWorkErrors) return;
 
     const sent = await submission.submit({
       condicion_laboral: form.values.condicion_laboral,
@@ -128,8 +162,10 @@ export function SurveyContainer() {
     });
 
     if (sent) {
-      // Mostrar el éxito dentro del modal antes de permitir cerrarlo.
+      // HTTP 201 o 409: bloquear antes de otra interacción y leer los datos reales.
+      recorded.markSubmitted();
       clearDraft();
+      setShowDiscardNotice(false);
     }
   };
 
@@ -182,6 +218,30 @@ export function SurveyContainer() {
         Ayúdanos a conocer tu trayectoria profesional. Solo te preguntaremos lo que
         corresponda a tu situación.
       </p>
+      {recorded.phase === 'checking' && (
+        <div role="status" aria-live="polite" className="mt-4 rounded-lg border border-oatmeal bg-palladian p-4 text-sm text-abyssal-blue">
+          Consultando el estado de tu encuesta...
+        </div>
+      )}
+      {recorded.phase === 'error' && (
+        <div role="alert" className="mt-4 rounded-lg border border-[#a35139] bg-[#fff1ed] p-4 text-sm text-[#a35139]">
+          <p className="font-semibold">No se pudo verificar el estado de la encuesta.</p>
+          <p className="mt-1">Por seguridad, el formulario permanece bloqueado hasta confirmar el estado con el servidor.</p>
+          <button type="button" onClick={recorded.retry}
+            className="mt-3 rounded-lg bg-[#1b2632] px-4 py-2 font-semibold text-white hover:bg-[#2c3b4d]">
+            Reintentar consulta
+          </button>
+        </div>
+      )}
+      {recorded.phase === 'answered' && submission.status !== 'success' && (
+        <div role="status" className="mt-4 flex items-start gap-3 rounded-[10px] border border-[#c9c1b1] bg-[#eaf6ef] p-4 text-sm">
+          <span aria-hidden="true" className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#267451] font-bold text-white">✓</span>
+          <div>
+            <p className="font-semibold text-[#267451]">Encuesta ya registrada</p>
+            <p className="mt-1 text-xs text-[#444]">El servidor detectó un envío anterior y bloqueó la creación de un segundo registro.</p>
+          </div>
+        </div>
+      )}
       {submission.status === 'success' && !isReviewOpen && (
         <p ref={successNoticeRef} tabIndex={-1} role="status" className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
           {submission.message}
@@ -204,11 +264,12 @@ export function SurveyContainer() {
         </li>
       </ol>
 
-      <section className="mt-6 rounded-xl border border-oatmeal bg-white p-4 sm:p-6">
+      <section aria-busy={recorded.phase === 'checking'} className="mt-6 rounded-xl border border-oatmeal bg-white p-4 sm:p-6">
         <SurveyOfflineBanner />
         <SurveyWorkConditionSelector
           value={workCondition}
           onChange={handleChange}
+          disabled={!canEdit}
           error={error}
         />
 
@@ -238,16 +299,19 @@ export function SurveyContainer() {
               }}
               errors={visibleErrors}
               touched={{ cargo: true, empresa: true, area: true, modalidad: true }}
+              disabled={!canEdit}
               onChange={(field, value) => handleWorkFieldChange(field, String(value))}
               onBlur={() => undefined}
             />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <SurveySalarySelector
+                disabled={!canEdit}
                 value={form.values.salario_mensual}
                 onChange={(value) => handleWorkFieldChange('salario_mensual', value)}
                 error={visibleErrors.salario_mensual}
               />
               <SurveyInsertionTimeInput
+                disabled={!canEdit}
                 value={form.values.tiempo_insercion}
                 onChange={(value) => handleWorkFieldChange('tiempo_insercion', value)}
                 error={visibleErrors.tiempo_insercion}
@@ -263,8 +327,9 @@ export function SurveyContainer() {
               No necesitas completar datos de empleo actual
             </p>
             <p className="text-abyssal-blue/70">
-              Al seleccionar No trabaja se ocultan los campos laborales y puedes
-              continuar sin llenarlos.
+              {form.isLocked
+                ? 'La condición laboral ya fue registrada y está disponible únicamente para consulta.'
+                : 'Al seleccionar No trabaja se ocultan los campos laborales y puedes continuar sin llenarlos.'}
             </p>
           </div>
         )}
@@ -283,9 +348,11 @@ export function SurveyContainer() {
           </div>
         )}
 
-        <div className="mt-4 empty:hidden">
-          <SurveyDraftNotice status={status} />
-        </div>
+        {recorded.phase === 'editable' && !form.isLocked && (
+          <div className="mt-4 empty:hidden">
+            <SurveyDraftNotice status={status} />
+          </div>
+        )}
       </section>
 
       <p className="mt-4 text-xs text-abyssal-blue/70">
@@ -296,7 +363,7 @@ export function SurveyContainer() {
         <Button type="button" variant="secondary" onClick={() => router.back()}>
           Volver
         </Button>
-        <Button type="button" variant="primary" onClick={handleNext} disabled={submission.status === 'success'}>
+        <Button type="button" variant="primary" onClick={handleNext} disabled={!canEdit}>
           Siguiente →
         </Button>
       </div>

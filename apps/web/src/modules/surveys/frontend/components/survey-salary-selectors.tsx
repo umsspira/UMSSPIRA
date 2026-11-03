@@ -20,12 +20,13 @@ interface SurveySalarySelectorProps {
   value: string;
   onChange: (value: SalaryRange) => void;
   error?: string;
+  disabled?: boolean;
 }
 
 /** Permite elegir un solo rango de salario mensual (CA de la HU-2). */
-export function SurveySalarySelector({ value, onChange, error }: SurveySalarySelectorProps) {
+export function SurveySalarySelector({ value, onChange, error, disabled = false }: SurveySalarySelectorProps) {
   return (
-    <fieldset className="min-w-0">
+    <fieldset className="min-w-0" disabled={disabled}>
       <legend className="text-sm font-semibold text-abyssal-blue">
         Salario mensual · rango en Bs <span aria-hidden="true">*</span>
       </legend>
@@ -43,7 +44,8 @@ export function SurveySalarySelector({ value, onChange, error }: SurveySalarySel
               <label
                 key={range}
                 className={cn(
-                  'flex cursor-pointer flex-col items-center gap-2 rounded-md px-2 py-2 text-center text-xs transition-colors',
+                  'flex flex-col items-center gap-2 rounded-md px-2 py-2 text-center text-xs transition-colors',
+                  disabled ? 'cursor-not-allowed' : 'cursor-pointer',
                   'focus-within:ring-2 focus-within:ring-truffle-trouble/40',
                   selected ? 'font-semibold text-truffle-trouble' : 'text-abyssal-blue hover:bg-white/70',
                 )}

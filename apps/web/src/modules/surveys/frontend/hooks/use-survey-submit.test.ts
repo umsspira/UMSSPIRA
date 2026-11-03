@@ -105,13 +105,13 @@ describe('HU-EP09-03 / T3.4 — hook de envío', () => {
     expect(result.current.errorKind).toBe('http');
   });
 
-  it('resetea el mensaje al editar sin borrar el formulario', async () => {
+  it('no resetea un envío ya confirmado y conserva el formulario', async () => {
     mockSubmit.mockResolvedValueOnce(undefined);
     const { result } = renderHook(() => useSurveySubmit());
     await act(async () => { await result.current.submit(input); });
     act(() => result.current.resetFeedback());
-    expect(result.current.status).toBe('idle');
-    expect(result.current.message).toBeNull();
+    expect(result.current.status).toBe('success');
+    expect(result.current.message).toBe('Encuesta enviada correctamente');
     expect(input.empresa).toBe('Empresa');
   });
 });
