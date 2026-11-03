@@ -2889,10 +2889,10 @@
 .qr-passes-list-copy p { margin: 0; color: #2c3b4d; font-size: 14px; line-height: 1.4; }
 .qr-passes-list-status { border-radius: 999px; background: #c9c1b1; padding: 5px 12px; color: #1b2632; font-size: 12px; }
 .qr-passes-list-status.is-inactive { border: 1px solid #a35139; background: transparent; color: #a35139; }
-.qr-passes-open { min-width: 150px; min-height: 44px; border: 1px solid #ffb162; border-radius: 10px; background: #ffb162; color: #1b2632; padding: 8px 16px; font-size: 14px; cursor: pointer; }
+.qr-passes-open { display: inline-flex; min-width: 150px; min-height: 44px; align-items: center; justify-content: center; border: 1px solid #ffb162; border-radius: 10px; background: #ffb162; color: #1b2632; padding: 8px 16px; font-size: 14px; text-decoration: none; cursor: pointer; }
 .qr-passes-list-card.is-inactive .qr-passes-open { align-self: flex-end; border-color: #2c3b4d; background: transparent; }
 .qr-passes-opened { margin-top: 28px; }
-.qr-passes-close { min-height: 44px; margin-bottom: 16px; border: 0; background: transparent; color: #2c3b4d; font-size: 14px; cursor: pointer; }
+.qr-passes-close { display: inline-flex; min-height: 44px; align-items: center; margin-bottom: 16px; border: 0; background: transparent; color: #2c3b4d; font-size: 14px; text-decoration: none; cursor: pointer; }
 .qr-passes-no-results { margin-top: 24px; color: #2c3b4d; }
 
 @media (max-width: 760px) {
