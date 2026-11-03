@@ -418,9 +418,7 @@ export default function MisVacantesPage() {
                           <button onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Eye size={14} /> Ver detalle</button>
                           <button onClick={() => handleEditar(vacante.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pencil size={14} /> Editar</button>
                           
-                          {/* 👇 AQUÍ ESTÁ EL BOTÓN CORREGIDO 👇 */}
                           <button onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}/candidatos`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Users size={14} /> Ver postulantes</button>
-                          {/* 👆 FIN DEL BOTÓN CORREGIDO 👆 */}
 
                           {vacante.estado === 'ACTIVA' && (
                             <button onClick={() => handlePausar(vacante)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pause size={14} /> Pausar</button>
