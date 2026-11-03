@@ -22,7 +22,6 @@ const mockedValidate = validateDocumentFile as jest.MockedFunction<typeof valida
 const initial = {
   firstName: "Juan Carlos",
   lastName: "Pérez Mamani",
-  birthDate: "1998-05-14",
   ci: "6842109",
   complement: "",
   issuedIn: "CB",
@@ -67,6 +66,7 @@ describe("ObservedEditForm", () => {
     expect(screen.getByLabelText(/Nombres/)).toHaveValue("Juan Carlos");
     expect(screen.getByLabelText(/Apellidos/)).toHaveValue("Pérez Mamani");
     expect(screen.getByLabelText(/Correo electrónico/)).toHaveValue("a@correo.com");
+    expect(screen.queryByLabelText(/Fecha de nacimiento/i)).not.toBeInTheDocument();
     expect(reviewButton()).toBeDisabled();
     expect(screen.getByRole("combobox", { name: /Carrera universitaria/i })).toHaveValue("Sistemas");
   });
@@ -141,8 +141,6 @@ describe("ObservedEditForm", () => {
       "El Código SIS debe tener de 6 a 9 dígitos.",
     );
   });
-
-
 
   it("rechaza archivos con formato inválido", async () => {
     await setup();

@@ -13,7 +13,6 @@ const mockedSubmit = resubmitObservedApplication as jest.MockedFunction<
 const values = {
   firstName: "Juan Carlos",
   lastName: "Quispe",
-  birthDate: "1998-05-14",
   ci: "6842109",
   complement: "",
   issuedIn: "CB",
@@ -53,6 +52,7 @@ describe("ObservedReviewSubmit", () => {
     setup();
     expect(screen.getByText(/Quispe/)).toBeInTheDocument();
     expect(screen.getAllByText("Modificado")).toHaveLength(1);
+    expect(screen.queryByText(/Fecha de nacimiento/i)).not.toBeInTheDocument();
   });
 
   it("entrega sobre el mismo expediente (con el token y la versión) y muestra la confirmación", async () => {
