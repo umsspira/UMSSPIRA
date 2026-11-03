@@ -98,6 +98,7 @@ export default function MisVacantesPage() {
       }
     };
     fetchVacantes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handlePausar = async (vacante: Vacante) => {
@@ -175,11 +176,19 @@ export default function MisVacantesPage() {
   };
 
   const getBadgeStyle = (estado: string) => {
-    switch(estado) {
-      case 'ACTIVA': return { bg: '#dcfce7', color: '#15803d', dot: '#22c55e' };
-      case 'PAUSADA': return { bg: '#fef3c7', color: '#b45309', dot: '#f59e0b' };
-      case 'CERRADA': return { bg: '#e5e7eb', color: '#374151', dot: '#6b7280' };
-      default: return { bg: '#f9fafb', color: '#9ca3af', dot: '#d1d5db' };
+    // Convertimos todo a mayúsculas para que no falle si llega como "Pausada" o "pausada"
+    const estadoNormalizado = estado?.toUpperCase() || 'BORRADOR'; 
+    
+    switch(estadoNormalizado) {
+      case 'ACTIVA': 
+        return { bg: '#dcfce7', color: '#166534', dot: '#22c55e' }; // Verde
+      case 'PAUSADA': 
+        return { bg: '#f3f4f6', color: '#4b5563', dot: '#6b7280' }; // Gris oscuro (BUG corregido)
+      case 'CERRADA': 
+        return { bg: '#e5e7eb', color: '#374151', dot: '#6b7280' }; // Gris
+      case 'BORRADOR':
+      default: 
+        return { bg: '#f9fafb', color: '#9ca3af', dot: '#d1d5db' }; // Gris claro
     }
   };
 
@@ -435,9 +444,7 @@ export default function MisVacantesPage() {
                           <button onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Eye size={14} /> Ver detalle</button>
                           <button onClick={() => handleEditar(vacante.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pencil size={14} /> Editar</button>
                           
-                          {/* 👇 AQUÍ ESTÁ EL BOTÓN CORREGIDO 👇 */}
                           <button onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}/candidatos`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Users size={14} /> Ver postulantes</button>
-                          {/* 👆 FIN DEL BOTÓN CORREGIDO 👆 */}
 
                           {vacante.estado === 'ACTIVA' && (
                             <button onClick={() => handlePausar(vacante)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pause size={14} /> Pausar</button>
