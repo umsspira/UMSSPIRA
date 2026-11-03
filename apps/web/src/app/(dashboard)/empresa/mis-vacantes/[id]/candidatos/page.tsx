@@ -35,11 +35,10 @@ export default function CandidatesPage() {
       setLoading(true);
       setError(false);
       try {
-        const [list, vac] = await Promise.all([
-          getApplicantsByVacancy(vacancyId),
-          // Si falla la vacante, solo se oculta su tarjeta
-          getVacancyById(vacancyId).catch(() => null),
-        ]);
+        // Primero la vacante: su fecha de publicación se usa para las fechas de
+        // los postulantes de prueba (BUG-05-01). Si falla, solo se oculta su tarjeta.
+        const vac = await getVacancyById(vacancyId).catch(() => null);
+        const list = await getApplicantsByVacancy(vacancyId, vac?.publishedAt);
         if (!cancelled) {
           setApplicants(list);
           setVacancy(vac);
@@ -75,7 +74,7 @@ export default function CandidatesPage() {
   } = useApplicantFilters(applicants);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6">
       {/* Encabezado + Volver */}
       <div className="space-y-2">
         <button
@@ -193,14 +192,15 @@ export default function CandidatesPage() {
             ) : (
               <div className="bg-white rounded-xl border border-[#EEE9DF] shadow-sm overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-gray-500 border-b border-[#EEE9DF]">
+                  {/* BUG-05-05: encabezados en negrita y color oscuro, como el mockup */}
+                  <thead className="text-xs text-[#1B2632] border-b border-[#EEE9DF]">
                     <tr>
-                      <th className="px-4 py-3 font-semibold">Candidato</th>
-                      <th className="px-4 py-3 font-semibold">Coincidencia técnica</th>
-                      <th className="px-4 py-3 font-semibold">Nivel de experiencia</th>
-                      <th className="px-4 py-3 font-semibold">Estado</th>
-                      <th className="px-4 py-3 font-semibold">Fecha de postulación</th>
-                      <th className="px-4 py-3 font-semibold text-center">Acciones</th>
+                      <th className="px-4 py-3 font-bold">Candidato</th>
+                      <th className="px-4 py-3 font-bold">Coincidencia técnica</th>
+                      <th className="px-4 py-3 font-bold">Nivel de experiencia</th>
+                      <th className="px-4 py-3 font-bold">Estado</th>
+                      <th className="px-4 py-3 font-bold">Fecha de postulación</th>
+                      <th className="px-4 py-3 font-bold text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
