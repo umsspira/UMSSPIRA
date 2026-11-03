@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import { ProfileRecordsManager } from '@/modules/profile/components/profile-records-manager';
-import { clearPendingProfileChanges, hasPendingProfileChanges } from '@/shared/hooks/use-recalculate-state';
+import { clearPendingProfileChanges, hasPendingProfileChanges } from '@/shared/services/pending-profile-changes';
 import { PROFILE_RECORDS_MOCK } from '@/modules/profile/data/profile-records-data';
 import { ProfileStoreProvider } from '@/modules/profile/state/profile-store';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';

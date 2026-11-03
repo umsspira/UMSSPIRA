@@ -1,8 +1,9 @@
 import { PERFIL_URL } from '@/modules/profile/services/perfil-api';
 import type { DeleteRecordErrorCode, ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
-import { markPendingProfileChanges } from '@/shared/hooks/use-recalculate-state';
 import { ApiError, apiFetch } from '@/shared/services/api-client';
+import { markPendingProfileChanges } from '@/shared/services/pending-profile-changes';
 
+// Nombre de cada sección en las rutas del backend (PROFILE_SECTIONS del módulo profile de la API)
 const API_SECTIONS: Record<RecordSection, string> = {
   education: 'formacion-academica',
   experience: 'experiencia-laboral',
@@ -10,16 +11,14 @@ const API_SECTIONS: Record<RecordSection, string> = {
 };
 
 export class DeleteRecordException extends Error {
-  readonly code: DeleteRecordErrorCode;
-
-  constructor(code: DeleteRecordErrorCode) {
-    super(code);
-    this.code = code;
+  constructor(public readonly code: DeleteRecordErrorCode) {
+    super(code === 'forbidden' ? 'Forbidden (403)' : 'Network error');
+    this.name = 'DeleteRecordException';
   }
 }
 
-// DELETE /api/v1/perfil/{seccion}/{id} -> 204 sin cuerpo; 403 si el registro es de otro egresado.
-// Primero responde la API y recién después se quita de la pantalla: si falla, el modal muestra el error
+// DELETE /api/v1/perfil/:seccion/:id -> 204. La eliminación es física (se borra de la base).
+// 403 = el registro es de otro egresado; cualquier otro fallo se muestra como error de conexión
 // y la lista no cambia.
 export async function deleteProfileRecord(section: RecordSection, record: ProfileRecord): Promise<void> {
   try {
@@ -31,9 +30,6 @@ export async function deleteProfileRecord(section: RecordSection, record: Profil
       markPendingProfileChanges();
       return;
     }
-    if (error instanceof ApiError && error.status === 403) {
-      throw new DeleteRecordException('forbidden');
-    }
-    throw new DeleteRecordException('network');
+    throw new DeleteRecordException(error instanceof ApiError && error.status === 403 ? 'forbidden' : 'network');
   }
 }

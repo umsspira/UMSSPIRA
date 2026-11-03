@@ -18,39 +18,31 @@ export const RadarErrorState: React.FC<RadarErrorStateProps> = ({ onRetry, isRet
   return (
     <div
       role="alert"
-      className="flex flex-col items-center text-center gap-3 p-6 w-full max-w-xs rounded-2xl border border-dashed border-oatmeal bg-palladian/95 shadow-sm"
+      className="flex flex-col items-center text-center gap-3 p-6 w-full max-w-xs rounded-2xl border border-dashed border-oatmeal bg-palladian"
     >
       <div className="p-3 rounded-lg bg-white border border-oatmeal">
         <BarChart3 className="w-5 h-5 text-truffle-trouble" />
       </div>
 
-      {isRetrying ? (
-        <div role="status" aria-live="polite" className="space-y-1">
-          <h4 className="text-base font-semibold text-abyssal-blue">
-            Actualizando tu afinidad...
-          </h4>
-          <p className="text-xs font-medium text-blue-fantastic">
-            Solicitando nuevamente tu radar profesional
-          </p>
-        </div>
-      ) : (
-        <>
-          <h4 className="text-base font-semibold text-abyssal-blue">Error</h4>
-          <p className="text-xs font-medium text-truffle-trouble">
-            No se pudo actualizar tu radar
-          </p>
-        </>
-      )}
+      <h4 className="text-base font-semibold text-abyssal-blue">Error</h4>
+      <p className="text-xs font-medium text-truffle-trouble">
+        No se pudo actualizar tu radar
+      </p>
 
       <button
         type="button"
-        onClick={() => onRetry()}
+        onClick={onRetry}
         disabled={isRetrying}
         className="inline-flex items-center space-x-1.5 h-11 px-4 rounded-lg bg-burning-flame text-abyssal-blue text-sm font-bold hover:bg-burning-flame/90 disabled:opacity-50 transition-colors"
       >
         <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
         <span>Reintentar</span>
       </button>
+      {isRetrying && (
+        <p role="status" className="text-xs font-medium text-abyssal-blue">
+          Actualizando tu afinidad…
+        </p>
+      )}
     </div>
   );
 };
