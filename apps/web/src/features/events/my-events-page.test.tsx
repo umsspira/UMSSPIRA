@@ -54,8 +54,8 @@ describe('Cancelación desde Mis eventos', () => {
   it('conecta Mis pases y Ver pase con la pantalla existente solo para pases vigentes', async () => {
     render(<MyEventsPage />);
     expect(await screen.findByText(registration.event.title)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Mis pases' })).toHaveAttribute('href', '/events/catalog/passes');
-    expect(screen.getByRole('link', { name: 'Ver pase' })).toHaveAttribute('href', '/events/catalog/passes');
+    expect(screen.getByRole('link', { name: 'Mis pases' })).toHaveAttribute('href', '/mis-pases');
+    expect(screen.getByRole('link', { name: 'Ver pase' })).toHaveAttribute('href', '/mis-pases');
   });
 
   it('identifica el evento y permite desistir sin cambiar la inscripción', async () => {
