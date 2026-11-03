@@ -9,7 +9,7 @@ function uniqueInterests(interests: DirectoryMentor['interests'] | null) {
   if (!interests) return [];
   const seen = new Set<string>();
   return interests.filter(interest => {
-    const normalizedName = interest.name.trim().replace(/\s+/gu, ' ').toLocaleLowerCase('es');
+    const normalizedName = interest.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
     const key = normalizedName || interest.id;
     if (seen.has(key)) return false;
     seen.add(key);
