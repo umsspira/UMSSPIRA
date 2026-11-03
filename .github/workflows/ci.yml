@@ -1,0 +1,35 @@
+name: Integración Continua UMSSPIRA
+
+on:
+  pull_request:
+    branches: [ "main", "develop", "epic*" ]
+
+jobs:
+  verificacion-codigo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.1
+          cache: 'pnpm'
+
+      - name: Instalar dependencias
+        run: pnpm install
+
+      - name: Ejecutar Linter (Requisito AC cumplido)
+        run: pnpm lint
+
+      - name: Ejecutar Pruebas Unitarias (Requisito AC cumplido)
+        run: pnpm test
+
+      - name: Compilar Monorepo (Frontend y Backend)
+        run: pnpm build
