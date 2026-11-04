@@ -102,7 +102,7 @@ Empresa: obligatoria, máximo 150. Cargo: obligatorio, máximo 100. Fechas ISO `
 }
 ```
 
-Nombre y entidad: obligatorios, máximo 150. Grado: obligatorio, máximo 50. Año: entero entre 1000 y el actual.
+Nombre y entidad: obligatorios, máximo 150. Grado: obligatorio, máximo 50. Año: entero entre 1980 y el actual (400 con «El año debe estar entre 1980 y <año actual>»).
 
 **Respuesta 201:** registro con `id`, `idTitulado`, `fechaCreacion`, campos del body y `respaldo: { "tieneRespaldo": false, "tipo": null, "fechaSubida": null }`.
 

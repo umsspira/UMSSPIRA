@@ -1,5 +1,7 @@
 import {
+  certificationSchema,
   createCertificationSchema,
+  educationSchema,
   experienceSchema,
   professionalDescriptionSchema,
 } from './profile.schemas';
@@ -45,6 +47,51 @@ describe('Grado por defecto al crear una certificación (T8.7)', () => {
 
   it('rechaza un grado vacío', () => {
     expect(createCertificationSchema.safeParse({ ...datos, grado: '' }).success).toBe(false);
+  });
+});
+
+describe('Año de emisión de una certificación (T8.3)', () => {
+  const datos = {
+    nombre: 'AWS Solutions Architect',
+    entidadEmisora: 'Amazon Web Services',
+    grado: 'Profesional',
+  };
+  const anioActual = new Date().getFullYear();
+  const mensajeRango = `El año debe estar entre 1980 y ${anioActual}`;
+
+  function mensajes(schema: typeof certificationSchema, anioEmision: number): string[] {
+    const result = schema.safeParse({ ...datos, anioEmision });
+    return result.success ? [] : result.error.issues.map((issue) => issue.message);
+  }
+
+  it.each([
+    ['PUT', certificationSchema],
+    ['POST', createCertificationSchema],
+  ])('%s: rechaza 1979 y años anteriores', (_metodo, schema) => {
+    expect(mensajes(schema as typeof certificationSchema, 1979)).toEqual([mensajeRango]);
+    expect(mensajes(schema as typeof certificationSchema, 1000)).toEqual([mensajeRango]);
+  });
+
+  it.each([
+    ['PUT', certificationSchema],
+    ['POST', createCertificationSchema],
+  ])('%s: acepta 1980 y el año actual', (_metodo, schema) => {
+    expect(mensajes(schema as typeof certificationSchema, 1980)).toEqual([]);
+    expect(mensajes(schema as typeof certificationSchema, anioActual)).toEqual([]);
+  });
+
+  it('rechaza un año futuro con el mismo mensaje', () => {
+    expect(mensajes(certificationSchema, anioActual + 1)).toEqual([mensajeRango]);
+  });
+
+  it('la formación académica conserva su regla propia (no cambia con la de certificaciones)', () => {
+    const result = educationSchema.safeParse({
+      institucion: 'UMSS',
+      titulo: 'Ingeniería',
+      grado: 'Licenciatura',
+      anioEgreso: 1979,
+    });
+    expect(result.success).toBe(true);
   });
 });
 

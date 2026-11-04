@@ -14,6 +14,16 @@ const yearSchema = z
   .int()
   .min(1000)
   .refine((value) => value <= new Date().getFullYear(), 'El año no puede ser futuro');
+// Año mínimo de emisión de una certificación (HU-08, T8.3); el mismo que valida el formulario
+export const MIN_CERTIFICATION_YEAR = 1980;
+const certificationYearSchema = z
+  .number()
+  .int()
+  .min(MIN_CERTIFICATION_YEAR, `El año debe estar entre ${MIN_CERTIFICATION_YEAR} y ${new Date().getFullYear()}`)
+  .refine(
+    (value) => value <= new Date().getFullYear(),
+    `El año debe estar entre ${MIN_CERTIFICATION_YEAR} y ${new Date().getFullYear()}`,
+  );
 const text = (max: number) => z.string().trim().min(1).max(max);
 const dateSchema = z.iso
   .date()
@@ -54,7 +64,7 @@ export const certificationSchema = z.strictObject({
   nombre: text(150),
   entidadEmisora: text(150),
   grado: text(50),
-  anioEmision: yearSchema,
+  anioEmision: certificationYearSchema,
 });
 export const DEFAULT_CERTIFICATION_DEGREE = 'Profesional';
 export const createCertificationSchema = certificationSchema.extend({
