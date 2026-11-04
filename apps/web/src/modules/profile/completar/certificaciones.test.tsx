@@ -419,3 +419,48 @@ describe('FormularioCertificaciones · bugs QA del sprint (HU8-01, HU8-02)', () 
     expect(onEliminar).toHaveBeenCalledWith('cert-1');
   });
 });
+
+describe('FormularioCertificaciones · contador de errores del encabezado (HU-02 AC 6)', () => {
+  function ultimo(espia: jest.Mock): number {
+    return espia.mock.calls[espia.mock.calls.length - 1][0];
+  }
+
+  it('al agregar vacío informa los cuatro errores de campo', () => {
+    const onErroresChange = jest.fn();
+    render(<FormularioCertificaciones certificaciones={[]} onAgregar={jest.fn()} onErroresChange={onErroresChange} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
+
+    expect(ultimo(onErroresChange)).toBe(4);
+  });
+
+  it('baja al corregir campos y no cuenta dos veces el respaldo', () => {
+    const onErroresChange = jest.fn();
+    render(<FormularioCertificaciones certificaciones={[]} onAgregar={jest.fn()} onErroresChange={onErroresChange} />);
+    fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
+
+    fireEvent.change(screen.getByLabelText('Nombre de certificación'), { target: { value: 'AWS' } });
+    expect(ultimo(onErroresChange)).toBe(3);
+
+    // Un archivo no válido reemplaza el mensaje de obligatorio del respaldo: sigue siendo un solo error
+    const pdf = new File(['x'], 'cert.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Subir foto', { selector: 'input' }), { target: { files: [pdf] } });
+    expect(ultimo(onErroresChange)).toBe(3);
+  });
+
+  it('cuenta el error de la API al guardar', async () => {
+    const onErroresChange = jest.fn();
+    render(
+      <FormularioCertificaciones
+        certificaciones={[]}
+        onAgregar={jest.fn().mockRejectedValue(new ApiError(500, 'Error interno'))}
+        onErroresChange={onErroresChange}
+      />,
+    );
+    llenarFormulario();
+    fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
+
+    await screen.findByText(/No se pudo guardar la certificación/);
+    expect(ultimo(onErroresChange)).toBe(1);
+  });
+});
