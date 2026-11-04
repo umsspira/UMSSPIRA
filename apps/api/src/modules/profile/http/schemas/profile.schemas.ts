@@ -69,6 +69,7 @@ export const certificationSchema = z.strictObject({
 export const DEFAULT_CERTIFICATION_DEGREE = 'Profesional';
 export const createCertificationSchema = certificationSchema.extend({
   grado: text(50).default(DEFAULT_CERTIFICATION_DEGREE),
+  idOperacion: z.uuid().optional(),
 });
 // Texto no vacío y hasta 5000 caracteres (T6.4): una descripción vacía se rechaza con 400
 export const professionalDescriptionSchema = z.strictObject({
