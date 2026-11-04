@@ -27,7 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
   APPROVED: 'Aprobado',
   OBSERVED: 'Observado',
   REJECTED: 'Rechazado',
-  PENDIENTE: 'Pendiente de validación',
+  PENDIENTE: 'Pendiente',
   APROBADA: 'Aprobado',
   OBSERVADA: 'Observado',
   RECHAZADA: 'Rechazado',
@@ -151,8 +151,13 @@ export function ConfirmationContent() {
               aria-hidden="true"
               className="h-2 w-2 rounded-full bg-[#a76912]"
             />
-            {status}
-          </span>
+
+          <span>{status === 'Pendiente de validación' ? 'Pendiente' : status}</span>
+
+          {status === 'Pendiente de validación' && (
+            <span>de validación</span>
+          )}
+        </span>
         </div>
 
         <dl className="mt-2 px-1 sm:px-2">
