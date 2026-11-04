@@ -1,3 +1,4 @@
+import type { RadarCertificationEvidenceResponse } from '@umsspira/shared-types';
 
 import {
   AFFINITY_AREAS,
@@ -188,10 +189,10 @@ export async function recalculateAffinity(): Promise<AffinityVectorResponse> {
 }
 
 // El límite incluye autenticación, respuesta y lectura del cuerpo.
-async function requestRadar(
+async function requestRadar<T = RadarApiResponse>(
   endpoint: string,
   options: RequestInit = {},
-): Promise<RadarApiResponse> {
+): Promise<T> {
   const controller = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout>;
   const timeout = new Promise<never>((_resolve, reject) => {
@@ -203,7 +204,7 @@ async function requestRadar(
 
   try {
     return await Promise.race([
-      apiFetch<RadarApiResponse>(endpoint, { ...options, signal: controller.signal }),
+      apiFetch<T>(endpoint, { ...options, signal: controller.signal }),
       timeout,
     ]);
   } catch (error) {
@@ -215,4 +216,13 @@ async function requestRadar(
   } finally {
     clearTimeout(timeoutId!);
   }
+}
+
+
+export async function getAreaCertifications(area: AffinityArea): Promise<RadarCertificationEvidenceResponse> {
+  const result = await requestRadar<RadarCertificationEvidenceResponse>(`/api/v1/radar/certifications/${encodeURIComponent(area)}`);
+  if (result.area !== area || result.source !== 'current-profile' || !Array.isArray(result.certifications)) {
+    throw new Error('Respuesta de certificaciones no válida');
+  }
+  return result;
 }
