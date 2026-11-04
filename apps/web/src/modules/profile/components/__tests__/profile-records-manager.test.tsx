@@ -48,6 +48,15 @@ describe('ProfileRecordsManager', () => {
     expect(getDesktopRows()).toHaveLength(PROFILE_RECORDS_MOCK.experience.length);
   });
 
+  it('conserva la pestaña elegida en la URL para que no se pierda al recargar (BUG HU9-01)', () => {
+    window.history.replaceState(null, '', '/profile/records?seccion=certification');
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} initialSection="certification" />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Formación académica' }));
+
+    expect(window.location.search).toBe('?seccion=education');
+  });
+
   it('pide confirmación, llama al DELETE real y quita solo ese registro sin recargar', async () => {
     responder(204);
     render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
