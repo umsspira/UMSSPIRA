@@ -204,6 +204,30 @@ export function SurveyContainer() {
           {submission.message}
         </p>
       )}
+      {submission.status === 'success' && !isReviewOpen && (
+        <section className="mt-6 rounded-xl border border-green-200 bg-white p-4 shadow-sm sm:p-6" aria-labelledby="survey-success-summary-title">
+          <div className="flex flex-col gap-4 border-b border-oatmeal pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 id="survey-success-summary-title" className="text-xl font-semibold text-abyssal-blue">
+                Resumen de tu encuesta
+              </h2>
+              <p className="mt-1 text-sm text-abyssal-blue/70">
+                Estas son las respuestas que quedaron registradas.
+              </p>
+            </div>
+          </div>
+          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+            {reviewAnswers.map((item) => (
+              <div key={`success-${item.id}`} className="rounded-lg border border-oatmeal bg-palladian/50 p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-abyssal-blue/70">{item.question}</dt>
+                <dd className="mt-1 break-words text-sm font-semibold text-abyssal-blue">
+                  {item.answer === null || item.answer === undefined || item.answer === '' ? 'Sin respuesta' : String(item.answer)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
 
       {submissionCheck === 'checking' && (
         <p role="status" className="mt-6 rounded-lg border border-abyssal-blue/30 bg-palladian p-4 text-abyssal-blue">
@@ -219,9 +243,12 @@ export function SurveyContainer() {
         </div>
       )}
       {submissionCheck === 'submitted' && (
-        <p role="status" className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
-          {submission.message ?? 'Esta encuesta ya fue enviada. No es posible enviarla nuevamente.'}
-        </p>
+        <div role="status" className="mt-6 flex flex-col gap-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800 sm:flex-row sm:items-center sm:justify-between">
+          <p>{submission.message ?? 'Esta encuesta ya fue enviada. No es posible enviarla nuevamente.'}</p>
+          <Button type="button" variant="secondary" onClick={() => router.push('/portal')}>
+            Volver al inicio
+          </Button>
+        </div>
       )}
 
       {submissionCheck === 'available' && (
