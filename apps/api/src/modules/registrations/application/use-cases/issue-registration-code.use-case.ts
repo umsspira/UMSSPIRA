@@ -1,4 +1,5 @@
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
+import { registrationCodeHtml } from '../../../../shared/notifications/account-email';
 import {
   assertOpenDraft,
   CODE_SECONDS,
@@ -10,6 +11,7 @@ export class IssueRegistrationCodeUseCase {
   constructor(
     private readonly repository: RegistrationRepository,
     private readonly security: RegistrationSecurity,
+    private readonly webBaseUrl = 'http://localhost:3001',
   ) {}
   async execute(token: string, expectedEmail?: string) {
     const hash = this.security.hash('draft', token);
@@ -27,6 +29,7 @@ export class IssueRegistrationCodeUseCase {
       to: draft.data.correo,
       subject: 'Verifica tu correo en UMSSPIRA',
       text: 'Tu código de verificación es ' + code + '. Vence en 5 minutos.',
+      html: registrationCodeHtml(code, this.webBaseUrl, CODE_SECONDS / 60),
     });
     const result = await this.repository.issueCode(
       hash,

@@ -4,6 +4,7 @@ import { ObservedApplicationService } from '../../application/services/observed-
 import { UpdateRegistrationUseCase } from '../../application/use-cases/update-registration.use-case';
 import { GetDraftDocumentUseCase } from '../../application/use-cases/get-draft-document.use-case';
 import type { Provider } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { RenewActivationUseCase } from '../../application/use-cases/renew-activation.use-case';
 import { CORRECTION_TOKEN_PORT } from '../../application/ports/correction-token.port';
 import { PrismaCorrectionTokenRepository } from '../repositories/prisma-correction-token.repository';
@@ -94,9 +95,9 @@ export const registrationsProviders: Provider[] = [
   },
   {
     provide: IssueRegistrationCodeUseCase,
-    inject: [REGISTRATION_REPOSITORY, REGISTRATION_SECURITY],
-    useFactory: (repository: RegistrationRepository, security: RegistrationSecurity) =>
-      new IssueRegistrationCodeUseCase(repository, security),
+    inject: [REGISTRATION_REPOSITORY, REGISTRATION_SECURITY, ConfigService],
+    useFactory: (repository: RegistrationRepository, security: RegistrationSecurity, config: ConfigService) =>
+      new IssueRegistrationCodeUseCase(repository, security, config.get<string>('WEB_BASE_URL', 'http://localhost:3001')),
   },
   {
     provide: VerifyRegistrationCodeUseCase,
