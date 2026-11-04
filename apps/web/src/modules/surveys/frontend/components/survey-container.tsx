@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSurveyDraft } from '../hooks/use-survey-draft';
-import { useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
+import { isMeaningfulText, useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
 import { useSurveySubmit } from '../hooks/use-survey-submit';
 import { useSurveyUserId } from '../hooks/use-survey-user-id';
 import { getSurveySubmissionStatus } from '../services/surveys.service';
@@ -173,9 +173,9 @@ export function SurveyContainer() {
   }, [form.values]);
 
   const fieldErrors: Record<keyof SurveyWorkFields, string | undefined> = {
-    cargo: form.values.condicion_laboral && !form.values.cargo.trim() ? 'Este campo es obligatorio' : undefined,
-    empresa: form.values.condicion_laboral && !form.values.empresa.trim() ? 'Este campo es obligatorio' : undefined,
-    area: form.values.condicion_laboral && !form.values.area.trim() ? 'Este campo es obligatorio' : undefined,
+    cargo: form.values.condicion_laboral && !form.values.cargo.trim() ? 'Este campo es obligatorio' : form.values.condicion_laboral && !isMeaningfulText(form.values.cargo) ? 'Ingresa un cargo válido' : undefined,
+    empresa: form.values.condicion_laboral && !form.values.empresa.trim() ? 'Este campo es obligatorio' : form.values.condicion_laboral && !isMeaningfulText(form.values.empresa) ? 'Ingresa una empresa válida' : undefined,
+    area: form.values.condicion_laboral && !form.values.area.trim() ? 'Este campo es obligatorio' : form.values.condicion_laboral && !isMeaningfulText(form.values.area) ? 'Ingresa un área válida' : undefined,
     modalidad: form.values.condicion_laboral && !form.values.modalidad ? 'Este campo es obligatorio' : undefined,
     salario_mensual: form.values.condicion_laboral && !form.values.salario_mensual ? 'Este campo es obligatorio' : undefined,
     tiempo_insercion: form.values.condicion_laboral && !form.values.tiempo_insercion ? 'Este campo es obligatorio' : undefined,
@@ -332,11 +332,11 @@ export function SurveyContainer() {
         * Campos obligatorios únicamente si están visibles
       </p>
 
-      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button type="button" variant="secondary" onClick={() => router.back()}>
+      <div className="mt-4 flex flex-row gap-3 sm:justify-end">
+        <Button type="button" variant="secondary" className="min-w-0 flex-1 sm:flex-none" onClick={() => router.back()}>
           Volver
         </Button>
-        <Button type="button" variant="primary" onClick={handleNext} disabled={submission.status === 'success'}>
+        <Button type="button" variant="primary" className="min-w-0 flex-1 sm:flex-none" onClick={handleNext} disabled={submission.status === 'success'}>
           Siguiente →
         </Button>
       </div>
@@ -345,6 +345,7 @@ export function SurveyContainer() {
       <SurveyReviewModal
         isOpen={isReviewOpen && !submission.isSubmitting && submission.status === 'idle'}
         answers={reviewAnswers}
+        showNoWorkWarning={form.values.condicion_laboral === false}
         isSubmitting={false}
         onClose={handleCloseReview}
         onConfirm={handleConfirm}
