@@ -8,6 +8,7 @@ import { ApiError } from '@/shared/services/api-client';
 
 // Mismo límite que el backend (PROFESSIONAL_DESCRIPTION_MAX_LENGTH)
 export const MAX_DESCRIPCION = 5000;
+export const MENSAJE_DESCRIPCION_VACIA = 'La descripción no puede estar vacía';
 
 type FormularioDescripcionProps = {
   descripcion: string;
@@ -32,8 +33,13 @@ export function FormularioDescripcion({ descripcion, onGuardar }: FormularioDesc
   async function guardar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (guardando) return;
-    setGuardando(true);
     setGuardada(false);
+    // Igual que el backend (T6.4): la descripción no puede estar vacía; no se envía nada a la API
+    if (!texto.trim()) {
+      setErrorGuardar(MENSAJE_DESCRIPCION_VACIA);
+      return;
+    }
+    setGuardando(true);
     setErrorGuardar(undefined);
     try {
       await onGuardar(texto.trim());

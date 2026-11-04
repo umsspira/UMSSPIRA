@@ -226,8 +226,8 @@ export async function actualizarCertificacion(
   return aCertificationRecord(actualizada);
 }
 
-// PUT /api/v1/perfil/descripcion-profesional -> la descripción guardada (recortada) o 400 si supera 5000
-// caracteres. Solo cambia la del egresado con sesión; vacía la borra
+// PUT /api/v1/perfil/descripcion-profesional -> la descripción guardada (recortada) o 400 si está vacía o
+// supera 5000 caracteres. Solo cambia la del egresado con sesión
 export async function guardarDescripcion(descripcion: string): Promise<string> {
   const guardada = await apiFetch<DescripcionApi>(`${PERFIL_URL}/descripcion-profesional`, {
     method: 'PUT',
