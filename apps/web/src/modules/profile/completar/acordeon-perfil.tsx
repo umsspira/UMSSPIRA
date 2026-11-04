@@ -223,8 +223,18 @@ export function AcordeonPerfil({
           onErroresChange={setErroresCertificaciones}
           returnTo={returnTo}
           progreso={progresoSubida}
-          onCancelar={() => router.push(returnTo ?? '/profile')}
-          hrefEditar={(id) => `/profile/certifications/${id}/edit`}
+          onCancelar={() => {
+            // Si la certificación ya se creó y solo falló la foto, sigue guardada: se muestra y no se borra (T8.6)
+            const creada = pendienteRef.current?.creada;
+            if (creada) addCertification(creada);
+            pendienteRef.current = null;
+            router.push(returnTo ?? '/profile');
+          }}
+          hrefEditar={(id) => {
+            // Al terminar de editar se vuelve a esta sección conservando el regreso a Afinidad (returnTo)
+            const regreso = `/profile/completar?seccion=certificaciones${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ''}`;
+            return `/profile/certifications/${id}/edit?returnTo=${encodeURIComponent(regreso)}`;
+          }}
           onEliminar={(id) => {
             setErrorEliminar(null);
             setCertificacionAEliminar(

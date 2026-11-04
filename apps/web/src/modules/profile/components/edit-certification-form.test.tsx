@@ -190,6 +190,23 @@ describe('EditCertificationForm', () => {
     expect(actualizarCertificacionMock).not.toHaveBeenCalled();
   });
 
+  it('desde Completar perfil, Cancelar vuelve ahí conservando el regreso a Afinidad', async () => {
+    const regreso = '/profile/completar?seccion=certificaciones&returnTo=%2Fafinidad';
+    window.history.replaceState(null, '', `/profile/certifications/cert-1/edit?returnTo=${encodeURIComponent(regreso)}`);
+    renderForm();
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
+    expect(push).toHaveBeenCalledWith(regreso);
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('ignora un returnTo externo y vuelve a Mis registros', async () => {
+    window.history.replaceState(null, '', '/profile/certifications/cert-1/edit?returnTo=https%3A%2F%2Fevil.example');
+    renderForm();
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
+    expect(push).toHaveBeenCalledWith('/profile/records?seccion=certification');
+    window.history.replaceState(null, '', '/');
+  });
+
   it('avisa si la certificación no existe (404)', async () => {
     routeId = 'no-existe';
     obtenerCertificacionMock.mockRejectedValue(new ApiError(404, 'No encontrado'));

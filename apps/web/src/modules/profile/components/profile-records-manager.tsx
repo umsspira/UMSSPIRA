@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
 import { ProfileRecordsTable } from '@/modules/profile/components/profile-records-table';
-import { EMPTY_PROFILE_RECORDS, SECTION_LABELS, recordsHref } from '@/modules/profile/data/profile-records-data';
+import { EMPTY_PROFILE_RECORDS, SECTION_LABELS } from '@/modules/profile/data/profile-records-data';
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useOptionalProfileStore } from '@/modules/profile/state/profile-store';
 import type {
@@ -118,7 +118,9 @@ export function ProfileRecordsManager({
               onClick={() => {
                 setActiveSection(section);
                 // La pestaña queda en la URL para que al recargar se conserve (BUG HU9-01)
-                window.history.replaceState(window.history.state, '', recordsHref(section));
+                const params = new URLSearchParams(window.location.search);
+                params.set('seccion', section);
+                window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params}`);
               }}
               className={cn(
                 '-mb-px whitespace-nowrap border-b-2 pb-2.5 text-sm transition',

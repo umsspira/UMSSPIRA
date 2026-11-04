@@ -49,12 +49,16 @@ describe('ProfileRecordsManager', () => {
   });
 
   it('conserva la pestaña elegida en la URL para que no se pierda al recargar (BUG HU9-01)', () => {
-    window.history.replaceState(null, '', '/profile/records?seccion=certification');
+    window.history.replaceState(null, '', '/profile/records?seccion=certification&returnTo=%2Fafinidad');
     render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} initialSection="certification" />);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Formación académica' }));
 
-    expect(window.location.search).toBe('?seccion=education');
+    // Cambia solo la pestaña; los demás parámetros (por ejemplo returnTo) se conservan
+    const params = new URLSearchParams(window.location.search);
+    expect(window.location.pathname).toBe('/profile/records');
+    expect(params.get('seccion')).toBe('education');
+    expect(params.get('returnTo')).toBe('/afinidad');
   });
 
   it('pide confirmación, llama al DELETE real y quita solo ese registro sin recargar', async () => {
