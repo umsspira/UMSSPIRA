@@ -20,6 +20,7 @@ jest.mock('@/modules/profile/services/perfil-api', () => ({
   ...jest.requireActual('@/modules/profile/services/perfil-api'),
   crearCertificacion: jest.fn(),
   subirRespaldo: jest.fn(),
+  obtenerResumenPerfil: jest.fn(),
 }));
 
 jest.mock('@/modules/profile/services/profile-records-service', () => ({
@@ -236,5 +237,46 @@ describe('Completar perfil · Cancelar, editar y eliminar certificaciones (bugs 
     expect(await screen.findByText('No se pudo eliminar el registro')).toBeInTheDocument();
     expect(screen.getByText('Certificaciones registradas')).toBeInTheDocument();
     expect(hasPendingProfileChanges()).toBe(false);
+  });
+});
+
+describe('Completar perfil · espera la carga inicial del perfil (revisión PR #648)', () => {
+  const obtenerResumen = api.obtenerResumenPerfil as jest.Mock;
+
+  afterEach(() => obtenerResumen.mockReset());
+
+  it('mientras carga no muestra formularios, así no se puede guardar antes de la respuesta inicial', () => {
+    obtenerResumen.mockReturnValue(new Promise(() => {}));
+    render(
+      <ProfileStoreProvider>
+        <AcordeonPerfil />
+      </ProfileStoreProvider>,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando tu perfil');
+    expect(screen.queryByRole('button', { name: /certificaciones/i })).not.toBeInTheDocument();
+  });
+
+  it('si la carga falla no habilita formularios y permite reintentar', async () => {
+    obtenerResumen
+      .mockRejectedValueOnce(new ApiError(0, 'No fue posible conectar con el servidor'))
+      .mockResolvedValueOnce({
+        header: { id: 'titulado-1', name: 'Ana', career: 'Sistemas', graduationYear: 2020 },
+        records: { ...SIN_REGISTROS, certification: [CREADA] },
+        description: '',
+      });
+    render(
+      <ProfileStoreProvider>
+        <AcordeonPerfil />
+      </ProfileStoreProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo cargar tu perfil');
+    expect(screen.queryByLabelText('Nombre de certificación')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: /certificaciones/i }));
+    expect(screen.getByText('AWS Cloud Practitioner')).toBeInTheDocument();
   });
 });
