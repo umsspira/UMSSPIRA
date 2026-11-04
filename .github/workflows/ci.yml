@@ -11,16 +11,14 @@ jobs:
       - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: Instalar pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
+      - name: Instalar pnpm de forma nativa
+        run: npm install -g pnpm@8
 
       - name: Configurar Node.js 
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+
 
       - name: Instalar dependencias
         run: pnpm install
