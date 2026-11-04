@@ -1,20 +1,32 @@
-﻿# Dependencies
 node_modules/
-**/node_modules/
-
-# Build outputs
-.next/
-**/.next/
+apps/api/.local/
+apps/api/dist/
+apps/api-antigua/.local/
+apps/api/src/generated/
 dist/
-**/dist/
-coverage/
-**/coverage/
-
-# Environment files
+.next/
+.next-dev/
+.next-production/
 .env
-.env.*
-!.env.example
-
-# OS / IDE
+.env.local
+.env.*.local
+.env.localstack
 .DS_Store
-Thumbs.db
+AGENTS.md
+*.tsbuildinfo
+.tmp-chrome-*/
+.vercel
+.env*
+!.env.example
+!apps/api/.env.example
+!apps/api-antigua/.env.example
+!apps/api-antigua/.env.localstack.example
+.context/
+.vscode/
+tmp/
+
+apps/api/.agents/
+apps/api/.claude/
+apps/api/.windsurf/
+apps/api/skills-lock.json
+holaaa

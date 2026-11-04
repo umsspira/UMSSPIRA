@@ -1,8 +1,12 @@
 {
-  "name": "umssinspira3",
+  "name": "umsspira3",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
@@ -10,7 +14,8 @@
     "start:dev": "npm --prefix backend run start:dev",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
@@ -19,3 +24,4 @@
     "supabase": "^3.0.0"
   }
 }
+
