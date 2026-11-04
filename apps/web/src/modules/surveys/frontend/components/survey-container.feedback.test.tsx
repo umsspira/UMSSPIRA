@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ApiError } from '@/shared/services/api-client';
 import { SurveyContainer } from './survey-container';
-import { submitSurvey } from '../services/surveys.service';
+import { getSurveySubmissionStatus, submitSurvey } from '../services/surveys.service';
 
 // En Jest, renderizar un <img> sencillo evita que la implementación interna
 // de next/image pase fetchPriority al DOM de React 18 en este entorno de pruebas.
@@ -27,12 +27,16 @@ jest.mock('../hooks/use-survey-user-id', () => ({
 }));
 jest.mock('../services/surveys.service', () => ({
   ...jest.requireActual('../services/surveys.service'),
+  getSurveySubmissionStatus: jest.fn().mockResolvedValue(false),
   submitSurvey: jest.fn(),
 }));
 
 const mockedSubmit = submitSurvey as jest.Mock;
+const mockedSubmissionStatus = getSurveySubmissionStatus as jest.Mock;
 
 beforeEach(() => {
+  mockedSubmissionStatus.mockReset();
+  mockedSubmissionStatus.mockResolvedValue(false);
   mockedSubmit.mockReset();
   window.localStorage.clear();
   Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
@@ -42,8 +46,9 @@ afterEach(() => {
   Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
 });
 
-function openReview() {
+async function openReview() {
   render(<SurveyContainer />);
+  await screen.findByRole('radio', { name: /No trabaja/i });
   fireEvent.click(screen.getByRole('radio', { name: /No trabaja/i }));
   fireEvent.click(screen.getByRole('button', { name: /Siguiente/i }));
   expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -54,7 +59,7 @@ describe('T3.4: integración visual del formulario y confirmación', () => {
   it('muestra carga, evita doble envío y hace visible el éxito sin cerrar el modal prematuramente', async () => {
     let complete!: () => void;
     mockedSubmit.mockImplementationOnce(() => new Promise<void>((resolve) => { complete = resolve; }));
-    openReview();
+    await openReview();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar y enviar' }));
     expect(screen.getByRole('dialog', { name: 'Enviando encuesta...' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Envío de encuesta en curso' })).toBeInTheDocument();
@@ -66,13 +71,14 @@ describe('T3.4: integración visual del formulario y confirmación', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByText('Encuesta enviada correctamente').closest('[role="status"]')).not.toBeNull();
-    expect(screen.getByRole('button', { name: /Siguiente/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Siguiente/i })).toBeNull();
+    expect(screen.queryByRole('radio')).toBeNull();
   });
 
   it('muestra el error dentro del modal, conserva respuestas y permite reintentar', async () => {
     mockedSubmit.mockRejectedValueOnce(new ApiError(500, 'Fallo del servidor'));
     mockedSubmit.mockResolvedValueOnce(undefined);
-    openReview();
+    await openReview();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar y enviar' }));
     expect(await screen.findByText('No se pudo enviar la encuesta. Intente nuevamente')).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -84,7 +90,7 @@ describe('T3.4: integración visual del formulario y confirmación', () => {
 
   it('muestra el aviso offline sobre el modal y distingue falla de conexión', async () => {
     mockedSubmit.mockRejectedValueOnce(new ApiError(0, 'No hay conexión'));
-    openReview();
+    await openReview();
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
     fireEvent(window, new Event('offline'));
     expect(screen.getAllByText('Sin conexión a Internet').length).toBeGreaterThan(0);
