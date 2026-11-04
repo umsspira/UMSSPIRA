@@ -9,3 +9,9 @@ Esta lista describe el perfil actual: no constituye una atribución histórica d
 Un 0% significa que no se detectaron aportes en el cálculo mostrado, no que no existan certificaciones. La ausencia de coincidencias se informa únicamente tras completar correctamente la consulta; los fallos tienen un mensaje y reintento propios. No se inventan proyectos ni certificaciones.
 
 Publicar primero el backend con este endpoint y después el frontend. No requiere migraciones. Con un backend anterior, la consulta puede responder 404 y el panel mostrará error, no ausencia de certificaciones.
+
+## Persistencia del recálculo
+
+Los términos no reconocidos se insertan o actualizan en un único lote parametrizado con ON CONFLICT. Se conservan los identificadores de términos existentes y se retiran los obsoletos únicamente del titulado calculado. El lote permanece dentro de la transacción del cálculo y de sus seis áreas, bajo el mismo bloqueo asesor. Un error revierte todo. No se amplían los tiempos de espera ni se cambia la fórmula.
+
+Prueba PostgreSQL local optativa: configurar RADAR_PERSISTENCE_TEST_DATABASE_URL con una copia umsspira_qa o umsspira_fuego_* en localhost y ejecutar test/radar-batch-persistence.integration.spec.ts con jest.integration.config.cjs. La prueba rechaza destinos remotos y revierte las escrituras de ensayo.
