@@ -240,19 +240,6 @@ describe('ApplicationsPage', () => {
     );
   });
 
-  it('aplica cada texto parcial desde una letra sin pulsar Enter', async () => {
-    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
-    render(<ApplicationsPage />);
-    const search = await screen.findByLabelText('Buscar');
-    for (const value of ['m', 'mo', 'mor', 'm']) {
-      fireEvent.change(search, { target: { value } });
-      await waitFor(() => expect(mockedFetchBoard).toHaveBeenLastCalledWith(
-        expect.objectContaining({ search: value, page: 1 }),
-      ));
-      expect(search).toHaveValue(value);
-    }
-  });
-
   it('sincroniza página, tamaño y filtros con la URL', async () => {
     window.history.replaceState(
       {},

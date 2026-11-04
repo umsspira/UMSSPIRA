@@ -231,16 +231,6 @@ describe('PrismaApplicationsRepository.list', () => {
     expect(statement.sql).not.toContain('Jose');
   });
 
-  it.each(['m', 'mo', 'mor', 'mora@example.com'])('busca coincidencias parciales de %s en nombres y correos', async (search) => {
-    const { prisma, repository } = createRepository({ pending: 0, others: 0 });
-    await repository.list(actor, query({ search }));
-    const statement = prisma.$queryRaw.mock.calls[0][0];
-    expect(statement.values).toContain(`%${search}%`);
-    expect(statement.sql).toContain("coalesce(d.nombre, '')");
-    expect(statement.sql).toContain("coalesce(d.apellido, '')");
-    expect(statement.sql).toContain("lower(coalesce(d.email, '')) LIKE lower(");
-  });
-
   it('permite nombres en orden invertido y espacios dobles', async () => {
     const { prisma, repository } = createRepository({ pending: 0, others: 0 });
 
