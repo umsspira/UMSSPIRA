@@ -102,7 +102,7 @@ Empresa: obligatoria, máximo 150. Cargo: obligatorio, máximo 100. Fechas ISO `
 }
 ```
 
-Nombre y entidad: obligatorios, máximo 150. Grado: obligatorio, máximo 50. Año: entero entre 1000 y el actual.
+Nombre y entidad: obligatorios, máximo 150. Grado: obligatorio, máximo 50. Año: entero entre 1980 y el actual (400 con «El año debe estar entre 1980 y <año actual>»).
 
 **Respuesta 201:** registro con `id`, `idTitulado`, `fechaCreacion`, campos del body y `respaldo: { "tieneRespaldo": false, "tipo": null, "fechaSubida": null }`.
 
@@ -167,7 +167,7 @@ La referencia no es una URL pública. Reemplaza el respaldo anterior; una certif
 
 **Permiso:** `perfil:self:read`.
 
-**Respuesta 200:** archivo JSON con `fechaExportacion` y la estructura del resumen, sin sobre data. Nombre `perfil_<nombre_normalizado>_<YYYY-MM-DD>.json`, indentación de dos espacios. No incluye credenciales ni archivos binarios.
+**Respuesta 200:** archivo JSON sin sobre data, con el mismo formato que el botón «Descargar» del frontend (campos con mayúscula inicial y sin tildes): `IdEgresado`, `FechaDescarga`, `Nombre`, `Carrera`, `Promocion` y tres listas, `Formación académica` (`Institucion`, `Titulo`, `Grado`, `Anio`, `Respaldo`), `Experiencia laboral` (`Empresa`, `Cargo`, `Periodo`, `FechaInicio`, `FechaFin`) y `Certificaciones` (`Nombre`, `Entidad`, `Anio`, `Grado`). `Respaldo` de una formación es siempre null: la API no guarda respaldo de formación. Nombre `perfil_<nombre_normalizado>_<YYYY-MM-DD>.json`, indentación de dos espacios. No incluye credenciales ni archivos binarios.
 
 ---
 

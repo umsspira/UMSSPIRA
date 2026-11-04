@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 
 import { ProfileRecordsManager } from '@/modules/profile/components/profile-records-manager';
 import { clearPendingProfileChanges, hasPendingProfileChanges } from '@/shared/services/pending-profile-changes';
-import { PROFILE_RECORDS_MOCK } from '@/modules/profile/data/profile-records-data';
+import { PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
 import { ProfileStoreProvider } from '@/modules/profile/state/profile-store';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';
 
@@ -32,7 +32,7 @@ describe('ProfileRecordsManager', () => {
   });
 
   it('muestra iconos de editar y eliminar en cada registro', () => {
-    render(<ProfileRecordsManager />);
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
     const rows = getDesktopRows();
     rows.forEach((row) => {
       // Editar ahora es un enlace a la pantalla de edición de la sección
@@ -42,15 +42,28 @@ describe('ProfileRecordsManager', () => {
   });
 
   it('abre la pestaña indicada al volver de editar (BUG-HU04-003)', () => {
-    render(<ProfileRecordsManager initialSection="experience" />);
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} initialSection="experience" />);
 
     expect(within(getDesktopRows()[0]).getByText('NTT DATA')).toBeInTheDocument();
     expect(getDesktopRows()).toHaveLength(PROFILE_RECORDS_MOCK.experience.length);
   });
 
+  it('conserva la pestaña elegida en la URL para que no se pierda al recargar (BUG HU9-01)', () => {
+    window.history.replaceState(null, '', '/profile/records?seccion=certification&returnTo=%2Fafinidad');
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} initialSection="certification" />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Formación académica' }));
+
+    // Cambia solo la pestaña; los demás parámetros (por ejemplo returnTo) se conservan
+    const params = new URLSearchParams(window.location.search);
+    expect(window.location.pathname).toBe('/profile/records');
+    expect(params.get('seccion')).toBe('education');
+    expect(params.get('returnTo')).toBe('/afinidad');
+  });
+
   it('pide confirmación, llama al DELETE real y quita solo ese registro sin recargar', async () => {
     responder(204);
-    render(<ProfileRecordsManager />);
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
     const [, secondRow] = getDesktopRows();
     fireEvent.click(within(secondRow).getByRole('button', { name: 'Eliminar registro' }));
 
@@ -71,7 +84,7 @@ describe('ProfileRecordsManager', () => {
 
   it('muestra error de conexión con opción de reintentar sin borrar el registro', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
-    render(<ProfileRecordsManager />);
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
     fireEvent.click(within(getDesktopRows()[0]).getByRole('button', { name: 'Eliminar registro' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
 
@@ -168,12 +181,12 @@ describe('ProfileRecordsManager', () => {
 
   describe('aviso de resultado al eliminar (T9.6)', () => {
     it.each([
-      ['education', 'Educación', PROFILE_RECORDS_MOCK.education[0].id, 'formacion-academica'],
+      ['education', 'Formación académica', PROFILE_RECORDS_MOCK.education[0].id, 'formacion-academica'],
       ['experience', 'Experiencia', PROFILE_RECORDS_MOCK.experience[0].id, 'experiencia-laboral'],
       ['certification', 'Certificaciones', PROFILE_RECORDS_MOCK.certification[0].id, 'certificaciones'],
     ])('en %s muestra "Registro eliminado" y solo llama a nuestro endpoint', async (_section, pestana, id, ruta) => {
       responder(204);
-      render(<ProfileRecordsManager />);
+      render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
       fireEvent.click(screen.getByRole('tab', { name: pestana }));
       const total = getDesktopRows().length;
       fireEvent.click(within(getDesktopRows()[0]).getByRole('button', { name: 'Eliminar registro' }));
@@ -188,7 +201,7 @@ describe('ProfileRecordsManager', () => {
 
     it('no muestra el aviso si la eliminación falla', async () => {
       fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
-      render(<ProfileRecordsManager />);
+      render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
       fireEvent.click(within(getDesktopRows()[0]).getByRole('button', { name: 'Eliminar registro' }));
       fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
 
@@ -199,7 +212,7 @@ describe('ProfileRecordsManager', () => {
     it('BUG-HU8-02: registra cambios pendientes para el radar al eliminar un registro de educación o experiencia', async () => {
       clearPendingProfileChanges();
       responder(204);
-      render(<ProfileRecordsManager />);
+      render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
 
       expect(hasPendingProfileChanges()).toBe(false);
 

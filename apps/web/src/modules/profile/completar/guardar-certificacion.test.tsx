@@ -6,17 +6,26 @@ import * as api from '@/modules/profile/services/perfil-api';
 import { ProfileStoreProvider } from '@/modules/profile/state/profile-store';
 import type { CertificationRecord, ProfileRecords } from '@/modules/profile/types/profile-record';
 import { ApiError } from '@/shared/services/api-client';
+import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
+import { clearPendingProfileChanges, hasPendingProfileChanges } from '@/shared/services/pending-profile-changes';
  
 import { AcordeonPerfil } from './acordeon-perfil';
  
+const push = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push }),
 }));
  
 jest.mock('@/modules/profile/services/perfil-api', () => ({
   ...jest.requireActual('@/modules/profile/services/perfil-api'),
   crearCertificacion: jest.fn(),
   subirRespaldo: jest.fn(),
+  obtenerResumenPerfil: jest.fn(),
+}));
+
+jest.mock('@/modules/profile/services/profile-records-service', () => ({
+  ...jest.requireActual('@/modules/profile/services/profile-records-service'),
+  deleteProfileRecord: jest.fn(),
 }));
  
 const crearCertificacion = api.crearCertificacion as jest.Mock;
@@ -144,4 +153,130 @@ it('un registro nuevo después de un éxito usa otra operación aunque tenga los
   llenarYAgregar();
   await waitFor(() => expect(crearCertificacion).toHaveBeenCalledTimes(2));
   expect(crearCertificacion.mock.calls[1][1]).not.toBe(firstKey);
+});
+
+
+describe('Completar perfil · Cancelar, editar y eliminar certificaciones (bugs QA HU8-01 y HU8-02)', () => {
+  const eliminar = deleteProfileRecord as jest.Mock;
+
+  function abrirCon(records: ProfileRecords, returnTo?: string) {
+    render(
+      <ProfileStoreProvider initialRecords={records}>
+        <AcordeonPerfil returnTo={returnTo} />
+      </ProfileStoreProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /certificaciones/i }));
+  }
+
+  beforeEach(() => {
+    crearCertificacion.mockReset();
+    subirRespaldo.mockReset();
+    eliminar.mockReset();
+    push.mockReset();
+    clearPendingProfileChanges();
+  });
+
+  it('Cancelar sin guardar no envía nada a la API y vuelve a Afinidad', () => {
+    abrirCertificaciones('/afinidad');
+    fireEvent.change(screen.getByLabelText('Nombre de certificación'), { target: { value: 'Borrador' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(crearCertificacion).not.toHaveBeenCalled();
+    expect(subirRespaldo).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith('/afinidad');
+  });
+
+  it('Cancelar sin returnTo vuelve al resumen del perfil', () => {
+    abrirCertificaciones();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(push).toHaveBeenCalledWith('/profile');
+  });
+
+  it('si ya se creó y falló la foto, Cancelar no la borra y la muestra como registrada', async () => {
+    crearCertificacion.mockResolvedValue(CREADA);
+    subirRespaldo.mockRejectedValue(new ApiError(500, 'Error interno'));
+    abrirCertificaciones('/afinidad');
+    llenarYAgregar();
+    await screen.findByRole('button', { name: 'Reintentar' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(eliminar).not.toHaveBeenCalled();
+    expect(screen.getByText('Certificaciones registradas')).toBeInTheDocument();
+    expect(push).toHaveBeenCalledWith('/afinidad');
+  });
+
+  it('editar abre la edición con regreso a esta sección y a Afinidad', () => {
+    abrirCon({ ...SIN_REGISTROS, certification: [CREADA] }, '/afinidad');
+
+    const enlace = screen.getByRole('link', { name: 'Editar AWS Cloud Practitioner' });
+    const regreso = new URL(enlace.getAttribute('href') as string, 'http://x').searchParams.get('returnTo');
+    expect(enlace.getAttribute('href')).toMatch(/^\/profile\/certifications\/cert-1\/edit\?/);
+    expect(regreso).toBe('/profile/completar?seccion=certificaciones&returnTo=%2Fafinidad');
+  });
+
+  it('eliminar confirma, llama al DELETE y quita la certificación de la lista', async () => {
+    eliminar.mockResolvedValue(undefined);
+    abrirCon({ ...SIN_REGISTROS, certification: [CREADA] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar AWS Cloud Practitioner' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    await waitFor(() => expect(screen.queryByText('Certificaciones registradas')).not.toBeInTheDocument());
+    expect(eliminar).toHaveBeenCalledWith('certification', expect.objectContaining({ id: 'cert-1' }));
+  });
+
+  it('una eliminación fallida conserva la certificación y no marca cambios para el radar', async () => {
+    eliminar.mockRejectedValue(new DeleteRecordException('network'));
+    abrirCon({ ...SIN_REGISTROS, certification: [CREADA] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar AWS Cloud Practitioner' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    expect(await screen.findByText('No se pudo eliminar el registro')).toBeInTheDocument();
+    expect(screen.getByText('Certificaciones registradas')).toBeInTheDocument();
+    expect(hasPendingProfileChanges()).toBe(false);
+  });
+});
+
+describe('Completar perfil · espera la carga inicial del perfil (revisión PR #648)', () => {
+  const obtenerResumen = api.obtenerResumenPerfil as jest.Mock;
+
+  afterEach(() => obtenerResumen.mockReset());
+
+  it('mientras carga no muestra formularios, así no se puede guardar antes de la respuesta inicial', () => {
+    obtenerResumen.mockReturnValue(new Promise(() => {}));
+    render(
+      <ProfileStoreProvider>
+        <AcordeonPerfil />
+      </ProfileStoreProvider>,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando tu perfil');
+    expect(screen.queryByRole('button', { name: /certificaciones/i })).not.toBeInTheDocument();
+  });
+
+  it('si la carga falla no habilita formularios y permite reintentar', async () => {
+    obtenerResumen
+      .mockRejectedValueOnce(new ApiError(0, 'No fue posible conectar con el servidor'))
+      .mockResolvedValueOnce({
+        header: { id: 'titulado-1', name: 'Ana', career: 'Sistemas', graduationYear: 2020 },
+        records: { ...SIN_REGISTROS, certification: [CREADA] },
+        description: '',
+      });
+    render(
+      <ProfileStoreProvider>
+        <AcordeonPerfil />
+      </ProfileStoreProvider>,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo cargar tu perfil');
+    expect(screen.queryByLabelText('Nombre de certificación')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: /certificaciones/i }));
+    expect(screen.getByText('AWS Cloud Practitioner')).toBeInTheDocument();
+  });
 });

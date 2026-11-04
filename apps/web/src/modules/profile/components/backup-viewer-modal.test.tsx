@@ -74,12 +74,29 @@ describe('BackupViewerModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('muestra «Cargando respaldo…» mientras llega el enlace', async () => {
+  it('muestra «Cargando respaldo…» mientras llega el enlace y hasta que la foto termina de cargar', async () => {
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
-    await screen.findByRole('img');
+    const image = await screen.findByRole('img');
+    // El enlace ya llegó, pero la foto todavía no: sigue "Cargando" y la imagen queda oculta
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
+    expect(image).toHaveClass('hidden');
+
+    fireEvent.load(image);
+
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(image).not.toHaveClass('hidden');
+  });
+
+  it('si la foto lenta falla al cargar quita «Cargando» y muestra el error con «Reintentar»', async () => {
+    render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
+
+    fireEvent.error(await screen.findByRole('img'));
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
   });
 
   it('si falla el enlace muestra el error sin cerrar el visor', async () => {
@@ -110,7 +127,10 @@ describe('BackupViewerModal', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
 
     expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
-    expect(await screen.findByRole('img')).toHaveAttribute('src', ENLACE);
+    const image = await screen.findByRole('img');
+    expect(image).toHaveAttribute('src', ENLACE);
+    fireEvent.load(image);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(obtenerEnlaceMock).toHaveBeenCalledTimes(2);
   });
