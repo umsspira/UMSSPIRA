@@ -212,3 +212,10 @@ describe('Información real sin vinculación de respaldos', () => {
     expect(screen.queryByText('Desarrollo de Software')).not.toBeInTheDocument();
   });
 });
+
+
+it('un 0 % describe los aportes detectados, sin afirmar que no existen certificaciones', () => {
+  render(<RadarInspection selectedAreaId="quality-assurance" onSelectArea={jest.fn()} areas={[{ area: 'quality-assurance', affinity: 0 }]} />);
+  expect(screen.getByText(/No se detectaron aportes para esta área/)).toBeInTheDocument();
+  expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
+});

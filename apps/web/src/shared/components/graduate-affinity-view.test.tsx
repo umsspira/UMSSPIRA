@@ -209,6 +209,7 @@ describe('GraduateAffinityView', () => {
       NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS: 'true',
     };
     window.sessionStorage.clear();
+    (affinityService.getAreaCertifications as jest.Mock).mockReset().mockImplementation(async area => ({ area, source: 'current-profile', certifications: [] }));
     jest.clearAllMocks();
     mockGetAffinityVector.mockReset();
     mockGetAffinityConfig.mockReset();
@@ -379,7 +380,8 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
   });
 
-  it('al seleccionar Cloud muestra las evidencias del vector cargado', async () => {
+  it('al seleccionar Cloud consulta sus certificaciones relacionadas', async () => {
+    (affinityService.getAreaCertifications as jest.Mock).mockResolvedValueOnce({ area: 'cloud-devops', source: 'current-profile', certifications: [{ id: 'cloud-cert', title: 'AWS Certified Cloud Practitioner', issuer: 'Amazon', issuedYear: 2026, hasBackup: false, matchedKeywords: ['aws'] }] });
     render(<GraduateAffinityView />);
 
     await screen.findByText('Resumen de tu afinidad');
@@ -395,7 +397,7 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('AWS Certified Cloud Practitioner')
+      await screen.findByText('AWS Certified Cloud Practitioner')
     ).toBeInTheDocument();
 
     expect(
@@ -403,7 +405,8 @@ describe('GraduateAffinityView', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('al seleccionar Ciberseguridad muestra sus evidencias', async () => {
+  it('al seleccionar Ciberseguridad consulta sus certificaciones sin inventar proyectos', async () => {
+    (affinityService.getAreaCertifications as jest.Mock).mockResolvedValueOnce({ area: 'cybersecurity-networks', source: 'current-profile', certifications: [{ id: 'cyber-cert', title: 'Cisco Certified Network Associate (CCNA)', issuer: 'Cisco', issuedYear: 2026, hasBackup: false, matchedKeywords: ['redes'] }] });
     render(<GraduateAffinityView />);
 
     await screen.findByText('Resumen de tu afinidad');
@@ -419,12 +422,12 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('Cisco Certified Network Associate (CCNA)')
+      await screen.findByText('Cisco Certified Network Associate (CCNA)')
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('Configuración de Firewalls y Políticas SecOps')
-    ).toBeInTheDocument();
+      screen.queryByText('Configuración de Firewalls y Políticas SecOps')
+    ).not.toBeInTheDocument();
   });
 
   it('volver al resumen deselecciona el área', async () => {

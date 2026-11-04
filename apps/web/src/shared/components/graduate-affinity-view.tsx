@@ -1,5 +1,7 @@
 'use client';
 
+import { RadarCertificationsPanel } from './radar-certifications-panel';
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import AffinityRadar from '@/shared/components/affinity-radar';
 import { RecalculateButton } from './recalculate-button';
@@ -23,6 +25,7 @@ import {
 import {
   AFFINITY_AREAS,
   AFFINITY_AREA_LABELS,
+  type AffinityArea,
   type AffinityAreaScore,
 } from '@umsspira/shared-types/src/affinity';
 import { ArrowLeft, Tag } from 'lucide-react';
@@ -95,7 +98,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   
   const [changedAreaIds, setChangedAreaIds] = useState<string[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
-  const [lastCalculatedDate, setLastCalculatedDate] = useState<string | null>(null);
+  const [lastCalculatedAt, setLastCalculatedAt] = useState<string | null>(null);
 
   const [candidateAreas, setCandidateAreas] = useState<CandidateArea[]>([
     { area: 'software-development', affinity: 95 },
@@ -168,7 +171,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         setIsSuccessToastOpen(true);
         return;
       }
-      setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
+      setLastCalculatedAt(result.calculatedAt);
       const processed = processVectorAreas(result.areas);
 
       const modifiedIds: string[] = [];
@@ -237,7 +240,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
       setCandidateAreas(processed);
       setLoadedKeywords(extractKeywords(processed));
       setHasValidRadar(true);
-      setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
+      setLastCalculatedAt(result.calculatedAt);
       hasRadarErrorRef.current = false;
       setHasRadarError(false);
 
@@ -396,7 +399,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <span>
-                        Última actualización: <strong className="text-slate-900">{lastCalculatedDate ?? 'No disponible'}</strong>
+                        Última actualización: <strong className="text-slate-900">{formatCalculatedDate(lastCalculatedAt) ?? 'No disponible'}</strong>
                       </span>
                       <span className="w-2 h-2 rounded-full bg-emerald-500 ml-1" />
                     </div>
@@ -558,6 +561,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   selectedAreaId={selectedAreaId}
                   onSelectArea={setSelectedAreaId}
                   areas={inspectionAreas}
+                  certificationsPanel={selectedAreaId && AFFINITY_AREAS.includes(selectedAreaId as AffinityArea) ? <RadarCertificationsPanel area={selectedAreaId as AffinityArea} calculationKey={lastCalculatedAt} /> : undefined}
                 />
               )}
             </div>

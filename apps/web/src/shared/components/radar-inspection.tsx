@@ -28,6 +28,7 @@ interface RadarInspectionProps {
   selectedAreaId: string | null;
   onSelectArea: (id: string | null) => void;
   areas?: AreaData[];
+  certificationsPanel?: React.ReactNode;
 }
 
 // 2. Diccionario de ids a los nombres oficiales de shared-types (CA-HU7-22)
@@ -49,7 +50,8 @@ const BRICK_TEXT_AREA_IDS = new Set(["software-development", "cloud-devops"]);
 export default function RadarInspection({ 
   selectedAreaId, 
   onSelectArea,
-  areas = []
+  areas = [],
+  certificationsPanel,
 }: RadarInspectionProps) {
 
   // 3. Estado vacío actualizado: SOLO muestra el mensaje, sin botón "Completar perfil"
@@ -160,6 +162,8 @@ export default function RadarInspection({
               </button>
             </div>
             
+            {selectedArea.affinity === 0 && <p className="text-sm text-gray-500">No se detectaron aportes para esta área en el cálculo mostrado.</p>}
+            {certificationsPanel ?? <>
             {certifications.length === 0 && projects.length === 0 && (
               <p className="text-sm text-gray-500">
                 No se recibió información de respaldos para esta área. Esto no indica que no tengas certificaciones registradas.
@@ -191,6 +195,7 @@ export default function RadarInspection({
                 </ul>
               </div>
             )}
+            </>}
             <InfluentialKeywords keywords={selectedArea?.topKeywords}/>
           </div>
         ) : (
