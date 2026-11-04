@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { ArrowLeft, Bookmark, BriefcaseBusiness, CircleAlert, FileText, Info, MapPin, RefreshCw } from 'lucide-react';
 import JobsListingView from '../components/jobs-listing-view';
 import ModeControls from '../components/mode-controls';
+import AffinityCard from '../components/affinity-card';
 import type { VacancyListingState } from '../components/jobs-board';
 import { publicationDate } from '../utils/listing';
 import { getDemoVacancies } from './fixtures';
+import { getDemoAffinityResponse } from './affinity-fixtures';
 import { demoHref, type DemoScenario } from './mode';
 import type { DemoVacancy } from './types';
 
@@ -102,6 +104,8 @@ function DemoDetailContent({ vacancy, scenario }: { vacancy: DemoVacancy; scenar
   const content = vacancy.detailContent;
   const registered = publicationDate(vacancy.fechaCreacion);
   const closing = publicationDate(content.closingDate);
+  const affinity = getDemoAffinityResponse(vacancy.id, scenario);
+
   return (
     <>
       <header className="hu8-detail-hero">
@@ -120,6 +124,13 @@ function DemoDetailContent({ vacancy, scenario }: { vacancy: DemoVacancy; scenar
           <section className="hu8-detail-card"><h2>{vacancy.empresa}</h2>{content.companyDescription && <p>{content.companyDescription}</p>}{content.companyFacts && <p className="hu8-detail-company-facts">{content.companyFacts}</p>}<button type="button" className="hu8-detail-company-link" disabled>Ver perfil de empresa (no disponible)</button></section>
         </div>
         <aside className="hu8-detail-sidebar" aria-label="Resumen de la oferta">
+          {/* HU9: Tarjeta de afinidad */}
+          <AffinityCard
+            vacancyId={vacancy.id}
+            affinity={affinity}
+            comparisonHref={demoHref(`/job-postings/${encodeURIComponent(vacancy.id)}/afinidad`, scenario)}
+          />
+
           <section className="hu8-detail-card">
             <h2>Información de la oferta</h2>
             <dl className="hu8-detail-facts">

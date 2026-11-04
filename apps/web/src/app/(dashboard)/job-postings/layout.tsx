@@ -3,6 +3,7 @@ import JobsHeader from '@/modules/job-postings/components/jobs-header';
 import '@/modules/job-postings/styles/jobs-board.css';
 import '@/modules/job-postings/styles/vacancy-detail.css';
 import '@/modules/job-postings/styles/jobs-header.css';
+import '@/modules/job-postings/styles/affinity.css';
 import '@/modules/job-postings/styles/hu8.css';
 
 export default function JobPostingsLayout({ children }: { children: ReactNode }) {

@@ -1,0 +1,606 @@
+/* Estilos para la HU9: Visualización de afinidad */
+
+.affinity-page {
+  --aff-bg: #f5f2ec;
+  --aff-ink: #192940;
+  --aff-muted: #667085;
+  --aff-border: #ded6c9;
+  --aff-orange: #ea580c;
+  --aff-orange-soft: #fff3ec;
+  --aff-green: #16a34a;
+  --aff-green-soft: #dcfce7;
+  --aff-blue: #0284c7;
+  --aff-blue-soft: #e0f2fe;
+  font-family: inherit;
+  color: var(--aff-ink);
+}
+
+/* Breadcrumbs */
+.affinity-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #56738a;
+  margin-bottom: 20px;
+}
+.affinity-breadcrumbs a {
+  color: inherit;
+  text-decoration: none;
+}
+.affinity-breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+/* Banner de orientación */
+.affinity-notice-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #fdf2ec;
+  border: 1px solid #f9d5c3;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 28px;
+  color: #7c2d12;
+  font-size: 14px;
+  line-height: 22px;
+}
+.affinity-notice-banner svg {
+  flex-shrink: 0;
+  color: #ea580c;
+  margin-top: 2px;
+}
+.affinity-notice-banner h2,
+.affinity-notice-banner strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: #9a3412;
+}
+
+/* Layout de dos columnas: Oportunidades */
+.affinity-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 980px) {
+  .affinity-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tarjeta de Oportunidad */
+.opportunity-card {
+  background: #ffffff;
+  border: 1px solid var(--aff-border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.opportunity-card:hover {
+  border-color: #cbbba4;
+  box-shadow: 0 4px 14px rgba(25, 41, 64, 0.05);
+}
+.opportunity-main {
+  flex: 1;
+  min-width: 0;
+}
+.opportunity-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--aff-ink);
+  margin: 0 0 6px;
+}
+.opportunity-company {
+  font-size: 14px;
+  color: var(--aff-ink);
+  margin: 0 0 8px;
+}
+.opportunity-meta {
+  font-size: 13px;
+  color: var(--aff-muted);
+  margin: 0 0 14px;
+}
+.opportunity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.opportunity-tag {
+  background: #fbf5ee;
+  color: #794326;
+  border: 1px solid #ebd9c8;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.opportunity-date {
+  font-size: 12px;
+  color: var(--aff-muted);
+  margin: 0;
+}
+.opportunity-extra-note {
+  font-size: 11px;
+  color: #8c6a46;
+  margin-top: 4px;
+}
+
+/* Bloque de afinidad a la derecha de la tarjeta */
+.opportunity-affinity-block {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  text-align: right;
+}
+.opportunity-score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.opportunity-score-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--aff-ink);
+  line-height: 1;
+}
+.opportunity-score-pill {
+  background: var(--aff-orange-soft);
+  color: var(--aff-orange);
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.opportunity-summary-text {
+  font-size: 13px;
+  color: var(--aff-muted);
+  margin: 8px 0 16px;
+  line-height: 18px;
+}
+.opportunity-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--aff-border);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aff-ink);
+  text-decoration: none;
+  transition: all 150ms ease;
+}
+.opportunity-action-btn:hover {
+  background: #fffaf4;
+  border-color: #bda98b;
+}
+
+/* Sidebar "Tu perfil profesional" */
+.profile-card {
+  background: #ffffff;
+  border: 1px solid var(--aff-border);
+  border-radius: 14px;
+  padding: 24px;
+}
+.profile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.profile-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+.profile-status-badge {
+  background: var(--aff-green-soft);
+  color: #14532d;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+.profile-user-name {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.profile-degree {
+  font-size: 13px;
+  color: var(--aff-muted);
+  margin: 0 0 16px;
+}
+.profile-skills-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.profile-skill-chip {
+  background: #f4efe7;
+  color: #4b3e2e;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.profile-update-date {
+  font-size: 12px;
+  color: var(--aff-muted);
+  margin-bottom: 16px;
+}
+.profile-update-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--aff-border);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--aff-ink);
+  cursor: pointer;
+  transition: background 150ms;
+}
+.profile-update-btn:hover {
+  background: #fffaf4;
+}
+.profile-footer-note {
+  font-size: 12px;
+  color: var(--aff-muted);
+  margin-top: 14px;
+  line-height: 18px;
+}
+
+/* Tarjeta de Afinidad de Detalle (Sidebar) */
+.affinity-detail-card {
+  background: #ffffff;
+  border: 1px solid var(--aff-border);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 20px;
+}
+.affinity-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.affinity-detail-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+.affinity-badge-vigente {
+  background: var(--aff-green-soft);
+  color: #14532d;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 12px;
+}
+.affinity-big-percentage {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--aff-ink);
+  line-height: 1;
+  margin-bottom: 14px;
+}
+.affinity-progress-track {
+  width: 100%;
+  height: 8px;
+  background: #eee9df;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.affinity-progress-fill {
+  height: 100%;
+  background: var(--aff-orange);
+  border-radius: 4px;
+  transition: width 400ms ease;
+}
+.affinity-disclaimer {
+  font-size: 12px;
+  color: var(--aff-muted);
+  line-height: 18px;
+  margin: 0 0 8px;
+}
+.affinity-timestamp {
+  font-size: 11px;
+  color: var(--aff-muted);
+  margin: 0 0 16px;
+}
+.affinity-compare-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--aff-border);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--aff-ink);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.affinity-compare-btn:hover {
+  background: #fffaf4;
+  border-color: #bda98b;
+}
+.affinity-footnote-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f8f6f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: #65594b;
+  line-height: 17px;
+}
+.affinity-footnote-box svg {
+  flex-shrink: 0;
+  color: #8c7b69;
+  margin-top: 2px;
+}
+
+/* Alertas de estados especiales (INCOMPLETE_PROFILE, INSUFFICIENT_REQUIREMENTS, NLP_ERROR) */
+.affinity-state-alert {
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 20px;
+}
+.affinity-state-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+.affinity-state-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+.affinity-state-info {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+/* Vista de Comparación (/job-postings/[id]/afinidad) */
+.affinity-comparison-page {
+  padding-bottom: 60px;
+}
+.affinity-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #56738a;
+  text-decoration: none;
+  margin-bottom: 20px;
+}
+.affinity-back-link:hover {
+  text-decoration: underline;
+}
+.affinity-comparison-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 36px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.affinity-comparison-sub {
+  font-size: 15px;
+  color: var(--aff-muted);
+  margin: 0 0 24px;
+}
+.comparison-vacancy-banner {
+  background: #ffffff;
+  border: 1px solid var(--aff-border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.comparison-vacancy-banner .briefcase-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #fff0df;
+  display: grid;
+  place-items: center;
+  color: #9b8c7a;
+  flex-shrink: 0;
+}
+.comparison-vacancy-banner h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.comparison-vacancy-banner p {
+  font-size: 13px;
+  color: var(--aff-muted);
+  margin: 0;
+}
+
+/* Badges de conteo */
+.comparison-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 20px;
+}
+.counter-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 16px;
+}
+.counter-exact {
+  background: #ebf7ee;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.counter-similar {
+  background: #ebf5fa;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+.counter-missing {
+  background: #fff4ec;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+/* Tabla de comparación */
+.comparison-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--aff-border);
+  border-radius: 12px;
+  background: #ffffff;
+  margin-bottom: 14px;
+}
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.comparison-table th {
+  background: #fbf9f5;
+  padding: 14px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aff-ink);
+  border-bottom: 1px solid var(--aff-border);
+}
+.comparison-table td {
+  padding: 16px 18px;
+  border-bottom: 1px solid #f0eae1;
+  font-size: 14px;
+  vertical-align: top;
+}
+.comparison-table tr:last-child td {
+  border-bottom: none;
+}
+.comparison-skill-title {
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.comparison-skill-subtitle {
+  font-size: 12px;
+  color: var(--aff-muted);
+}
+.badge-match-exact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #dcfce7;
+  color: #14532d;
+  border: 1px solid #86efac;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-match-similar {
+  display: inline-flex;
+  align-items: center;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-match-missing {
+  display: inline-flex;
+  align-items: center;
+  background: #fff3ec;
+  color: #c2410c;
+  border: 1px solid #ffedd5;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Tarjeta explicativa "¿Cómo se estima la afinidad?" */
+.affinity-explain-card {
+  background: #ffffff;
+  border: 1px solid var(--aff-border);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 20px;
+}
+.affinity-explain-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.affinity-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff0df;
+  color: #8c5d26;
+  font-size: 12px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* Tarjeta "Tu siguiente paso" */
+.affinity-nextstep-card {
+  background: #fff8f3;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  padding: 22px;
+}
+.affinity-apply-btn {
+  width: 100%;
+  background: var(--aff-orange);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 14px;
+  transition: background 150ms ease;
+}
+.affinity-apply-btn:hover {
+  background: #d9480f;
+}
