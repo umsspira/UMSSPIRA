@@ -44,8 +44,18 @@ export function AcordeonPerfil({
   seccionInicial?: CompletenessSectionId;
 }) {
   // Los registros vienen del estado compartido del perfil, así lo agregado aquí aparece en el resumen
-  const { records, description, addEducation, addExperience, addCertification, setDescription, removeRecord } =
-    useProfileStore();
+  const {
+    records,
+    description,
+    isLoading,
+    loadError,
+    retryLoad,
+    addEducation,
+    addExperience,
+    addCertification,
+    setDescription,
+    removeRecord,
+  } = useProfileStore();
   const router = useRouter();
   const [avisoBorrador, setAvisoBorrador] = useState(false);
   // Errores sin corregir por sección, para el contador del encabezado (HU-02, AC 6)
@@ -122,6 +132,32 @@ export function AcordeonPerfil({
   const secciones = profileCompleteness(records, description).sections;
   const completas = secciones.filter((seccion) => seccion.complete).length;
  
+  // Los formularios se habilitan solo con el perfil ya cargado: si se guardara antes, la respuesta
+  // inicial (más vieja) reemplazaría la lista y ocultaría lo recién guardado. Si falla, se reintenta
+  if (isLoading || loadError) {
+    return (
+      <div className="flex flex-col gap-6">
+        <h1 className="text-2xl font-bold text-blue-fantastic md:text-[28px]">Completar Perfil Profesional</h1>
+        {isLoading ? (
+          <p role="status" className="rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-10 text-center text-sm text-blue-fantastic/70">
+            Cargando tu perfil…
+          </p>
+        ) : (
+          <div role="alert" className="flex flex-col items-start gap-3 rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-6 text-sm">
+            <p>No se pudo cargar tu perfil. {loadError}</p>
+            <button
+              type="button"
+              onClick={retryLoad}
+              className="rounded-lg bg-burning-flame px-4 py-2 font-bold text-abyssal-blue"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Cabecera con progreso (v3: "Completar Perfil Profesional") */}
