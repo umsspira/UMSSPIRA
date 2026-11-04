@@ -12,10 +12,14 @@ export class GetMySurveyController {
   @Roles('titulado')
   async handle(@CurrentActor() actor: ActorContext) {
     const idTitulado = actor.scopes.graduateId;
-    if (!idTitulado) throw new NotFoundException('Perfil de titulado no encontrado');
+    if (!idTitulado) {
+      throw new NotFoundException('Perfil de titulado no encontrado');
+    }
 
     const survey = await this.prisma.encuesta.findFirst({ orderBy: { fecha_creacion: 'desc' } });
-    if (!survey) throw new NotFoundException('No existe una encuesta disponible');
+    if (!survey) {
+      throw new NotFoundException('No existe una encuesta disponible');
+    }
 
     const saved = await this.prisma.respuestaEncuesta.findUnique({
       where: { uq_respuesta_encuesta_titulado: { idEncuesta: survey.id, idTitulado } },
