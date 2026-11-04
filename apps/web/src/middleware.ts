@@ -7,14 +7,24 @@ const API_URL = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL 
 
 
 export async function middleware(request: NextRequest) {
+  // HU-10: el enlace de corrección se valida con el token, no con la sesión.
+  if (request.nextUrl.pathname.startsWith('/applications/correct/')) {
+    return NextResponse.next();
+  }
+
   const path = request.nextUrl.pathname;
   const isReport = path === '/reports' || path.startsWith('/reports/');
+  const isJobPosting = path === '/job-postings' || path.startsWith('/job-postings/');
   // Sprint 2 T4.1: las encuestas son privadas para el rol titulado.
   const isSurvey = path === '/surveys' || path.startsWith('/surveys/');
   const refresh = request.cookies.get('umsspira_refresh')?.value;
   const redirect = (destination: string) => NextResponse.redirect(new URL(destination, request.url));
   // HU-004: conservar el motivo para explicar al visitante por qué fue redirigido.
-  const loginDestination = isReport ? '/login?reportes=requiere-sesion' : LOGIN_PATH;
+  const loginDestination = isReport
+    ? '/login?reportes=requiere-sesion'
+    : isJobPosting
+      ? `${LOGIN_PATH}?next=${encodeURIComponent(`${path}${request.nextUrl.search ?? ''}`)}`
+      : LOGIN_PATH;
   if (!refresh) return redirect(loginDestination);
   try {
     // Consultar la sesión sin rotarla permite navegaciones paralelas.
@@ -68,5 +78,5 @@ export const config = { matcher: [
   // Áreas que exigen sesión (el portal institucional /portal/institucional sigue público).
   '/portal', '/portal/empleos', '/portal/mentorias', '/portal/comunidad', '/portal/beneficios',
   '/portal/eventos', '/portal/eventos/:path*', '/portal/mensajes',
-  '/mentorship', '/mentorship/:path*', '/job-postings',
+  '/mentorship', '/mentorship/:path*', '/job-postings', '/job-postings/:path*',
 ] };
