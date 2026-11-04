@@ -1,4 +1,4 @@
-﻿export type PingResponse = {
+export type PingResponse = {
   status: string;
   message: string;
   timestamp: string;
