@@ -376,3 +376,46 @@ describe('FormularioCertificaciones · retorno a Mi afinidad (T8.5)', () => {
   });
 });
  
+
+describe('FormularioCertificaciones · bugs QA del sprint (HU8-01, HU8-02)', () => {
+  const registrada = {
+    id: 'cert-1',
+    nombre: 'AWS Cloud Practitioner',
+    entidadEmisora: 'Amazon Web Services',
+    anioEmision: '2023',
+    grado: 'Profesional',
+    respaldo: null,
+  };
+
+  it('HU8-01: Cancelar descarta lo escrito y sale sin guardar', () => {
+    const onAgregar = jest.fn();
+    const onCancelar = jest.fn();
+    render(<FormularioCertificaciones certificaciones={[]} onAgregar={onAgregar} onCancelar={onCancelar} />);
+    llenarFormulario();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(onCancelar).toHaveBeenCalledTimes(1);
+    expect(onAgregar).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Nombre de certificación')).toHaveValue('');
+  });
+
+  it('HU8-02: cada certificación registrada tiene editar y eliminar', () => {
+    const onEliminar = jest.fn();
+    render(
+      <FormularioCertificaciones
+        certificaciones={[registrada]}
+        onAgregar={jest.fn()}
+        hrefEditar={(id) => `/profile/certifications/${id}/edit`}
+        onEliminar={onEliminar}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Editar AWS Cloud Practitioner' })).toHaveAttribute(
+      'href',
+      '/profile/certifications/cert-1/edit',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar AWS Cloud Practitioner' }));
+    expect(onEliminar).toHaveBeenCalledWith('cert-1');
+  });
+});

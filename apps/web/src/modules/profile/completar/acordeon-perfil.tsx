@@ -18,6 +18,8 @@ import {
   guardarDescripcion,
   subirRespaldo,
 } from '@/modules/profile/services/perfil-api';
+import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
+import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
@@ -28,6 +30,7 @@ import {
 import type {
   CertificationRecord,
   EducationRecord,
+  DeleteRecordErrorCode,
   ExperienceRecord,
 } from '@/modules/profile/types/profile-record';
  
@@ -41,7 +44,7 @@ export function AcordeonPerfil({
   seccionInicial?: CompletenessSectionId;
 }) {
   // Los registros vienen del estado compartido del perfil, así lo agregado aquí aparece en el resumen
-  const { records, description, addEducation, addExperience, addCertification, setDescription } =
+  const { records, description, addEducation, addExperience, addCertification, setDescription, removeRecord } =
     useProfileStore();
   const router = useRouter();
   const [avisoBorrador, setAvisoBorrador] = useState(false);
@@ -51,6 +54,26 @@ export function AcordeonPerfil({
   const [erroresCertificaciones, setErroresCertificaciones] = useState(0);
   // Avance (0 a 100) de la subida del respaldo mientras se guarda una certificación
   const [progresoSubida, setProgresoSubida] = useState<number>();
+  // Certificación que se va a eliminar desde Completar perfil (BUG HU8-02), con el mismo modal que Mis registros
+  const [certificacionAEliminar, setCertificacionAEliminar] = useState<CertificationRecord | null>(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState<DeleteRecordErrorCode | null>(null);
+
+  async function confirmarEliminar() {
+    if (!certificacionAEliminar) return;
+    setEliminando(true);
+    setErrorEliminar(null);
+    try {
+      // El servicio avisa a la Épica 3 que hay cambios pendientes para el radar
+      await deleteProfileRecord('certification', certificacionAEliminar);
+      removeRecord('certification', certificacionAEliminar.id);
+      setCertificacionAEliminar(null);
+    } catch (error) {
+      setErrorEliminar(error instanceof DeleteRecordException ? error.code : 'network');
+    } finally {
+      setEliminando(false);
+    }
+  }
   // Certificación ya creada cuyo respaldo no se pudo subir: al reintentar se sube solo la foto, sin duplicar (T8.6)
   const pendienteRef = useRef<{ clave: string; idOperacion: string; creada?: CertificationRecord } | null>(null);
  
@@ -85,6 +108,7 @@ export function AcordeonPerfil({
   const certificaciones = useMemo<Certificacion[]>(
     () =>
       (records.certification as CertificationRecord[]).map((registro) => ({
+        id: registro.id,
         nombre: registro.name,
         entidadEmisora: registro.issuer,
         anioEmision: registro.issueYear,
@@ -199,6 +223,14 @@ export function AcordeonPerfil({
           onErroresChange={setErroresCertificaciones}
           returnTo={returnTo}
           progreso={progresoSubida}
+          onCancelar={() => router.push(returnTo ?? '/profile')}
+          hrefEditar={(id) => `/profile/certifications/${id}/edit`}
+          onEliminar={(id) => {
+            setErrorEliminar(null);
+            setCertificacionAEliminar(
+              (records.certification as CertificationRecord[]).find((registro) => registro.id === id) ?? null,
+            );
+          }}
           onAgregar={async (certificacion) => {
             setProgresoSubida(undefined);
             const clave = JSON.stringify([
@@ -233,6 +265,16 @@ export function AcordeonPerfil({
           }}
         />
       </SeccionAcordeon>
+      {certificacionAEliminar && (
+        <DeleteRecordModal
+          section="certification"
+          record={certificacionAEliminar}
+          isDeleting={eliminando}
+          errorCode={errorEliminar}
+          onConfirm={() => void confirmarEliminar()}
+          onCancel={() => setCertificacionAEliminar(null)}
+        />
+      )}
       <SeccionAcordeon
         numero={4}
         abiertaInicial={seccionInicial === 'descripcion-profesional'}
