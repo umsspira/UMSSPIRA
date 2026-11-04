@@ -49,6 +49,9 @@ it('HU7: no atribuye una certificación del mock a un perfil que no la devolvió
   render(<GraduateAffinityView />);
   fireEvent.click(await screen.findByRole('button', { name: 'Inspeccionar software' }));
   expect(screen.queryByText('Certificación Avanzada de React')).not.toBeInTheDocument();
+  expect(screen.getByText(/No se recibió información de respaldos para esta área/)).toBeInTheDocument();
+  expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/snapshots locales/)).not.toBeInTheDocument();
 });
 
 it('HU7: informa la falta de historial aunque existan aportes de certificaciones', async () => {

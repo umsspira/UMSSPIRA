@@ -374,7 +374,7 @@ describe('GraduateAffinityView', () => {
     expect(screen.getByText('71%')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Haz clic en un área para inspeccionar sus respaldos'
+        'Haz clic en un área para ver sus palabras clave'
       )
     ).toBeInTheDocument();
   });

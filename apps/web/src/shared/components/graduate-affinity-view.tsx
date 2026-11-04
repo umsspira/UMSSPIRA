@@ -374,7 +374,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
             Tu afinidad profesional
           </h1>
           <p className="text-[13px] sm:text-sm text-blue-fantastic mt-1 max-w-xl">
-            Visualiza las áreas profesionales que más se relacionan con tu perfil académico mediante snapshots locales.
+            Visualiza la afinidad calculada a partir de los textos de tu perfil profesional.
           </p>
         </div>
 
