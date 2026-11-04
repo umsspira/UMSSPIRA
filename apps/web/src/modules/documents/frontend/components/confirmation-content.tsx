@@ -23,7 +23,7 @@ const DOCUMENT_TYPE_LABELS: Record<RegistrationDocumentType, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pendiente de validación',
+  PENDING: 'Pendiente',
   APPROVED: 'Aprobado',
   OBSERVED: 'Observado',
   REJECTED: 'Rechazado',
@@ -152,9 +152,8 @@ export function ConfirmationContent() {
               className="h-2 w-2 rounded-full bg-[#a76912]"
             />
 
-          <span>{status === 'Pendiente de validación' ? 'Pendiente' : status}</span>
-
-          {status === 'Pendiente de validación' && (
+          <span>{status}</span>
+          {status === 'Pendiente' && (
             <span>de validación</span>
           )}
         </span>
