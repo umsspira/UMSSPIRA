@@ -113,10 +113,15 @@ describe('Descripción profesional (T6.4)', () => {
     expect(result.error?.issues[0].message).toBe('La descripción no puede superar 5000 caracteres');
   });
 
-  it('acepta vacía para borrar la descripción y rechaza campos de más', () => {
-    expect(professionalDescriptionSchema.safeParse({ descripcionProfesional: '' }).success).toBe(
-      true,
-    );
+  it('rechaza una descripción vacía o solo con espacios con un mensaje claro', () => {
+    for (const texto of ['', '   ', '\n\t ']) {
+      const result = professionalDescriptionSchema.safeParse({ descripcionProfesional: texto });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0].message).toBe('La descripción no puede estar vacía');
+    }
+  });
+
+  it('rechaza campos de más', () => {
     expect(
       professionalDescriptionSchema.safeParse({ descripcionProfesional: 'x', idTitulado: 't2' })
         .success,

@@ -70,11 +70,12 @@ export const DEFAULT_CERTIFICATION_DEGREE = 'Profesional';
 export const createCertificationSchema = certificationSchema.extend({
   grado: text(50).default(DEFAULT_CERTIFICATION_DEGREE),
 });
-// Vacía se acepta: borra la descripción y la sección vuelve a contar como pendiente (T6.5)
+// Texto no vacío y hasta 5000 caracteres (T6.4): una descripción vacía se rechaza con 400
 export const professionalDescriptionSchema = z.strictObject({
   descripcionProfesional: z
     .string()
     .trim()
+    .min(1, 'La descripción no puede estar vacía')
     .max(
       PROFESSIONAL_DESCRIPTION_MAX_LENGTH,
       `La descripción no puede superar ${PROFESSIONAL_DESCRIPTION_MAX_LENGTH} caracteres`,
