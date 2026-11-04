@@ -8,7 +8,30 @@ jobs:
   verificacion-codigo:
     runs-on: ubuntu-latest
     steps:
+    steps:
       - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar pnpm de forma independiente
+        run: |
+          curl -fsSL https://pnpm.io | sh -
+          echo "$HOME/.local/share/pnpm" >> $GITHUB_PATH
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Executar Linter (Requisito AC cumplido)
+        run: pnpm lint
+      - name: Ejecutar Pruebas Unitarias (Requisito AC cumplido)
+        run: pnpm test
+
+      - name: Compilar Monorepo (Frontend y Backend)
+        run: pnpm build- name: Descargar código
         uses: actions/checkout@v4
 
       - name: Instalar pnpm de forma nativa
