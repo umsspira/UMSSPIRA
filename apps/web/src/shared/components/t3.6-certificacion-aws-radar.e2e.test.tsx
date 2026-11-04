@@ -9,6 +9,7 @@ import type { CertificationRecord } from '@/modules/profile/types/profile-record
 import { GraduateAffinityView } from '@/shared/components/graduate-affinity-view';
 import { DEBOUNCE_MS } from '@/shared/hooks/use-debounced-batch';
 import * as affinityService from '@/shared/services/affinity-service';
+import { markPendingProfileChanges, hasPendingProfileChanges } from '@/shared/services/pending-profile-changes';
 
 // Mock del router de Next.js
 const mockPush = jest.fn();
@@ -225,6 +226,7 @@ function IntegratedAffinityCertificationFlow({
 describe('T3.6 · E2E: agregar certificación AWS en la Épica 2 -> volver a «Mi afinidad» -> radar actualizado', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    window.sessionStorage.clear();
     mockSubirRespaldo.mockResolvedValue(undefined);
     mockCrearCertificacion.mockResolvedValue(AWS_CERT_CREADA);
     mockGetAffinityVector.mockResolvedValue(initialVector);
@@ -325,11 +327,13 @@ describe('T3.6 · E2E: agregar certificación AWS en la Épica 2 -> volver a «M
     // Notificación de éxito
     expect(await screen.findByText('Radar actualizado')).toBeInTheDocument();
 
+    expect(hasPendingProfileChanges()).toBe(false);
+
     // El porcentaje de Cloud & DevOps ahora es 92%
     expect(screen.getByText('92%')).toBeInTheDocument();
   });
 
-  it('Flujo E2E completo: Mi afinidad -> Añadir certificaciones -> Llenar AWS en Épica 2 -> Guardar -> Ver mi afinidad -> Radar actualizado', async () => {
+  it.each([false, true])('Flujo integrado con servicios simulados: guardar AWS y volver recalcula, con marca de eliminación previa=%s', async (pendingDeletion) => {
     // Primera carga en afinidad
     mockGetAffinityVector
       .mockResolvedValueOnce(initialVector)
@@ -359,6 +363,9 @@ describe('T3.6 · E2E: agregar certificación AWS en la Épica 2 -> volver a «M
 
     // 3. Ahora estamos en el formulario de la Épica 2
     expect(await screen.findByTestId('view-complete-profile')).toBeInTheDocument();
+
+    // Representa una eliminación anterior antes de agregar la nueva certificación.
+    if (pendingDeletion) markPendingProfileChanges();
 
     // 4. Llenar formulario con la certificación AWS
     fireEvent.change(screen.getByLabelText('Nombre de certificación'), {
@@ -398,6 +405,8 @@ describe('T3.6 · E2E: agregar certificación AWS en la Épica 2 -> volver a «M
     // 8. De vuelta en Mi afinidad
     expect(await screen.findByTestId('view-affinity')).toBeInTheDocument();
     expect(await screen.findByText('Resumen de tu afinidad')).toBeInTheDocument();
+
+    expect(screen.queryByText('Se detectaron modificaciones')).not.toBeInTheDocument();
 
     // 9. Se dispara el debounce de recálculo
     await act(async () => {

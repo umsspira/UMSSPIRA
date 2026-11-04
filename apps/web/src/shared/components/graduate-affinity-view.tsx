@@ -14,7 +14,6 @@ import { VariationIndicator } from './variation-indicator';
 import { clampPercentage, formatPercentage } from '../utils/percentage';
 import { sortAreasByAffinityDesc } from '../utils/affinity-math';
 import { useRecalculateState } from '../hooks/use-recalculate-state';
-import { hasPendingProfileChanges } from '../services/pending-profile-changes';
 import { DEBOUNCE_MS } from '../hooks/use-debounced-batch';
 import {
   recalculateAffinity,
@@ -242,16 +241,14 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
       hasRadarErrorRef.current = false;
       setHasRadarError(false);
 
-      const hasPendingDeletion = hasPendingProfileChanges();
-      if (result.hasPendingChanges || hasPendingDeletion) {
+      // El hash del servidor decide si hace falta recalcular, también tras eliminar.
+      if (result.hasPendingChanges) {
         hasPendingChangesRef.current = true;
         markPendingChanges();
-        if (hasPendingDeletion) {
-          changeVersionRef.current += 1;
-          setChangeVersion(changeVersionRef.current);
-        } else {
-          scheduleDebouncedRecalculate();
-        }
+        scheduleDebouncedRecalculate();
+      } else {
+        hasPendingChangesRef.current = false;
+        clearPendingChanges();
       }
     } catch {
       if (isMountedRef.current && requestId === readRequestIdRef.current) {
@@ -264,7 +261,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         setIsLoading(false);
       }
     }
-  }, [markPendingChanges, scheduleDebouncedRecalculate]);
+  }, [clearPendingChanges, markPendingChanges, scheduleDebouncedRecalculate]);
 
   useEffect(() => {
     isMountedRef.current = true;

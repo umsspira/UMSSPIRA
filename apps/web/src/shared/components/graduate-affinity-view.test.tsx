@@ -1074,23 +1074,50 @@ describe('GraduateAffinityView', () => {
     expect(screen.queryByText('No se pudo actualizar tu radar')).not.toBeInTheDocument();
   });
 
-  it('QA HU8: una eliminacion muestra aviso y no pierde el pendiente tras salir o fallar el recalculo', async () => {
+  it('recalcula automáticamente tras eliminar y usa el vector vigente sin confirmación manual', async () => {
+    jest.useFakeTimers();
     markPendingProfileChanges();
-    const first = render(<GraduateAffinityView />);
-    await screen.findByText('Se detectaron modificaciones');
-    fireEvent.click(screen.getByRole('button', { name: /ahora no/i }));
-    expect(screen.getByRole('button', { name: /^recalcular$/i })).toBeEnabled();
-    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
-    first.unmount();
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(recalculatedAreas, { hasPendingChanges: true }));
+    mockRecalculateAffinity.mockResolvedValueOnce(makeVector([]));
     render(<GraduateAffinityView />);
-    await screen.findByText('Se detectaron modificaciones');
-    expect(hasPendingProfileChanges()).toBe(true);
+    await screen.findByText('Resumen de tu afinidad');
+    expect(screen.queryByText('Se detectaron modificaciones')).not.toBeInTheDocument();
+    await act(async () => { await jest.advanceTimersByTimeAsync(DEBOUNCE_MS - 1); });
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+    await act(async () => { await jest.advanceTimersByTimeAsync(1); });
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Radar actualizado')).toBeInTheDocument();
+    expect(hasPendingProfileChanges()).toBe(false);
+    expect(screen.getByRole('button', { name: /^recalcular$/i })).toBeDisabled();
+  });
+
+  it('ignora y limpia una marca de eliminación obsoleta si el servidor ya está actualizado', async () => {
+    jest.useFakeTimers();
+    markPendingProfileChanges();
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(recalculatedAreas, { hasPendingChanges: false }));
+    render(<GraduateAffinityView />);
+    await screen.findByText('Resumen de tu afinidad');
+    await act(async () => { await jest.advanceTimersByTimeAsync(DEBOUNCE_MS + 1); });
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+    expect(screen.queryByText('Se detectaron modificaciones')).not.toBeInTheDocument();
+    expect(hasPendingProfileChanges()).toBe(false);
+    expect(screen.getByRole('button', { name: /^recalcular$/i })).toBeDisabled();
+  });
+
+  it('conserva el radar y el pendiente si falla el recálculo automático tras eliminar y permite reintentar', async () => {
+    jest.useFakeTimers();
+    markPendingProfileChanges();
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(recalculatedAreas, { hasPendingChanges: true }));
     mockRecalculateAffinity.mockRejectedValueOnce(new Error('503'));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^recalcular$/i }));
-    await screen.findByText('No se pudo actualizar tu radar');
+    render(<GraduateAffinityView />);
+    await screen.findByText('Resumen de tu afinidad');
+    await act(async () => { await jest.advanceTimersByTimeAsync(DEBOUNCE_MS); });
+    expect(screen.getByText('No se pudo actualizar tu radar')).toBeInTheDocument();
+    expect(screen.getByTestId('radar')).toBeInTheDocument();
     expect(hasPendingProfileChanges()).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
-    await screen.findByText('Radar actualizado');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /reintentar/i })); });
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Radar actualizado')).toBeInTheDocument();
     expect(hasPendingProfileChanges()).toBe(false);
     expect(screen.getByRole('button', { name: /^recalcular$/i })).toBeDisabled();
   });
