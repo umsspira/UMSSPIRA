@@ -25,14 +25,15 @@ export interface SurveySubmitInput {
 }
 
 export async function getSurveySubmissionStatus(): Promise<boolean> {
-  const response = await apiFetch<{ data: { submitted: boolean } }>(
+  // apiFetch ya desenvuelve la propiedad data de la respuesta HTTP.
+  const response = await apiFetch<{ submitted: boolean }>(
     SURVEY_SUBMISSION_STATUS_PATH,
     { method: 'GET', cache: 'no-store' },
   );
-  if (typeof response?.data?.submitted !== 'boolean') {
+  if (typeof response?.submitted !== 'boolean') {
     throw new Error('No se pudo verificar el estado de la encuesta');
   }
-  return response.data.submitted;
+  return response.submitted;
 }
 
 /**

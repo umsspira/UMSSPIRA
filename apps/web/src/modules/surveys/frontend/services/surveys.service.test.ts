@@ -29,7 +29,7 @@ beforeEach(() => mockedApiFetch.mockReset());
 
 describe('HU-EP09-03 / T3.4 — servicio de envío', () => {
   it('consulta el estado persistido de la encuesta sin usar caché', async () => {
-    mockedApiFetch.mockResolvedValueOnce({ data: { submitted: true } });
+    mockedApiFetch.mockResolvedValueOnce({ submitted: true });
     await expect(getSurveySubmissionStatus()).resolves.toBe(true);
     expect(mockedApiFetch).toHaveBeenCalledWith(SURVEY_SUBMISSION_STATUS_PATH, {
       method: 'GET',
@@ -38,7 +38,7 @@ describe('HU-EP09-03 / T3.4 — servicio de envío', () => {
   });
 
   it('rechaza una respuesta inválida al consultar el estado', async () => {
-    mockedApiFetch.mockResolvedValueOnce({ data: { submitted: 'yes' } });
+    mockedApiFetch.mockResolvedValueOnce({ submitted: 'yes' });
     await expect(getSurveySubmissionStatus()).rejects.toThrow(
       'No se pudo verificar el estado de la encuesta',
     );
