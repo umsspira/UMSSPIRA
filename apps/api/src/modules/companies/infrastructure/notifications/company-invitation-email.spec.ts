@@ -17,7 +17,8 @@ describe('buildCompanyInvitationEmail', () => {
   });
 
   it('muestra el nombre de la empresa y el asunto', () => {
-    expect(email.subject).toBe('¡Estás invitado a unirte a UMSSPIRA!');
+    expect(email.subject).toBe('Invitación para unirse a UMSSPIRA');
+    expect(email.html).toContain('haz clic en el siguiente enlace:');
     expect(email.html).toContain('TechSolutions S.A.');
   });
 

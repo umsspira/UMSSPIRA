@@ -21,6 +21,47 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "historial", label: "Historial" },
 ];
 
+/* Íconos de los botones (como en el mockup) */
+function DownloadIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-4 h-4"
+      aria-hidden="true"
+    >
+      <path d="M12 3v12" />
+      <path d="m7 11 5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-4 h-4"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M9 15 15 9" />
+      <path d="M10 9h5v5" />
+    </svg>
+  );
+}
+
 export function MatchBreakdownView({
   applicant,
   onBack,
@@ -36,76 +77,83 @@ export function MatchBreakdownView({
 
   return (
     <div className="space-y-6">
-      {/* Barra superior: Volver + acciones */}
-      <div className="flex items-center justify-between gap-4">
-        {onBack ? (
-          <button
-            onClick={onBack}
-            className="text-sm font-semibold text-[#1B2632] hover:underline flex items-center gap-1"
-          >
-            ← Volver
-          </button>
-        ) : (
-          <span />
-        )}
-
-        <div className="flex gap-2">
-          {applicant.cvUrl ? (
-            <a
-              href={applicant.cvUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 text-xs font-bold text-[#1B2632] bg-white border border-[#EEE9DF] rounded-lg hover:bg-gray-50"
-            >
-              Descargar CV
-            </a>
-          ) : (
+      {/* BUG-06: barra Volver / botones y recuadro del postulante, con la separación del mockup */}
+      <div className="space-y-4">
+        {/* Barra superior: Volver + acciones */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {onBack ? (
             <button
-              disabled
-              title="CV no disponible"
-              className="px-4 py-2 text-xs font-bold text-gray-400 bg-white border border-[#EEE9DF] rounded-lg cursor-not-allowed"
+              onClick={onBack}
+              className="text-sm font-semibold text-[#1B2632] hover:underline flex items-center gap-1"
             >
-              Descargar CV
+              ← Volver
             </button>
+          ) : (
+            <span />
           )}
-          <a
-            href={`mailto:${applicant.email}`}
-            className="px-4 py-2 text-xs font-bold text-white bg-orange-500 rounded-lg hover:bg-orange-600"
-          >
-            Contactar
-          </a>
-        </div>
-      </div>
 
-      {/* Cabecera del candidato */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#EEE9DF] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-[#EEE9DF] text-[#1B2632] font-bold flex items-center justify-center text-xl shrink-0">
-            {getInitials(applicant.name)}
+          <div className="flex gap-3">
+            {/* Texto azul como el mockup (desactivado si no hay CV) */}
+            {applicant.cvUrl ? (
+              <a
+                href={applicant.cvUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 text-sm font-bold text-blue-700 bg-white border border-[#EEE9DF] rounded-lg hover:bg-gray-50 inline-flex items-center gap-2"
+              >
+                <DownloadIcon />
+                Descargar CV
+              </a>
+            ) : (
+              <button
+                disabled
+                title="CV no disponible"
+                className="px-5 py-2.5 text-sm font-bold text-blue-700 bg-white border border-[#EEE9DF] rounded-lg cursor-not-allowed inline-flex items-center gap-2"
+              >
+                <DownloadIcon />
+                Descargar CV
+              </button>
+            )}
+            <a
+              href={`mailto:${applicant.email}`}
+              className="px-5 py-2.5 text-sm font-bold text-white bg-orange-500 rounded-lg hover:bg-orange-600 inline-flex items-center gap-2"
+            >
+              <SendIcon />
+              Contactar
+            </a>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-[#1B2632]">{applicant.name}</h2>
-              <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                {applicant.experienceLevel}
-              </span>
+        </div>
+
+        {/* Cabecera del candidato */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#EEE9DF] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-[#EEE9DF] text-[#1B2632] font-bold flex items-center justify-center text-xl shrink-0">
+              {getInitials(applicant.name)}
             </div>
-            <p className="text-sm text-gray-500">{applicant.email}</p>
-            <p className="text-sm text-gray-500">{applicant.location}</p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-[#1B2632]">{applicant.name}</h2>
+                <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                  {applicant.experienceLevel}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500">{applicant.email}</p>
+              <p className="text-sm text-gray-500">{applicant.location}</p>
+            </div>
           </div>
-        </div>
 
-        <div
-          className={`px-4 py-2 rounded-xl border ${
-            matchAvailable ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"
-          }`}
-        >
-          <span
-            className={`text-lg font-bold ${matchAvailable ? "text-emerald-700" : "text-gray-500"}`}
+          <div
+            className={`px-4 py-2 rounded-xl border ${
+              matchAvailable ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"
+            }`}
           >
-            {formatMatch(applicant.matchPercentage)}
-          </span>
-          <p className="text-[11px] text-gray-500 font-medium">Coincidencia técnica</p>
+            <span
+              className={`text-lg font-bold ${matchAvailable ? "text-emerald-700" : "text-gray-500"}`}
+            >
+              {formatMatch(applicant.matchPercentage)}
+            </span>
+            <p className="text-[11px] text-gray-500 font-medium">Coincidencia técnica</p>
+          </div>
         </div>
       </div>
 
