@@ -167,7 +167,7 @@ La referencia no es una URL pública. Reemplaza el respaldo anterior; una certif
 
 **Permiso:** `perfil:self:read`.
 
-**Respuesta 200:** archivo JSON con `fechaExportacion` y la estructura del resumen, sin sobre data. Nombre `perfil_<nombre_normalizado>_<YYYY-MM-DD>.json`, indentación de dos espacios. No incluye credenciales ni archivos binarios.
+**Respuesta 200:** archivo JSON sin sobre data, con el mismo formato que el botón «Descargar» del frontend (campos con mayúscula inicial y sin tildes): `IdEgresado`, `FechaDescarga`, `Nombre`, `Carrera`, `Promocion` y tres listas, `Formación académica` (`Institucion`, `Titulo`, `Grado`, `Anio`, `Respaldo`), `Experiencia laboral` (`Empresa`, `Cargo`, `Periodo`, `FechaInicio`, `FechaFin`) y `Certificaciones` (`Nombre`, `Entidad`, `Anio`, `Grado`). `Respaldo` de una formación es siempre null: la API no guarda respaldo de formación. Nombre `perfil_<nombre_normalizado>_<YYYY-MM-DD>.json`, indentación de dos espacios. No incluye credenciales ni archivos binarios.
 
 ---
 
