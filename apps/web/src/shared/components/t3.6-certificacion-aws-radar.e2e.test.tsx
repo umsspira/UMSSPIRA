@@ -286,7 +286,8 @@ describe('T3.6 · E2E: agregar certificación AWS en la Épica 2 -> volver a «M
         nombre: 'AWS Certified Solutions Architect - Associate',
         entidadEmisora: 'Amazon Web Services',
         anioEmision: '2024',
-      })
+      }),
+      expect.any(String)
     );
 
     // Confirmación y enlace de regreso
