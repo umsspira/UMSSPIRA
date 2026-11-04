@@ -133,9 +133,6 @@ export function ObservedReviewSubmit({ token, version, result, currentDocument, 
           <dl className="grid gap-3 sm:grid-cols-3">
             <ReviewField label="Nombres">{mark('firstName', values.firstName)}</ReviewField>
             <ReviewField label="Apellidos">{mark('lastName', values.lastName)}</ReviewField>
-            <ReviewField label="Fecha de nacimiento">
-              {mark('birthDate', values.birthDate)}
-            </ReviewField>
             <ReviewField label="Cédula de Identidad (C.I.)">{mark('ci', values.ci)}</ReviewField>
             <ReviewField label="Complemento">{mark('complement', values.complement)}</ReviewField>
             <ReviewField label="Expedido en">

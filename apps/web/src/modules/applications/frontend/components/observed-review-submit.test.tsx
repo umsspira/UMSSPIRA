@@ -13,7 +13,6 @@ const mockedSubmit = resubmitObservedApplication as jest.MockedFunction<
 const values = {
   firstName: "Juan Carlos",
   lastName: "Quispe",
-  birthDate: "1998-05-14",
   ci: "6842109",
   complement: "",
   issuedIn: "CB",
