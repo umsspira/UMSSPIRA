@@ -3,7 +3,7 @@
  
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Award, Camera, Check, CloudUpload, FileText, Plus } from 'lucide-react';
+import { Award, Camera, Check, CloudUpload, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-error';
 import {
   type ErroresCertificacion,
@@ -14,6 +14,8 @@ import { formatearTamanio } from '@/modules/profile/utils/format-file-size';
 import { ApiError } from '@/shared/services/api-client';
  
 export type Certificacion = {
+  // Id de la API: solo lo tienen las certificaciones ya registradas
+  id?: string;
   nombre: string;
   entidadEmisora: string;
   anioEmision: string;
@@ -29,6 +31,13 @@ type FormularioCertificacionesProps = {
   progreso?: number;
   // Ruta interna desde la que se llegó (por ejemplo /afinidad desde la Épica 3); al guardar se ofrece volver ahí (T8.5)
   returnTo?: string;
+  // Avisa cuántos errores hay a la vista, para el contador del encabezado de la sección (HU-02, AC 6)
+  onErroresChange?: (errores: number) => void;
+  // Cancelar el llenado: se descarta lo escrito y se sale sin guardar (BUG HU8-01)
+  onCancelar?: () => void;
+  // Acciones de cada certificación registrada (BUG HU8-02)
+  hrefEditar?: (id: string) => string;
+  onEliminar?: (id: string) => void;
 };
  
 const VACIO: Certificacion = { nombre: '', entidadEmisora: '', anioEmision: '', grado: '', respaldo: null };
@@ -39,6 +48,8 @@ const labelClase = 'block text-xs font-semibold text-[#2C3B4D]';
 const labelObligatorioClase = `${labelClase} after:ml-0.5 after:text-truffle-trouble after:content-['*']`;
 const inputClase =
   'mt-1.5 h-11 w-full rounded-md border border-[#C9C1B1] bg-white px-3 text-sm text-[#2C3B4D] placeholder:text-[#2C3B4D]/40 focus:border-[#FFB162] focus:outline-none';
+const botonAccionClase =
+  'flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[#2C3B4D] transition hover:bg-white hover:text-[#A35139]';
 const botonRespaldoClase =
   'inline-flex h-9 items-center gap-1.5 rounded-md border border-[#C9C1B1] bg-white px-3 text-xs font-semibold text-[#2C3B4D] hover:bg-[#FAF8F4]';
  
@@ -47,6 +58,10 @@ export function FormularioCertificaciones({
   onAgregar,
   progreso,
   returnTo,
+  onErroresChange,
+  onCancelar,
+  hrefEditar,
+  onEliminar,
 }: FormularioCertificacionesProps) {
   const [datos, setDatos] = useState<Certificacion>(VACIO);
   const fotoRef = useRef<HTMLInputElement>(null);
@@ -62,6 +77,9 @@ export function FormularioCertificaciones({
   const [vistaPrevia, setVistaPrevia] = useState<string>();
   // Aviso «Certificación guardada» tras guardar (T8.5); se quita al empezar a escribir otra
   const [guardada, setGuardada] = useState(false);
+
+  const cantidadErrores = [errorRespaldo, errorGuardar].filter(Boolean).length;
+  useEffect(() => onErroresChange?.(cantidadErrores), [cantidadErrores, onErroresChange]);
  
   // Se crea al elegir la foto y se libera al quitarla, cambiarla o salir (evita fugas de memoria)
   useEffect(() => {
@@ -127,6 +145,15 @@ export function FormularioCertificaciones({
     }
   }
  
+  function cancelar() {
+    setDatos(VACIO);
+    setErrores({});
+    setErrorRespaldo(undefined);
+    setErrorGuardar(undefined);
+    setGuardada(false);
+    onCancelar?.();
+  }
+
   function agregar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     const encontrados = validarCertificacion(datos);
@@ -158,6 +185,25 @@ export function FormularioCertificaciones({
                     {certificacion.respaldo && ' • Con respaldo'}
                   </span>
                 </span>
+                {certificacion.id && hrefEditar && (
+                  <Link
+                    href={hrefEditar(certificacion.id)}
+                    aria-label={`Editar ${certificacion.nombre}`}
+                    className={botonAccionClase}
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                )}
+                {certificacion.id && onEliminar && (
+                  <button
+                    type="button"
+                    onClick={() => onEliminar(certificacion.id as string)}
+                    aria-label={`Eliminar ${certificacion.nombre}`}
+                    className={botonAccionClase}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -337,6 +383,16 @@ export function FormularioCertificaciones({
           <Plus className="h-4 w-4" />
           {guardando ? `Guardando…${progreso !== undefined ? ` ${progreso} %` : ''}` : 'Agregar certificación'}
         </button>
+        {onCancelar && (
+          <button
+            type="button"
+            onClick={cancelar}
+            disabled={guardando}
+            className="inline-flex h-10 w-full items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50 md:ml-3 md:w-auto"
+          >
+            Cancelar
+          </button>
+        )}
       </form>
     </div>
   );
