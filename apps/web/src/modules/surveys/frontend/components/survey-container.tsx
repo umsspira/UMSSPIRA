@@ -6,7 +6,7 @@ import { useSurveyDraft } from '../hooks/use-survey-draft';
 import { isMeaningfulText, useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
 import { useSurveySubmit } from '../hooks/use-survey-submit';
 import { useSurveyUserId } from '../hooks/use-survey-user-id';
-import { getSurveySubmissionStatus } from '../services/surveys.service';
+import { getMySurveyResponse, getSurveySubmissionStatus, type SurveyPersistedAnswer } from '../services/surveys.service';
 import { SurveyDraftNotice } from './survey-draft-notice';
 import { Button } from '@/shared/components/button';
 import { SurveyJobInputs } from './survey-job-inputs';
@@ -37,6 +37,7 @@ export function SurveyContainer() {
   const [showErrors, setShowErrors] = useState(false);
   const [submissionCheck, setSubmissionCheck] = useState<'checking' | 'available' | 'submitted' | 'error'>('checking');
   const [statusCheckAttempt, setStatusCheckAttempt] = useState(0);
+  const [recordedResponse, setRecordedResponse] = useState<SurveyPersistedAnswer | null>(null);
   const router = useRouter();
   const userId = useSurveyUserId();
   const { draft, status, saveDraft, clearDraft } = useSurveyDraft(userId);
@@ -46,8 +47,20 @@ export function SurveyContainer() {
   useEffect(() => {
     let active = true;
     setSubmissionCheck('checking');
-    getSurveySubmissionStatus().then((submitted) => {
-      if (active) setSubmissionCheck(submitted ? 'submitted' : 'available');
+    getSurveySubmissionStatus().then(async (submitted) => {
+      if (!active) return;
+      if (!submitted) {
+        setSubmissionCheck('available');
+        return;
+      }
+      try {
+        const response = await getMySurveyResponse();
+        if (active) setRecordedResponse(response);
+      } catch {
+        // El bloqueo ya fue confirmado por /status; el resumen es complementario.
+      } finally {
+        if (active) setSubmissionCheck('submitted');
+      }
     }).catch(() => {
       if (active) setSubmissionCheck('error');
     });
@@ -64,7 +77,7 @@ export function SurveyContainer() {
   }, [isReviewOpen, submission.status]);
 
   useEffect(() => {
-    if (!draft) return;
+    if (!draft || submissionCheck === 'submitted') return;
     form.replaceValues({
       condicion_laboral: draft.workCondition === 'works',
       cargo: draft.cargo,
@@ -74,7 +87,20 @@ export function SurveyContainer() {
       salario_mensual: draft.salario_mensual,
       tiempo_insercion: draft.tiempo_insercion,
     });
-  }, [draft]);
+  }, [draft, submissionCheck]);
+
+  useEffect(() => {
+    if (submissionCheck !== 'submitted' || !recordedResponse) return;
+    form.replaceValues({
+      condicion_laboral: recordedResponse.condicion_laboral,
+      cargo: recordedResponse.cargo ?? '',
+      empresa: recordedResponse.empresa ?? '',
+      area: recordedResponse.area ?? '',
+      modalidad: recordedResponse.modalidad ?? '',
+      salario_mensual: recordedResponse.salario_mensual ?? '',
+      tiempo_insercion: recordedResponse.tiempo_insercion ?? '',
+    });
+  }, [recordedResponse, submissionCheck]);
 
   const workCondition: WorkCondition | null = form.values.condicion_laboral === null
     ? null
@@ -249,6 +275,20 @@ export function SurveyContainer() {
             Volver al inicio
           </Button>
         </div>
+      )}
+      {submissionCheck === 'submitted' && recordedResponse && (
+        <section className="mt-6 rounded-xl border border-green-200 bg-white p-4 shadow-sm sm:p-6" aria-labelledby="survey-recorded-summary-title">
+          <h2 id="survey-recorded-summary-title" className="text-xl font-semibold text-abyssal-blue">Resumen de tu encuesta</h2>
+          <p className="mt-1 text-sm text-abyssal-blue/70">Estas son las respuestas registradas. No puedes modificarlas ni enviarlas nuevamente.</p>
+          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+            {reviewAnswers.map((item) => (
+              <div key={`recorded-${item.id}`} className="rounded-lg border border-oatmeal bg-palladian/50 p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-abyssal-blue/70">{item.question}</dt>
+                <dd className="mt-1 break-words text-sm font-semibold text-abyssal-blue">{item.answer === null || item.answer === undefined || item.answer === '' ? 'Sin respuesta' : String(item.answer)}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
 
       {submissionCheck === 'available' && (
