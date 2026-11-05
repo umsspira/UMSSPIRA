@@ -76,11 +76,21 @@ export function ReviewHeader() {
   );
 }
 
-export function ReviewDeclaration() {
+export function ReviewDeclaration({ checked, onChange, disabled }: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
           <div className="rounded-xl border border-oatmeal/70 bg-palladian/40 p-4">
-            <p className="text-sm font-semibold text-abyssal-blue">Declaración de veracidad y conformidad de antecedentes</p>
-            <p className="mt-1 text-xs leading-relaxed text-abyssal-blue/80">
+            <label className="flex items-start gap-3 text-sm font-semibold text-abyssal-blue">
+              <input type="checkbox" checked={checked} required disabled={disabled}
+                onChange={(event) => onChange(event.target.checked)}
+                aria-describedby="review-declaration-description"
+                className="mt-0.5 h-5 w-5 shrink-0 accent-abyssal-blue" />
+              Declaración de veracidad y conformidad de antecedentes
+            </label>
+            <p id="review-declaration-description" className="mt-1 pl-8 text-xs leading-relaxed text-abyssal-blue/80">
               Declaro bajo juramento que toda la información consignada y el documento adjunto son fidedignos y asumo
               la responsabilidad legal de su autenticidad ante la Universidad Mayor de San Simón.
             </p>
