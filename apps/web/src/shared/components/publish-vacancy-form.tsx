@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   BriefcaseBusiness,
   CheckCircle2,
@@ -239,7 +240,14 @@ export function PublishVacancyForm() {
                       : "rounded-lg border border-green-500 bg-green-50 p-3 text-sm font-semibold text-green-800"
                   }
                 >
-                  {feedback.text}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span>{feedback.text}</span>
+                    {feedback.type === "success" && (
+                      <Link href="/job-postings" className="font-bold underline underline-offset-2">
+                        Ver vacantes publicadas
+                      </Link>
+                    )}
+                  </div>
                 </div>
               )}
 
