@@ -12,24 +12,30 @@ export interface CorrectionRequest extends Request {
 export class CorrectionTokenGuard implements CanActivate {
   constructor(private readonly tokenService: CorrectionTokenService) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<CorrectionRequest>();
-    const headerValue = request.headers['x-correction-token'];
+async canActivate(context: ExecutionContext): Promise<boolean> {
+  const request = context.switchToHttp().getRequest<CorrectionRequest>();
+  const headerValue = request.headers['x-correction-token'];
+  const queryValue = request.query?.token;
 
-    const token = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  const raw = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  const rawQuery = Array.isArray(queryValue) ? queryValue[0] : queryValue;
+  const token =
+    (typeof raw === 'string' && raw) ||
+    (typeof rawQuery === 'string' && rawQuery) ||
+    '';
 
-    if (!token || typeof token !== 'string' || !token.trim()) {
-      throw new BusinessRuleError(
-        'missing',
-        'TOKEN_NOT_FOUND',
-        'El recurso solicitado no existe o no está disponible',
-      );
-    }
-
-    const applicationId = await this.tokenService.resolve(token.trim());
-    request.applicationId = applicationId;
-    request.correctionToken = token.trim();
-
-    return true;
+  if (!token.trim()) {
+    throw new BusinessRuleError(
+      'missing',
+      'TOKEN_NOT_FOUND',
+      'El recurso solicitado no existe o no está disponible',
+    );
   }
+
+  const applicationId = await this.tokenService.resolve(token.trim());
+  request.applicationId = applicationId;
+  request.correctionToken = token.trim();
+
+  return true;
+}
 }

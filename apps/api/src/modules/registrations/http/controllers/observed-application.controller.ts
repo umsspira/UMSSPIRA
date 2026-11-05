@@ -4,6 +4,7 @@ import {
   Get,
   Patch,
   Post,
+  Req,          // 👈 nuevo
   Res,
   UploadedFiles,
   UseGuards,
@@ -11,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { CorrectionTokenGuard } from '../guards/correction-token.guard';
+import { CorrectionTokenGuard, type CorrectionRequest } from '../guards/correction-token.guard'; // 👈 tipo importado
 import { PublicRegistration } from '../decorators/public-registration.decorator';
 import { CorrectionApplicationId } from '../decorators/correction-application-id.decorator';
 import { ObservedApplicationService } from '../../application/services/observed-application.service';
@@ -36,12 +37,29 @@ export class ObservedApplicationController {
   ) {}
 
   @Get()
-  async getDetail(@CorrectionApplicationId() applicationId: string) {
+  async getDetail(
+    @CorrectionApplicationId() applicationId: string,
+    @Req() req: CorrectionRequest, // 👈 nuevo
+  ) {
     const data =
       await this.observedApplicationService.getObservedApplication(
         applicationId,
       );
-    return { data };
+
+    // 👇 construye el DTO con url
+    const dto = {
+      ...data,
+      documento: data.documento
+        ? {
+            ...data.documento,
+            url:
+              `/api/v1/registrations/observed/document/content` +
+              `?token=${encodeURIComponent(req.correctionToken ?? '')}`,
+          }
+        : null,
+    };
+
+    return { data: dto };
   }
 
   @Get('document/content')

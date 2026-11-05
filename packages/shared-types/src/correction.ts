@@ -24,6 +24,7 @@ export interface ObservedApplicationDocument {
   tipoDocumento: string;
   mime: string;
   sizeBytes: number;
+  url: string;
 }
 
 export interface ObservedApplicationDetail {

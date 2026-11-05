@@ -132,14 +132,14 @@ function ValidView({ data, token }: { data: ObservedApplicationDetail; token: st
         uploadedAt: data.observacion?.fecha
           ? new Date(data.observacion.fecha).toLocaleDateString("es-BO")
           : "Reciente",
-        url: "#",
+        url: data.documento.url,  
         type: data.documento.tipoDocumento,
       }
     : {
         name: "Documento previo",
         sizeLabel: "0 MB",
         uploadedAt: "-",
-        url: "#",
+        url: "",  
         type: "Título en Provisión Nacional",
       };
 

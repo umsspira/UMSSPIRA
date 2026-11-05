@@ -10,6 +10,7 @@ export interface ObservedApplicationDocument {
   tipoDocumento: string;
   mime: string;
   sizeBytes: number;
+
 }
 
 export interface ObservedApplicationDetail {
