@@ -4,13 +4,31 @@ import { PrismaService } from '../../../../shared/infrastructure/database/prisma
 import type { JobPostingRepository } from '../../application/ports/job-posting-repository.port';
 import type { CreateJobPostingInput } from '../../application/contracts/create-job-posting.input';
 import type { AvailableJobPosting } from '../../domain/entities/available-job-posting.entity';
+import { calculateJobAffinity } from '../../domain/policies/calculate-job-affinity.policy';
 import { jobPostingSelect, toJobPosting } from '../translators/job-posting.translator';
 
 @Injectable()
 export class PrismaJobPostingRepository implements JobPostingRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listAvailable(userId: string, now: Date): Promise<AvailableJobPosting[]> {
+  async listAvailable(
+    graduateId: string | null,
+    now: Date,
+  ): Promise<AvailableJobPosting[]> {
+    const latestRadar = graduateId
+      ? await this.prisma.calculoRadar.findFirst({
+          where: { id_titulado: graduateId },
+          orderBy: [{ fecha_calculo: 'desc' }, { id: 'desc' }],
+          select: {
+            afinidad_registros: { select: { id_area: true, porcentaje: true } },
+          },
+        })
+      : null;
+    const radarAreas = latestRadar?.afinidad_registros.map((area) => ({
+      areaId: area.id_area,
+      percentage: Number(area.porcentaje),
+    })) ?? null;
+
     const records = await this.prisma.vacante.findMany({
       where: {
         estado: 'PUBLICADO',
@@ -47,25 +65,17 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
         },
         vacante_requerimiento_laboral_registros: {
           orderBy: [{ id_requerimiento_laboral: 'asc' }],
-          take: 1,
           select: {
             requerimiento_laboral: {
               select: {
                 ubicacion: true,
                 requerimiento_habilidad_registros: {
                   orderBy: [{ id: 'asc' }],
-                  take: 1,
-                  select: { area: { select: { nombre: true } } },
+                  select: { id_area: true, area: { select: { nombre: true } } },
                 },
               },
             },
           },
-        },
-        postulacion_registros: {
-          where: { id_usuario: userId },
-          orderBy: [{ created_at: 'desc' }, { id: 'asc' }],
-          take: 1,
-          select: { porcentaje_match: true },
         },
       },
     });
@@ -76,9 +86,18 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
         return [];
       }
 
-      const requirement = record.vacante_requerimiento_laboral_registros[0]?.requerimiento_laboral;
-      const rawAffinity = record.postulacion_registros[0]?.porcentaje_match;
-      const affinity = rawAffinity === null || rawAffinity === undefined ? null : Number(rawAffinity);
+      const requirements = record.vacante_requerimiento_laboral_registros
+        .map(({ requerimiento_laboral }) => requerimiento_laboral)
+        .filter((requirement) => requirement !== null);
+      const requiredSkills = requirements.flatMap(
+        (requirement) => requirement.requerimiento_habilidad_registros,
+      );
+      const affinity = calculateJobAffinity(
+        requiredSkills.map((skill) => skill.id_area),
+        radarAreas,
+      );
+      const firstSkill = requiredSkills.find((skill) => skill.area?.nombre);
+      const firstLocation = requirements.find((requirement) => requirement.ubicacion)?.ubicacion;
 
       return [{
         id: record.id,
@@ -86,15 +105,13 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
         companyName: company.razon_social || 'Empresa',
         companyLogoUrl: company.logo_url,
         technicalDescription: record.descripcion_tecnica || '',
-        area: requirement?.requerimiento_habilidad_registros[0]?.area?.nombre ??
+        area: firstSkill?.area?.nombre ??
           company.sector_empresa_registros[0]?.nombre ?? null,
         modality: record.modalidad,
         experienceLevel: record.nivel_experiencia,
-        location: requirement?.ubicacion ?? company.direccion_empresa_registros[0]?.departamento ?? null,
+        location: firstLocation ?? company.direccion_empresa_registros[0]?.departamento ?? null,
         publishedAt: record.fecha_publicacion ?? record.created_at,
-        affinityPercentage: affinity !== null && Number.isFinite(affinity)
-          ? Math.min(100, Math.max(0, affinity))
-          : null,
+        affinityPercentage: affinity,
       }];
     });
   }

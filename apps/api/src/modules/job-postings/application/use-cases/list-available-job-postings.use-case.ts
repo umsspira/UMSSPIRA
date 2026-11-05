@@ -10,7 +10,7 @@ export class ListAvailableJobPostingsUseCase {
   constructor(private readonly repository: JobPostingRepository) {}
 
   async execute(actor: ActorContext): Promise<AvailableJobPosting[]> {
-    const postings = await this.repository.listAvailable(actor.id, new Date());
+    const postings = await this.repository.listAvailable(actor.scopes.graduateId, new Date());
     return orderJobPostingsByAffinity(postings);
   }
 }

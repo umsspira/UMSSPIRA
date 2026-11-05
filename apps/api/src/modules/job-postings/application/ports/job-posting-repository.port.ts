@@ -6,5 +6,5 @@ export const JOB_POSTING_REPOSITORY = Symbol('JOB_POSTING_REPOSITORY');
 
 export interface JobPostingRepository {
   create(ownerId: string, input: CreateJobPostingInput, now: Date): Promise<JobPosting | null>;
-  listAvailable(userId: string, now: Date): Promise<AvailableJobPosting[]>;
+  listAvailable(graduateId: string | null, now: Date): Promise<AvailableJobPosting[]>;
 }
