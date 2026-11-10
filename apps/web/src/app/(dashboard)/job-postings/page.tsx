@@ -1,7 +1,5 @@
+import { JobPostingsList } from "./job-postings-list";
+
 export default function JobPostingsPage() {
-  return (
-    <main>
-      <h1>Job Postings</h1>
-    </main>
-  );
+  return <JobPostingsList />;
 }

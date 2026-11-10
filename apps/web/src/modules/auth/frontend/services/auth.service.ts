@@ -36,3 +36,14 @@ export function getRedirectPath(role: UserRole): string {
   if (role === 'titulado') return '/portal';
   return '/me';
 }
+
+export function getPostLoginRedirectPath(role: UserRole, requestedPath?: string | null): string {
+  if (!requestedPath || !requestedPath.startsWith('/') || requestedPath.startsWith('//')
+    || requestedPath.startsWith('/\\') || requestedPath.includes('\\')) {
+    return getRedirectPath(role);
+  }
+
+  const destination = new URL(requestedPath, 'https://umsspira.local');
+  if (destination.origin !== 'https://umsspira.local') return getRedirectPath(role);
+  return `${destination.pathname}${destination.search}${destination.hash}`;
+}

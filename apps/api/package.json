@@ -30,17 +30,23 @@
     "db:seed:informatica": "tsx scripts/seed/informatics.ts"
   },
   "dependencies": {
+    "@elastic/elasticsearch": "^9.5.1",
     "@nestjs/common": "10.4.22",
     "@nestjs/config": "3.3.0",
     "@nestjs/core": "10.4.22",
+    "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/platform-express": "10.4.22",
     "@nestjs/platform-socket.io": "^10.4.22",
     "@nestjs/websockets": "^10.4.22",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "@supabase/supabase-js": "^2.117.3",
     "@umsspira/shared-types": "workspace:*",
     "argon2": "0.45.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "dotenv": "18.0.5",
+    "express": "^4.21.2",
     "helmet": "8.3.0",
     "ioredis": "6.0.0",
     "jsonwebtoken": "9.0.3",
@@ -50,8 +56,7 @@
     "reflect-metadata": "0.1.14",
     "rxjs": "7.8.2",
     "socket.io": "^4.8.4",
-    "zod": "4.6.7",
-    "@umsspira/shared-types": "workspace:*"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "10.4.9",
@@ -69,7 +74,10 @@
     "prettier": "3.9.10",
     "prisma": "7.10.1",
     "supertest": "7.3.1",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
     "ts-jest": "29.2.5",
+    "tsconfig-paths": "^4.2.0",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.0"

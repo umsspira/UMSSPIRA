@@ -136,3 +136,20 @@ it("permite el módulo radar sin devolver 404", async () => {
   expect(result.status).toBe(200);
   expect(fetchMock.mock.calls[0][0]).toBe("http://backend:3000/api/v1/radar");
 });
+
+it("permite el módulo vacantes a través del proxy autenticado", async () => {
+  fetchMock.mockResolvedValue(new Response("[]", { status: 200 }));
+  const request = new NextRequest("http://frontend/api/v1/vacantes/mis-vacantes", {
+    headers: { Cookie: "session=valid" },
+  });
+
+  const result = await GET(request, {
+    params: { path: ["vacantes", "mis-vacantes"] },
+  });
+
+  expect(result.status).toBe(200);
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    "http://backend:3000/api/v1/vacantes/mis-vacantes",
+  );
+  expect(fetchMock.mock.calls[0][1].headers.get("cookie")).toBe("session=valid");
+});
