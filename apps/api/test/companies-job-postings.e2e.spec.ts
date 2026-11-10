@@ -11,6 +11,7 @@ import { RATE_LIMITER } from '../src/modules/auth/application/ports/rate-limiter
 import { USER_READER } from '../src/modules/user/application/ports/user-reader.port';
 import { COMPANY_PROFILE_REPOSITORY } from '../src/modules/companies/application/ports/company-profile-repository.port';
 import { JOB_POSTING_REPOSITORY } from '../src/modules/job-postings/application/ports/job-posting-repository.port';
+import { TECHNICAL_REQUIREMENTS_REPOSITORY } from '../src/modules/job-postings/application/ports/technical-requirements-repository.port';
 import {
   COMPANY_MEMBER_INVITATION_REPOSITORY,
   type MemberInvitationResult,
@@ -22,6 +23,7 @@ import { configureHttp } from '../src/shared/http/configuration/configure-http';
 import { InMemoryAuthStore } from './adapters/in-memory-auth.store';
 import { InMemoryCompanyProfileRepository } from './adapters/in-memory-company-profile.repository';
 import { InMemoryJobPostingRepository } from './adapters/in-memory-job-posting.repository';
+import { InMemoryTechnicalRequirementsRepository } from './adapters/in-memory-technical-requirements.repository';
 
 const companyRoot = '/api/v1/companies/' + DEMO_COMPANY_ID;
 const foreignCompanyId = '90000000-0000-4000-8000-000000000001';
@@ -38,6 +40,7 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
   let auth: InMemoryAuthStore;
   const companies = new InMemoryCompanyProfileRepository();
   const jobs = new InMemoryJobPostingRepository(companies);
+  const technicalRequirements = new InMemoryTechnicalRequirementsRepository(jobs);
   const invitations = {
     findCompanyName: jest.fn().mockResolvedValue('Empresa de demostración'),
     create: jest
@@ -74,6 +77,8 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
       .useValue(companies)
       .overrideProvider(JOB_POSTING_REPOSITORY)
       .useValue(jobs)
+      .overrideProvider(TECHNICAL_REQUIREMENTS_REPOSITORY)
+      .useValue(technicalRequirements)
       .overrideProvider(COMPANY_MEMBER_INVITATION_REPOSITORY)
       .useValue(invitations)
       .compile();
@@ -87,6 +92,7 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
     auth.reset();
     companies.reset();
     jobs.postings.clear();
+    technicalRequirements.requirements.clear();
     invitations.create
       .mockClear()
       .mockResolvedValue({ status: 'created', invitationId: 'invitation-id' });
@@ -396,6 +402,13 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
 
   it('aplica CSRF global a PUT y POST autenticados con cookies', async () => {
     const session = await login();
+    const posting = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const technicalRequirementsRoute = `/api/v1/job-postings/${posting.body.data.id}/technical-requirements`;
+
     await request(app.getHttpServer())
       .put(companyRoot + '/profile')
       .set('Cookie', session.cookies)
@@ -418,5 +431,188 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
       .set('X-CSRF-Token', session.csrf)
       .send(validPosting)
       .expect(201);
+    await request(app.getHttpServer())
+      .put(technicalRequirementsRoute)
+      .set('Cookie', session.cookies)
+      .send({ requisitos: [] })
+      .expect(403);
+    await request(app.getHttpServer())
+      .put(technicalRequirementsRoute)
+      .set('Cookie', session.cookies)
+      .set('X-CSRF-Token', session.csrf)
+      .send({ requisitos: [] })
+      .expect(200);
+  });
+
+  it('asocia varios requisitos a la vacante y los recupera sin mezclarlos', async () => {
+    const session = await login();
+    const firstVacancy = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const secondVacancy = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send({ ...validPosting, titulo: 'Analista de datos' })
+      .expect(201);
+    const firstRequirements = [
+      {
+        competenciaTecnica: 'SQL',
+        nivelEsperado: 'AVANZADO',
+        tipo: 'OBLIGATORIO',
+        descripcion: 'Consultas y optimización',
+      },
+      {
+        competenciaTecnica: 'Power BI',
+        nivelEsperado: 'INTERMEDIO',
+        tipo: 'DESEABLE',
+      },
+    ];
+
+    const saved = await request(app.getHttpServer())
+      .put(`/api/v1/job-postings/${firstVacancy.body.data.id}/technical-requirements`)
+      .auth(session.token, { type: 'bearer' })
+      .send({ requisitos: firstRequirements })
+      .expect(200);
+    expect(saved.body.data.vacanteTitulo).toBe(validPosting.titulo);
+    expect(saved.body.data.requisitos).toHaveLength(2);
+    expect(saved.body.data.requisitos).toContainEqual(
+      expect.objectContaining({
+        competenciaTecnica: 'SQL',
+        nivelEsperado: 'AVANZADO',
+        tipo: 'OBLIGATORIO',
+      }),
+    );
+    expect(saved.body.data.requisitos).toContainEqual(
+      expect.objectContaining({
+        competenciaTecnica: 'Power BI',
+        descripcion: '',
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .put(`/api/v1/job-postings/${secondVacancy.body.data.id}/technical-requirements`)
+      .auth(session.token, { type: 'bearer' })
+      .send({
+        requisitos: [
+          {
+            competenciaTecnica: 'Python',
+            nivelEsperado: 'BASICO',
+            tipo: 'OBLIGATORIO',
+            descripcion: '',
+          },
+        ],
+      })
+      .expect(200);
+
+    const retrieved = await request(app.getHttpServer())
+      .get(`/api/v1/job-postings/${firstVacancy.body.data.id}/technical-requirements`)
+      .auth(session.token, { type: 'bearer' })
+      .expect(200);
+    expect(
+      retrieved.body.data.requisitos.map(
+        (requirement: { competenciaTecnica: string }) => requirement.competenciaTecnica,
+      ),
+    ).toEqual(['Power BI', 'SQL']);
+    expect(retrieved.body.data.requisitos).not.toContainEqual(
+      expect.objectContaining({ competenciaTecnica: 'Python' }),
+    );
+  });
+
+  it('rechaza competencias repetidas por normalización y conserva la lista anterior', async () => {
+    const session = await login();
+    const vacancy = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const route = `/api/v1/job-postings/${vacancy.body.data.id}/technical-requirements`;
+    const original = {
+      competenciaTecnica: 'Tecnología',
+      nivelEsperado: 'AVANZADO',
+      tipo: 'OBLIGATORIO',
+      descripcion: '',
+    };
+
+    await request(app.getHttpServer())
+      .put(route)
+      .auth(session.token, { type: 'bearer' })
+      .send({ requisitos: [original] })
+      .expect(200);
+    const duplicate = await request(app.getHttpServer())
+      .put(route)
+      .auth(session.token, { type: 'bearer' })
+      .send({
+        requisitos: [original, { ...original, competenciaTecnica: ' tecnologia ' }],
+      })
+      .expect(409);
+
+    expect(duplicate.body.error.code).toBe('DUPLICATE_TECHNICAL_REQUIREMENT');
+    const retrieved = await request(app.getHttpServer())
+      .get(route)
+      .auth(session.token, { type: 'bearer' })
+      .expect(200);
+    expect(retrieved.body.data.requisitos).toHaveLength(1);
+
+    await request(app.getHttpServer())
+      .put(route)
+      .auth(session.token, { type: 'bearer' })
+      .send({ requisitos: [] })
+      .expect(200);
+    const cleared = await request(app.getHttpServer())
+      .get(route)
+      .auth(session.token, { type: 'bearer' })
+      .expect(200);
+    expect(cleared.body.data.requisitos).toHaveLength(0);
+  });
+
+  it('protege la consulta y el guardado con sesión, permiso y alcance de empresa', async () => {
+    const session = await login();
+    const vacancy = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const route = `/api/v1/job-postings/${vacancy.body.data.id}/technical-requirements`;
+
+    await request(app.getHttpServer()).get(route).expect(401);
+    await request(app.getHttpServer()).put(route).send({ requisitos: [] }).expect(401);
+
+    const unauthorized = await login(DEMO_ACCOUNTS[0]);
+    await request(app.getHttpServer())
+      .get(route)
+      .auth(unauthorized.token, { type: 'bearer' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/api/v1/job-postings/${foreignCompanyId}/technical-requirements`)
+      .auth(session.token, { type: 'bearer' })
+      .expect(404);
+  });
+
+  it('valida requisitos técnicos estrictos antes de escribir', async () => {
+    const session = await login();
+    const vacancy = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const route = `/api/v1/job-postings/${vacancy.body.data.id}/technical-requirements`;
+
+    await request(app.getHttpServer())
+      .put(route)
+      .auth(session.token, { type: 'bearer' })
+      .send({
+        requisitos: [
+          {
+            competenciaTecnica: 'SQL',
+            nivelEsperado: 'EXPERTO',
+            tipo: 'OBLIGATORIO',
+            descripcion: '',
+          },
+        ],
+      })
+      .expect(400);
+    expect(technicalRequirements.requirements.has(vacancy.body.data.id)).toBe(false);
   });
 });
