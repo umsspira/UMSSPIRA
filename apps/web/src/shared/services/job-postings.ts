@@ -1,5 +1,6 @@
 import { apiFetch } from "./api-client";
 import { getCurrentCompanyId } from "./companies";
+import type { JobPosting } from "@umsspira/shared-types";
 
 export interface CreateJobPostingInput {
   titulo: string;
@@ -10,8 +11,8 @@ export interface CreateJobPostingInput {
 
 export async function createJobPosting(
   input: CreateJobPostingInput,
-): Promise<unknown> {
-  return apiFetch("/api/v1/job-postings", {
+): Promise<JobPosting> {
+  return apiFetch<JobPosting>("/api/v1/job-postings", {
     method: "POST",
     body: JSON.stringify({ ...input, empresaId: await getCurrentCompanyId() }),
   });

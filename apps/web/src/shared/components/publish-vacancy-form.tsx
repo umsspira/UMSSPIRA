@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BriefcaseBusiness,
   CheckCircle2,
@@ -27,12 +28,13 @@ const initialFormData: VacancyFormData = {
   technicalDescription: "",
 };
 
-type Feedback = { type: "success" | "error"; text: string } | null;
+type Feedback = { type: "error"; text: string } | null;
 
 const inputBase =
   "w-full rounded-lg border bg-[#EEE9DF] text-sm text-abyssal outline-none transition focus:bg-white focus:ring-1 focus:ring-[#2C3B4D]";
 
 export function PublishVacancyForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState<VacancyFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -83,15 +85,13 @@ export function PublishVacancyForm() {
     setLoading(true);
     setFeedback(null);
     try {
-      await createJobPosting({
+      const vacancy = await createJobPosting({
           titulo: formData.title.trim(),
           modalidad: formData.modality,
           nivelExperiencia: formData.experienceLevel,
           descripcionTecnica: formData.technicalDescription.trim(),
       });
-      setFormData(initialFormData);
-      setErrors({});
-      setFeedback({ type: "success", text: "Vacante publicada correctamente ✅" });
+      router.push(`/empresa/mis-vacantes/${vacancy.id}/requisitos-tecnicos`);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         clearToken();
@@ -232,12 +232,8 @@ export function PublishVacancyForm() {
               {/* Mensaje */}
               {feedback && (
                 <div
-                  role={feedback.type === "error" ? "alert" : "status"}
-                  className={
-                    feedback.type === "error"
-                      ? "rounded-lg border border-red-500 bg-red-50 p-3 text-sm font-semibold text-red-700"
-                      : "rounded-lg border border-green-500 bg-green-50 p-3 text-sm font-semibold text-green-800"
-                  }
+                  role="alert"
+                  className="rounded-lg border border-red-500 bg-red-50 p-3 text-sm font-semibold text-red-700"
                 >
                   {feedback.text}
                 </div>

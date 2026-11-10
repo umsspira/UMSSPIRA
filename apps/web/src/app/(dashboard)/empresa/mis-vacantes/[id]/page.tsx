@@ -75,6 +75,12 @@ export default function VacanteDetallePage() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={() => router.push(`/empresa/mis-vacantes/${id}/requisitos-tecnicos`)}
+              style={{ padding: '0.5rem 1rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#374151', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+            >
+              <Lightbulb size={16} /> Requisitos técnicos
+            </button>
             <button style={{ padding: '0.5rem 1rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#374151', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
               <Pause size={16} /> Pausar vacante
             </button>
