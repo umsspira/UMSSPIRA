@@ -102,6 +102,15 @@ describe("LoginForm", () => {
     expect(checkbox.checked).toBe(false);
   });
 
+  it("permite volver al inicio institucional desde el login (BUG-08)", () => {
+    render(<LoginForm />);
+
+    expect(screen.getByRole("link", { name: "Volver al inicio" })).toHaveAttribute(
+      "href",
+      "/portal/institucional",
+    );
+  });
+
   it("permite marcar y desmarcar la casilla (BUG4)", () => {
     render(<LoginForm />);
     const checkbox = screen.getByLabelText(/recordar mi sesión en este equipo/i) as HTMLInputElement;
