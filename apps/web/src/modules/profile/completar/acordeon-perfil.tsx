@@ -2,7 +2,7 @@
 'use client';
  
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Briefcase, Check, Eye, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Briefcase, Check, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BarraProgreso } from './barra-progreso';
@@ -177,13 +177,6 @@ export function AcordeonPerfil({
                 Volver
               </Link>
             )}
-            <Link
-              href="/profile"
-              className="inline-flex items-center gap-2 rounded-lg border border-blue-fantastic px-3 py-1.5 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
-            >
-              <Eye className="h-4 w-4" aria-hidden="true" />
-              Ver resumen
-            </Link>
           </div>
         </div>
         <BarraProgreso completas={completas} total={secciones.length} />
