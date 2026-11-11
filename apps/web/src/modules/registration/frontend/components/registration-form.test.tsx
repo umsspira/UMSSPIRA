@@ -1,7 +1,6 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { RegistrationForm, VERIFY_EMAIL_PATH } from "./registration-form";
-import { REGISTRATION_HOME_PATH } from "../hooks/use-exit-registration";
 import { useRegistrationStore } from "../store";
 import {
   checkRegistrationSession,
@@ -120,7 +119,7 @@ describe("RegistrationForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(mockPush).toHaveBeenCalledWith(REGISTRATION_HOME_PATH);
+    expect(mockPush).toHaveBeenCalledWith("/portal/institucional");
   });
 
   it("advierte antes de volver al inicio si existen cambios sin enviar (BUG-03)", async () => {
@@ -167,7 +166,7 @@ describe("RegistrationForm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-    expect(mockPush).toHaveBeenCalledWith(REGISTRATION_HOME_PATH);
+    expect(mockPush).toHaveBeenCalledWith("/portal/institucional");
   });
 
   it("no avanza y marca los campos obligatorios cuando se envía vacío (CA-01.3)", async () => {
