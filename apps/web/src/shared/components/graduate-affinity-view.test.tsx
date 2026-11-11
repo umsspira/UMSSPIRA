@@ -633,6 +633,13 @@ describe('GraduateAffinityView', () => {
     expect(link).toHaveAttribute('href', '/profile');
   });
 
+  it('«Volver a mi perfil» usa el mismo botón que las pantallas del perfil (HU-11)', async () => {
+    render(<GraduateAffinityView />);
+
+    const link = await screen.findByRole('link', { name: 'Volver a mi perfil' });
+    expect(link).toHaveClass('min-h-[44px]', 'text-[15px]');
+  });
+
   it('dispara automáticamente el recálculo tras el debounce de 500 ms cuando hasPendingChanges es true', async () => {
     jest.useFakeTimers();
 
