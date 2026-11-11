@@ -27,6 +27,8 @@ const MIGRATIONS_DIR = join(__dirname, '..', '..', '..', 'prisma', 'migrations')
 export async function applyMigrations(connectionString: string): Promise<void> {
   const pool = new Pool({ connectionString });
   try {
+    // La migracion de unaccent asume el esquema extensions de Supabase.
+    await pool.query('CREATE SCHEMA IF NOT EXISTS extensions');
     const dirs = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
