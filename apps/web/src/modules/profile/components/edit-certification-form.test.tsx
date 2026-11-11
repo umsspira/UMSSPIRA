@@ -100,6 +100,48 @@ describe('EditCertificationForm', () => {
     subirRespaldoMock.mockReset();
   });
 
+  it('al guardar vuelve a la pestaña de certificaciones con «Registro actualizado» (HU-11)', async () => {
+    window.history.replaceState(null, '', '/profile/certifications/cert-1/edit');
+    actualizarCertificacionMock.mockResolvedValue({ ...GUARDADA, name: 'AWS Solutions Architect Pro' });
+    renderForm();
+
+    fireEvent.change(await screen.findByLabelText('Nombre de la certificación'), {
+      target: { value: 'AWS Solutions Architect Pro' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(push).toHaveBeenCalledWith('/profile/records?seccion=certification&actualizado=1');
+    expect(screen.getByTestId('nombre-guardado')).toHaveTextContent('AWS Solutions Architect Pro');
+  });
+
+  it('si se llegó desde Completar perfil, al guardar vuelve ahí (HU-11)', async () => {
+    const regreso = '/profile/completar?seccion=certificaciones&returnTo=%2Fafinidad';
+    window.history.replaceState(null, '', `/profile/certifications/cert-1/edit?returnTo=${encodeURIComponent(regreso)}`);
+    actualizarCertificacionMock.mockResolvedValue(GUARDADA);
+    renderForm();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(push).toHaveBeenCalledWith(regreso);
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('si falla la subida del respaldo se queda en el formulario (HU-11)', async () => {
+    window.history.replaceState(null, '', '/profile/certifications/cert-1/edit');
+    actualizarCertificacionMock.mockResolvedValue(GUARDADA);
+    subirRespaldoMock.mockRejectedValue(new ApiError(500, 'Error del servidor'));
+    renderForm();
+
+    await screen.findByLabelText('Nombre de la certificación');
+    elegirFoto(jpg('nuevo.jpg'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText(/no se pudo subir el respaldo/)).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('pide la certificación al backend y precarga sus datos y su respaldo', async () => {
     renderForm();
     expect(screen.getByText('Cargando certificación…')).toBeInTheDocument();
