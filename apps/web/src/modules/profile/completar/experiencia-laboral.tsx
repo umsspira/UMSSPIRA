@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Briefcase } from 'lucide-react';
 import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-error';
-import { FECHA_MINIMA_EXPERIENCIA, validarRangoFechas } from '@/modules/profile/validation/reglas-perfil';
+import {
+  FECHA_MINIMA_EXPERIENCIA,
+  MENSAJE_MAXIMO_TRABAJOS_ACTUALES,
+  hasMaxCurrentJobs,
+  validarRangoFechas,
+} from '@/modules/profile/validation/reglas-perfil';
 import { ApiError } from '@/shared/services/api-client';
 
 export type Experiencia = {
@@ -54,6 +59,9 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
   const [guardando, setGuardando] = useState(false);
   const completo = CAMPOS.every((campo) => (campo.nombre === 'fechaFin' && trabajoActual) || datos[campo.nombre].trim() !== '',
   );
+
+  // HU-21 CA-09: con 2 trabajos actuales ya guardados no se puede marcar un tercero
+  const casillaActualBloqueada = hasMaxCurrentJobs(experiencias.filter((experiencia) => !experiencia.fechaFin).length);
 
   const ordenadas = [...experiencias].sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio));
 
@@ -151,10 +159,17 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
               setErrorFechaFin(undefined);
               setErrorGuardar(undefined);
             }}
-            className="h-4 w-4 accent-[#A35139]"
+            disabled={casillaActualBloqueada}
+            aria-describedby={casillaActualBloqueada ? 'aviso-trabajos-actuales' : undefined}
+            className="h-4 w-4 accent-[#A35139] disabled:cursor-not-allowed disabled:opacity-50"
           />
           Actualmente trabajo aquí
         </label>
+      {casillaActualBloqueada && (
+        <p id="aviso-trabajos-actuales" className="-mt-2 text-xs text-[#A35139]">
+          {MENSAJE_MAXIMO_TRABAJOS_ACTUALES}
+        </p>
+      )}
 
       <MensajeError id="error-experiencia-guardar" mensaje={errorGuardar} />
 

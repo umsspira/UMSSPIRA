@@ -304,6 +304,40 @@ describe('EditExperienceForm', () => {
   });
 });
 
+describe('EditExperienceForm · máximo 2 trabajos actuales (HU-21, CA-09)', () => {
+  // exp-1 ya es trabajo actual en el mock; se marca exp-3 también como actual
+  const conDosActuales = {
+    ...PROFILE_RECORDS_MOCK,
+    experience: (PROFILE_RECORDS_MOCK.experience as ExperienceRecord[]).map((record) =>
+      record.id === 'exp-3' ? { ...record, endDate: '' } : record,
+    ),
+  };
+
+  function renderConDosActuales() {
+    render(
+      <ProfileStoreProvider initialRecords={conDosActuales}>
+        <EditExperienceForm />
+      </ProfileStoreProvider>,
+    );
+  }
+
+  it('desactiva la casilla en un tercer trabajo y muestra «Ya tienes dos trabajos actuales»', () => {
+    routeId = 'exp-2';
+    renderConDosActuales();
+
+    expect(screen.getByLabelText('Actualmente trabajo aquí')).toBeDisabled();
+    expect(screen.getByText('Ya tienes dos trabajos actuales')).toBeInTheDocument();
+  });
+
+  it('en un trabajo que ya era actual la casilla sigue activa (no se cuenta a sí mismo)', () => {
+    routeId = 'exp-1';
+    renderConDosActuales();
+
+    expect(screen.getByLabelText('Actualmente trabajo aquí')).toBeEnabled();
+    expect(screen.queryByText('Ya tienes dos trabajos actuales')).not.toBeInTheDocument();
+  });
+});
+
 describe('aviso de resultado al editar (T9.6)', () => {
   const registro = { idTitulado: 'titulado-1', fechaCreacion: null };
 
