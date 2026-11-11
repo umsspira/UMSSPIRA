@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
 import { validarRespaldo } from '@/modules/profile/validation/reglas-perfil';
+import { BackButton } from '@/shared/components/back-button';
 
 // Campos de la v3 del Figma: fondo crema, borde arena y esquinas de 8px
 export const INPUT_CLASS =
@@ -41,6 +42,8 @@ export function EditRecordLayout({
   return (
     <div className="flex flex-col gap-[26px] md:py-4">
       <header className="flex flex-col gap-2">
+        {/* Vuelve igual que «Cancelar»: a la pestaña de Mis registros, sin guardar (HU-11) */}
+        <BackButton onClick={onCancel} ariaLabel="Volver a Mis registros" className="mb-2" />
         <p className="text-[11px] font-bold uppercase text-truffle-trouble">Perfil profesional</p>
         <h1 className="text-[22px] font-bold text-abyssal-blue md:text-[28px]">{title}</h1>
         <p className="text-sm text-[#6D716F]">{description}</p>
