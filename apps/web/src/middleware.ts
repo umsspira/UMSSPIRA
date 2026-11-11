@@ -10,24 +10,25 @@ const API_URL = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const legacyCorrectionMatch = path.match(
-  /^\/applications\/correct\/([^/]+)\/?$/
+    /^\/applications\/correct\/([^/]+)\/?$/
   );
 
   if (legacyCorrectionMatch) {
-  const token = legacyCorrectionMatch[1];
+    const token = legacyCorrectionMatch[1];
 
-  const destination = isValidCorrectionTokenFormat(token)
-    ? `/register/correction/${token}`
-    : '/register/correction';
+    const destination = isValidCorrectionTokenFormat(token)
+      ? `/register/correction/${token}`
+      : "/register/correction";
 
-  const response = NextResponse.redirect(
-    new URL(destination, request.url),
-    307,
-  );
+    const response = NextResponse.redirect(
+      new URL(destination, request.url),
+      307
+    );
 
-  response.headers.set('Cache-Control', 'no-store');
-  return response;
-}
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  }
+
 
   const isReport = path === '/reports' || path.startsWith('/reports/');
   // Sprint 2 T4.1: las encuestas son privadas para el rol titulado.
