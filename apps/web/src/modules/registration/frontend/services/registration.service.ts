@@ -1,4 +1,5 @@
 import { readApiError } from '@/shared/services/api-contract';
+import { formatCareerName } from './format-career-name';
 
 const API_BASE_URL = '/api/v1';
 
@@ -43,13 +44,14 @@ function getErrorMessage(body: ApiErrorBody | null, fallback: string): string {
 // Catalogo de carreras registradas en la base de datos (no se usan valores inventados).
 // cache: 'no-store' evita que el navegador reutilice una copia vieja (304) y la
 // lista aparezca vacía aunque la API ya tenga datos.
+// Solo se corrige la etiqueta visible; el id de cada carrera no cambia.
 export async function fetchCareers(): Promise<Career[]> {
   const response = await fetch(`${API_BASE_URL}/registrations/careers`, { cache: 'no-store' });
   const body = await readJson<{ data?: Career[] } & ApiErrorBody>(response);
   if (!response.ok || !Array.isArray(body?.data)) {
     throw new Error(getErrorMessage(body, 'No se pudieron cargar las carreras.'));
   }
-  return body.data;
+  return body.data.map((career) => ({ ...career, nombre: formatCareerName(career.nombre) }));
 }
 
 export async function createRegistrationSession(data: Record<string, unknown>): Promise<CreateSessionResult> {
