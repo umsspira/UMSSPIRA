@@ -101,7 +101,9 @@ export class ErrorHandlerFilter implements ExceptionFilter {
     // Un error de aplicación sin traducción explícita es un fallo de configuración.
     // Se registra su tipo, sin volcar consultas, credenciales ni datos de la petición.
     const name = error instanceof Error ? error.name : 'ErrorDesconocido';
-    const code = error instanceof AppError ? ` (${error.code})` : '';
+    const rawCode =
+      error instanceof AppError ? error.code : (error as { code?: unknown } | null)?.code;
+    const code = typeof rawCode === 'string' ? ` (${rawCode})` : '';
     this.logger.error(`Error inesperado: ${name}${code}`);
     response
       .status(500)
