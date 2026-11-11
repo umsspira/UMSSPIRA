@@ -9,7 +9,7 @@ import {
   INPUT_CLASS,
   RecordNotFound,
 } from '@/modules/profile/components/edit-record-layout';
-import { recordsHref } from '@/modules/profile/data/profile-records-data';
+import { recordsHref, updatedRecordHref } from '@/modules/profile/data/profile-records-data';
 import { actualizarExperiencia } from '@/modules/profile/services/perfil-api';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { ExperienceRecord } from '@/modules/profile/types/profile-record';
@@ -87,6 +87,8 @@ function EditExperienceFields({ experience }: { experience: ExperienceRecord }) 
       });
       updateRecord('experience', actualizada);
       setIsSaved(true);
+      // Vuelve a la pestaña de experiencia con el aviso «Registro actualizado» (HU-11)
+      router.push(updatedRecordHref('experience'));
     } catch (apiError) {
       if (!(apiError instanceof ApiError)) throw apiError;
       setSaveError(apiError.message);
