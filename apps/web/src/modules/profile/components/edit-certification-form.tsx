@@ -12,7 +12,7 @@ import {
   RecordNotFound,
 } from '@/modules/profile/components/edit-record-layout';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
-import { recordsHref } from '@/modules/profile/data/profile-records-data';
+import { recordsHref, updatedRecordHref } from '@/modules/profile/data/profile-records-data';
 import { rutaDeRegreso } from '@/modules/profile/utils/return-to';
 import { actualizarCertificacion, obtenerCertificacion, subirRespaldo } from '@/modules/profile/services/perfil-api';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
@@ -182,6 +182,9 @@ function EditCertificationFields({ certification }: { certification: Certificati
         setSaveError(`Los datos se guardaron, pero no se pudo subir el respaldo: ${uploadError}`);
       } else {
         setIsSaved(true);
+        // Desde Completar perfil se vuelve ahí; si no, a la pestaña de certificaciones con «Registro actualizado» (HU-11)
+        const regreso = rutaDeRegreso(new URLSearchParams(window.location.search).get('returnTo') ?? undefined);
+        router.push(regreso ?? updatedRecordHref('certification'));
       }
     } catch (apiError) {
       if (!(apiError instanceof ApiError)) throw apiError;
