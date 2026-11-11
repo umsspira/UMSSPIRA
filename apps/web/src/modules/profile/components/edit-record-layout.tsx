@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Camera, Check, FileText, Trash2 } from 'lucide-react';
-import Link from 'next/link';
 
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
 import { validarRespaldo } from '@/modules/profile/validation/reglas-perfil';
@@ -209,12 +208,7 @@ export function RecordNotFound({ label }: { label: string }) {
     <div className="flex flex-col items-start gap-4 rounded-2xl border border-abyssal-blue/10 bg-white p-6">
       <h1 className="text-xl font-bold text-blue-fantastic">No encontramos esta {label}</h1>
       <p className="text-sm text-blue-fantastic/70">Puede que haya sido eliminada. Vuelve a tus registros para elegir otra.</p>
-      <Link
-        href="/profile/records"
-        className="rounded-lg border border-oatmeal bg-white px-5 py-2.5 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
-      >
-        Volver a mis registros
-      </Link>
+      <BackButton href="/profile/records" label="Volver a mis registros" />
     </div>
   );
 }
