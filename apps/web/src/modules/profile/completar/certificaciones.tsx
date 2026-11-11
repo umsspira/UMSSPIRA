@@ -8,10 +8,9 @@ import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-e
 import {
   type ErroresCertificacion,
   validarCertificacion,
-  validarRespaldo,
 } from '@/modules/profile/validation/reglas-perfil';
 import { formatearTamanio } from '@/modules/profile/utils/format-file-size';
-import { BACKUP_ACCEPT, backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
+import { BACKUP_ACCEPT, backupTypeOf, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
 import { ApiError } from '@/shared/services/api-client';
  
 export type Certificacion = {
@@ -134,7 +133,7 @@ export function FormularioCertificaciones({
     evento.target.value = '';
     if (!archivo || !onCambiarRespaldo || cambiandoRespaldo) return;
     setRespaldoActualizado(false);
-    const error = validarRespaldo(archivo);
+    const error = validateBackupFile(archivo);
     setErrorCambio(error);
     if (error) return;
     setCambiandoRespaldo(true);
@@ -154,7 +153,7 @@ export function FormularioCertificaciones({
     evento.target.value = '';
     if (!archivo) return;
     // El atributo accept se puede saltar eligiendo "Todos los archivos"
-    const error = validarRespaldo(archivo);
+    const error = validateBackupFile(archivo);
     setErrorRespaldo(error);
     if (!error) {
       setDatos({ ...datos, respaldo: archivo });

@@ -5,8 +5,7 @@ import { Camera, Check, FileText, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
-import { validarRespaldo } from '@/modules/profile/validation/reglas-perfil';
-import { BACKUP_ACCEPT } from '@/modules/profile/utils/validate-backup-file';
+import { BACKUP_ACCEPT, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
 
 // Campos de la v3 del Figma: fondo crema, borde arena y esquinas de 8px
 export const INPUT_CLASS =
@@ -129,7 +128,7 @@ export function BackupField({
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const error = validarRespaldo(file);
+    const error = validateBackupFile(file);
     setBackupError(error);
     if (error) {
       // El archivo inválido no se adjunta; se limpia para poder elegir otro

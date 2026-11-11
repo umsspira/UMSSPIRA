@@ -53,7 +53,8 @@ export function validarRangoFechas(desde: string, hasta: string): string | undef
   return hasta < desde ? MENSAJE_HASTA_ANTERIOR_A_DESDE : undefined;
 }
 
-// PDF o JPG de hasta 5 MB (HU-18): usa el validador compartido de respaldos
+// PDF o JPG de hasta 5 MB (HU-18). Se conserva por compatibilidad con otras ramas;
+// el código nuevo usa validateBackupFile de utils/validate-backup-file.ts
 export function validarRespaldo(archivo: File): string | undefined {
   return validateBackupFile(archivo);
 }
@@ -89,7 +90,7 @@ export function validarCertificacion(datos: CertificacionValidable): ErroresCert
   if (errorAnio) errores.anioEmision = errorAnio;
   if (!datos.respaldo) errores.respaldo = MENSAJE_RESPALDO_OBLIGATORIO;
   else {
-    const errorRespaldo = validarRespaldo(datos.respaldo);
+    const errorRespaldo = validateBackupFile(datos.respaldo);
     if (errorRespaldo) errores.respaldo = errorRespaldo;
   }
   return errores;

@@ -18,8 +18,7 @@ import { actualizarCertificacion, obtenerCertificacion, subirRespaldo } from '@/
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { CertificationRecord } from '@/modules/profile/types/profile-record';
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
-import { validarRespaldo } from '@/modules/profile/validation/reglas-perfil';
-import { backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
+import { backupTypeOf, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
 import { ApiError } from '@/shared/services/api-client';
 
 type CertificationFormData = {
@@ -122,7 +121,7 @@ function EditCertificationFields({ certification }: { certification: Certificati
     const file = event.target.files?.[0];
     if (!file) return;
     // El accept del input se puede saltar: mismas reglas que el backend (PDF o JPG, máximo 5 MB)
-    const error = validarRespaldo(file);
+    const error = validateBackupFile(file);
     setDocumentError(error);
     if (error) return;
     setDocumentName(file.name);
