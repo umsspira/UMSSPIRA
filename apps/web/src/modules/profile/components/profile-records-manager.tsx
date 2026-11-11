@@ -27,11 +27,14 @@ type ProfileRecordsManagerProps = {
   initialRecords?: ProfileRecords;
   // Pestaña abierta al entrar (por ejemplo, al cancelar la edición de una experiencia)
   initialSection?: RecordSection;
+  // Se llega desde «Guardar cambios» de una edición (HU-11)
+  wasUpdated?: boolean;
 };
 
 export function ProfileRecordsManager({
   initialRecords = EMPTY_PROFILE_RECORDS,
   initialSection = 'education',
+  wasUpdated = false,
 }: ProfileRecordsManagerProps) {
   // Dentro de las pantallas del perfil usa el estado compartido; sin proveedor (pruebas) usa su propio estado
   const store = useOptionalProfileStore();
@@ -48,6 +51,20 @@ export function ProfileRecordsManager({
     const timeoutId = setTimeout(() => setIsToastVisible(false), TOAST_DURATION_MS);
     return () => clearTimeout(timeoutId);
   }, [isToastVisible]);
+
+  const [isUpdatedToastVisible, setIsUpdatedToastVisible] = useState(wasUpdated);
+
+  useEffect(() => {
+    if (!isUpdatedToastVisible) return;
+    // Se quita la marca de la URL para que el aviso no vuelva a salir al recargar
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('actualizado')) {
+      params.delete('actualizado');
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params}`);
+    }
+    const timeoutId = setTimeout(() => setIsUpdatedToastVisible(false), TOAST_DURATION_MS);
+    return () => clearTimeout(timeoutId);
+  }, [isUpdatedToastVisible]);
 
   function openDeleteModal(record: ProfileRecord) {
     setDeleteError(null);
@@ -171,6 +188,16 @@ export function ProfileRecordsManager({
         >
           <Check className="h-4 w-4 text-burning-flame" aria-hidden="true" />
           Registro eliminado
+        </div>
+      )}
+
+      {isUpdatedToastVisible && (
+        <div
+          role="status"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-abyssal-blue px-4 py-3 text-sm font-semibold text-white shadow-lg"
+        >
+          <Check className="h-4 w-4 text-burning-flame" aria-hidden="true" />
+          Registro actualizado
         </div>
       )}
     </div>
