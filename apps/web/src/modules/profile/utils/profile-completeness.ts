@@ -37,6 +37,16 @@ export type ProfileCompleteness = {
   missing: CompletenessSection[];
 };
 
+// Perfil vacío (HU-12): sin formación, experiencia ni certificaciones y sin descripción profesional
+export function isProfileEmpty(records: ProfileRecords, description: string): boolean {
+  return (
+    records.education.length === 0 &&
+    records.experience.length === 0 &&
+    records.certification.length === 0 &&
+    description.trim().length === 0
+  );
+}
+
 // Completitud del perfil (HU-06): Formación, Experiencia y Certificaciones cuentan con al menos un
 // registro; la descripción, si tiene texto
 export function profileCompleteness(records: ProfileRecords, description: string): ProfileCompleteness {

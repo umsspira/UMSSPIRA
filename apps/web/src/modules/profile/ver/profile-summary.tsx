@@ -2,13 +2,15 @@
 
 import { Pencil } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 import DownloadProfileButton from '@/modules/profile/components/download-profile-button';
 import AffinityLinkCard from '@/modules/profile/ver/affinity-link-card';
 import ProfessionalDescription from '@/modules/profile/ver/professional-description';
 import ProfileCompleteness from '@/modules/profile/ver/profile-completeness';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
-import { profileCompleteness } from '@/modules/profile/utils/profile-completeness';
+import { isProfileEmpty, profileCompleteness } from '@/modules/profile/utils/profile-completeness';
 import { recordsToTimeline } from '@/modules/profile/utils/records-to-timeline';
 import { sortSectionsByRecency } from '@/modules/profile/utils/sort-by-recency';
 import Timeline from '@/shared/components/timeline';
@@ -16,6 +18,16 @@ import Timeline from '@/shared/components/timeline';
 // Resumen del perfil (HU-03) con la descarga en JSON (HU-05), leyendo el estado compartido del perfil
 export default function ProfileSummary() {
   const { header, records, description, isLoading, loadError, retryLoad } = useProfileStore();
+  const router = useRouter();
+  // HU-12: solo se redirige cuando la carga terminó bien; con error se queda para mostrar «Reintentar»
+  const shouldComplete = !isLoading && !loadError && isProfileEmpty(records, description);
+
+  useEffect(() => {
+    if (shouldComplete) {
+      // replace: «Atrás» no vuelve al resumen vacío
+      router.replace('/profile/completar');
+    }
+  }, [shouldComplete, router]);
   const timeline = recordsToTimeline(records);
 
   const validatedBackups = timeline
@@ -28,7 +40,7 @@ export default function ProfileSummary() {
     .filter(Boolean)
     .join(' · ');
 
-  if (isLoading) {
+  if (isLoading || shouldComplete) {
   return <p role="status">Cargando tu perfil…</p>;
 }
 
