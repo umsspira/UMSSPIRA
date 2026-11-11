@@ -6,6 +6,13 @@ export const CODE_SECONDS = 300;
 export const RESEND_SECONDS = 60;
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
+export function secondsUntil(expiresAt: Date | null | undefined, now = Date.now()): number {
+  if (!expiresAt) {
+    return 0;
+  }
+  return Math.max(0, Math.ceil((expiresAt.getTime() - now) / 1000));
+}
+
 export function assertOpenDraft(
   draft: RegistrationDraft | null,
 ): asserts draft is RegistrationDraft {
