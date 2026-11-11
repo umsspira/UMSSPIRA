@@ -35,6 +35,8 @@ export type CertificationRecord = OwnedRecord & {
   backupFile?: string;
   backupUrl?: string;
   backupVerified?: boolean;
+  // HU-18: el respaldo puede ser un documento PDF o una foto JPG
+  backupType?: 'pdf' | 'image';
 };
 
 export type ProfileRecord = EducationRecord | ExperienceRecord | CertificationRecord;

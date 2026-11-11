@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
 import { validarRespaldo } from '@/modules/profile/validation/reglas-perfil';
+import { BACKUP_ACCEPT } from '@/modules/profile/utils/validate-backup-file';
 
 // Campos de la v3 del Figma: fondo crema, borde arena y esquinas de 8px
 export const INPUT_CLASS =
@@ -186,15 +187,15 @@ export function BackupField({
         <label className="flex cursor-pointer items-center gap-2 rounded-md border border-oatmeal bg-white px-4 py-2.5 text-[13px] font-semibold text-blue-fantastic transition hover:bg-palladian">
           <Camera className="h-4 w-4" aria-hidden="true" />
           Subir foto
-          <input type="file" accept="image/jpeg" className="hidden" onChange={handleChange} />
+          <input type="file" accept={BACKUP_ACCEPT} className="hidden" onChange={handleChange} />
         </label>
         <label className="flex cursor-pointer items-center gap-2 rounded-md bg-abyssal-blue px-4 py-2.5 text-[13px] font-semibold text-white transition hover:brightness-110">
           <FileText className="h-4 w-4" aria-hidden="true" />
           Subir documento
-          <input type="file" accept="image/jpeg" className="hidden" onChange={handleChange} />
+          <input type="file" accept={BACKUP_ACCEPT} className="hidden" onChange={handleChange} />
         </label>
-        {/* Decisión del equipo: solo JPG (BUG-HU2-007) */}
-        <p className="w-full text-center text-xs text-blue-fantastic/70">Solo JPG, máximo 5 MB</p>
+        {/* HU-18: se acepta PDF o JPG */}
+        <p className="w-full text-center text-xs text-blue-fantastic/70">PDF o JPG, máximo 5 MB</p>
       </div>
       <MensajeError id="error-backup" mensaje={backupError} />
     </div>

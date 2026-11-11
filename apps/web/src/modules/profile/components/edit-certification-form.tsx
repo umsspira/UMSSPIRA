@@ -19,6 +19,7 @@ import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { CertificationRecord } from '@/modules/profile/types/profile-record';
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
 import { validarRespaldo } from '@/modules/profile/validation/reglas-perfil';
+import { backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
 import { ApiError } from '@/shared/services/api-client';
 
 type CertificationFormData = {
@@ -101,6 +102,7 @@ function EditCertificationFields({ certification }: { certification: Certificati
     file: certification.backupFile,
     url: certification.backupUrl,
     verified: certification.backupVerified,
+    type: certification.backupType,
   });
   const [documentError, setDocumentError] = useState<string>();
   const [isSaved, setIsSaved] = useState(false);
@@ -119,7 +121,7 @@ function EditCertificationFields({ certification }: { certification: Certificati
   function handleDocumentChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    // El accept del input se puede saltar: mismas reglas que el backend (solo JPG, máximo 5 MB)
+    // El accept del input se puede saltar: mismas reglas que el backend (PDF o JPG, máximo 5 MB)
     const error = validarRespaldo(file);
     setDocumentError(error);
     if (error) return;
@@ -163,7 +165,7 @@ function EditCertificationFields({ certification }: { certification: Certificati
         try {
           await subirRespaldo(certification.id, pendingDocument);
           // Un respaldo nuevo vuelve a quedar en revisión
-          backup = { file: pendingDocument.name, url: documentUrl, verified: false };
+          backup = { file: pendingDocument.name, url: documentUrl, verified: false, type: backupTypeOf(pendingDocument) };
           setSavedBackup(backup);
           setPendingDocument(null);
         } catch (apiError) {
@@ -177,6 +179,7 @@ function EditCertificationFields({ certification }: { certification: Certificati
         backupFile: backup.file,
         backupUrl: backup.file ? backup.url : undefined,
         backupVerified: backup.verified,
+        backupType: backup.file ? backup.type : undefined,
       });
       if (uploadError) {
         setSaveError(`Los datos se guardaron, pero no se pudo subir el respaldo: ${uploadError}`);

@@ -294,16 +294,16 @@ describe('EditCertificationForm', () => {
       expect(screen.getByTestId('respaldo-guardado')).toHaveTextContent('certificado-nuevo.jpg');
     });
 
-    it('rechaza archivos que no son JPG o superan 5 MB sin subirlos', async () => {
+    it('rechaza archivos que no son PDF ni JPG o superan 5 MB sin subirlos', async () => {
       actualizarCertificacionMock.mockResolvedValue(GUARDADA);
       renderForm();
       await screen.findByLabelText('Nombre de la certificación');
 
-      elegirFoto(new File(['%PDF'], 'certificado.pdf', { type: 'application/pdf' }));
-      expect(screen.getByText('Formato no permitido. Solo JPG')).toBeInTheDocument();
+      elegirFoto(new File(['%PDF'], 'certificado.png', { type: 'image/png' }));
+      expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
 
       elegirFoto(jpg('enorme.jpg', 5 * 1024 * 1024 + 1));
-      expect(screen.getByText('El archivo no puede superar 5 MB')).toBeInTheDocument();
+      expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
       expect(screen.getByText('respaldo.jpg')).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));

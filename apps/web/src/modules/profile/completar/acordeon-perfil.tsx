@@ -23,6 +23,7 @@ import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/se
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
+import { backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
 import {
   profileCompleteness,
   type CompletenessSectionId,
@@ -55,6 +56,7 @@ export function AcordeonPerfil({
     addCertification,
     setDescription,
     removeRecord,
+    updateRecord,
   } = useProfileStore();
   const router = useRouter();
   const [avisoBorrador, setAvisoBorrador] = useState(false);
@@ -85,6 +87,8 @@ export function AcordeonPerfil({
     }
   }
   // Certificación ya creada cuyo respaldo no se pudo subir: al reintentar se sube solo la foto, sin duplicar (T8.6)
+  // Id de la última certificación guardada, para «Cambiar respaldo» (T18.1)
+  const ultimaGuardadaRef = useRef<string | null>(null);
   const pendienteRef = useRef<{ clave: string; idOperacion: string; creada?: CertificationRecord } | null>(null);
  
   useEffect(() => {
@@ -300,6 +304,23 @@ export function AcordeonPerfil({
               backupFile: certificacion.respaldo?.name,
               backupUrl: urlDeArchivo(certificacion.respaldo),
               backupVerified: false,
+              backupType: certificacion.respaldo ? backupTypeOf(certificacion.respaldo) : undefined,
+            });
+            ultimaGuardadaRef.current = creada.id;
+          }}
+          onCambiarRespaldo={async (archivo) => {
+            // HU-18 (T18.1): mismo endpoint de subida; el backend reemplaza el respaldo de ese registro
+            const id = ultimaGuardadaRef.current;
+            const registro = (records.certification as CertificationRecord[]).find((r) => r.id === id);
+            if (!id || !registro) return;
+            setProgresoSubida(undefined);
+            await subirRespaldo(id, archivo, setProgresoSubida);
+            updateRecord('certification', {
+              ...registro,
+              backupFile: archivo.name,
+              backupUrl: urlDeArchivo(archivo),
+              backupVerified: false,
+              backupType: backupTypeOf(archivo),
             });
           }}
         />

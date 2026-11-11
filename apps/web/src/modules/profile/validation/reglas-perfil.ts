@@ -1,16 +1,20 @@
 // Reglas de validación del formulario de perfil (HU-02). Cada función devuelve el mensaje de error
 // del criterio o undefined si el valor es válido, para mostrarlo junto al campo antes de agregar el registro.
 
+import {
+  BACKUP_FILE_MESSAGE,
+  MAX_BACKUP_BYTES,
+  validateBackupFile,
+} from '@/modules/profile/utils/validate-backup-file';
+
 export const MENSAJE_ANIO_EGRESO_FUTURO = 'El año de egreso no puede ser posterior al año actual';
 export const MENSAJE_HASTA_ANTERIOR_A_DESDE = 'La fecha fin no puede ser anterior a la fecha inicio';
-export const MENSAJE_RESPALDO_FORMATO = 'Formato no permitido. Solo JPG';
-export const MENSAJE_RESPALDO_TAMANIO = 'El archivo no puede superar 5 MB';
+// HU-18: el respaldo acepta PDF o JPG; formato y tamaño comparten el mismo mensaje
+export const MENSAJE_RESPALDO_FORMATO = BACKUP_FILE_MESSAGE;
+export const MENSAJE_RESPALDO_TAMANIO = BACKUP_FILE_MESSAGE;
 export const MENSAJE_FORMACION_DUPLICADA = 'La formación académica ya se encuentra registrada';
 
-// Solo JPG: es el formato con el que trabaja el motor NLP (mismas reglas que ArchivoRespaldoPipe del backend)
-const TIPO_RESPALDO = 'image/jpeg';
-const EXTENSIONES_RESPALDO = ['.jpg', '.jpeg'];
-export const TAMANIO_MAXIMO_RESPALDO = 5 * 1024 * 1024;
+export const TAMANIO_MAXIMO_RESPALDO = MAX_BACKUP_BYTES;
 // Fecha mínima de inicio y fin de una experiencia laboral (BUG-HU2-008); cambiar aquí si se acuerda otra
 export const FECHA_MINIMA_EXPERIENCIA = '1950-01-01';
 // Largo máximo de institución y título: el mismo que valida el DTO de formación del backend (T2.1)
@@ -49,19 +53,14 @@ export function validarRangoFechas(desde: string, hasta: string): string | undef
   return hasta < desde ? MENSAJE_HASTA_ANTERIOR_A_DESDE : undefined;
 }
 
-// El atributo accept del input se puede saltar eligiendo "Todos los archivos", por eso se revisa aquí.
-// Primero el formato y después el tamaño, en el mismo orden que el backend.
+// PDF o JPG de hasta 5 MB (HU-18): usa el validador compartido de respaldos
 export function validarRespaldo(archivo: File): string | undefined {
-  const nombre = archivo.name.toLowerCase();
-  const esJpg = archivo.type === TIPO_RESPALDO && EXTENSIONES_RESPALDO.some((ext) => nombre.endsWith(ext));
-  if (!esJpg) return MENSAJE_RESPALDO_FORMATO;
-  if (archivo.size > TAMANIO_MAXIMO_RESPALDO) return MENSAJE_RESPALDO_TAMANIO;
-  return undefined;
+  return validateBackupFile(archivo);
 }
 
 // Certificaciones (HU-08, T8.3): los 4 campos son obligatorios y el año va de 1980 al año actual
 export const MENSAJE_CAMPO_OBLIGATORIO = 'Este campo es obligatorio';
-export const MENSAJE_RESPALDO_OBLIGATORIO = 'Adjunta el respaldo de la certificación (JPG de hasta 5 MB)';
+export const MENSAJE_RESPALDO_OBLIGATORIO = 'Adjunta el respaldo de la certificación (PDF o JPG de hasta 5 MB)';
 export const ANIO_MINIMO_CERTIFICACION = 1980;
 
 export function mensajeAnioCertificacion(): string {
