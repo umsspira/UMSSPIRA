@@ -30,7 +30,7 @@ import {
 } from '@umsspira/shared-types/src/affinity';
 import { ArrowLeft, Tag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { BackButton } from './back-button';
 
 const DEFAULT_RECALCULATE_TIMEOUT_MS = RECALCULATE_TIMEOUT_MS ?? 7000;
 
@@ -366,13 +366,8 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     <div className="space-y-6 animate-fadeIn">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Link
-            href="/profile"
-            className="text-[13px] font-semibold text-truffle-trouble hover:underline flex items-center space-x-1 mb-1"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Volver a mi perfil</span>
-          </Link>
+          {/* Mismo «Volver» que las pantallas del perfil (HU-11) */}
+          <BackButton href="/profile" label="Volver a mi perfil" className="mb-3" />
           <h1 className="text-[22px] sm:text-[32px] font-bold text-abyssal-blue tracking-tight">
             Tu afinidad profesional
           </h1>
