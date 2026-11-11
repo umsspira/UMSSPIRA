@@ -23,6 +23,8 @@ type FormularioExperienciaProps = {
   onAgregar: (experiencia: Experiencia) => void | Promise<void>;
   // Avisa cuántos errores hay a la vista, para el contador del encabezado de la sección (HU-02, AC 6)
   onErroresChange?: (errores: number) => void;
+  // «Cancelar»: limpia el formulario y avisa para cerrar la sección (HU-21, CA-06)
+  onCancelar?: () => void;
 };
 
 type Datos = {
@@ -46,7 +48,12 @@ function mostrarFecha(fecha: string) {
   return `${mes}/${anio}`;
 }
 
-export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange }: FormularioExperienciaProps) {
+export function FormularioExperiencia({
+  experiencias,
+  onAgregar,
+  onErroresChange,
+  onCancelar,
+}: FormularioExperienciaProps) {
   const [datos, setDatos] = useState<Datos>(VACIO);
   const [trabajoActual, setTrabajoActual] = useState(false);
   // Error de la fecha fin (anterior a la fecha inicio); una vez mostrado se recalcula mientras se corrige
@@ -87,6 +94,14 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
     } finally {
       setGuardando(false);
     }
+  }
+
+  function cancelar() {
+    setDatos(VACIO);
+    setTrabajoActual(false);
+    setErrorFechaFin(undefined);
+    setErrorGuardar(undefined);
+    onCancelar?.();
   }
 
   function cambiar(campo: keyof Datos, valor: string) {
@@ -173,7 +188,12 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
 
       <MensajeError id="error-experiencia-guardar" mensaje={errorGuardar} />
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+          {onCancelar && (
+            <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
+              Cancelar
+            </button>
+          )}
           <button
             type="submit"
             disabled={!completo || guardando}

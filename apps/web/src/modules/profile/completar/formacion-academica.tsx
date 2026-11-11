@@ -25,6 +25,8 @@ type FormacionAcademicaFormProps = {
   onAgregar: (formacion: FormacionAcademica) => void | Promise<void>;
   // Avisa cuántos errores hay a la vista, para el contador del encabezado de la sección (HU-02, AC 6)
   onErroresChange?: (errores: number) => void;
+  // «Cancelar»: limpia el formulario y avisa para cerrar la sección (HU-21, CA-06)
+  onCancelar?: () => void;
 };
 
 const VACIO: FormacionAcademica = { institucion: '', titulo: '', anioEgreso: '', grado: '' };
@@ -36,7 +38,12 @@ const labelObligatorioClase = `${labelClase} after:ml-1 after:text-[#A35139] aft
 const inputClase =
   'mt-1.5 h-11 w-full rounded-md border border-[#C9C1B1] bg-white px-3 text-sm text-[#2C3B4D] placeholder:text-[#2C3B4D]/40 focus:border-[#FFB162] focus:outline-none';
 
-export function FormacionAcademicaForm({ formaciones, onAgregar, onErroresChange }: FormacionAcademicaFormProps) {
+export function FormacionAcademicaForm({
+  formaciones,
+  onAgregar,
+  onErroresChange,
+  onCancelar,
+}: FormacionAcademicaFormProps) {
   const [datos, setDatos] = useState<FormacionAcademica>(VACIO);
   // Error del año de egreso; una vez mostrado se recalcula mientras se corrige
   const [errorAnio, setErrorAnio] = useState<string>();
@@ -48,6 +55,14 @@ export function FormacionAcademicaForm({ formaciones, onAgregar, onErroresChange
   const cantidadErrores = [errorAnio, errorDuplicada, errorGuardar].filter(Boolean).length;
   useEffect(() => onErroresChange?.(cantidadErrores), [cantidadErrores, onErroresChange]);
   const [guardando, setGuardando] = useState(false);
+
+  function cancelar() {
+    setDatos(VACIO);
+    setErrorAnio(undefined);
+    setErrorDuplicada(undefined);
+    setErrorGuardar(undefined);
+    onCancelar?.();
+  }
 
   function cambiar(campo: keyof FormacionAcademica, valor: string) {
     setDatos({ ...datos, [campo]: valor });
@@ -191,6 +206,11 @@ export function FormacionAcademicaForm({ formaciones, onAgregar, onErroresChange
           <Plus className="h-4 w-4" />
           Agregar formación
         </button>
+        {onCancelar && (
+          <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
+            Cancelar
+          </button>
+        )}
       </form>
     </div>
   );

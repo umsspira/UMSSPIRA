@@ -209,14 +209,17 @@ export function AcordeonPerfil({
         cantidad={formaciones.length}
         errores={erroresFormacion}
       >
+        {(cerrar) => (
         <FormacionAcademicaForm
           formaciones={formaciones}
           onErroresChange={setErroresFormacion}
+          onCancelar={cerrar}
           onAgregar={async (formacion) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addEducation(await crearFormacion(formacion));
           }}
         />
+        )}
       </SeccionAcordeon>
       <SeccionAcordeon
         numero={2}
@@ -226,14 +229,17 @@ export function AcordeonPerfil({
         cantidad={experiencias.length}
         errores={erroresExperiencia}
       >
+        {(cerrar) => (
         <FormularioExperiencia
           experiencias={experiencias}
           onErroresChange={setErroresExperiencia}
+          onCancelar={cerrar}
           onAgregar={async (experiencia) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addExperience(await crearExperiencia(experiencia));
           }}
         />
+        )}
       </SeccionAcordeon>
       <SeccionAcordeon
         numero={3}
@@ -243,6 +249,7 @@ export function AcordeonPerfil({
         cantidad={certificaciones.length}
         errores={erroresCertificaciones}
       >
+        {(cerrar) => (
         <FormularioCertificaciones
           certificaciones={certificaciones}
           onErroresChange={setErroresCertificaciones}
@@ -253,7 +260,8 @@ export function AcordeonPerfil({
             const creada = pendienteRef.current?.creada;
             if (creada) addCertification(creada);
             pendienteRef.current = null;
-            router.push(returnTo ?? '/profile');
+            // HU-21, CA-06: se limpia, se cierra la sección y se sigue en Completar perfil
+            cerrar();
           }}
           hrefEditar={(id) => {
             // Al terminar de editar se vuelve a esta sección conservando el regreso a Afinidad (returnTo)
@@ -299,6 +307,7 @@ export function AcordeonPerfil({
             });
           }}
         />
+        )}
       </SeccionAcordeon>
       {certificacionAEliminar && (
         <DeleteRecordModal
@@ -318,13 +327,16 @@ export function AcordeonPerfil({
         cantidad={description ? 1 : 0}
         textoCompleto="(Completado)"
       >
+        {(cerrar) => (
         <FormularioDescripcion
           descripcion={description}
+          onCancelar={cerrar}
           onGuardar={async (descripcion) => {
             // El resumen muestra lo que la API guardó; si falla, el estado no cambia
             setDescription(await guardarDescripcion(descripcion));
           }}
         />
+        )}
       </SeccionAcordeon>
 
           {/* Acciones finales (v3) */}

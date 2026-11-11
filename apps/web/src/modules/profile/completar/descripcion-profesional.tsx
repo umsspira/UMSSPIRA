@@ -14,10 +14,12 @@ type FormularioDescripcionProps = {
   descripcion: string;
   // Si la promesa falla con ApiError se muestra su mensaje y el texto escrito se conserva
   onGuardar: (descripcion: string) => void | Promise<void>;
+  // «Cancelar»: descarta lo escrito y avisa para cerrar la sección (HU-21, CA-06)
+  onCancelar?: () => void;
 };
 
 // Sección "Descripción profesional" de Completar perfil (HU-06): cuadro de texto, contador y Guardar
-export function FormularioDescripcion({ descripcion, onGuardar }: FormularioDescripcionProps) {
+export function FormularioDescripcion({ descripcion, onGuardar, onCancelar }: FormularioDescripcionProps) {
   const [texto, setTexto] = useState(descripcion);
   // El perfil llega de la API después de montarse: se copia mientras el egresado no haya escrito
   const [editado, setEditado] = useState(false);
@@ -29,6 +31,14 @@ export function FormularioDescripcion({ descripcion, onGuardar }: FormularioDesc
   const [guardada, setGuardada] = useState(false);
   // Mensaje del backend (400) o de conexión, tal como lo envía apiFetch
   const [errorGuardar, setErrorGuardar] = useState<string>();
+
+  function cancelar() {
+    setTexto(descripcion);
+    setEditado(false);
+    setGuardada(false);
+    setErrorGuardar(undefined);
+    onCancelar?.();
+  }
 
   async function guardar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -85,6 +95,11 @@ export function FormularioDescripcion({ descripcion, onGuardar }: FormularioDesc
               <Check className="h-4 w-4" aria-hidden="true" />
               Descripción guardada
             </span>
+          )}
+          {onCancelar && (
+            <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
+              Cancelar
+            </button>
           )}
           <button
             type="submit"

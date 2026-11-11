@@ -50,4 +50,44 @@ describe('Completar perfil · ajustes de la revisión (HU-21)', () => {
 
     expect(push).toHaveBeenCalledWith('/afinidad');
   });
+
+  it('CA-06: «Cancelar» en Formación académica limpia el formulario, cierra la sección y sigue en la página', () => {
+    renderAcordeon();
+    fireEvent.click(screen.getByRole('button', { name: /formación académica/i }));
+    const institucion = screen.getAllByRole('textbox')[0];
+    fireEvent.change(institucion, { target: { value: 'UMSS' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.getByRole('button', { name: /formación académica/i, expanded: false })).toBeInTheDocument();
+    expect(institucion).toHaveValue('');
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('CA-06: «Cancelar» en Experiencia laboral limpia el formulario y cierra la sección', () => {
+    renderAcordeon();
+    fireEvent.click(screen.getByRole('button', { name: /experiencia laboral/i }));
+    const empresa = screen.getByPlaceholderText('Ej. Jalasoft');
+    fireEvent.change(empresa, { target: { value: 'Jalasoft' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.getByRole('button', { name: /experiencia laboral/i, expanded: false })).toBeInTheDocument();
+    expect(empresa).toHaveValue('');
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('CA-06: «Cancelar» en Descripción profesional descarta lo escrito y cierra la sección', () => {
+    renderAcordeon();
+    fireEvent.click(screen.getByRole('button', { name: /descripción profesional/i }));
+    const texto = screen.getByLabelText('Descripción profesional');
+    const original = (texto as HTMLTextAreaElement).value;
+    fireEvent.change(texto, { target: { value: 'Texto a medias' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.getByRole('button', { name: /descripción profesional/i, expanded: false })).toBeInTheDocument();
+    expect(texto).toHaveValue(original);
+    expect(push).not.toHaveBeenCalled();
+  });
 });
