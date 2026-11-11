@@ -5,6 +5,8 @@ import { ProfileStoreProvider, useProfileStore } from '@/modules/profile/state/p
 import type { ProfileRecords } from '@/modules/profile/types/profile-record';
 import { MENSAJE_FORMACION_DUPLICADA } from '@/modules/profile/validation/reglas-perfil';
 
+import type { DraftRecord } from '@/modules/profile/state/drafts-store';
+
 import { AddRecordsScreen } from './add-records-screen';
 
 jest.mock('next/navigation', () => ({
@@ -33,10 +35,23 @@ function EducationCount() {
   return <p data-testid="registros-formacion">{records.education.length}</p>;
 }
 
-function renderScreen(initialRecords: ProfileRecords = SIN_REGISTROS) {
+const BORRADORES: DraftRecord[] = [
+  {
+    id: 'b1',
+    section: 'education',
+    data: { institucion: 'Universidad Mayor de San Simón', titulo: 'Licenciatura en Ingeniería de Sistemas', anioEgreso: '2018', grado: 'Licenciatura' },
+  },
+  {
+    id: 'b2',
+    section: 'experience',
+    data: { empresa: 'NTT DATA', cargo: 'Tech Lead', fechaInicio: '2023-07-01' },
+  },
+];
+
+function renderScreen(initialRecords: ProfileRecords = SIN_REGISTROS, initialDrafts?: DraftRecord[]) {
   render(
     <ProfileStoreProvider initialRecords={initialRecords}>
-      <AddRecordsScreen />
+      <AddRecordsScreen initialDrafts={initialDrafts} />
       <EducationCount />
     </ProfileStoreProvider>,
   );
@@ -105,5 +120,50 @@ describe('Agregar registros (HU-13)', () => {
 
     expect(within(apartado).getByText(MENSAJE_FORMACION_DUPLICADA)).toBeInTheDocument();
     expect(within(borradores()).getByText('1')).toBeInTheDocument();
+  });
+
+  it('CA-03: el bloque muestra solo borradores, cada uno con «Editar» y «Quitar»', () => {
+    renderScreen(CON_FORMACION, BORRADORES);
+    const bloque = borradores();
+    expect(within(bloque).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(bloque).getByText('Formación guardada en borrador')).toBeInTheDocument();
+    expect(within(bloque).getByText('Experiencia guardada en borrador')).toBeInTheDocument();
+    expect(within(bloque).getByText('NTT DATA · Jul 2023 – Presente')).toBeInTheDocument();
+    // La formación ya registrada (CON_FORMACION) no aparece en el bloque
+    expect(within(bloque).queryByText('Ingeniería de Sistemas')).not.toBeInTheDocument();
+    expect(within(bloque).getAllByRole('button', { name: /^editar/i })).toHaveLength(2);
+    expect(within(bloque).getAllByRole('button', { name: /^quitar/i })).toHaveLength(2);
+  });
+
+  it('«Quitar» saca el borrador de la lista', () => {
+    renderScreen(SIN_REGISTROS, BORRADORES);
+    fireEvent.click(within(borradores()).getByRole('button', { name: 'Quitar Tech Lead' }));
+    expect(within(borradores()).queryByText('Tech Lead')).not.toBeInTheDocument();
+    expect(within(borradores()).getByText('1')).toBeInTheDocument();
+  });
+
+  it('«Editar» devuelve el borrador a su formulario y al guardar lo reemplaza sin duplicarlo', async () => {
+    renderScreen(SIN_REGISTROS, BORRADORES);
+    fireEvent.click(within(borradores()).getByRole('button', { name: 'Editar Licenciatura en Ingeniería de Sistemas' }));
+
+    const apartado = screen.getByRole('region', { name: /formación académica/i });
+    expect(within(apartado).getByLabelText('Institución')).toHaveValue('Universidad Mayor de San Simón');
+    expect(within(apartado).getByLabelText('Título')).toHaveValue('Licenciatura en Ingeniería de Sistemas');
+
+    fireEvent.change(within(apartado).getByLabelText('Título'), { target: { value: 'Ingeniería Informática' } });
+    fireEvent.click(within(apartado).getByRole('button', { name: /guardar en borrador/i }));
+
+    await waitFor(() => expect(within(borradores()).getByText('Ingeniería Informática')).toBeInTheDocument());
+    expect(within(borradores()).queryByText('Licenciatura en Ingeniería de Sistemas')).not.toBeInTheDocument();
+    expect(within(borradores()).getByText('2')).toBeInTheDocument();
+    expect(within(apartado).getByLabelText('Institución')).toHaveValue('');
+  });
+
+  it('«Editar» una experiencia actual la carga con «Actualmente trabajo aquí» marcado', () => {
+    renderScreen(SIN_REGISTROS, BORRADORES);
+    fireEvent.click(within(borradores()).getByRole('button', { name: 'Editar Tech Lead' }));
+    const apartado = screen.getByRole('region', { name: /experiencia laboral/i });
+    expect(within(apartado).getByDisplayValue('NTT DATA')).toBeInTheDocument();
+    expect(within(apartado).getByRole('checkbox', { name: /actualmente trabajo aquí/i })).toBeChecked();
   });
 });

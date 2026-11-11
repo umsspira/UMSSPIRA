@@ -20,6 +20,8 @@ type FormularioExperienciaProps = {
   onErroresChange?: (errores: number) => void;
   // Texto del botón de enviar; en Agregar registros es «Guardar en borrador» (HU-13)
   textoBoton?: string;
+  // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
+  valoresIniciales?: Experiencia;
 };
 
 type Datos = {
@@ -48,9 +50,13 @@ export function FormularioExperiencia({
   onAgregar,
   onErroresChange,
   textoBoton = 'Agregar experiencia',
+  valoresIniciales,
 }: FormularioExperienciaProps) {
-  const [datos, setDatos] = useState<Datos>(VACIO);
-  const [trabajoActual, setTrabajoActual] = useState(false);
+  const [datos, setDatos] = useState<Datos>(
+    valoresIniciales ? { ...valoresIniciales, fechaFin: valoresIniciales.fechaFin ?? '' } : VACIO,
+  );
+  // Sin fecha fin = trabajo actual
+  const [trabajoActual, setTrabajoActual] = useState(Boolean(valoresIniciales && !valoresIniciales.fechaFin));
   // Error de la fecha fin (anterior a la fecha inicio); una vez mostrado se recalcula mientras se corrige
   const [errorFechaFin, setErrorFechaFin] = useState<string>();
   // Mensaje del backend al guardar, tal como lo envía; se quita al cambiar cualquier campo

@@ -1,15 +1,23 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 import { FormularioCertificaciones } from '@/modules/profile/completar/certificaciones';
 import { FormularioExperiencia } from '@/modules/profile/completar/experiencia-laboral';
 import { FormacionAcademicaForm, type FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
-import { DraftsStoreProvider, useDraftsStore } from '@/modules/profile/state/drafts-store';
+import {
+  type DraftDataBySection,
+  type DraftRecord,
+  type DraftSection,
+  DraftsStoreProvider,
+  useDraftsStore,
+} from '@/modules/profile/state/drafts-store';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { EducationRecord } from '@/modules/profile/types/profile-record';
+
+import { DraftCard } from './draft-card';
 
 export const RECORDS_ROUTE = '/profile/records';
 const DRAFT_BUTTON_TEXT = 'Guardar en borrador';
@@ -17,10 +25,12 @@ const DRAFT_BUTTON_TEXT = 'Guardar en borrador';
 // Figma «E2S3 · P8 · Agregar registros» (archivo Epic 2 - Grupo 7)
 const CARD_CLASS = 'rounded-xl border border-oatmeal bg-white';
 
+const SECTION_NUMBERS: Record<DraftSection, number> = { education: 1, experience: 2, certification: 3 };
+
 /** Pantalla «Agregar registros» (HU-13): los registros se preparan como borradores y se guardan juntos. */
-export function AddRecordsScreen() {
+export function AddRecordsScreen({ initialDrafts }: { initialDrafts?: DraftRecord[] }) {
   return (
-    <DraftsStoreProvider>
+    <DraftsStoreProvider initialDrafts={initialDrafts}>
       <AddRecordsContent />
     </DraftsStoreProvider>
   );
@@ -30,7 +40,7 @@ export function AddRecordsScreen() {
 function DraftSectionCard({ number, title, children }: { number: number; title: string; children: React.ReactNode }) {
   const headingId = `apartado-${number}`;
   return (
-    <section aria-labelledby={headingId} className={`${CARD_CLASS} flex flex-col gap-4 p-5 md:p-7`}>
+    <section id={`seccion-${number}`} aria-labelledby={headingId} className={`${CARD_CLASS} flex flex-col gap-4 p-5 md:p-7`}>
       <h2 id={headingId} className="flex items-center gap-3 text-lg font-semibold text-blue-fantastic md:text-xl">
         <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-truffle-trouble text-sm font-bold text-white">
           {number}
@@ -44,9 +54,12 @@ function DraftSectionCard({ number, title, children }: { number: number; title: 
 
 function AddRecordsContent() {
   const { records, isLoading, loadError, retryLoad } = useProfileStore();
-  const { drafts, addDraft } = useDraftsStore();
+  const { drafts, addDraft, updateDraft, removeDraft } = useDraftsStore();
+  // Borrador cargado en su formulario con «Editar»; al guardarlo se reemplaza en vez de agregar otro
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editingDraft = drafts.find((draft) => draft.id === editingId) ?? null;
 
-  // Formaciones ya guardadas y en borrador: con ellas la regla existente avisa de una formación duplicada
+  // Formaciones ya guardadas y en borrador (menos la que se edita): con ellas la regla existente avisa de duplicadas
   const existingEducation = useMemo<FormacionAcademica[]>(
     () => [
       ...(records.education as EducationRecord[]).map((record) => ({
@@ -55,10 +68,35 @@ function AddRecordsContent() {
         anioEgreso: record.graduationYear,
         grado: record.degree,
       })),
-      ...drafts.flatMap((draft) => (draft.section === 'education' ? [draft.data] : [])),
+      ...drafts.flatMap((draft) => (draft.section === 'education' && draft.id !== editingId ? [draft.data] : [])),
     ],
-    [records.education, drafts],
+    [records.education, drafts, editingId],
   );
+
+  // Con un borrador en edición, el formulario de su apartado arranca con sus datos; el key lo vuelve a montar
+  function formKey(section: DraftSection) {
+    return editingDraft?.section === section ? editingDraft.id : `${section}-nuevo`;
+  }
+
+  function saveDraft<S extends DraftSection>(section: S, data: DraftDataBySection[S]) {
+    if (editingDraft && editingDraft.section === section) {
+      updateDraft(editingDraft.id, section, data);
+      setEditingId(null);
+      return;
+    }
+    addDraft(section, data);
+  }
+
+  function editDraft(draft: DraftRecord) {
+    setEditingId(draft.id);
+    // jsdom no implementa scrollIntoView, por eso la llamada es opcional
+    document.getElementById(`seccion-${SECTION_NUMBERS[draft.section]}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }
+
+  function removeDraftById(id: string) {
+    removeDraft(id);
+    if (editingId === id) setEditingId(null);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -104,32 +142,38 @@ function AddRecordsContent() {
             {/* Se reutilizan los formularios de Completar perfil; aquí el alta va a borradores, no a la API */}
             <DraftSectionCard number={1} title="Formación académica">
               <FormacionAcademicaForm
+                key={formKey('education')}
+                valoresIniciales={editingDraft?.section === 'education' ? editingDraft.data : undefined}
                 formaciones={existingEducation}
                 mostrarRegistradas={false}
                 textoBoton={DRAFT_BUTTON_TEXT}
-                onAgregar={(formacion) => void addDraft('education', formacion)}
+                onAgregar={(formacion) => saveDraft('education', formacion)}
               />
             </DraftSectionCard>
             <DraftSectionCard number={2} title="Experiencia laboral">
               <FormularioExperiencia
+                key={formKey('experience')}
+                valoresIniciales={editingDraft?.section === 'experience' ? editingDraft.data : undefined}
                 experiencias={[]}
                 textoBoton={DRAFT_BUTTON_TEXT}
-                onAgregar={(experiencia) => void addDraft('experience', experiencia)}
+                onAgregar={(experiencia) => saveDraft('experience', experiencia)}
               />
             </DraftSectionCard>
             <DraftSectionCard number={3} title="Certificaciones">
               <FormularioCertificaciones
+                key={formKey('certification')}
+                valoresIniciales={editingDraft?.section === 'certification' ? editingDraft.data : undefined}
                 certificaciones={[]}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 textoGuardada="Certificación guardada en borrador"
-                onAgregar={(certificacion) => void addDraft('certification', certificacion)}
+                onAgregar={(certificacion) => saveDraft('certification', certificacion)}
               />
             </DraftSectionCard>
             {/* El apartado 4 «Proyectos y portafolio» lo suma HU-19 en la integración */}
           </div>
 
-          {/* Bloque «Borradores»: en celular va debajo de los apartados. La lista con «Editar» y «Quitar» llega
-              en T13.4 y el aviso «Los borradores son provisionales…» es de HU-14 */}
+          {/* Bloque «Borradores» (CA-03): solo borradores, cada uno con «Editar» y «Quitar». En celular va debajo
+              de los apartados. El aviso «Los borradores son provisionales…» es de HU-14 */}
           <aside aria-label="Borradores" className={`${CARD_CLASS} flex flex-col gap-3.5 p-5 md:p-6 lg:w-[380px] lg:shrink-0`}>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-blue-fantastic">
               Borradores
@@ -137,10 +181,22 @@ function AddRecordsContent() {
                 {drafts.length}
               </span>
             </h2>
-            {drafts.length === 0 && (
+            {drafts.length === 0 ? (
               <p className="text-xs text-blue-fantastic/55">
                 Aún no hay borradores. Llena un apartado y presiona «Guardar en borrador».
               </p>
+            ) : (
+              <ul className="flex flex-col gap-3.5">
+                {drafts.map((draft) => (
+                  <DraftCard
+                    key={draft.id}
+                    draft={draft}
+                    isEditing={draft.id === editingId}
+                    onEdit={() => editDraft(draft)}
+                    onRemove={() => removeDraftById(draft.id)}
+                  />
+                ))}
+              </ul>
             )}
           </aside>
         </div>

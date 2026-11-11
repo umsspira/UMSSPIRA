@@ -29,6 +29,8 @@ type FormacionAcademicaFormProps = {
   textoBoton?: string;
   // false: no lista las formaciones (siguen sirviendo para validar duplicadas), como en Agregar registros (HU-13)
   mostrarRegistradas?: boolean;
+  // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
+  valoresIniciales?: FormacionAcademica;
 };
 
 const VACIO: FormacionAcademica = { institucion: '', titulo: '', anioEgreso: '', grado: '' };
@@ -46,8 +48,9 @@ export function FormacionAcademicaForm({
   onErroresChange,
   textoBoton = 'Agregar formación',
   mostrarRegistradas = true,
+  valoresIniciales,
 }: FormacionAcademicaFormProps) {
-  const [datos, setDatos] = useState<FormacionAcademica>(VACIO);
+  const [datos, setDatos] = useState<FormacionAcademica>(valoresIniciales ?? VACIO);
   // Error del año de egreso; una vez mostrado se recalcula mientras se corrige
   const [errorAnio, setErrorAnio] = useState<string>();
   // Formación ya registrada (Institución + Título + Año); se quita al cambiar cualquier campo
