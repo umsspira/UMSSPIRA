@@ -343,6 +343,45 @@ describe('GraduateAffinityView', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('no presenta los ceros iniciales como dato final ni activa estados vacíos', async () => {
+    let resolveVector!: (value: ReturnType<typeof makeVector>) => void;
+    mockGetAffinityVector.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVector = resolve;
+      })
+    );
+
+    render(<GraduateAffinityView />);
+
+    expect(
+      screen.getByRole('status', {
+        name: 'Cargando tu radar de afinidad',
+      })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completar perfil')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Aún no podemos calcular tus áreas/)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Sin datos de historial laboral')
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveVector(makeVector(recalculatedAreas, { hasLaborHistory: undefined }));
+    });
+
+    expect(
+      await screen.findByText('Resumen de tu afinidad')
+    ).toBeInTheDocument();
+    expect(screen.getByText('85%')).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completar perfil')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Sin datos de historial laboral')
+    ).not.toBeInTheDocument();
+  });
+
   it('muestra las seis etiquetas visibles en el orden esperado', async () => {
     render(<GraduateAffinityView />);
 
