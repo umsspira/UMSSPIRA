@@ -24,7 +24,7 @@ function formatDateTime(iso: string) {
   });
 }
 
-function StatusMessage() {
+export function InvalidCorrectionLinkMessage() {
   return (
     <div
       role="alert"
@@ -96,7 +96,7 @@ export function ObservedNoticeView({ token }: { token: string }) {
           </p>
         )}
 
-        {state.status === "invalid" && <StatusMessage />}
+        {state.status === "invalid" && <InvalidCorrectionLinkMessage />}
 
         {state.status === "error" && (
           <NetworkErrorMessage message={state.message} onRetry={loadData} />
