@@ -14,6 +14,7 @@ import type {
 } from '../../application/contracts/profile-inputs';
 import type { ProfileSection, ProfileSnapshot } from '../../domain/entities/profile-record';
 import { assertUniqueEducation } from '../../domain/policies/education.policy';
+import { backupKind } from '../../domain/policies/backup-file.policy';
 import {
   toBackup,
   toCertification,
@@ -306,7 +307,7 @@ export class PrismaProfileRepository implements ProfileRepository {
           data: {
             id: file.id,
             id_certificacion: certificationId,
-            tipo: 'FOTO',
+            tipo: backupKind(file.mime),
             archivo_key: file.id,
             archivo: {
               create: {
