@@ -41,6 +41,15 @@ describe('ProfileRecordsManager', () => {
     });
   });
 
+  it('«Volver» es el botón compartido y lleva a Mi perfil (HU-11)', () => {
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
+
+    const back = screen.getByRole('link', { name: 'Volver a Mi perfil' });
+    expect(back).toHaveAttribute('href', '/profile');
+    expect(back).toHaveClass('min-h-[44px]');
+    expect(screen.queryByText('Volver al resumen')).not.toBeInTheDocument();
+  });
+
   it('abre la pestaña indicada al volver de editar (BUG-HU04-003)', () => {
     render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} initialSection="experience" />);
 
