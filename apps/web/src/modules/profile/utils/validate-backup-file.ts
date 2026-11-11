@@ -4,6 +4,8 @@ export const BACKUP_FILE_MESSAGE = 'Solo se aceptan archivos PDF o JPG de hasta 
 export const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 // Valor del atributo accept de los campos de respaldo
 export const BACKUP_ACCEPT = 'application/pdf,image/jpeg';
+// Texto de ayuda bajo los botones de respaldo
+export const BACKUP_HINT = 'PDF o JPG, máximo 5 MB';
 
 export type BackupType = 'pdf' | 'image';
 

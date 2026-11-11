@@ -5,7 +5,7 @@ import { Camera, Check, FileText, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
-import { BACKUP_ACCEPT, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
+import { BACKUP_ACCEPT, BACKUP_HINT, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
 
 // Campos de la v3 del Figma: fondo crema, borde arena y esquinas de 8px
 export const INPUT_CLASS =
@@ -194,7 +194,7 @@ export function BackupField({
           <input type="file" accept={BACKUP_ACCEPT} className="hidden" onChange={handleChange} />
         </label>
         {/* HU-18: se acepta PDF o JPG */}
-        <p className="w-full text-center text-xs text-blue-fantastic/70">PDF o JPG, máximo 5 MB</p>
+        <p className="w-full text-center text-xs text-blue-fantastic/70">{BACKUP_HINT}</p>
       </div>
       <MensajeError id="error-backup" mensaje={backupError} />
     </div>

@@ -10,7 +10,7 @@ import {
   validarCertificacion,
 } from '@/modules/profile/validation/reglas-perfil';
 import { formatearTamanio } from '@/modules/profile/utils/format-file-size';
-import { BACKUP_ACCEPT, backupTypeOf, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
+import { BACKUP_ACCEPT, BACKUP_HINT, backupTypeOf, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
 import { ApiError } from '@/shared/services/api-client';
  
 export type Certificacion = {
@@ -356,7 +356,7 @@ export function FormularioCertificaciones({
               </button>
             </div>
             {/* HU-18: se acepta PDF o JPG */}
-            <p className="text-xs text-[#2C3B4D]/70">PDF o JPG, máximo 5 MB</p>
+            <p className="text-xs text-[#2C3B4D]/70">{BACKUP_HINT}</p>
           </div>
           <MensajeError id="error-respaldo" mensaje={errorRespaldo ?? errores.respaldo} />
  
