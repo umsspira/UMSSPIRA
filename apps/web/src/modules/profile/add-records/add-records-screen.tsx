@@ -1,15 +1,21 @@
 'use client';
 
+import { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 import { FormularioCertificaciones } from '@/modules/profile/completar/certificaciones';
 import { FormularioExperiencia } from '@/modules/profile/completar/experiencia-laboral';
-import { FormacionAcademicaForm } from '@/modules/profile/completar/formacion-academica';
+import { FormacionAcademicaForm, type FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
 import { DraftsStoreProvider, useDraftsStore } from '@/modules/profile/state/drafts-store';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
+import type { EducationRecord } from '@/modules/profile/types/profile-record';
 
 export const RECORDS_ROUTE = '/profile/records';
+const DRAFT_BUTTON_TEXT = 'Guardar en borrador';
+
+// Figma «E2S3 · P8 · Agregar registros» (archivo Epic 2 - Grupo 7)
+const CARD_CLASS = 'rounded-xl border border-oatmeal bg-white';
 
 /** Pantalla «Agregar registros» (HU-13): los registros se preparan como borradores y se guardan juntos. */
 export function AddRecordsScreen() {
@@ -24,9 +30,9 @@ export function AddRecordsScreen() {
 function DraftSectionCard({ number, title, children }: { number: number; title: string; children: React.ReactNode }) {
   const headingId = `apartado-${number}`;
   return (
-    <section aria-labelledby={headingId} className="rounded-2xl border border-abyssal-blue/10 bg-white px-4 py-5 md:px-6">
-      <h2 id={headingId} className="mb-4 flex items-center gap-3 text-lg font-semibold text-blue-fantastic">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-truffle-trouble text-sm font-bold text-white">
+    <section aria-labelledby={headingId} className={`${CARD_CLASS} flex flex-col gap-4 p-5 md:p-7`}>
+      <h2 id={headingId} className="flex items-center gap-3 text-lg font-semibold text-blue-fantastic md:text-xl">
+        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-truffle-trouble text-sm font-bold text-white">
           {number}
         </span>
         {title}
@@ -37,73 +43,102 @@ function DraftSectionCard({ number, title, children }: { number: number; title: 
 }
 
 function AddRecordsContent() {
-  const { isLoading, loadError, retryLoad } = useProfileStore();
+  const { records, isLoading, loadError, retryLoad } = useProfileStore();
   const { drafts, addDraft } = useDraftsStore();
 
+  // Formaciones ya guardadas y en borrador: con ellas la regla existente avisa de una formación duplicada
+  const existingEducation = useMemo<FormacionAcademica[]>(
+    () => [
+      ...(records.education as EducationRecord[]).map((record) => ({
+        institucion: record.institution,
+        titulo: record.title,
+        anioEgreso: record.graduationYear,
+        grado: record.degree,
+      })),
+      ...drafts.flatMap((draft) => (draft.section === 'education' ? [draft.data] : [])),
+    ],
+    [records.education, drafts],
+  );
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       {/* TODO(HU-11): cambiar por el BackButton compartido en la integración */}
       <Link
         href={RECORDS_ROUTE}
-        className="inline-flex min-h-11 w-fit items-center gap-2 rounded-lg border border-blue-fantastic bg-white px-4 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
+        className="inline-flex h-11 w-fit items-center gap-2.5 rounded-[10px] border-[1.5px] border-blue-fantastic bg-white pl-4 pr-5 text-[15px] font-semibold text-blue-fantastic transition hover:bg-palladian"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        <ArrowLeft className="h-[18px] w-[18px]" aria-hidden="true" />
         Volver a Mis registros
       </Link>
 
-      <header className="flex flex-col gap-1 rounded-2xl border border-abyssal-blue/10 bg-white px-5 py-5 md:px-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-truffle-trouble">Perfil profesional</p>
+      <header className="flex flex-col gap-2 rounded-2xl border border-oatmeal bg-white px-5 py-5 md:px-8 md:py-6">
+        <p className="text-xs font-semibold uppercase text-truffle-trouble">Perfil profesional</p>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-2xl font-bold text-blue-fantastic md:text-[28px]">Agregar registros</h1>
-          <span className="rounded-full bg-burning-flame/20 px-2.5 py-0.5 text-xs font-semibold text-truffle-trouble">Borrador</span>
+          <h1 className="font-display text-[28px] font-semibold leading-tight text-blue-fantastic md:text-[32px]">
+            Agregar registros
+          </h1>
+          <span className="rounded-full bg-burning-flame/[0.16] px-2.5 py-1 text-xs font-semibold text-truffle-trouble">
+            Borrador
+          </span>
         </div>
-        <p className="text-sm text-blue-fantastic/70">
+        <p className="text-sm text-blue-fantastic/55">
           Llena uno o más apartados y guárdalos como borrador. Al final presiona «Guardar perfil profesional» para
           guardar todos los borradores a la vez.
         </p>
       </header>
 
       {isLoading ? (
-        <p role="status" className="rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-10 text-center text-sm text-blue-fantastic/70">
+        <p role="status" className={`${CARD_CLASS} px-6 py-10 text-center text-sm text-blue-fantastic/70`}>
           Cargando tu perfil…
         </p>
       ) : loadError ? (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-6 text-sm">
+        <div role="alert" className={`${CARD_CLASS} flex flex-col items-start gap-3 px-6 py-6 text-sm`}>
           <p>No se pudo cargar tu perfil. {loadError}</p>
           <button type="button" onClick={retryLoad} className="rounded-lg bg-burning-flame px-4 py-2 font-bold text-abyssal-blue">
             Reintentar
           </button>
         </div>
       ) : (
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
           <div className="flex min-w-0 flex-1 flex-col gap-5">
             {/* Se reutilizan los formularios de Completar perfil; aquí el alta va a borradores, no a la API */}
             <DraftSectionCard number={1} title="Formación académica">
-              <FormacionAcademicaForm formaciones={[]} onAgregar={(formacion) => void addDraft('education', formacion)} />
+              <FormacionAcademicaForm
+                formaciones={existingEducation}
+                mostrarRegistradas={false}
+                textoBoton={DRAFT_BUTTON_TEXT}
+                onAgregar={(formacion) => void addDraft('education', formacion)}
+              />
             </DraftSectionCard>
             <DraftSectionCard number={2} title="Experiencia laboral">
-              <FormularioExperiencia experiencias={[]} onAgregar={(experiencia) => void addDraft('experience', experiencia)} />
+              <FormularioExperiencia
+                experiencias={[]}
+                textoBoton={DRAFT_BUTTON_TEXT}
+                onAgregar={(experiencia) => void addDraft('experience', experiencia)}
+              />
             </DraftSectionCard>
             <DraftSectionCard number={3} title="Certificaciones">
               <FormularioCertificaciones
                 certificaciones={[]}
+                textoBoton={DRAFT_BUTTON_TEXT}
+                textoGuardada="Certificación guardada en borrador"
                 onAgregar={(certificacion) => void addDraft('certification', certificacion)}
               />
             </DraftSectionCard>
             {/* El apartado 4 «Proyectos y portafolio» lo suma HU-19 en la integración */}
           </div>
 
-          {/* Bloque «Borradores»: la lista con «Editar» y «Quitar» llega en T13.4; el aviso de provisionales es de HU-14 */}
-          <aside
-            aria-label="Borradores"
-            className="flex flex-col gap-3 rounded-2xl border border-abyssal-blue/10 bg-white p-5 lg:sticky lg:top-6 lg:w-[320px] lg:shrink-0"
-          >
-            <h2 className="flex items-center gap-2 text-base font-semibold text-blue-fantastic">
+          {/* Bloque «Borradores»: en celular va debajo de los apartados. La lista con «Editar» y «Quitar» llega
+              en T13.4 y el aviso «Los borradores son provisionales…» es de HU-14 */}
+          <aside aria-label="Borradores" className={`${CARD_CLASS} flex flex-col gap-3.5 p-5 md:p-6 lg:w-[380px] lg:shrink-0`}>
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-blue-fantastic">
               Borradores
-              <span className="text-xs font-bold text-truffle-trouble">{drafts.length}</span>
+              <span className="rounded-[10px] bg-burning-flame/[0.16] px-2 py-0.5 text-xs font-semibold text-truffle-trouble">
+                {drafts.length}
+              </span>
             </h2>
             {drafts.length === 0 && (
-              <p className="text-xs text-blue-fantastic/60">
+              <p className="text-xs text-blue-fantastic/55">
                 Aún no hay borradores. Llena un apartado y presiona «Guardar en borrador».
               </p>
             )}

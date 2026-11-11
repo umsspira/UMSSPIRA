@@ -38,6 +38,9 @@ type FormularioCertificacionesProps = {
   // Acciones de cada certificación registrada (BUG HU8-02)
   hrefEditar?: (id: string) => string;
   onEliminar?: (id: string) => void;
+  // Textos del botón de enviar y del aviso al guardar; en Agregar registros van a borrador (HU-13)
+  textoBoton?: string;
+  textoGuardada?: string;
 };
  
 const VACIO: Certificacion = { nombre: '', entidadEmisora: '', anioEmision: '', grado: '', respaldo: null };
@@ -62,6 +65,8 @@ export function FormularioCertificaciones({
   onCancelar,
   hrefEditar,
   onEliminar,
+  textoBoton = 'Agregar certificación',
+  textoGuardada = 'Certificación guardada',
 }: FormularioCertificacionesProps) {
   const [datos, setDatos] = useState<Certificacion>(VACIO);
   const fotoRef = useRef<HTMLInputElement>(null);
@@ -359,7 +364,7 @@ export function FormularioCertificaciones({
         {guardada && (
           <p role="status" className="flex items-center gap-1.5 text-sm font-semibold text-[#2C3B4D]">
             <Check className="h-4 w-4 text-[#A35139]" aria-hidden="true" />
-            Certificación guardada
+            {textoGuardada}
           </p>
         )}
         {guardada && returnTo && (
@@ -388,7 +393,7 @@ export function FormularioCertificaciones({
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#2C3B4D] bg-white px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
         >
           <Plus className="h-4 w-4" />
-          {guardando ? `Guardando…${progreso !== undefined ? ` ${progreso} %` : ''}` : 'Agregar certificación'}
+          {guardando ? `Guardando…${progreso !== undefined ? ` ${progreso} %` : ''}` : textoBoton}
         </button>
         {onCancelar && (
           <button

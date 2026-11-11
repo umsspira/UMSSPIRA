@@ -18,6 +18,8 @@ type FormularioExperienciaProps = {
   onAgregar: (experiencia: Experiencia) => void | Promise<void>;
   // Avisa cuántos errores hay a la vista, para el contador del encabezado de la sección (HU-02, AC 6)
   onErroresChange?: (errores: number) => void;
+  // Texto del botón de enviar; en Agregar registros es «Guardar en borrador» (HU-13)
+  textoBoton?: string;
 };
 
 type Datos = {
@@ -41,7 +43,12 @@ function mostrarFecha(fecha: string) {
   return `${mes}/${anio}`;
 }
 
-export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange }: FormularioExperienciaProps) {
+export function FormularioExperiencia({
+  experiencias,
+  onAgregar,
+  onErroresChange,
+  textoBoton = 'Agregar experiencia',
+}: FormularioExperienciaProps) {
   const [datos, setDatos] = useState<Datos>(VACIO);
   const [trabajoActual, setTrabajoActual] = useState(false);
   // Error de la fecha fin (anterior a la fecha inicio); una vez mostrado se recalcula mientras se corrige
@@ -164,7 +171,7 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
             disabled={!completo || guardando}
             className="h-11 rounded-lg bg-[#FFB162] px-6 text-sm font-semibold text-[#1B2632] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Agregar experiencia
+            {textoBoton}
           </button>
         </div>
       </form>
