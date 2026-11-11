@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Check, Plus } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
@@ -16,6 +16,7 @@ import type {
   RecordSection,
 } from '@/modules/profile/types/profile-record';
 import { removeProfileRecord } from '@/modules/profile/utils/remove-profile-record';
+import { BackButton } from '@/shared/components/back-button';
 import { cn } from '@/shared/utils/cn';
 
 // Mismo orden de pestañas que la v3 del Figma
@@ -85,13 +86,7 @@ export function ProfileRecordsManager({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <Link
-          href="/profile"
-          className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-blue-fantastic/70 transition hover:text-blue-fantastic"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          Volver al resumen
-        </Link>
+        <BackButton href="/profile" ariaLabel="Volver a Mi perfil" />
         <h1 className="text-[28px] font-semibold leading-tight text-blue-fantastic">
           Mis registros del perfil
         </h1>
