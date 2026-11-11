@@ -1,4 +1,9 @@
-import { ArgumentsHost, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { ErrorHandlerFilter } from './error-handler.filter';
 
@@ -16,6 +21,21 @@ describe('Respuestas de error centralizadas', () => {
     expect(status).toHaveBeenCalledWith(404);
     expect(json).toHaveBeenCalledWith({
       error: { code: 'NOT_FOUND', message: 'No se encontró el recurso solicitado' },
+    });
+  });
+
+  it('responde 503 cuando una dependencia no está disponible', () => {
+    new ErrorHandlerFilter().catch(
+      new ServiceUnavailableException('Detalle interno'),
+      host,
+    );
+    expect(status).toHaveBeenCalledWith(503);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message:
+          'El índice de vacantes no está disponible. Verifica su configuración e inténtalo de nuevo.',
+      },
     });
   });
 

@@ -83,6 +83,15 @@ export const environmentSchema = z
       .optional(),
     CORRECTION_LINK_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
     WEB_BASE_URL: z.string().url().default('http://localhost:3001'),
+    ELASTICSEARCH_URL: z
+      .url()
+      .refine(
+        (value) => ['http:', 'https:'].includes(new URL(value).protocol),
+        'Debe ser una URL HTTP o HTTPS de Elasticsearch',
+      )
+      .optional(),
+    ELASTICSEARCH_INDEX: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/).default('vacantes'),
+    ELASTICSEARCH_API_KEY: z.string().min(1).optional(),
   })
   .superRefine((env, context) => {
     const store = env.AUTH_RATE_LIMIT_STORE ?? (env.NODE_ENV === 'production' ? 'redis' : 'memory');
