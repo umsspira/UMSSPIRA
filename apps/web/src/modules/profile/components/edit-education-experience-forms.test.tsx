@@ -104,6 +104,35 @@ describe('EditEducationForm', () => {
     });
   });
 
+  it('al guardar vuelve a la pestaña de formación con «Registro actualizado» (HU-11)', async () => {
+    responder(200, {
+      id: 'edu-1',
+      idTitulado: 'titulado-1',
+      fechaCreacion: null,
+      institucion: 'UMSS',
+      titulo: 'Licenciatura en Ingeniería de Sistemas',
+      grado: 'Licenciatura',
+      anioEgreso: 2018,
+    });
+    renderWith(<EditEducationForm />);
+
+    fireEvent.change(screen.getByLabelText('Institución'), { target: { value: 'UMSS' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(push).toHaveBeenCalledWith('/profile/records?seccion=education&actualizado=1');
+  });
+
+  it('si el guardado falla no sale del formulario (HU-11)', async () => {
+    responder(400, { statusCode: 400, message: ['Error'], error: 'Error' });
+    renderWith(<EditEducationForm />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Error')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('"Quitar imagen" deshace la foto elegida que aún no se guardó y vuelve al respaldo del registro', () => {
     const { container } = render(
       <ProfileStoreProvider initialRecords={PROFILE_RECORDS_MOCK}>
@@ -255,6 +284,17 @@ describe('EditExperienceForm', () => {
       fechaInicio: '2021-01-04',
       fechaFin: '2023-06-30',
     });
+  });
+
+  it('al guardar vuelve a la pestaña de experiencia con «Registro actualizado» (HU-11)', async () => {
+    responder(200, { ...exp2, empresa: 'Jala' });
+    renderWith(<EditExperienceForm />);
+
+    fireEvent.change(screen.getByLabelText('Empresa'), { target: { value: 'Jala' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(push).toHaveBeenCalledWith('/profile/records?seccion=experience&actualizado=1');
   });
 
   it('al marcar "Actualmente trabajo aquí" deshabilita la fecha fin y guarda como trabajo actual sin enviar fechaFin', async () => {
