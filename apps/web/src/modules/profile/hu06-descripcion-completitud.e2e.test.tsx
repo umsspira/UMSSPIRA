@@ -7,7 +7,7 @@ import ProfileSummary from '@/modules/profile/ver/profile-summary';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
 }));
 
 // Prueba punta a punta de la HU-06 (T6.7): pantallas reales, estado compartido y servicio real;

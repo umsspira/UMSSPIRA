@@ -1,7 +1,7 @@
 import { PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
 import type { ProfileRecords } from '@/modules/profile/types/profile-record';
 
-import { completarSeccionHref, profileCompleteness, seccionDeUrl } from './profile-completeness';
+import { completarSeccionHref, isProfileEmpty, profileCompleteness, seccionDeUrl } from './profile-completeness';
 
 const VACIO: ProfileRecords = { education: [], experience: [], certification: [] };
 
@@ -44,5 +44,24 @@ describe('seccionDeUrl y completarSeccionHref (T6.6)', () => {
     expect(completarSeccionHref('formacion-academica')).toBe(
       '/profile/completar?seccion=formacion-academica&returnTo=%2Fprofile',
     );
+  });
+});
+
+describe('isProfileEmpty (T12.1)', () => {
+  const empty: ProfileRecords = { education: [], experience: [], certification: [] };
+
+  it('es verdadero sin registros y sin descripción', () => {
+    expect(isProfileEmpty(empty, '')).toBe(true);
+    expect(isProfileEmpty(empty, '   ')).toBe(true);
+  });
+
+  it('es falso con al menos un registro', () => {
+    expect(isProfileEmpty({ ...empty, education: PROFILE_RECORDS_MOCK.education.slice(0, 1) }, '')).toBe(false);
+    expect(isProfileEmpty({ ...empty, experience: PROFILE_RECORDS_MOCK.experience.slice(0, 1) }, '')).toBe(false);
+    expect(isProfileEmpty({ ...empty, certification: PROFILE_RECORDS_MOCK.certification.slice(0, 1) }, '')).toBe(false);
+  });
+
+  it('es falso si solo tiene la descripción profesional', () => {
+    expect(isProfileEmpty(empty, 'Ingeniero de sistemas.')).toBe(false);
   });
 });

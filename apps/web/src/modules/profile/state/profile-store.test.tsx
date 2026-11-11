@@ -8,6 +8,10 @@ import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session
 
 import { ProfileStoreProvider, useProfileStore } from './profile-store';
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+}));
+
 function AddEducationButton() {
   const { addEducation } = useProfileStore();
   return (
