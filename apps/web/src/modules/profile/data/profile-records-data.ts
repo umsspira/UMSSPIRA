@@ -12,6 +12,11 @@ export function recordsHref(section: RecordSection): string {
   return `/profile/records?seccion=${section}`;
 }
 
+// Misma pestaña después de guardar una edición: Mis registros muestra «Registro actualizado» (HU-11)
+export function updatedRecordHref(section: RecordSection): string {
+  return `${recordsHref(section)}&actualizado=1`;
+}
+
 export function toRecordSection(value: string | undefined): RecordSection {
   return value === 'experience' || value === 'certification' ? value : 'education';
 }
