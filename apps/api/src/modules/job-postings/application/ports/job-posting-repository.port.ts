@@ -5,4 +5,5 @@ export const JOB_POSTING_REPOSITORY = Symbol('JOB_POSTING_REPOSITORY');
 
 export interface JobPostingRepository {
   create(ownerId: string, input: CreateJobPostingInput, now: Date): Promise<JobPosting | null>;
+  findById(vacancyId: string, companyIds: readonly string[]): Promise<JobPosting | null>;
 }

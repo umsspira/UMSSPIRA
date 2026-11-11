@@ -4,6 +4,7 @@ import { jobPostingsProviders } from './infrastructure/providers/job-postings.pr
 import { CreateJobPostingController } from './http/controllers/create-job-posting.controller';
 import { GetTechnicalRequirementsController } from './http/controllers/get-technical-requirements.controller';
 import { SaveTechnicalRequirementsController } from './http/controllers/save-technical-requirements.controller';
+import { GetJobPostingController } from './http/controllers/get-job-posting.controller';
 
 @Module({
   imports: [PrismaModule],
@@ -11,6 +12,7 @@ import { SaveTechnicalRequirementsController } from './http/controllers/save-tec
     CreateJobPostingController,
     GetTechnicalRequirementsController,
     SaveTechnicalRequirementsController,
+    GetJobPostingController,
   ],
   providers: jobPostingsProviders,
 })

@@ -380,6 +380,26 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
     expect(jobs.postings.size).toBe(1);
   });
 
+  it('recupera por identificador solo la vacante del scope y rechaza IDs inexistentes', async () => {
+    const session = await login();
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    await request(app.getHttpServer())
+      .get(`/api/v1/job-postings/${created.body.data.id}`)
+      .auth(session.token, { type: 'bearer' })
+      .expect(200, {
+        data: { ...created.body.data, requisitosTecnicos: [] },
+      });
+    const missing = await request(app.getHttpServer())
+      .get(`/api/v1/job-postings/${foreignCompanyId}`)
+      .auth(session.token, { type: 'bearer' })
+      .expect(404);
+    expect(missing.body.error.code).toBe('JOB_POSTING_NOT_FOUND');
+  });
+
   it.each([
     { modalidad: 'OTRA' },
     { titulo: '   ' },

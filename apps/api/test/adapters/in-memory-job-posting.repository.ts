@@ -27,4 +27,9 @@ export class InMemoryJobPostingRepository implements JobPostingRepository {
     this.postings.set(posting.id, posting);
     return posting;
   }
+
+  async findById(vacancyId: string, companyIds: readonly string[]) {
+    const posting = this.postings.get(vacancyId);
+    return posting && companyIds.includes(posting.companyId) ? posting : null;
+  }
 }

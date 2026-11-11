@@ -31,4 +31,15 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
       throw error;
     }
   }
+
+  async findById(vacancyId: string, companyIds: readonly string[]) {
+    if (companyIds.length === 0) {
+      return null;
+    }
+    const record = await this.prisma.vacante.findFirst({
+      where: { id: vacancyId, id_empresa: { in: [...companyIds] } },
+      select: jobPostingSelect,
+    });
+    return record ? toJobPosting(record) : null;
+  }
 }
