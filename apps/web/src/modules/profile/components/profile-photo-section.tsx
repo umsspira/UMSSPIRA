@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { AlertCircle, Upload } from 'lucide-react';
+import { AlertCircle, Check, Upload } from 'lucide-react';
 
 import {
   PROFILE_PHOTO_ERROR_MESSAGE,
@@ -9,20 +9,34 @@ import {
   getProfileInitials,
   isValidProfilePhoto,
 } from '@/modules/profile/utils/profile-photo-rules';
+import { useProfilePhotoStore } from '@/shared/hooks/use-profile-photo-store';
+
+const TOAST_DURATION_MS = 3000;
+
+type ToastKind = 'success' | 'error';
 
 type ProfilePhotoSectionProps = {
   // Nombre del titulado para el avatar con iniciales
   name: string;
-  // Foto guardada; mientras no exista se muestra el avatar
-  currentPhotoUrl?: string | null;
 };
 
-export function ProfilePhotoSection({ name, currentPhotoUrl = null }: ProfilePhotoSectionProps) {
+export function ProfilePhotoSection({ name }: ProfilePhotoSectionProps) {
   const inputId = useId();
   const errorId = `${inputId}-error`;
   const inputRef = useRef<HTMLInputElement>(null);
+  const savedPhotoUrl = useProfilePhotoStore((state) => state.photoUrl);
+  const loadPhoto = useProfilePhotoStore((state) => state.loadPhoto);
+  const savePhoto = useProfilePhotoStore((state) => state.savePhoto);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<ToastKind | null>(null);
+
+  // Foto guardada antes (sobrevive a recargar)
+  useEffect(() => {
+    void loadPhoto();
+  }, [loadPhoto]);
 
   // Libera la vista previa anterior al cambiarla y al salir de la pantalla
   useEffect(() => {
@@ -30,21 +44,46 @@ export function ProfilePhotoSection({ name, currentPhotoUrl = null }: ProfilePho
     return () => URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
 
+  useEffect(() => {
+    if (!toast) return;
+    const timeoutId = setTimeout(() => setToast(null), TOAST_DURATION_MS);
+    return () => clearTimeout(timeoutId);
+  }, [toast]);
+
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!isValidProfilePhoto(file)) {
       // Archivo rechazado: no queda elegido ni se muestra como vista previa
       setErrorMessage(PROFILE_PHOTO_ERROR_MESSAGE);
+      setSelectedFile(null);
       setPreviewUrl(null);
       event.target.value = '';
       return;
     }
     setErrorMessage(null);
+    setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
   }
 
-  const shownPhotoUrl = previewUrl ?? currentPhotoUrl;
+  async function handleSave() {
+    if (!selectedFile) return;
+    setIsSaving(true);
+    try {
+      await savePhoto(selectedFile);
+      // La foto elegida pasa a ser la foto actual
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (inputRef.current) inputRef.current.value = '';
+      setToast('success');
+    } catch {
+      setToast('error');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const shownPhotoUrl = previewUrl ?? savedPhotoUrl;
 
   return (
     <section
@@ -53,7 +92,7 @@ export function ProfilePhotoSection({ name, currentPhotoUrl = null }: ProfilePho
     >
       <div className="mx-auto h-24 w-24 shrink-0 overflow-hidden rounded-full border border-oatmeal sm:mx-0">
         {shownPhotoUrl ? (
-          // La vista previa es una URL local (blob:), por eso se usa img y no next/image
+          // La foto es una URL local (blob:), por eso se usa img y no next/image
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={shownPhotoUrl}
@@ -86,14 +125,26 @@ export function ProfilePhotoSection({ name, currentPhotoUrl = null }: ProfilePho
           onChange={handleFileChange}
           className="sr-only"
         />
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-oatmeal bg-white px-4 py-2 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian sm:w-fit"
-        >
-          <Upload className="h-4 w-4" aria-hidden="true" />
-          Elegir archivo
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-oatmeal bg-white px-4 py-2 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian sm:w-fit"
+          >
+            <Upload className="h-4 w-4" aria-hidden="true" />
+            Elegir archivo
+          </button>
+          {selectedFile && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="inline-flex w-full items-center justify-center rounded-lg bg-burning-flame px-4 py-2 text-sm font-bold text-abyssal-blue transition hover:brightness-95 disabled:opacity-60 sm:w-fit"
+            >
+              {isSaving ? 'Guardando…' : 'Guardar foto'}
+            </button>
+          )}
+        </div>
         {errorMessage && (
           <p
             id={errorId}
@@ -105,6 +156,29 @@ export function ProfilePhotoSection({ name, currentPhotoUrl = null }: ProfilePho
           </p>
         )}
       </div>
+
+      {toast === 'success' && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-4 right-4 z-50 flex items-center gap-2 rounded-lg border border-oatmeal bg-white px-4 py-3 text-sm font-semibold text-blue-fantastic shadow-lg sm:left-auto sm:right-6"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-fantastic">
+            <Check className="h-3.5 w-3.5 text-white" aria-hidden="true" />
+          </span>
+          Foto actualizada
+        </div>
+      )}
+      {toast === 'error' && (
+        <div
+          role="alert"
+          className="fixed bottom-6 left-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-burning-flame/15 px-4 py-3 text-sm font-semibold text-blue-fantastic shadow-lg sm:left-auto sm:right-6"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-truffle-trouble">
+            <AlertCircle className="h-3.5 w-3.5 text-white" aria-hidden="true" />
+          </span>
+          No se pudo guardar la foto. Intenta de nuevo.
+        </div>
+      )}
     </section>
   );
 }
