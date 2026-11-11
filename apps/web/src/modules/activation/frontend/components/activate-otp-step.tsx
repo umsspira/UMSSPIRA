@@ -138,7 +138,7 @@ export const ActivateOtpStep: React.FC<ActivateOtpStepProps> = ({
       </div>
 
       <div className="mt-5">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
+        <h1 className="font-sans text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
           Activa tu cuenta de Titulado
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-abyssal-blue/75">
