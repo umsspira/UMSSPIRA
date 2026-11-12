@@ -325,3 +325,6 @@ describe('Cancelación desde la inscripción confirmada', () => {
     expect(screen.queryByRole('heading', { name: 'Inscripción cancelada' })).not.toBeInTheDocument();
   });
 });
+
+
+

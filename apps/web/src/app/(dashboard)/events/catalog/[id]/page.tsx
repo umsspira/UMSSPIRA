@@ -7,3 +7,8 @@ interface PublicEventDetailRouteProps {
 export default function PublicEventDetailRoute({ params }: PublicEventDetailRouteProps) {
   return <EventDetailPage params={params} />;
 }
+
+
+
+
+
