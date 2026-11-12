@@ -840,7 +840,22 @@ describe('GraduateAffinityView', () => {
     expect(screen.queryByRole('button', { name: /Simular Actualización/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Simular Timeout/i)).not.toBeInTheDocument();
   });
+   it('muestra el aviso de demostración cuando el modo demostración está activo', async () => {
+    render(<GraduateAffinityView showDemoNotice />);
 
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.getByTestId('affinity-demo-notice')).toHaveTextContent(/Demostración/i);
+  });
+
+  it('no muestra el aviso de demostración cuando el modo demostración está apagado', async () => {
+    render(<GraduateAffinityView showDemoNotice={false} />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.queryByTestId('affinity-demo-notice')).not.toBeInTheDocument();
+  });
+  
   it('muestra el estado vacío cuando el vector tiene áreas pero todas con afinidad cero y sin evidencias', async () => {
     const zeroAreas = recalculatedAreas.map((area) => ({
       ...area,
