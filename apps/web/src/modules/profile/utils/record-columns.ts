@@ -1,4 +1,5 @@
-import type { ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
+import type { CertificationRecord, ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
+import { backupTypeLabel } from '@/modules/profile/utils/backup-type-label';
 
 export type RecordColumn = {
   label: string;
@@ -40,5 +41,13 @@ export function getRecordColumns(section: RecordSection): RecordColumn[] {
     { label: 'Entidad emisora', getValue: readField('issuer') },
     { label: 'Año', getValue: readField('issueYear') },
     { label: 'Grado', getValue: readField('degree') },
+    // HU-18 (T18.5): indica si el respaldo es un PDF o una foto
+    {
+      label: 'Respaldo',
+      getValue: (record) => {
+        const { backupFile, backupType } = record as CertificationRecord;
+        return backupFile ? backupTypeLabel(backupType) : 'Sin respaldo';
+      },
+    },
   ];
 }
