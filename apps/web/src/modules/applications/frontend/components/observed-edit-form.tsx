@@ -15,10 +15,18 @@ import {
   type CorrectionResult,
   type CorrectionValues,
 } from "../hooks/use-observed-correction";
+import { PreviousDocumentPreview } from "./previous-document-preview";
 
 type Props = {
+  token: string;
+  hasPreviousDocument?: boolean;
   initial: CorrectionValues;
-  currentDocument: { name: string; sizeLabel: string; uploadedAt: string; url: string };
+  currentDocument: {
+    name: string;
+    sizeLabel: string;
+    uploadedAt: string;
+    url?: string;
+  };
   onReview: (result: CorrectionResult) => void;
   onRequireEmailVerification?: (result: CorrectionResult) => void;
   onCancel: () => void;
@@ -77,6 +85,8 @@ function Card({ n, title, children }: { n: number; title: string; children: Reac
 }
 
 export function ObservedEditForm({
+  token,
+  hasPreviousDocument = true,
   initial,
   currentDocument,
   onReview,
@@ -214,14 +224,11 @@ export function ObservedEditForm({
           <p className="text-xs text-slate-600">
             {currentDocument.sizeLabel} • Subido el {currentDocument.uploadedAt}
           </p>
-          <a
-            href={currentDocument.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-block text-xs font-bold underline"
-          >
-            Ver documento previo
-          </a>
+          <PreviousDocumentPreview
+           token={token}
+           available={hasPreviousDocument}
+          />
+
         </div>
 
         <div className="mt-4">

@@ -190,6 +190,8 @@ function ValidView({ data, token }: { data: ObservedApplicationDetail; token: st
       )}
       <div hidden={Boolean(pending)}>
         <ObservedEditForm
+          token={token}
+          hasPreviousDocument={Boolean(data.documento)}
           initial={form}
           currentDocument={document}
           onCancel={() => window.history.back()}
