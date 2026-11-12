@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Check } from 'lucide-react';
 import Link from 'next/link';
 
 import { FormularioCertificaciones } from '@/modules/profile/completar/certificaciones';
@@ -18,12 +18,15 @@ import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { EducationRecord } from '@/modules/profile/types/profile-record';
 
 import { DraftCard } from './draft-card';
+import { type CertificationAttempt, type SavedDraft, persistDraft } from './save-draft';
 
 export const RECORDS_ROUTE = '/profile/records';
 const DRAFT_BUTTON_TEXT = 'Guardar en borrador';
 
 // Figma «E2S3 · P8 · Agregar registros» (archivo Epic 2 - Grupo 7)
 const CARD_CLASS = 'rounded-xl border border-oatmeal bg-white';
+
+type SaveStatus = { status: 'idle' | 'saving' | 'error' } | { status: 'saved'; count: number };
 
 const SECTION_NUMBERS: Record<DraftSection, number> = { education: 1, experience: 2, certification: 3 };
 
@@ -53,8 +56,11 @@ function DraftSectionCard({ number, title, children }: { number: number; title: 
 }
 
 function AddRecordsContent() {
-  const { records, isLoading, loadError, retryLoad } = useProfileStore();
+  const { records, isLoading, loadError, retryLoad, addEducation, addExperience, addCertification } = useProfileStore();
   const { drafts, addDraft, updateDraft, removeDraft } = useDraftsStore();
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({ status: 'idle' });
+  const certificationAttempts = useRef(new Map<string, CertificationAttempt>());
+  const isSaving = saveStatus.status === 'saving';
   // Borrador cargado en su formulario con «Editar»; al guardarlo se reemplaza en vez de agregar otro
   const [editingId, setEditingId] = useState<string | null>(null);
   const editingDraft = drafts.find((draft) => draft.id === editingId) ?? null;
@@ -81,6 +87,8 @@ function AddRecordsContent() {
   function saveDraft<S extends DraftSection>(section: S, data: DraftDataBySection[S]) {
     if (editingDraft && editingDraft.section === section) {
       updateDraft(editingDraft.id, section, data);
+      // Con otros datos ya no vale el intento anterior de esa certificación
+      certificationAttempts.current.delete(editingDraft.id);
       setEditingId(null);
       return;
     }
@@ -95,7 +103,34 @@ function AddRecordsContent() {
 
   function removeDraftById(id: string) {
     removeDraft(id);
+    certificationAttempts.current.delete(id);
     if (editingId === id) setEditingId(null);
+  }
+
+  function addToRecords(saved: SavedDraft) {
+    if (saved.section === 'education') addEducation(saved.record);
+    else if (saved.section === 'experience') addExperience(saved.record);
+    else addCertification(saved.record);
+  }
+
+  // «Guardar perfil profesional» (CA-04): guarda los borradores uno por uno; cada uno guardado pasa a Mis
+  // registros y sale de la lista. Si uno falla, se detiene y los que faltan siguen como borradores
+  async function saveProfile() {
+    if (drafts.length === 0 || isSaving) return;
+    setEditingId(null);
+    setSaveStatus({ status: 'saving' });
+    let savedCount = 0;
+    for (const draft of drafts) {
+      try {
+        addToRecords(await persistDraft(draft, certificationAttempts.current));
+      } catch {
+        setSaveStatus({ status: 'error' });
+        return;
+      }
+      removeDraft(draft.id);
+      savedCount += 1;
+    }
+    setSaveStatus({ status: 'saved', count: savedCount });
   }
 
   return (
@@ -124,6 +159,33 @@ function AddRecordsContent() {
           guardar todos los borradores a la vez.
         </p>
       </header>
+
+      {saveStatus.status === 'saved' && (
+        <div role="status" className={`${CARD_CLASS} flex flex-wrap items-center gap-3 px-5 py-4 text-sm text-blue-fantastic`}>
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-fantastic text-white">
+            <Check className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <span className="font-semibold">
+            {saveStatus.count === 1
+              ? 'Se guardó 1 registro en tu perfil.'
+              : `Se guardaron ${saveStatus.count} registros en tu perfil.`}
+          </span>
+          <Link href={RECORDS_ROUTE} className="font-semibold text-truffle-trouble underline">
+            Ver en Mis registros
+          </Link>
+        </div>
+      )}
+      {saveStatus.status === 'error' && (
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-burning-flame bg-burning-flame/15 px-5 py-4 text-sm text-blue-fantastic">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-truffle-trouble font-bold text-white" aria-hidden="true">
+            !
+          </span>
+          <span className="font-semibold">No se pudieron guardar los registros. Tus borradores siguen en este navegador.</span>
+          <button type="button" onClick={() => void saveProfile()} className="font-semibold text-truffle-trouble underline">
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {isLoading ? (
         <p role="status" className={`${CARD_CLASS} px-6 py-10 text-center text-sm text-blue-fantastic/70`}>
@@ -199,6 +261,33 @@ function AddRecordsContent() {
               </ul>
             )}
           </aside>
+        </div>
+      )}
+
+      {!isLoading && !loadError && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => void saveProfile()}
+              disabled={drafts.length === 0 || isSaving}
+              aria-describedby={drafts.length === 0 ? 'ayuda-guardar-perfil' : undefined}
+              className="flex-1 rounded-lg bg-burning-flame px-6 py-3.5 text-[15px] font-bold text-abyssal-blue transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? 'Guardando…' : 'Guardar perfil profesional'}
+            </button>
+            <Link
+              href={RECORDS_ROUTE}
+              className="rounded-lg border border-oatmeal bg-white px-6 py-3.5 text-center text-[15px] font-semibold text-blue-fantastic transition hover:bg-palladian"
+            >
+              Cancelar
+            </Link>
+          </div>
+          {drafts.length === 0 && (
+            <p id="ayuda-guardar-perfil" className="text-xs text-blue-fantastic/55">
+              Agrega al menos un borrador para poder guardar.
+            </p>
+          )}
         </div>
       )}
     </div>
