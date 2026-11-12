@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Download, Loader2, X } from 'lucide-react';
 
 import { enlaceDeDescarga, obtenerEnlaceRespaldo } from '@/modules/profile/services/perfil-api';
+import { BackupPreview } from './backup-preview';
 
 type BackupViewerModalProps = {
   certificationId: string;
@@ -104,13 +105,12 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
             </p>
           )}
           {imageUrl && !hasError && (
-            // eslint-disable-next-line @next/next/no-img-element -- el enlace firmado vence, no se optimiza con next/image
-            <img
-              src={imageUrl}
-              alt={`Respaldo de ${certificationName}`}
+            <BackupPreview
+              url={imageUrl}
+              title={certificationName}
+              isLoaded={isImageLoaded}
               onLoad={() => setIsImageLoaded(true)}
               onError={() => setHasError(true)}
-              className={`max-h-[60dvh] w-full rounded-lg object-contain sm:max-h-[70vh] ${isImageLoaded ? '' : 'hidden'}`}
             />
           )}
         </div>
