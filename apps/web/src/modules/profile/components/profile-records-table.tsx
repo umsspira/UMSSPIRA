@@ -1,6 +1,7 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { FilePlus2, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
+import { completarSeccionHref } from '@/modules/profile/utils/profile-completeness';
 import type { ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
 import { getRecordColumns } from '@/modules/profile/utils/record-columns';
 
@@ -55,10 +56,49 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
   const columns = getRecordColumns(section);
 
   if (records.length === 0) {
+    const emptySection = {
+      education: {
+        id: 'formacion-academica',
+        title: 'Aún no tienes formación académica registrada',
+        description: 'Agrega tus estudios para completar tu perfil profesional.',
+        button: 'Agregar formación académica',
+      },
+      experience: {
+        id: 'experiencia-laboral',
+        title: 'Aún no tienes experiencia laboral registrada',
+        description: 'Agrega tu trayectoria profesional para enriquecer tu perfil.',
+        button: 'Agregar experiencia',
+      },
+      certification: {
+        id: 'certificaciones',
+        title: 'Aún no tienes certificaciones registradas',
+        description: 'Agrega tus certificaciones y destaca tus conocimientos.',
+        button: 'Agregar certificación',
+      },
+    }[section];
+
     return (
-      <p className="rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-10 text-center text-sm text-blue-fantastic/70">
-        Aún no tienes registros guardados en esta sección.
-      </p>
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-abyssal-blue/20 bg-white px-5 py-10 text-center sm:px-8">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-palladian">
+          <FilePlus2 className="h-6 w-6 text-truffle-trouble" aria-hidden="true" />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <h3 className="text-base font-bold text-blue-fantastic">
+            {emptySection.title}
+          </h3>
+          <p className="max-w-md text-sm leading-relaxed text-blue-fantastic/70">
+            {emptySection.description}
+          </p>
+        </div>
+
+        <Link
+          href={completarSeccionHref(emptySection.id)}
+          className="mt-2 inline-flex min-h-11 items-center justify-center rounded-lg bg-burning-flame px-5 py-3 text-sm font-bold text-abyssal-blue transition hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-truffle-trouble"
+        >
+          {emptySection.button}
+        </Link>
+      </div>
     );
   }
 
