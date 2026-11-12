@@ -1,3 +1,4 @@
+import { StatusQueryController } from './http/controllers/status-query.controller';
 import { ActivationAccessController } from './http/controllers/activation-access.controller';
 import { ActivationAccessService } from './application/services/activation-access.service';
 import { ObservedApplicationController } from './http/controllers/observed-application.controller';
@@ -39,6 +40,7 @@ import { MailEventsController } from './http/controllers/mail-events.controller'
   controllers: [
     ActivationAccessController,
     UpdateRegistrationController,
+    StatusQueryController,
     GetDraftDocumentController,
     RenewActivationController,
     ListRegistrationCareersController,
