@@ -411,6 +411,8 @@ model Titulado {
   palabra_clave_no_mapeada_registros PalabraClaveNoMapeada[]
 
   certificacion_creacion_registros CertificacionCreacion[]
+  // Proyectos y portafolio del titulado (HU-19)
+  proyecto_registros               Proyecto[]
 
   @@map("titulado")
 }
@@ -1410,4 +1412,19 @@ model CertificacionCreacion {
 
   @@id([id_titulado, id_operacion])
   @@map("certificacion_creacion")
+}
+
+// Proyectos y portafolio del titulado (HU-19): nombre, enlace https y descripción corta opcional
+model Proyecto {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_titulado         String    @db.Uuid
+  nombre              String    @db.VarChar(150)
+  url                 String    @db.VarChar(2048)
+  descripcion         String?   @db.VarChar(300)
+  fecha_creacion      DateTime  @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion DateTime? @db.Timestamptz(6)
+  titulado            Titulado  @relation(fields: [id_titulado], references: [id], onDelete: Cascade)
+
+  @@index([id_titulado, fecha_creacion(sort: Desc)], map: "proyecto_id_titulado_fecha_creacion_idx")
+  @@map("proyecto")
 }

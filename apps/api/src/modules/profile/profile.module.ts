@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
 import { profileProviders } from './infrastructure/providers/profile.providers';
+import { projectProviders } from './infrastructure/providers/project.providers';
 import { GetProfileController } from './http/controllers/get-profile.controller';
 import { CreateEducationController } from './http/controllers/create-education.controller';
 import { CreateExperienceController } from './http/controllers/create-experience.controller';
@@ -15,6 +16,10 @@ import { CreateBackupLinkController } from './http/controllers/create-backup-lin
 import { ReadSignedBackupController } from './http/controllers/read-signed-backup.controller';
 import { GetProfessionalDescriptionController } from './http/controllers/get-professional-description.controller';
 import { SaveProfessionalDescriptionController } from './http/controllers/save-professional-description.controller';
+import { ListProjectsController } from './http/controllers/list-projects.controller';
+import { CreateProjectController } from './http/controllers/create-project.controller';
+import { UpdateProjectController } from './http/controllers/update-project.controller';
+import { DeleteProjectController } from './http/controllers/delete-project.controller';
 
 @Module({
   imports: [PrismaModule],
@@ -26,6 +31,11 @@ import { SaveProfessionalDescriptionController } from './http/controllers/save-p
     // Antes de las rutas :section/:id para que «descripcion-profesional» no se lea como sección
     GetProfessionalDescriptionController,
     SaveProfessionalDescriptionController,
+    // Proyectos (HU-19): también antes de :section/:id para que «proyectos» no se lea como sección
+    ListProjectsController,
+    CreateProjectController,
+    UpdateProjectController,
+    DeleteProjectController,
     GetProfileRecordController,
     UpdateProfileRecordController,
     DeleteProfileRecordController,
@@ -35,6 +45,6 @@ import { SaveProfessionalDescriptionController } from './http/controllers/save-p
     CreateBackupLinkController,
     ReadSignedBackupController,
   ],
-  providers: profileProviders,
+  providers: [...profileProviders, ...projectProviders],
 })
 export class ProfileModule {}
