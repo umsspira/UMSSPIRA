@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { RequisitoTecnico } from "@/lib/vacancies/contracts";
+import { clearAccessToken, setAccessToken } from "@/shared/services/auth-session";
 import { getJobPosting, type JobPostingDetail } from "@/shared/services/job-postings";
 import {
   getTechnicalVacancyRequirements,
@@ -137,4 +138,106 @@ it("descarta una respuesta tardía de otra vacante y cancela su solicitud", asyn
   expect(screen.queryByText("PostgreSQL")).not.toBeInTheDocument();
   expect(screen.getByText("Linux")).toBeInTheDocument();
   await waitFor(() => expect(getRequirements).toHaveBeenCalledTimes(2));
+});
+
+it("muestra varios requisitos sin mezclar sus niveles, tipos o descripciones opcionales", async () => {
+  getRequirements.mockResolvedValue([
+    requirement,
+    { ...requirement, id: nextId, competencia: "Linux", nivel: "Básico", tipo: "Deseable", descripcion: undefined },
+  ]);
+  render(<TechnicalRequirements vacancyId={id} />);
+  expect(await screen.findByText("Linux")).toBeInTheDocument();
+  const items = screen.getAllByRole("listitem");
+  expect(items).toHaveLength(2);
+  expect(within(items[0]).getByText("PostgreSQL")).toBeInTheDocument();
+  expect(within(items[0]).getByText("Nivel: Avanzado")).toBeInTheDocument();
+  expect(within(items[0]).getByText("Tipo: Obligatorio")).toBeInTheDocument();
+  expect(within(items[0]).getByText("Modelado de datos.")).toBeInTheDocument();
+  expect(within(items[1]).getByText("Nivel: Básico")).toBeInTheDocument();
+  expect(within(items[1]).getByText("Tipo: Deseable")).toBeInTheDocument();
+  expect(items[1]).not.toHaveTextContent("undefined");
+  expect(within(items[1]).queryByText("Modelado de datos.")).not.toBeInTheDocument();
+});
+
+it("retira los resultados anteriores al navegar y muestra el vacío válido de la nueva vacante", async () => {
+  let resolveNext!: (requirements: RequisitoTecnico[]) => void;
+  getRequirements.mockResolvedValueOnce([requirement])
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveNext = resolve; }));
+  const { rerender } = render(<TechnicalRequirements vacancyId={id} />);
+  expect(await screen.findByText("PostgreSQL")).toBeInTheDocument();
+  rerender(<TechnicalRequirements vacancyId={nextId} />);
+  expect(screen.queryByText("PostgreSQL")).not.toBeInTheDocument();
+  expect(screen.getByRole("status")).toBeInTheDocument();
+  await act(async () => { resolveNext([]); });
+  expect(screen.getByText(/No se registraron requisitos técnicos estructurados/)).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("ignora un error tardío de la vacante anterior después de cargar la siguiente", async () => {
+  let rejectFirst!: (reason: Error) => void;
+  getRequirements.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectFirst = reject; }))
+    .mockResolvedValueOnce([{ ...requirement, idVacante: nextId, competencia: "Linux" }]);
+  const { rerender } = render(<TechnicalRequirements vacancyId={id} />);
+  const firstSignal = getRequirements.mock.calls[0][1];
+  rerender(<TechnicalRequirements vacancyId={nextId} />);
+  expect(await screen.findByText("Linux")).toBeInTheDocument();
+  await act(async () => { rejectFirst(new TechnicalRequirementsError("Error anterior", 500)); });
+  expect(firstSignal?.aborted).toBe(true);
+  expect(screen.getByText("Linux")).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("recupera un vacío válido después de reintentar un error de persistencia", async () => {
+  getRequirements.mockRejectedValueOnce(new TechnicalRequirementsError("Persistencia no disponible", 503))
+    .mockResolvedValueOnce([]);
+  render(<TechnicalRequirements vacancyId={id} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Persistencia no disponible");
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar requisitos" }));
+  expect(await screen.findByText(/No se registraron requisitos técnicos estructurados/)).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+describe("componente HU8 con servicio y transporte oficiales (fetch simulado)", () => {
+  const originalFetch = global.fetch;
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    clearAccessToken();
+    setAccessToken("hu8-component-token");
+    fetchMock.mockReset();
+    global.fetch = fetchMock;
+    getRequirements.mockImplementation(jest.requireActual<typeof import("@/shared/services/technical-requirements")>(
+      "@/shared/services/technical-requirements",
+    ).getTechnicalVacancyRequirements);
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    clearAccessToken();
+  });
+
+  it("rechaza un UUID inválido sin enviar peticiones ni mostrar un vacío válido", async () => {
+    render(<TechnicalRequirements vacancyId="invalid" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/identificador/);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Reintentar requisitos" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/No se registraron requisitos/)).not.toBeInTheDocument();
+  });
+
+  it("presenta los campos HTTP reales usando la ruta y la autenticación existentes", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({ idVacante: id, requisitos: [requirement] }),
+    });
+    render(<TechnicalRequirements vacancyId={id} />);
+    expect(await screen.findByText("PostgreSQL")).toBeInTheDocument();
+    expect(screen.getByText("Nivel: Avanzado")).toBeInTheDocument();
+    expect(screen.getByText("Tipo: Obligatorio")).toBeInTheDocument();
+    expect(screen.getByText("Modelado de datos.")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/v1/job-postings/${id}/requisitos`);
+    expect(options).toMatchObject({ method: "GET", cache: "no-store", signal: expect.any(AbortSignal) });
+    expect(new Headers(options.headers).get("Authorization")).toBe("Bearer hu8-component-token");
+  });
 });

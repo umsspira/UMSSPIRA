@@ -56,6 +56,13 @@ it.each([
   ['an unsupported level', { ...response, requisitos: [{ ...requirement, nivel: 'Senior' }] }],
   ['a missing requirement type', { ...response, requisitos: [{ ...requirement, tipo: undefined }] }],
   ['duplicated requirement identifiers', { ...response, requisitos: [requirement, requirement] }],
+  ['a missing requirements collection', { idVacante: id }],
+  ['an invalid requirement UUID', { ...response, requisitos: [{ ...requirement, id: 'invalid' }] }],
+  ['an empty competence', { ...response, requisitos: [{ ...requirement, competencia: ' ' }] }],
+  ['an unsupported type', { ...response, requisitos: [{ ...requirement, tipo: 'Opcional' }] }],
+  ['a non-text description', { ...response, requisitos: [{ ...requirement, descripcion: {} }] }],
+  ['an invalid creation date', { ...response, requisitos: [{ ...requirement, fechaCreacion: 'invalid' }] }],
+  ['a null response', null],
 ])('rejects %s rather than displaying incorrect or substitute data', async (_name, payload) => {
   request.mockResolvedValue(payload);
   await expect(getTechnicalVacancyRequirements(id)).rejects.toMatchObject({ kind: 'invalid-response' });
@@ -107,6 +114,31 @@ it('does not accept a response arriving after cancellation', async () => {
   await expect(getTechnicalVacancyRequirements(id, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
 });
 
+it('accepts multiple requirements with all canonical display levels, both types and optional fields', async () => {
+  const requirements = [
+    requirement,
+    {
+      id: otherId, idVacante: id, competencia: 'Linux', nivel: 'Básico', tipo: 'Deseable',
+    },
+    {
+      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', idVacante: id,
+      competencia: 'SQL', nivel: 'Intermedio', tipo: 'Obligatorio', descripcion: '',
+    },
+  ];
+  request.mockResolvedValue({ idVacante: id, requisitos: requirements });
+  await expect(getTechnicalVacancyRequirements(id)).resolves.toEqual(requirements);
+});
+
+it('preserves cancellation when the transport rejects after its caller aborts', async () => {
+  const controller = new AbortController();
+  request.mockImplementation(async () => {
+    controller.abort();
+    throw new TypeError('Connection interrupted');
+  });
+  await expect(getTechnicalVacancyRequirements(id, controller.signal))
+    .rejects.toMatchObject({ name: 'AbortError' });
+});
+
 describe('HU8 with the official client and session transport (fetch simulated)', () => {
   const originalFetch = global.fetch;
   const fetchMock = jest.fn();
@@ -147,6 +179,23 @@ describe('HU8 with the official client and session transport (fetch simulated)',
 
     await expect(getTechnicalVacancyRequirements(id)).rejects.toMatchObject({
       status: 403, kind: 'http', message: expect.stringMatching(/permiso/),
+    });
+  });
+
+  it('rejects a successful HTTP response with no body instead of treating it as no requirements', async () => {
+    setAccessToken('hu8-test-token');
+    fetchMock.mockResolvedValue({ ok: true, status: 200, text: async () => '' });
+    await expect(getTechnicalVacancyRequirements(id)).rejects.toMatchObject({ kind: 'invalid-response' });
+  });
+
+  it('sanitizes a server failure from the real transport instead of returning an empty result', async () => {
+    setAccessToken('hu8-test-token');
+    fetchMock.mockResolvedValue({
+      ok: false, status: 500,
+      text: async () => JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Private database diagnostic' } }),
+    });
+    await expect(getTechnicalVacancyRequirements(id)).rejects.toMatchObject({
+      status: 500, kind: 'http', message: expect.stringMatching(/servidor/),
     });
   });
 });

@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { Prisma } from '../src/generated/prisma/client';
 import { JOB_POSTING_REPOSITORY, type JobPostingRepository } from '../src/modules/job-postings/application/ports/job-posting-repository.port';
 import type { PublishedJobPosting } from '../src/modules/job-postings/domain/entities/published-job-posting.entity';
 import { JobPostingsModule } from '../src/modules/job-postings/job-postings.module';
@@ -142,6 +143,18 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
       .set('Authorization', 'Bearer test-session').expect(500);
     expect(response.body).toEqual({
       error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado' },
+    });
+    expect(requirements.listarPorVacante).not.toHaveBeenCalled();
+  });
+
+  it('reports a database timeout as unavailable without exposing diagnostics or reading requirements', async () => {
+    jobs.findPublishedById.mockRejectedValue(new Prisma.PrismaClientKnownRequestError(
+      'Private connection diagnostic', { code: 'P2024', clientVersion: 'hu8-test' },
+    ));
+    const response = await request(app.getHttpServer()).get(route)
+      .set('Authorization', 'Bearer test-session').expect(503);
+    expect(response.body).toEqual({
+      error: { code: 'DATABASE_UNAVAILABLE', message: 'La base de datos no está disponible' },
     });
     expect(requirements.listarPorVacante).not.toHaveBeenCalled();
   });

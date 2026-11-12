@@ -106,6 +106,39 @@ describe('CanonicalTechnicalRequirementsReader (HU8, isolated source)', () => {
       .rejects.toBeInstanceOf(InvalidCanonicalTechnicalRequirementError);
   });
 
+  it('preserves distinct requirements and all their fields in a mixed canonical result', async () => {
+    source.findMany.mockResolvedValue([
+      row,
+      {
+        ...row, id: '20000000-0000-4000-8000-000000000002',
+        competencia_tecnica: 'Linux', nivel_esperado: 'BASICO', tipo: 'DESEABLE',
+        descripcion: null, creado_en: new Date('2026-11-05T09:00:00.000Z'),
+      },
+    ]);
+
+    await expect(reader.obtenerRequisitos(vacancyId)).resolves.toEqual([
+      {
+        id: row.id, idVacante: vacancyId, competencia: 'PostgreSQL',
+        nivel: 'Avanzado', tipo: 'Obligatorio', descripcion: 'Modelado relacional.',
+        fechaCreacion: '2026-11-04T12:00:00.000Z',
+      },
+      {
+        id: '20000000-0000-4000-8000-000000000002', idVacante: vacancyId,
+        competencia: 'Linux', nivel: 'Básico', tipo: 'Deseable', descripcion: undefined,
+        fechaCreacion: '2026-11-05T09:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('rejects the entire result when a later row is invalid instead of returning partial success', async () => {
+    source.findMany.mockResolvedValue([
+      row,
+      { ...row, id: '20000000-0000-4000-8000-000000000002', nivel_esperado: 'EXPERTO' },
+    ]);
+    await expect(reader.obtenerRequisitos(vacancyId))
+      .rejects.toBeInstanceOf(InvalidCanonicalTechnicalRequirementError);
+  });
+
   it('propagates source failures without a legacy-table fallback', async () => {
     const failure = new Error('Canonical table unavailable');
     source.findMany.mockRejectedValue(failure);
