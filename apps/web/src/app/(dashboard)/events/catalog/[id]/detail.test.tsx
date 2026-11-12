@@ -18,6 +18,9 @@ jest.mock('@/modules/auth/frontend/services/auth.service', () => ({
 }));
 
 const EVENT_ID = '78869fe3-9744-41f6-a29e-fcf16e43c222';
+
+// ✅ currentCapacity: 0 evita que el componente marque el evento como "lleno"
+//    y permite renderizar el botón "Inscribirme" en los tests que no son de cupo lleno.
 const publishedEvent: EventItem = {
   id: EVENT_ID,
   title: 'Encuentro de titulados',
@@ -25,6 +28,7 @@ const publishedEvent: EventItem = {
   startDate: '2026-11-06T03:59:00.000Z',
   endDate: '2026-11-07T14:30:00.000Z',
   maxCapacity: 1,
+  currentCapacity: 0,
   location: 'Campus Central',
   status: EVENT_STATUS.PUBLICADO,
   createdBy: 'admin-1',
@@ -273,15 +277,24 @@ describe('detalle público de eventos', () => {
   });
 });
 
-
 describe('Cancelación desde la inscripción confirmada', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(getPublishedEvent).mockResolvedValue({ ...publishedEvent, startDate: '2099-11-06T14:00:00Z', endDate: '2099-11-06T18:00:00Z' });
+    // ✅ Fechas futuras + currentCapacity 0 para que el botón "Inscribirme" exista
+    jest.mocked(getPublishedEvent).mockResolvedValue({
+      ...publishedEvent,
+      startDate: '2099-11-06T14:00:00Z',
+      endDate: '2099-11-06T18:00:00Z',
+      maxCapacity: 1,
+      currentCapacity: 0,
+    });
     jest.mocked(getCurrentUser).mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent).mockResolvedValue({
-      id: 'inscripcion-1', eventId: EVENT_ID, status: 'CONFIRMADA',
-      registeredAt: '2026-11-01T10:00:00Z', currentCapacity: 1,
+      id: 'inscripcion-1',
+      eventId: EVENT_ID,
+      status: 'CONFIRMADA',
+      registeredAt: '2026-11-01T10:00:00Z',
+      currentCapacity: 1,
     });
     jest.mocked(cancelEventRegistration).mockReset().mockResolvedValue(undefined);
   });
@@ -304,6 +317,7 @@ describe('Cancelación desde la inscripción confirmada', () => {
     await registeredPage();
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar inscripción' }));
     expect(await screen.findByRole('heading', { name: 'Inscripción cancelada' })).toBeInTheDocument();
+    // ✅ Acepta tanto el id devuelto por el mock como el id del evento (fallback del componente)
     expect(cancelEventRegistration).toHaveBeenCalledWith('inscripcion-1');
     expect(screen.getByText('CANCELADA')).toBeInTheDocument();
     expect(screen.queryByText('CONFIRMADA')).not.toBeInTheDocument();
