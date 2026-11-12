@@ -411,20 +411,24 @@ describe('PrismaObservedApplicationRepository', () => {
           id_documento_respaldo: 'old-doc-1',
         },
       });
-
       const response = await repository.replaceDocument(applicationId, mockFile, 'diploma_academico');
 
       expect(tx.documentoRespaldo.update).toHaveBeenCalledWith({
         where: { id: 'old-doc-1' },
-        data: { es_valido: false },
+        data: { es_valido: false, es_vigente: false }, // <--- Se agregó es_vigente: false
       });
+      
       expect(tx.archivoRegistro.create).toHaveBeenCalled();
-      expect(tx.documentoRespaldo.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ es_valido: true }),
-      }));
+      
+      expect(tx.documentoRespaldo.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ es_valido: true, es_vigente: true }), // <--- Se quitó la 'd'
+      });
+      
       expect(tx.solicitud.update).toHaveBeenCalledWith(expect.objectContaining({
         where: { id: applicationId },
+        // Opcional: podrías agregar data: expect.objectContaining({ version_vigente: expect.any(Number) })
       }));
+      
       expect(response.documentoId).toBe('new-doc-1');
       expect(response.nombre).toBe('titulo_actualizado.pdf');
     });

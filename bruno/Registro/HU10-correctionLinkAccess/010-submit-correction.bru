@@ -27,5 +27,5 @@ tests {
 }
 
 docs {
-  Entrega la correccion definitiva de la solicitud observada. Valida concurrencia por expectedVersion, verificacion de correo y transiciona atomicamente a PENDIENTE invalidando el token.
+  Envía la solicitud corregida (cambio de estado a PENDIENTE). Recibe un expectedVersion para validar concurrencia. Al confirmar, consolida la version_vigente en la solicitud (INT-03).
 }

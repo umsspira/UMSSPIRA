@@ -836,6 +836,7 @@ model DocumentoRespaldo {
   fecha_creacion  DateTime? @db.Timestamp(6)
   es_valido       Boolean?
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  es_vigente            Boolean  @default(true)
 
   tipo_archivo                TipoArchivo?       @relation("documento_respaldo_id_tipo_archivo_tipo_archivo", fields: [id_tipo_archivo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "documento_respaldo_id_tipo_archivo_fkey")
   solicitud_registros         Solicitud[]        @relation("solicitud_id_documento_respaldo_documento_respaldo")
@@ -860,6 +861,7 @@ model Solicitud {
   estado                String?           @db.VarChar
   fecha_creacion        DateTime?         @db.Timestamp(6)
   id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version_vigente       Int      @default(1) @db.SmallInt
 
   detalle_solicitud            DetalleSolicitud?   @relation("solicitud_id_detalle_solicitud_detalle_solicitud", fields: [id_detalle_solicitud], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solicitud_id_detalle_solicitud_fkey")
   documento_respaldo           DocumentoRespaldo?  @relation("solicitud_id_documento_respaldo_documento_respaldo", fields: [id_documento_respaldo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solicitud_id_documento_respaldo_fkey")
@@ -872,7 +874,7 @@ model Solicitud {
   correo_tramite_registros     CorreoTramite[]
   auditoria_dictamen_registros AuditoriaDictamen[]
   control_reenvio_otp          ControlReenvioOtp?
-
+  
   @@map("solicitud")
 }
 
@@ -901,6 +903,7 @@ model Dictamen {
   fecha_actualizacion      DateTime? @db.Date
   subsanada                Boolean?
   id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version_dictaminada      Int?      @db.SmallInt
 
   administrador_sistema    AdministradorSistema? @relation("dictamen_id_administrador_sistema_administrador_sistema", fields: [id_administrador_sistema], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dictamen_id_administrador_sistema_fkey")
   solicitud                Solicitud?            @relation("dictamen_id_solicitud_solicitud", fields: [id_solicitud], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dictamen_id_solicitud_fkey")
