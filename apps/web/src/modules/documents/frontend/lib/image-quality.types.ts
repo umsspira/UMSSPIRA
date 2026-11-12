@@ -19,6 +19,8 @@ export interface ImageQualityMetrics {
   meanLuma: number;
   /** Desviacion estandar de la luminosidad: mide el contraste. */
   contrast: number;
+  /** Fraccion de pixeles centrales casi blancos (destellos o luz excesiva). */
+  glareRatio: number;
   /** Nitidez: varianza del laplaciano en los bloques con mas detalle. */
   sharpness: number;
 }
@@ -61,4 +63,10 @@ export interface ImageQualityConfig {
   brightMeanThreshold: number;
   /** Contraste maximo para considerar la imagen lavada por exceso de luz. */
   lowContrastThreshold: number;
+  /** Luminosidad desde la cual un pixel se cuenta como destello. */
+  glareLumaThreshold: number;
+  /** Fraccion minima de pixeles con destello para avisar. */
+  glareMinRatio: number;
+  /** Por encima de esta fraccion se asume papel blanco, no un destello. */
+  glareMaxRatio: number;
 }

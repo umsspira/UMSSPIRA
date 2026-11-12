@@ -19,13 +19,14 @@ export function toLuma(pixels: PixelBuffer): Float32Array {
   return luma;
 }
 
-/** Luminosidad media y contraste de la zona central, sin los margenes. */
+/** Luminosidad media, contraste y destellos de la zona central, sin los margenes. */
 export function measureLighting(
   luma: Float32Array,
   width: number,
   height: number,
   marginFraction: number,
-): { meanLuma: number; contrast: number } {
+  glareLumaThreshold: number,
+): { meanLuma: number; contrast: number; glareRatio: number } {
   const startX = Math.floor(width * marginFraction);
   const endX = Math.ceil(width * (1 - marginFraction));
   const startY = Math.floor(height * marginFraction);
@@ -33,20 +34,26 @@ export function measureLighting(
 
   let sum = 0;
   let sumSquares = 0;
+  let glareCount = 0;
   let count = 0;
   for (let y = startY; y < endY; y += 1) {
     for (let x = startX; x < endX; x += 1) {
       const value = luma[y * width + x];
       sum += value;
       sumSquares += value * value;
+      if (value >= glareLumaThreshold) glareCount += 1;
       count += 1;
     }
   }
-  if (count === 0) return { meanLuma: 0, contrast: 0 };
+  if (count === 0) return { meanLuma: 0, contrast: 0, glareRatio: 0 };
 
   const meanLuma = sum / count;
   const variance = Math.max(0, sumSquares / count - meanLuma * meanLuma);
-  return { meanLuma, contrast: Math.sqrt(variance) };
+  return {
+    meanLuma,
+    contrast: Math.sqrt(variance),
+    glareRatio: glareCount / count,
+  };
 }
 
 /**
@@ -111,11 +118,12 @@ export function computeImageQualityMetrics(
   config: ImageQualityConfig = IMAGE_QUALITY_CONFIG,
 ): ImageQualityMetrics {
   const luma = toLuma(pixels);
-  const { meanLuma, contrast } = measureLighting(
+  const { meanLuma, contrast, glareRatio } = measureLighting(
     luma,
     pixels.width,
     pixels.height,
     config.lumaMarginFraction,
+    config.glareLumaThreshold,
   );
   const sharpness = measureSharpness(
     luma,
@@ -124,7 +132,14 @@ export function computeImageQualityMetrics(
     config.sharpnessTileSize,
     config.sharpnessTopFraction,
   );
-  return { originalWidth, originalHeight, meanLuma, contrast, sharpness };
+  return {
+    originalWidth,
+    originalHeight,
+    meanLuma,
+    contrast,
+    glareRatio,
+    sharpness,
+  };
 }
 /** Convierte las metricas en avisos para el Titulado. Cero avisos si todo esta bien. */
 export function evaluateImageQuality(
@@ -160,13 +175,18 @@ export function evaluateImageQuality(
       recommendation:
         "Busca un lugar con más luz, sin sombras sobre el documento, y vuelve a tomarla.",
     });
-  } else if (
+  }
+
+  const isWashedOut =
     metrics.meanLuma > config.brightMeanThreshold &&
-    metrics.contrast < config.lowContrastThreshold
-  ) {
+    metrics.contrast < config.lowContrastThreshold;
+  const hasGlare =
+    metrics.glareRatio >= config.glareMinRatio &&
+    metrics.glareRatio <= config.glareMaxRatio;
+  if (isWashedOut || hasGlare) {
     warnings.push({
       code: "OVEREXPOSED",
-      message: "La imagen tiene demasiada luz y el texto podría perderse.",
+      message: "La imagen tiene reflejos o demasiada luz y el texto podría perderse.",
       recommendation:
         "Evita el flash y la luz directa sobre el documento, y vuelve a tomarla.",
     });
