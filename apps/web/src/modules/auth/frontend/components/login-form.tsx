@@ -233,6 +233,15 @@ export function LoginForm({ reportsReason }: { reportsReason?: string } = {}) {
           Inicia tu registro aquí
         </Link>
       </p>
+
+      <p className="text-center text-xs">
+        <Link
+          href="/portal/institucional"
+          className="font-bold text-abyssal-blue underline underline-offset-4 hover:text-truffle-trouble"
+        >
+          Volver al inicio
+        </Link>
+      </p>
     </form>
   );
 }
