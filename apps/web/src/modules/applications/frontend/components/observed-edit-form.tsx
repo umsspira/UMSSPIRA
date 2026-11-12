@@ -170,7 +170,12 @@ export function ObservedEditForm({
               El correo electrónico registrado no puede modificarse en este formulario. Si necesitas actualizarlo, comunícate con administración.
             </p>
           </Field>
-          {text("phone", "Teléfono celular / WhatsApp", { required: true, type: "tel" })}
+          <div className="sm:col-span-2">
+            {text("phone", "Teléfono celular / Whatsapp", {
+              required: true,
+              type: "tel",
+            })}
+          </div>
         </div>
       </Card>
 
