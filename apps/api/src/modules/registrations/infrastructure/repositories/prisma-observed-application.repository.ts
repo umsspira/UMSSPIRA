@@ -229,6 +229,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           where: { id: applicationId },
           data: {
             fecha_actualizacion: new Date(),
+            version_vigente: currentVersion, // INT-03
           },
         });
 
@@ -259,6 +260,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
       { timeout: 15000 },
     );
   }
+
   async replaceDocument(
     applicationId: string,
     file: UploadedDocument,
@@ -296,7 +298,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
         if (row.id_documento_respaldo) {
           await tx.documentoRespaldo.update({
             where: { id: row.id_documento_respaldo },
-            data: { es_valido: false },
+            data: { es_valido: false, es_vigente: false }, // INT-03: marcar anterior
           });
         }
 
@@ -336,6 +338,22 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
             tamanio_mb: Math.ceil(file.buffer.length / 1048576),
             fecha_creacion: new Date(),
             es_valido: true,
+            es_vigente: true, // INT-03: marcar nuevo vigente
+          },
+        });
+
+        const currentVersion = row.version_vigente ?? 1;
+        const nextVersion = currentVersion + 1;
+
+        await tx.solicitudVersion.create({
+          data: {
+            id_solicitud: applicationId,
+            numero_version: nextVersion,
+            snapshot_detalle: {
+              id_documento_respaldo: newDoc.id,
+              reemplazado_en: new Date().toISOString(),
+            },
+            id_documento_respaldo: newDoc.id,
           },
         });
 
@@ -344,6 +362,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           data: {
             id_documento_respaldo: newDoc.id,
             fecha_actualizacion: new Date(),
+            version_vigente: nextVersion, // INT-03: incrementar versión
           },
         });
 
@@ -359,6 +378,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
       { timeout: 15000 },
     );
   }
+
   async submitCorrection(
     applicationId: string,
     input: SubmitCorrectionUseCaseInput,
@@ -453,6 +473,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           data: {
             estado: 'PENDIENTE',
             fecha_actualizacion: new Date(),
+            version_vigente: currentVersion, // INT-03
           },
         });
 
