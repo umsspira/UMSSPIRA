@@ -7,11 +7,14 @@ import { ProfileStoreProvider, useProfileStore } from '@/modules/profile/state/p
 import type { DraftRecord } from '@/modules/profile/state/drafts-store';
 import type { ProfileRecords } from '@/modules/profile/types/profile-record';
 
+import { afterBatchSave } from './after-batch-save';
 import { AddRecordsScreen } from './add-records-screen';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
 }));
+
+jest.mock('./after-batch-save', () => ({ afterBatchSave: jest.fn() }));
 
 jest.mock('@/modules/profile/services/perfil-api', () => ({
   crearFormacion: jest.fn(),
@@ -23,6 +26,7 @@ jest.mock('@/modules/profile/services/perfil-api', () => ({
 const mockCrearFormacion = crearFormacion as jest.Mock;
 const mockCrearExperiencia = crearExperiencia as jest.Mock;
 const mockCrearCertificacion = crearCertificacion as jest.Mock;
+const mockAfterBatchSave = afterBatchSave as jest.Mock;
 
 const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
 
@@ -124,5 +128,35 @@ describe('Guardar perfil profesional (HU-13)', () => {
     expect(boton).toBeDisabled();
     terminar({ id: 'f1', ownerId: 't1', institution: 'UMSS', title: 'Ingeniería de Sistemas', graduationYear: '2018', degree: 'Licenciatura' });
     await waitFor(() => expect(screen.getByText('Se guardó 1 registro en tu perfil.')).toBeInTheDocument());
+  });
+
+  it('T13.6: al guardar varios registros se recalcula una sola vez, al final', async () => {
+    renderScreen(BORRADORES);
+    fireEvent.click(guardarPerfil());
+    await screen.findByText('Se guardaron 3 registros en tu perfil.');
+    expect(mockAfterBatchSave).toHaveBeenCalledTimes(1);
+    expect(mockAfterBatchSave).toHaveBeenCalledWith(3);
+  });
+
+  it('T13.6: si falla a la mitad, se recalcula una vez por lo guardado y otra al reintentar', async () => {
+    mockCrearExperiencia.mockRejectedValueOnce(new ApiError(500, 'Error del servidor'));
+    renderScreen(BORRADORES);
+    fireEvent.click(guardarPerfil());
+    await screen.findByText('No se pudieron guardar los registros. Tus borradores siguen en este navegador.');
+    expect(mockAfterBatchSave).toHaveBeenCalledTimes(1);
+    expect(mockAfterBatchSave).toHaveBeenLastCalledWith(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await screen.findByText('Se guardaron 2 registros en tu perfil.');
+    expect(mockAfterBatchSave).toHaveBeenCalledTimes(2);
+    expect(mockAfterBatchSave).toHaveBeenLastCalledWith(2);
+  });
+
+  it('T13.6: si no se guardó nada, no se recalcula', async () => {
+    mockCrearFormacion.mockRejectedValueOnce(new ApiError(500, 'Error del servidor'));
+    renderScreen(BORRADORES);
+    fireEvent.click(guardarPerfil());
+    await screen.findByText('No se pudieron guardar los registros. Tus borradores siguen en este navegador.');
+    expect(mockAfterBatchSave).not.toHaveBeenCalled();
   });
 });

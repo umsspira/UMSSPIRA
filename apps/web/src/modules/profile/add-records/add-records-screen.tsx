@@ -17,6 +17,7 @@ import {
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { EducationRecord } from '@/modules/profile/types/profile-record';
 
+import { afterBatchSave } from './after-batch-save';
 import { DraftCard } from './draft-card';
 import { type CertificationAttempt, type SavedDraft, persistDraft } from './save-draft';
 
@@ -120,17 +121,20 @@ function AddRecordsContent() {
     setEditingId(null);
     setSaveStatus({ status: 'saving' });
     let savedCount = 0;
+    let hasFailed = false;
     for (const draft of drafts) {
       try {
         addToRecords(await persistDraft(draft, certificationAttempts.current));
       } catch {
-        setSaveStatus({ status: 'error' });
-        return;
+        hasFailed = true;
+        break;
       }
       removeDraft(draft.id);
       savedCount += 1;
     }
-    setSaveStatus({ status: 'saved', count: savedCount });
+    // T13.6: un solo recálculo para todo lo guardado, no uno por registro
+    if (savedCount > 0) void afterBatchSave(savedCount);
+    setSaveStatus(hasFailed ? { status: 'error' } : { status: 'saved', count: savedCount });
   }
 
   return (
