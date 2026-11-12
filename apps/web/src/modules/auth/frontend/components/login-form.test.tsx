@@ -111,6 +111,14 @@ describe("LoginForm", () => {
     );
   });
 
+    it("aplica el estilo institucional al autocompletado del navegador (BUG-09)", () => {
+    render(<LoginForm />);
+
+    for (const label of [/^correo electrónico/i, /^contraseña/i]) {
+      expect(screen.getByLabelText(label).className).toContain("-webkit-autofill");
+    }
+  });
+
   it("permite marcar y desmarcar la casilla (BUG4)", () => {
     render(<LoginForm />);
     const checkbox = screen.getByLabelText(/recordar mi sesión en este equipo/i) as HTMLInputElement;
