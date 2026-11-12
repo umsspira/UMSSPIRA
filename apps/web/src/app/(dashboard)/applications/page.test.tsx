@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ApplicationsPage from './page';
 import {
   fetchApplicationsBoard,
@@ -557,6 +557,86 @@ describe('ApplicationsPage', () => {
       );
     });
   });
+  it('limpia todos los filtros y no permite que una búsqueda atrasada los restaure (BUG-06)', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/applications?page=3&size=25&career=Sistemas&status=PENDIENTE&period=custom&from=2026-10-01&to=2026-10-24',
+    );
+
+    mockedFetchBoard.mockImplementation(async (query: {
+      page: number;
+      pageSize: number;
+    }) => ({
+      ok: true,
+      data: {
+        ...boardPage,
+        total: 100,
+        page: query.page,
+        pageSize: query.pageSize,
+      },
+    }));
+
+    const originalReplace = mockRouter.replace;
+
+    mockRouter.replace = (url: string) => {
+      const delay = url.includes('q=ana') ? 700 : 0;
+      setTimeout(() => originalReplace(url), delay);
+    };
+
+    try {
+      render(<ApplicationsPage />);
+      await screen.findByText('Bandeja de Solicitudes');
+
+      const searchBox = screen.getByLabelText('Buscar');
+
+      fireEvent.change(searchBox, {
+        target: { value: 'ana' },
+      });
+
+      // Permite que la búsqueda se envíe, pero retrasa su llegada a la URL.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      });
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Limpiar filtros' }),
+      );
+
+      await waitFor(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        expect(params.get('page')).toBeNull();
+        expect(params.get('size')).toBe('25');
+        expect(params.get('q')).toBeNull();
+        expect(params.get('career')).toBeNull();
+        expect(params.get('status')).toBeNull();
+        expect(params.get('period')).toBeNull();
+        expect(params.get('from')).toBeNull();
+        expect(params.get('to')).toBeNull();
+        expect(searchBox).toHaveValue('');
+      });
+
+      // La actualización atrasada no debe recuperar los filtros eliminados.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      });
+
+      await waitFor(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        expect(params.get('q')).toBeNull();
+        expect(params.get('career')).toBeNull();
+        expect(params.get('status')).toBeNull();
+        expect(params.get('period')).toBeNull();
+        expect(params.get('from')).toBeNull();
+        expect(params.get('to')).toBeNull();
+        expect(searchBox).toHaveValue('');
+      });
+    } finally {
+      mockRouter.replace = originalReplace;
+    }
+  }, 10000);
   it('no restaura el texto borrado cuando la URL responde con retraso', async () => {
     mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
     const originalReplace = mockRouter.replace;
