@@ -7,14 +7,25 @@ const ASSETS_CACHE = `umsspira-assets-${VERSION}`;
 const CONFIG_CACHE = `umsspira-config-${VERSION}`;
 const ALL_CACHES = [CACHE_NAME, STATIC_CACHE, ASSETS_CACHE, CONFIG_CACHE];
 
+
+const ESSENTIAL_RESOURCES = {
+  html: ['/portal', '/offline'],
+  config: ['/manifest.webmanifest'],
+  icons: [
+    '/icons/icon-192.png',
+    '/icons/icon-512.png',
+    '/icons/icon-maskable-512.png',
+    '/icons/favicon-32.png',
+  ],
+  logo: ['/umsspira-logo.png'],
+};
+
 const CORE_ASSETS = ['/portal'];
-const PRECACHE_URLS = ['/offline', '/manifest.webmanifest', '/favicon.ico'];
-const PRECACHE_ICONS = [
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-512.png',
-  '/icons/favicon-32.png',
+const PRECACHE_URLS = [
+  ...ESSENTIAL_RESOURCES.html.filter((url) => url !== '/portal'),
+  ...ESSENTIAL_RESOURCES.config,
 ];
+const PRECACHE_ICONS = [...ESSENTIAL_RESOURCES.icons, ...ESSENTIAL_RESOURCES.logo];
 
 const MAX_ASSETS_ENTRIES = 80;
 
@@ -166,6 +177,7 @@ function getHandledUrl(request) {
     !url.pathname.startsWith('/_next/static/') &&
     !url.pathname.startsWith('/_next/image') &&
     !url.pathname.startsWith('/icons/') &&
+    url.pathname !== '/umsspira-logo.png' && // CAMBIO commit 3
     url.pathname !== '/manifest.webmanifest'
   ) {
     return null;
