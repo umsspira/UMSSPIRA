@@ -1,6 +1,8 @@
+// apps/web/src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import ServiceWorkerRegister from './service-worker-register';
 
 const playfairDisplay = localFont({
   src: [
@@ -49,6 +51,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${playfairDisplay.variable} ${inter.variable}`}>
       <body className="font-sans bg-palladian text-abyssal-blue antialiased">
+        <ServiceWorkerRegister /> 
         {children}
       </body>
     </html>

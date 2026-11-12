@@ -1,3 +1,4 @@
+// apps/web/src/app/service-worker-register.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
