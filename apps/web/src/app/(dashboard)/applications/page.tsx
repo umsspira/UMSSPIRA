@@ -52,8 +52,14 @@ function ApplicationsBoardView() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const requestId = useRef(0);
+  // Búsquedas que esta pantalla ya envió a la URL y que todavía no vuelven reflejadas.
+  const pendingSearches = useRef<string[]>([]);
 
   const updateQuery = useCallback((next: ApplicationsUrlState) => {
+    const nextSearch = next.search.trim();
+    if (nextSearch !== queryRef.current.search.trim()) {
+      pendingSearches.current.push(nextSearch);
+    }
     queryRef.current = next;
     const params = toApplicationsParams(next).toString();
     router.replace(params ? `${pathname}?${params}` : pathname, { scroll: false });
@@ -105,6 +111,16 @@ function ApplicationsBoardView() {
   }, [updateQuery]);
 
   useEffect(() => {
+    // Si la URL solo refleja una búsqueda propia atrasada, se ignora para no
+    // restaurar texto que la persona ya borró o cambió mientras tanto.
+    const confirmedSearch = query.search.trim();
+    const pendingIndex = pendingSearches.current.lastIndexOf(confirmedSearch);
+    if (pendingIndex !== -1) {
+      pendingSearches.current = pendingSearches.current.slice(pendingIndex + 1);
+      return;
+    }
+    // Cambio externo (navegación o enlace): el campo sigue a la URL.
+    pendingSearches.current = [];
     setSearchInput(query.search);
   }, [query.search]);
 
