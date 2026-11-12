@@ -18,6 +18,7 @@ import {
   subirRespaldo,
 } from '@/modules/profile/services/perfil-api';
 import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import { BackButton } from '@/shared/components/back-button';
@@ -173,6 +174,7 @@ export function AcordeonPerfil({
           </div>
         </div>
         <BarraProgreso completas={completas} total={secciones.length} />
+        <ProfileQuickLinks />
       </header>
  
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
