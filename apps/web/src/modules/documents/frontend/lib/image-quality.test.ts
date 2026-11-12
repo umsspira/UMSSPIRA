@@ -152,6 +152,29 @@ describe("evaluateImageQuality", () => {
     expect(codes).toContain("OVEREXPOSED");
   });
 
+  it("avisa de un destello localizado aunque la luz media sea normal", () => {
+    const withGlare = buildImage(400, 300, (x, y) => {
+      const insideGlare = x > 150 && x < 250 && y > 100 && y < 200;
+      if (insideGlare) return 255;
+      return (x % 6 < 2 && y % 12 < 8) ? 40 : 150;
+    });
+    const metrics = computeImageQualityMetrics(withGlare, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+
+    const codes = evaluateImageQuality(metrics).map((warning) => warning.code);
+
+    expect(metrics.meanLuma).toBeLessThan(IMAGE_QUALITY_CONFIG.brightMeanThreshold);
+    expect(codes).toContain("OVEREXPOSED");
+  });
+
+  it("no confunde un fondo blanco limpio con un destello", () => {
+    const cleanScan = buildImage(400, 300, (x, y) => ((x % 6 < 2 && y % 12 < 8) ? 30 : 255));
+    const metrics = computeImageQualityMetrics(cleanScan, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+
+    const codes = evaluateImageQuality(metrics).map((warning) => warning.code);
+
+    expect(codes).not.toContain("OVEREXPOSED");
+  });
+
   it("incluye una recomendacion en cada aviso", () => {
     const dark = buildImage(400, 300, () => 10);
     const metrics = computeImageQualityMetrics(dark, 500, 400);
