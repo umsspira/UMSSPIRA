@@ -1,0 +1,30 @@
+meta {
+  name: Consultar estado con formato inválido
+  type: http
+  seq: 24
+}
+
+post {
+  url: {{baseUrl}}/api/v1/registrations/status-query
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "no-es-correo"
+  }
+}
+
+docs {
+  Debe responder 202 con el mismo mensaje general y no enviar ningún correo.
+}
+
+tests {
+  test("Responde 202 con el mensaje general", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody().data.message).to.equal(
+      "Si existe una solicitud vinculada a ese correo, recibirás un mensaje con su estado."
+    );
+  });
+}
