@@ -7,6 +7,17 @@ export default tseslint.config(
     rules: {
       curly: ['error', 'all'],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../radar/*', '../../radar/*'],
+              message: 'El módulo NLP es independiente. No se permite importar desde el módulo Radar.',
+            },
+          ],
+        },
+      ],
     },
-  },
+  }
 );
