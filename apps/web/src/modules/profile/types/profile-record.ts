@@ -42,3 +42,14 @@ export type ProfileRecord = EducationRecord | ExperienceRecord | CertificationRe
 export type ProfileRecords = Record<RecordSection, ProfileRecord[]>;
 
 export type DeleteRecordErrorCode = 'network' | 'forbidden';
+
+// Proyecto o portafolio del egresado (HU-19). No es una sección de registros: va aparte en el estado
+export type ProjectRecord = OwnedRecord & {
+  name: string;
+  // Dirección https del proyecto
+  url: string;
+  // Descripción corta opcional
+  description?: string;
+  // Fecha de registro en formato ISO; ordena del más reciente al más antiguo
+  createdAt: string;
+};

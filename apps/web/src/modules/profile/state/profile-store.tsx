@@ -10,6 +10,7 @@ import type {
   EducationRecord,
   ExperienceRecord,
   ProfileRecord,
+  ProjectRecord,
   ProfileRecords,
   RecordSection,
 } from '@/modules/profile/types/profile-record';
@@ -33,7 +34,15 @@ type ProfileStore = {
   removeRecord: (section: RecordSection, recordId: string) => void;
   // Reemplaza la descripción con la que quedó guardada (HU-06)
   setDescription: (description: string) => void;
+  // Proyectos y portafolio del egresado (HU-19)
+  projects: ProjectRecord[];
+  addProject: (project: NewProject) => void;
+  updateProject: (project: ProjectRecord) => void;
+  removeProject: (projectId: string) => void;
 };
+
+// Sin createdAt se usa la fecha del momento en que se agrega
+type NewProject = Omit<ProjectRecord, 'id' | 'ownerId' | 'createdAt'> & { id?: string; createdAt?: string };
 
 const ProfileStoreContext = createContext<ProfileStore | null>(null);
 
@@ -41,6 +50,11 @@ let nextId = 0;
 function createId(section: RecordSection): string {
   nextId += 1;
   return `${section}-nuevo-${nextId}`;
+}
+
+function createProjectId(): string {
+  nextId += 1;
+  return `project-nuevo-${nextId}`;
 }
 
 /**
@@ -53,15 +67,18 @@ export function ProfileStoreProvider({
   initialRecords,
   initialDescription = '',
   initialHeader = null,
+  initialProjects = [],
 }: {
   children: React.ReactNode;
   initialRecords?: ProfileRecords;
   initialDescription?: string;
   initialHeader?: ProfileHeader | null;
+  initialProjects?: ProjectRecord[];
 }) {
   const [header, setHeader] = useState<ProfileHeader | null>(initialHeader);
   const [records, setRecords] = useState<ProfileRecords>(initialRecords ?? EMPTY_PROFILE_RECORDS);
   const [description, setDescription] = useState(initialDescription);
+  const [projects, setProjects] = useState<ProjectRecord[]>(initialProjects);
   const [isLoading, setIsLoading] = useState(initialRecords === undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -130,6 +147,24 @@ useEffect(() => {
     }));
   }, []);
 
+  const addProject = useCallback((project: NewProject) => {
+    const created: ProjectRecord = {
+      ...project,
+      id: project.id ?? createProjectId(),
+      ownerId,
+      createdAt: project.createdAt ?? new Date().toISOString(),
+    };
+    setProjects((current) => [...current, created]);
+  }, [ownerId]);
+
+  const updateProject = useCallback((project: ProjectRecord) => {
+    setProjects((current) => current.map((item) => (item.id === project.id ? project : item)));
+  }, []);
+
+  const removeProject = useCallback((projectId: string) => {
+    setProjects((current) => current.filter((item) => item.id !== projectId));
+  }, []);
+
   const retryLoad = useCallback(() => {
     setLoadAttempt((current) => current + 1);
   }, []);
@@ -148,8 +183,26 @@ useEffect(() => {
       updateRecord,
       removeRecord,
       setDescription,
+      projects,
+      addProject,
+      updateProject,
+      removeProject,
     }),
-    [header, records, description, isLoading, loadError, retryLoad, addRecord, updateRecord, removeRecord],
+    [
+      header,
+      records,
+      description,
+      isLoading,
+      loadError,
+      retryLoad,
+      addRecord,
+      updateRecord,
+      removeRecord,
+      projects,
+      addProject,
+      updateProject,
+      removeProject,
+    ],
   );
 
   return <ProfileStoreContext.Provider value={value}>{children}</ProfileStoreContext.Provider>;

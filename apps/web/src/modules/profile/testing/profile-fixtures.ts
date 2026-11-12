@@ -1,5 +1,5 @@
 import type { ProfileHeader, TimelineSection } from '@/modules/profile/data/profile-data';
-import type { ProfileRecords } from '@/modules/profile/types/profile-record';
+import type { ProfileRecords, ProjectRecord } from '@/modules/profile/types/profile-record';
 import { SAMPLE_BACKUP_URL } from '@/modules/profile/utils/backup-url';
 import { recordsToTimeline } from '@/modules/profile/utils/records-to-timeline';
 
@@ -97,3 +97,22 @@ export const PROFILE_RECORDS_MOCK: ProfileRecords = {
 };
 
 export const profileTimeline: TimelineSection[] = recordsToTimeline(PROFILE_RECORDS_MOCK);
+
+// Dos proyectos de ejemplo del egresado de prueba (HU-19), del más antiguo al más reciente
+export const PROFILE_PROJECTS_MOCK: ProjectRecord[] = [
+  {
+    id: 'project-1',
+    ownerId: CURRENT_GRADUATE_ID,
+    name: 'Sistema de inventario',
+    url: 'https://github.com/carlos-mendoza/sistema-inventario',
+    description: 'Aplicación web para el control de stock de una ferretería.',
+    createdAt: '2024-03-15T10:00:00.000Z',
+  },
+  {
+    id: 'project-2',
+    ownerId: CURRENT_GRADUATE_ID,
+    name: 'Portafolio personal',
+    url: 'https://carlos-mendoza.dev',
+    createdAt: '2025-08-02T18:30:00.000Z',
+  },
+];
