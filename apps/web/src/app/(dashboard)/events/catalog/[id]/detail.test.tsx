@@ -22,8 +22,9 @@ const publishedEvent: EventItem = {
   id: EVENT_ID,
   title: 'Encuentro de titulados',
   description: 'Información real del evento',
-  startDate: '2026-11-06T03:59:00.000Z',
-  endDate: '2026-11-07T14:30:00.000Z',
+  // CAMBIO 1: Fechas movidas a 2099 para que el evento siempre esté vigente
+  startDate: '2099-11-06T03:59:00.000Z',
+  endDate: '2099-11-07T14:30:00.000Z',
   maxCapacity: 1,
   location: 'Campus Central',
   status: EVENT_STATUS.PUBLICADO,
@@ -277,9 +278,14 @@ describe('detalle público de eventos', () => {
 describe('Cancelación desde la inscripción confirmada', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(getPublishedEvent).mockResolvedValue({ ...publishedEvent, startDate: '2099-11-06T14:00:00Z', endDate: '2099-11-06T18:00:00Z' });
-    jest.mocked(getCurrentUser).mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
-    jest.mocked(registerForEvent).mockResolvedValue({
+    // CAMBIO 2: Usar mockReset y fechas futuras aquí también para evitar fugas de estado
+    jest.mocked(getPublishedEvent).mockReset().mockResolvedValue({ 
+      ...publishedEvent, 
+      startDate: '2099-11-06T14:00:00Z', 
+      endDate: '2099-11-06T18:00:00Z' 
+    });
+    jest.mocked(getCurrentUser).mockReset().mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
+    jest.mocked(registerForEvent).mockReset().mockResolvedValue({
       id: 'inscripcion-1', eventId: EVENT_ID, status: 'CONFIRMADA',
       registeredAt: '2026-11-01T10:00:00Z', currentCapacity: 1,
     });
