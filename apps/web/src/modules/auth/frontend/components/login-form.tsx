@@ -67,8 +67,11 @@ const EyeOffIcon = () => (
 
 const fieldWrapper =
   "flex items-center gap-3 rounded-lg border bg-[#F5F2EA]/80 px-3.5 text-gray-500 transition-colors focus-within:border-burning-flame focus-within:bg-white focus-within:ring-2 focus-within:ring-burning-flame/30";
-const fieldInput =
-  "w-full bg-transparent py-3.5 text-sm text-abyssal-blue outline-none placeholder:text-gray-400";
+// BUG-09: el autocompletado del navegador no debe pintar su fondo sobre el campo.
+// El fondo se retrasa de forma indefinida y el texto conserva el color institucional.
+const fieldAutofill =
+  "[&:-webkit-autofill]:[transition:background-color_600000s_0s,color_600000s_0s] [&:-webkit-autofill]:[-webkit-text-fill-color:#1B2632]";
+const fieldInput = `w-full bg-transparent py-3.5 text-sm text-abyssal-blue outline-none placeholder:text-gray-400 ${fieldAutofill}`;
 const labelClass = "block text-xs font-bold uppercase tracking-wider text-abyssal-blue";
 
 function fieldState(hasError: boolean) {
