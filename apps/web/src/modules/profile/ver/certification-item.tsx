@@ -102,6 +102,7 @@ export default function CertificationItem({
         <BackupViewerModal
           certificationId={item.id}
           certificationName={item.title}
+          backupType={item.documentType}
           onClose={() => setIsViewerOpen(false)}
         />
       )}

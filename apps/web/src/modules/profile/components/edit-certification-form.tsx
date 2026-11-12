@@ -260,6 +260,8 @@ function EditCertificationFields({ certification }: { certification: Certificati
         <BackupViewerModal
           certificationId={certification.id}
           certificationName={certification.name}
+          // El visor muestra el respaldo que ya está guardado en el backend
+          backupType={savedBackup.type}
           onClose={() => setIsViewerOpen(false)}
         />
       )}
