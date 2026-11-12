@@ -3,7 +3,10 @@ import { findAttendancePass } from './find-attendance-pass';
 
 describe('findAttendancePass', () => {
   const actor = { id: 'admin', permissions: ['eventos:manage'] };
-  const event = { id: 'evento', estado: 'PUBLICADO', fecha_fin: null };
+  const now = new Date('2026-11-14T14:00:00Z');
+  const future = new Date(now.getTime() + 1);
+  const past = new Date(now.getTime() - 1);
+  const event = { id: 'evento', estado: 'PUBLICADO', fecha_fin: future };
   const registration = {
     id: 'inscripcion',
     id_evento: event.id,
@@ -19,8 +22,48 @@ describe('findAttendancePass', () => {
   } as unknown as Prisma.TransactionClient;
 
   beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(now);
     findEvent.mockReset().mockResolvedValue(event);
     findPass.mockReset().mockResolvedValue(pass);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it.each([
+    ['CANCELADO', 'CONFIRMADA', 'VIGENTE', 'ATTENDANCE_NOT_ALLOWED'],
+    ['BORRADOR', 'CONFIRMADA', 'VIGENTE', 'ATTENDANCE_NOT_ALLOWED'],
+    ['PUBLICADO', 'CANCELADA', 'VIGENTE', 'ATTENDANCE_NOT_ALLOWED'],
+    ['PUBLICADO', null, 'VIGENTE', 'ATTENDANCE_NOT_ALLOWED'],
+    ['PUBLICADO', 'CONFIRMADA', 'INVALIDADO', 'PASS_INACTIVE'],
+    ['PUBLICADO', 'CONFIRMADA', 'DESCONOCIDO', 'PASS_INACTIVE'],
+    ['PUBLICADO', 'CONFIRMADA', 'VENCIDO', 'PASS_EXPIRED'],
+  ])(
+    'rechaza evento %s, inscripción %s y pase %s',
+    async (eventStatus, registrationStatus, passStatus, code) => {
+      findEvent.mockResolvedValue({ ...event, estado: eventStatus });
+      findPass.mockResolvedValue({
+        ...pass,
+        estado: passStatus,
+        inscripcion: { ...registration, estado: registrationStatus },
+      });
+      await expect(findAttendancePass(tx, actor, event.id, 'token')).rejects.toMatchObject({
+        code,
+      });
+    },
+  );
+
+  it.each([
+    [future, now, 'PASS_EXPIRED'],
+    [future, past, 'PASS_EXPIRED'],
+    [now, future, 'PASS_EXPIRED'],
+    [past, null, 'PASS_EXPIRED'],
+    [null, future, 'ATTENDANCE_NOT_ALLOWED'],
+  ])('comprueba ambos límites temporales (%#)', async (end, expiration, code) => {
+    findEvent.mockResolvedValue({ ...event, fecha_fin: end });
+    findPass.mockResolvedValue({ ...pass, fecha_expiracion: expiration });
+    await expect(findAttendancePass(tx, actor, event.id, 'token')).rejects.toMatchObject({ code });
   });
 
   it('rechaza al actor sin permiso antes de consultar datos', async () => {

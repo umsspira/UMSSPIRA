@@ -2,6 +2,7 @@ import type { Prisma } from '../../../../generated/prisma/client';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import { AccessError } from '../../../../shared/security/errors/access-error';
+import { EventPassRules } from '../../domain/event-pass.rules';
 
 export async function findAttendancePass(
   tx: Prisma.TransactionClient,
@@ -44,5 +45,29 @@ export async function findAttendancePass(
     );
   }
 
+  if (
+    !EventPassRules.canGeneratePass(pass.inscripcion.estado ?? '', event.estado ?? '') ||
+    !event.fecha_fin
+  ) {
+    throw new BusinessRuleError(
+      'conflict',
+      'ATTENDANCE_NOT_ALLOWED',
+      'Se requiere una inscripción confirmada y un evento publicado con fecha de fin',
+    );
+  }
+  const now = new Date();
+  const effective = EventPassRules.resolveEffectiveStatus(
+    pass.estado,
+    pass.inscripcion.estado ?? '',
+    event.estado ?? '',
+    event.fecha_fin,
+    now,
+  );
+  if (pass.estado !== 'VIGENTE' && pass.estado !== 'VENCIDO') {
+    throw new BusinessRuleError('conflict', 'PASS_INACTIVE', 'El pase no está vigente');
+  }
+  if (effective.status === 'VENCIDO' || (pass.fecha_expiracion && pass.fecha_expiracion <= now)) {
+    throw new BusinessRuleError('expired', 'PASS_EXPIRED', 'El pase ha vencido');
+  }
   return { event, pass };
 }
