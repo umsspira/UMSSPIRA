@@ -2,8 +2,12 @@ import { IMAGE_QUALITY_CONFIG } from "./image-quality.config";
 import type {
   ImageQualityConfig,
   ImageQualityMetrics,
+  ImageQualityResult,
+  ImageQualityWarning,
   PixelBuffer,
 } from "./image-quality.types";
+
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png"];
 
 /** Convierte los pixeles RGBA a luminosidad (0 a 255) con la formula Rec. 601. */
 export function toLuma(pixels: PixelBuffer): Float32Array {
@@ -122,3 +126,82 @@ export function computeImageQualityMetrics(
   );
   return { originalWidth, originalHeight, meanLuma, contrast, sharpness };
 }
+/** Convierte las metricas en avisos para el Titulado. Cero avisos si todo esta bien. */
+export function evaluateImageQuality(
+  metrics: ImageQualityMetrics,
+  config: ImageQualityConfig = IMAGE_QUALITY_CONFIG,
+): ImageQualityWarning[] {
+  const warnings: ImageQualityWarning[] = [];
+
+  const shortSide = Math.min(metrics.originalWidth, metrics.originalHeight);
+  const longSide = Math.max(metrics.originalWidth, metrics.originalHeight);
+  if (shortSide < config.minShortSide || longSide < config.minLongSide) {
+    warnings.push({
+      code: "LOW_RESOLUTION",
+      message: "La imagen es pequeña y podría no leerse bien.",
+      recommendation:
+        "Acércate al documento, toma la foto con buena luz o sube el archivo original sin reducirlo.",
+    });
+  }
+
+  if (metrics.sharpness < config.blurThreshold) {
+    warnings.push({
+      code: "BLURRY",
+      message: "La imagen parece borrosa.",
+      recommendation:
+        "Sostén firme el celular, enfoca el documento y vuelve a tomar la foto.",
+    });
+  }
+
+  if (metrics.meanLuma < config.darkMeanThreshold) {
+    warnings.push({
+      code: "TOO_DARK",
+      message: "La imagen está muy oscura.",
+      recommendation:
+        "Busca un lugar con más luz, sin sombras sobre el documento, y vuelve a tomarla.",
+    });
+  } else if (
+    metrics.meanLuma > config.brightMeanThreshold &&
+    metrics.contrast < config.lowContrastThreshold
+  ) {
+    warnings.push({
+      code: "OVEREXPOSED",
+      message: "La imagen tiene demasiada luz y el texto podría perderse.",
+      recommendation:
+        "Evita el flash y la luz directa sobre el documento, y vuelve a tomarla.",
+    });
+  }
+
+  return warnings;
+}
+
+/** Reduce las dimensiones para que el lado mayor no supere maxSide. */
+export function getAnalysisSize(
+  width: number,
+  height: number,
+  maxSide: number,
+): { width: number; height: number } {
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+export const SKIPPED_RESULT: ImageQualityResult = {
+  status: "skipped",
+  warnings: [],
+  metrics: null,
+};
+
+export const FAILED_RESULT: ImageQualityResult = {
+  status: "failed",
+  warnings: [],
+  metrics: null,
+};
+
+export const IDLE_RESULT: ImageQualityResult = {
+  status: "idle",
+  warnings: [],
+  metrics: null,
+};
