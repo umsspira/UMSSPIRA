@@ -3,7 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { JobPostingRepository } from '../src/modules/job-postings/application/ports/job-posting-repository.port';
-import { GetTechnicalRequirementsUseCase } from '../src/modules/job-postings/application/use-cases/get-technical-requirements.use-case';
+import { GetPublishedJobPostingTechnicalRequirementsUseCase } from '../src/modules/job-postings/application/use-cases/get-published-job-posting-technical-requirements.use-case';
 import type { PublishedJobPosting } from '../src/modules/job-postings/domain/entities/published-job-posting.entity';
 import { TechnicalRequirementsController } from '../src/modules/job-postings/http/controllers/technical-requirements.controller';
 import {
@@ -61,8 +61,8 @@ describe('HU8 canonical HTTP composition (source and authenticator simulated, no
         { provide: APP_GUARD, useClass: AuthenticationGuard },
         { provide: APP_GUARD, useClass: PermissionsGuard },
         {
-          provide: GetTechnicalRequirementsUseCase,
-          useValue: new GetTechnicalRequirementsUseCase(
+          provide: GetPublishedJobPostingTechnicalRequirementsUseCase,
+          useValue: new GetPublishedJobPostingTechnicalRequirementsUseCase(
             jobs, new CanonicalTechnicalRequirementsReader(source), () => now,
           ),
         },

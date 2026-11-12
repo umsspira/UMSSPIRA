@@ -37,6 +37,26 @@ HU8 hereda la disponibilidad de HU12: estados `PUBLICADO`, `PUBLICADA`, `ACTIVA`
 `ACTIVO`, `ACTIVE`, `PUBLISHED`, con cierre nulo o estrictamente posterior al
 instante consultado. No se agregó otra política de disponibilidad.
 
+## Separación de los casos de uso HU8 y HU2/HU3
+
+HU8 utiliza `GetPublishedJobPostingTechnicalRequirementsUseCase`, ubicado en
+`apps/api/src/modules/job-postings/application/use-cases/get-published-job-posting-technical-requirements.use-case.ts`.
+Su contrato sigue siendo `execute(id)`: comprueba la disponibilidad de la vacante
+y devuelve `{ idVacante, requisitos }` mediante el puerto de lectura existente.
+
+El caso administrativo de HU2/HU3 utiliza `GetTechnicalRequirementsUseCase` y
+`execute(actor, vacancyId)`, con alcance de empresa. Separar el nombre de clase
+y archivo permite que ambos casos coexistan sin compartir contrato ni token de
+inyección. No se conserva un archivo de compatibilidad con el nombre anterior.
+
+El refactor actualiza únicamente el caso de uso y su prueba unitaria, las
+referencias HU8 del controlador y provider, la composición canónica de prueba y
+esta documentación. Mantiene `GET /api/v1/job-postings/:id/requisitos`, respuesta,
+validaciones, errores, autenticación, disponibilidad y afinidad HU12. La fábrica
+productiva sigue inyectando `RequisitosTecnicosService`; no activa el lector
+canónico ni cambia el módulo. La conciliación futura de providers, repositorios,
+módulos y rutas administrativas de HU2/HU3 sigue pendiente.
+
 ## Revisión de compatibilidad
 
 - El prefijo oficial es `api/v1`. La ruta nueva no colisiona con `GET :id` ni con
@@ -69,7 +89,7 @@ los otros cinco archivos se conservaron:
 
 | Archivo | Función |
 | --- | --- |
-| `apps/api/src/modules/job-postings/application/use-cases/get-technical-requirements.use-case.ts` | Disponibilidad HU12 y puerto de lectura HU8 compatible con el servicio anterior y el lector canónico. |
+| `apps/api/src/modules/job-postings/application/use-cases/get-published-job-posting-technical-requirements.use-case.ts` | Disponibilidad HU12 y puerto de lectura HU8 compatible con el servicio anterior y el lector canónico. |
 | `apps/api/src/modules/job-postings/http/controllers/technical-requirements.controller.ts` | Ruta HU8 y UUID. |
 | `apps/api/src/modules/job-postings/job-postings.module.ts` | Importación HU2 y registro del controlador. |
 | `apps/api/src/modules/job-postings/infrastructure/providers/job-postings.providers.ts` | Fábrica del caso de uso. |
@@ -81,7 +101,7 @@ Archivos modificados o agregados durante esta revisión:
 | Archivo | Cambio |
 | --- | --- |
 | `apps/web/src/app/(dashboard)/job-postings/[id]/vacancy-detail-client.tsx` | Importar/montar HU8 y distinguir las habilidades HU12 mediante título y mensaje vacío. |
-| `apps/api/src/modules/job-postings/application/use-cases/get-technical-requirements.use-case.spec.ts` | Cinco casos unitarios recuperados, adaptados al puerto de lectura HU8. |
+| `apps/api/src/modules/job-postings/application/use-cases/get-published-job-posting-technical-requirements.use-case.spec.ts` | Cinco casos unitarios recuperados, adaptados al puerto de lectura HU8. |
 | `apps/api/test/job-postings-technical-requirements.e2e.spec.ts` | Recuperar y adaptar la integración HTTP: módulo y servicio HU2 reales, guards/filtro oficiales, autenticador y persistencia simulados, sin indexación externa. |
 | `apps/web/src/shared/services/technical-requirements.test.ts` | Recuperar pruebas de contrato, transporte, errores y cancelación; ampliar con 429 e integración del cliente/sesión oficiales usando `fetch` simulado. |
 | `apps/web/src/app/(dashboard)/job-postings/[id]/technical-requirements.test.tsx` | Recuperar pruebas de componente y detalle; ampliar separación HU2/HU12 sin habilidades y visibilidad según el usuario. |
@@ -163,7 +183,7 @@ en PowerShell, usar siempre `-LiteralPath`.
 Desde `apps/api`:
 
 ```powershell
-node 'node_modules/jest/bin/jest.js' --runInBand --runTestsByPath src/modules/job-postings/application/use-cases/get-technical-requirements.use-case.spec.ts test/job-postings-technical-requirements.e2e.spec.ts
+node 'node_modules/jest/bin/jest.js' --runInBand --runTestsByPath src/modules/job-postings/application/use-cases/get-published-job-posting-technical-requirements.use-case.spec.ts test/job-postings-technical-requirements.e2e.spec.ts
 node 'node_modules/typescript/bin/tsc' --noEmit --incremental false -p tsconfig.check.json
 ```
 
@@ -227,7 +247,7 @@ Resultados de esta etapa:
 Para repetir las cuatro suites API desde `apps/api`:
 
 ```powershell
-node 'node_modules/jest/bin/jest.js' --runInBand --runTestsByPath src/modules/job-postings/application/use-cases/get-technical-requirements.use-case.spec.ts src/modules/job-postings/infrastructure/readers/canonical-technical-requirements.reader.spec.ts test/job-postings-technical-requirements.e2e.spec.ts test/job-postings-canonical-technical-requirements.e2e.spec.ts
+node 'node_modules/jest/bin/jest.js' --runInBand --runTestsByPath src/modules/job-postings/application/use-cases/get-published-job-posting-technical-requirements.use-case.spec.ts src/modules/job-postings/infrastructure/readers/canonical-technical-requirements.reader.spec.ts test/job-postings-technical-requirements.e2e.spec.ts test/job-postings-canonical-technical-requirements.e2e.spec.ts
 ```
 
 En esta etapa se modificaron solo el caso de uso HU8, sus tipos de prueba y este
@@ -237,6 +257,38 @@ HU2, modelos, migraciones, lockfiles o configuraciones compartidas. No se usaron
 consultas SQL como sustituto del modelo faltante ni conversiones de tipo para
 aparentar la existencia del delegado Prisma canónico.
 
+## Validación del refactor de nombres
+
+Refactor local sobre `7cd3aa97`, correspondiente al PR #687 en Draft; todavía
+sin commit de estos cambios. Se renombraron el caso de uso y su prueba y se
+actualizaron únicamente sus referencias HU8 y esta documentación.
+
+| Comprobación repetida después del refactor | Resultado real |
+| --- | --- |
+| Cuatro suites API HU8 | 50 pruebas aprobadas. |
+| Dos suites web HU8 | 39 pruebas aprobadas. |
+| Cinco suites de regresión API de HU12 y HU2 anterior | 21 pruebas aprobadas. |
+| Tres suites web de detalle HU12, listado y servicio de vacantes | 10 pruebas aprobadas. |
+| Total Jest | 14 suites, 120 pruebas aprobadas; se conservan las 89 de HU8. |
+| ESLint de los cinco archivos TypeScript afectados | Código 0, sin correcciones automáticas. |
+| TypeScript global API | Código 1: mismos 6 diagnósticos heredados, ninguno nuevo. |
+| TypeScript global web | Código 1: mismos 46 diagnósticos heredados, ninguno nuevo. |
+
+Los cinco archivos TypeScript se compararon con `7cd3aa97`, normalizando los
+finales de línea: su contenido coincide exactamente al sustituir solamente los
+nombres de archivo y clase. No quedan imports HU8 ni archivos de compatibilidad
+con el nombre anterior. El cambio comprende seis archivos lógicos, incluidos
+los dos renombres; los otros cuatro son controlador, providers, composición
+canónica de prueba y documentación.
+
+Jest se ejecutó directamente con Node, `--runInBand --no-cache --runTestsByPath`;
+TypeScript con `--noEmit --incremental false`. Las integraciones HTTP conservan
+autenticador y persistencia simulados. No se generó Prisma, no se consultaron
+servicios de aplicación reales ni se modificaron datos. La fuente productiva
+sigue siendo el servicio anterior HU2 y la integración canónica real continúa
+pendiente. Los errores globales heredados descritos arriba siguen impidiendo
+aprobar las comprobaciones completas de tipos.
+
 ## Pasos pendientes
 
 1. Integrar de forma coordinada el modelo y la migración existentes de HU2,
@@ -245,9 +297,9 @@ aparentar la existencia del delegado Prisma canónico.
    `CanonicalTechnicalRequirementsSource`.
 2. Cuando se autoricen los cambios compartidos, registrar explícitamente ese
    delegado como fuente del lector y sustituir la inyección anterior de HU8.
-   Resolver la colisión del caso de uso homónimo de HU2 y la ruta administrativa
-   HU3 `GET /job-postings/:id`, que coincide con el detalle HU12. Mantener los
-   métodos y controladores actuales de listado, disponibilidad y afinidad.
+   Conciliar los providers, repositorios y módulos de HU2/HU3, y resolver la ruta
+   administrativa HU3 `GET /job-postings/:id`, que coincide con el detalle HU12.
+   Mantener los métodos y controladores actuales de listado, disponibilidad y afinidad.
 3. Resolver los errores globales de TypeScript en un trabajo separado y autorizado
    sobre las historias/contratos correspondientes; repetir ambas comprobaciones
    completas. Las pruebas HU8 aprobadas no implican que todo el monorepo compile.

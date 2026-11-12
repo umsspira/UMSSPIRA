@@ -5,7 +5,7 @@ import type {
 import type { PublishedJobPosting } from '../../domain/entities/published-job-posting.entity';
 import { JobPostingNotFoundError } from '../../domain/errors/job-posting-not-found.error';
 import type { JobPostingRepository } from '../ports/job-posting-repository.port';
-import { GetTechnicalRequirementsUseCase } from './get-technical-requirements.use-case';
+import { GetPublishedJobPostingTechnicalRequirementsUseCase } from './get-published-job-posting-technical-requirements.use-case';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const now = new Date('2026-11-04T12:00:00.000Z');
@@ -29,10 +29,10 @@ const requirement: PublishedTechnicalRequirement = {
   fechaCreacion: now.toISOString(),
 };
 
-describe('GetTechnicalRequirementsUseCase', () => {
+describe('GetPublishedJobPostingTechnicalRequirementsUseCase', () => {
   let jobs: jest.Mocked<JobPostingRepository>;
   let requirements: jest.Mocked<PublishedTechnicalRequirementsReader>;
-  let useCase: GetTechnicalRequirementsUseCase;
+  let useCase: GetPublishedJobPostingTechnicalRequirementsUseCase;
 
   beforeEach(() => {
     jobs = {
@@ -42,7 +42,7 @@ describe('GetTechnicalRequirementsUseCase', () => {
       findGraduateSkills: jest.fn(),
     };
     requirements = { obtenerRequisitos: jest.fn().mockResolvedValue([requirement]) };
-    useCase = new GetTechnicalRequirementsUseCase(jobs, requirements, () => now);
+    useCase = new GetPublishedJobPostingTechnicalRequirementsUseCase(jobs, requirements, () => now);
   });
 
   it('checks HU12 availability before reading structured HU2 requirements, without affinity substitution', async () => {

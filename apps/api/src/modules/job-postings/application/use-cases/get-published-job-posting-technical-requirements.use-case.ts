@@ -5,7 +5,7 @@ import type {
   PublishedTechnicalRequirementsReader,
 } from '../ports/published-technical-requirements-reader.port';
 
-export class GetTechnicalRequirementsUseCase {
+export class GetPublishedJobPostingTechnicalRequirementsUseCase {
   constructor(
     private readonly jobs: JobPostingRepository,
     private readonly requirements: PublishedTechnicalRequirementsReader,
