@@ -5,6 +5,7 @@ import { Check, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { ProfileRecordsTable } from '@/modules/profile/components/profile-records-table';
 import { EMPTY_PROFILE_RECORDS, SECTION_LABELS } from '@/modules/profile/data/profile-records-data';
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
@@ -108,6 +109,7 @@ export function ProfileRecordsManager({
           Mis registros del perfil
         </h1>
         <p className="text-sm text-blue-fantastic/70">Edita o elimina tu información profesional.</p>
+        <ProfileQuickLinks current="/profile/records" />
       </header>
 
       <Link
