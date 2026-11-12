@@ -85,13 +85,23 @@ function listenForForeground(registration: ServiceWorkerRegistration): void {
   });
 }
 
+// Espera a que la página termine de cargar (CA-01) para no competir con el uso inicial
+function waitForPageLoad(): Promise<void> {
+  if (document.readyState === 'complete') return Promise.resolve();
+
+  return new Promise((resolve) => {
+    window.addEventListener('load', () => resolve(), { once: true });
+  });
+}
+
 export async function registerServiceWorker(
   onUpdate?: UpdateHandler,
 ): Promise<ServiceWorkerRegistration | undefined> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return undefined;
   }
-
+  
+  await waitForPageLoad();
   // En la primera visita no había SW controlando la página: no hace falta recargar
   const hadController = Boolean(navigator.serviceWorker.controller);
 
