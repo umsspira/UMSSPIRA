@@ -557,4 +557,35 @@ describe('ApplicationsPage', () => {
       );
     });
   });
+  it('no restaura el texto borrado cuando la URL responde con retraso', async () => {
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
+    const originalReplace = mockRouter.replace;
+    mockRouter.replace = (url: string) => {
+      setTimeout(() => originalReplace(url), 700);
+    };
+
+    try {
+      render(<ApplicationsPage />);
+      await screen.findByText('Bandeja de Solicitudes');
+      const searchBox = screen.getByLabelText('Buscar');
+
+      fireEvent.change(searchBox, { target: { value: 'ana' } });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      fireEvent.change(searchBox, { target: { value: 'an' } });
+
+      await waitFor(
+        () => expect(new URLSearchParams(window.location.search).get('q')).toBe('ana'),
+        { timeout: 3000 },
+      );
+      expect(searchBox).toHaveValue('an');
+
+      await waitFor(
+        () => expect(new URLSearchParams(window.location.search).get('q')).toBe('an'),
+        { timeout: 4000 },
+      );
+      expect(searchBox).toHaveValue('an');
+    } finally {
+      mockRouter.replace = originalReplace;
+    }
+  }, 10000);
 });
