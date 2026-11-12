@@ -123,28 +123,6 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
     return this.prisma.$transaction((transaction) => this.persist(transaction, params));
   }
 
-  async getAreaWeights(): Promise<Record<string, Array<{ term: string; peso: number }>>> {
-    const weights = await this.client.palabraClaveArea.findMany({
-      select: {
-        id_area: true,
-        peso: true,
-        palabra_clave: { select: { termino_normalizado: true } },
-      },
-    });
-    const result: Record<string, Array<{ term: string; peso: number }>> = {};
-
-    for (const weight of weights) {
-      const term = weight.palabra_clave.termino_normalizado;
-
-      if (!result[weight.id_area]) {
-        result[weight.id_area] = [];
-      }
-      result[weight.id_area].push({ term, peso: Number(weight.peso) });
-    }
-
-    return result;
-  }
-
   private async persist(
     transaction: Prisma.TransactionClient,
     params: {
@@ -189,11 +167,15 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
     if (params.unmapped.length > 0) {
       // Una ida a PostgreSQL para todo el lote, conservando los IDs existentes.
       // Los valores son parámetros; ningún texto del perfil se interpola en SQL.
-      const keywords = [...new Map(params.unmapped.map(keyword => [keyword.term, keyword])).values()];
-      const payload = JSON.stringify(keywords.map(keyword => ({
-        termino: keyword.term,
-        frecuencia: keyword.count,
-      })));
+      const keywords = [
+        ...new Map(params.unmapped.map((keyword) => [keyword.term, keyword])).values(),
+      ];
+      const payload = JSON.stringify(
+        keywords.map((keyword) => ({
+          termino: keyword.term,
+          frecuencia: keyword.count,
+        })),
+      );
       await transaction.$executeRaw`
         INSERT INTO public.palabra_clave_no_mapeada
           (id_titulado, termino, frecuencia, fecha_deteccion)
