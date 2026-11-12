@@ -5,7 +5,9 @@ import {
 } from '../../application/ports/job-posting-repository.port';
 import { CreateJobPostingUseCase } from '../../application/use-cases/create-job-posting.use-case';
 import { GetPublishedJobPostingUseCase } from '../../application/use-cases/get-published-job-posting.use-case';
+import { GetTechnicalRequirementsUseCase } from '../../application/use-cases/get-technical-requirements.use-case';
 import { ListPublishedJobPostingsUseCase } from '../../application/use-cases/list-published-job-postings.use-case';
+import { RequisitosTecnicosService } from '../../../vacantes/requisitos-tecnicos.service';
 import { PrismaJobPostingRepository } from '../repositories/prisma-job-posting.repository';
 
 export const jobPostingsProviders: Provider[] = [
@@ -27,5 +29,13 @@ export const jobPostingsProviders: Provider[] = [
     inject: [JOB_POSTING_REPOSITORY],
     useFactory: (repository: JobPostingRepository) =>
       new GetPublishedJobPostingUseCase(repository),
+  },
+  {
+    provide: GetTechnicalRequirementsUseCase,
+    inject: [JOB_POSTING_REPOSITORY, RequisitosTecnicosService],
+    useFactory: (
+      repository: JobPostingRepository,
+      requirements: RequisitosTecnicosService,
+    ) => new GetTechnicalRequirementsUseCase(repository, requirements),
   },
 ];

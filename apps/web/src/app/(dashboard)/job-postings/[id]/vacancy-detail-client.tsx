@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ApiError } from "@/shared/services/api-client";
 import { getJobPosting, type JobPostingDetail } from "@/shared/services/job-postings";
+import { TechnicalRequirements } from "./technical-requirements";
 import styles from "./vacancy-detail.module.css";
 
 type DetailState =
@@ -186,7 +187,7 @@ function VacancyDetails({
             </section>
 
             <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Requisitos técnicos</h2>
+              <h2 className={styles.cardTitle}>Habilidades para el cálculo de afinidad</h2>
               {posting.technicalRequirements.length > 0 ? (
                 <ul className={styles.requirementList}>
                   {posting.technicalRequirements.map((requirement, index) => (
@@ -208,10 +209,12 @@ function VacancyDetails({
                 </ul>
               ) : (
                 <p className={styles.bodyText}>
-                  No se registraron requisitos técnicos asociados a esta vacante.
+                  No se registraron habilidades para el cálculo de afinidad.
                 </p>
               )}
             </section>
+
+            <TechnicalRequirements key={posting.id} vacancyId={posting.id} />
 
             {company && (
               <section className={styles.card}>
