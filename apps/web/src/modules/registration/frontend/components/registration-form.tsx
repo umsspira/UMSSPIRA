@@ -276,7 +276,6 @@ export function RegistrationForm() {
               required
               type="email"
               autoComplete="email"
-              maxLength={30}
               error={errors.correo?.message}
               aria-invalid={!!errors.correo}
               {...register("correo")}
