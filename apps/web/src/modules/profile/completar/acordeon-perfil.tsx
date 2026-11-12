@@ -11,6 +11,7 @@ import { FormularioExperiencia, type Experiencia } from './experiencia-laboral';
 import { FormacionAcademicaForm, type FormacionAcademica } from './formacion-academica';
 import { FormularioCertificaciones, type Certificacion } from './certificaciones';
 import { FormularioDescripcion } from './descripcion-profesional';
+import { FormularioProyectos } from './proyectos-portafolio';
 import {
   crearCertificacion,
   crearExperiencia,
@@ -55,6 +56,8 @@ export function AcordeonPerfil({
     addCertification,
     setDescription,
     removeRecord,
+    projects,
+    addProject,
   } = useProfileStore();
   const router = useRouter();
   const [avisoBorrador, setAvisoBorrador] = useState(false);
@@ -62,6 +65,7 @@ export function AcordeonPerfil({
   const [erroresFormacion, setErroresFormacion] = useState(0);
   const [erroresExperiencia, setErroresExperiencia] = useState(0);
   const [erroresCertificaciones, setErroresCertificaciones] = useState(0);
+  const [erroresProyectos, setErroresProyectos] = useState(0);
   // Avance (0 a 100) de la subida del respaldo mientras se guarda una certificación
   const [progresoSubida, setProgresoSubida] = useState<number>();
   // Certificación que se va a eliminar desde Completar perfil (BUG HU8-02), con el mismo modal que Mis registros
@@ -327,6 +331,22 @@ export function AcordeonPerfil({
           onGuardar={async (descripcion) => {
             // El resumen muestra lo que la API guardó; si falla, el estado no cambia
             setDescription(await guardarDescripcion(descripcion));
+          }}
+        />
+      </SeccionAcordeon>
+      <SeccionAcordeon
+        numero={5}
+        titulo="Proyectos y portafolio"
+        descripcion="Proyectos o trabajos que quieras mostrar"
+        cantidad={projects.length}
+        errores={erroresProyectos}
+      >
+        <FormularioProyectos
+          proyectos={projects}
+          onErroresChange={setErroresProyectos}
+          onAgregar={(proyecto) => {
+            // HU-19: se guarda en el estado compartido del perfil
+            addProject({ name: proyecto.nombre, url: proyecto.enlace, description: proyecto.descripcion });
           }}
         />
       </SeccionAcordeon>
