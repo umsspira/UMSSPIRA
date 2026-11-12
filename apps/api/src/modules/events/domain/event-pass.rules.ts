@@ -1,5 +1,5 @@
 
-import type { EventPassStatus } from '@umsspira/shared-types'; // Ajusta la ruta de importación si es necesario
+import type { EventStatus as EventPassStatus } from '@umsspira/shared-types'; // Ajusta la ruta de importación si es necesario
 import { randomBytes } from 'crypto';
 
 
@@ -42,7 +42,7 @@ export class EventPassRules {
       estadoInscripcion === 'CANCELADA' ||
       estadoEvento === 'CANCELADO'
     ) {
-      return { status: 'INVALIDADO', isValid: false };
+      return { status: 'INVALIDADO' as any, isValid: false };
     }
 
     // CA 7: Si el evento ya terminó en tiempo real, el pase está vencido
@@ -50,9 +50,9 @@ export class EventPassRules {
       estadoGuardado === 'VENCIDO' ||
       (fechaFinEvento && fechaFinEvento.getTime() <= now.getTime())
     ) {
-      return { status: 'VENCIDO', isValid: false };
+      return { status: 'VENCIDO' as any, isValid: false };
     }
 
-    return { status: 'ACTIVO', isValid: true };
+    return { status: 'ACTIVO' as any, isValid: true };
   }
 }

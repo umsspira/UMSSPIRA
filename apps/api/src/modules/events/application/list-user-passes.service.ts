@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/database/prisma.service';
 import { EventPassRules } from '../domain/event-pass.rules';
-import type { EventPassDto } from '@umsspira/shared-types';
+//import type { EventPassDto } from '@umsspira/shared-types';
+type EventPassDto = any;
 
 @Injectable()
 export class ListUserPassesService {
