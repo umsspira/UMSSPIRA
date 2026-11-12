@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Camera, Check, FileText, Trash2 } from 'lucide-react';
 
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
 import { validarRespaldo } from '@/modules/profile/validation/reglas-perfil';
 import { BackButton } from '@/shared/components/back-button';
@@ -46,6 +47,7 @@ export function EditRecordLayout({
         <p className="text-[11px] font-bold uppercase text-truffle-trouble">Perfil profesional</p>
         <h1 className="text-[22px] font-bold text-abyssal-blue md:text-[28px]">{title}</h1>
         <p className="text-sm text-[#6D716F]">{description}</p>
+        <ProfileQuickLinks />
       </header>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-5 rounded-2xl bg-[#FFFCF7] p-4 md:p-6">
