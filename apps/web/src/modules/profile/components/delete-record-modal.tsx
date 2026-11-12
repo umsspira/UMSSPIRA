@@ -9,7 +9,7 @@ type DeleteRecordModalProps = {
   section: RecordSection;
   record: ProfileRecord;
   isDeleting: boolean;
-  isClosing: boolean;
+  isClosing?: boolean;
   errorCode: DeleteRecordErrorCode | null;
   onConfirm: () => void;
   onCancel: () => void;
@@ -35,7 +35,7 @@ export function DeleteRecordModal({
   section,
   record,
   isDeleting,
-  isClosing,
+  isClosing = false,
   errorCode,
   onConfirm,
   onCancel,

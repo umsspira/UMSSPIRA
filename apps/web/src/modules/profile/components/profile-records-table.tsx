@@ -56,26 +56,28 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
   const columns = getRecordColumns(section);
 
   if (records.length === 0) {
-      const emptySection = {
-      education: {
-        id: 'formacion-academica',
-        title: 'Aún no tienes formación académica registrada',
-        description: 'Agrega tus estudios para completar tu perfil profesional.',
-        button: 'Agregar formación académica',
-      },
-      experience: {
-        id: 'experiencia-laboral',
-        title: 'Aún no tienes experiencia laboral registrada',
-        description: 'Agrega tu trayectoria profesional para enriquecer tu perfil.',
-        button: 'Agregar experiencia',
-      },
-      certification: {
-        id: 'certificaciones',
-        title: 'Aún no tienes certificaciones registradas',
-        description: 'Agrega tus certificaciones y destaca tus conocimientos.',
-        button: 'Agregar certificación',
-      },
-    }[section];
+      const emptySection = (
+  {
+        education: {
+         id: 'formacion-academica',
+         title: 'Aún no tienes formación académica registrada',
+         description: 'Agrega tu formación académica para completar esta sección de tu perfil.',
+         button: 'Agregar formación académica',
+    },
+        experience: {
+         id: 'experiencia-laboral',
+         title: 'Aún no tienes experiencia laboral registrada',
+         description: 'Agrega tu experiencia laboral para completar esta sección de tu perfil.',
+         button: 'Agregar experiencia',
+    },
+         certification: {
+          id: 'certificaciones',
+          title: 'Aún no tienes certificaciones registradas',
+          description: 'Agrega tus certificaciones para completar esta sección de tu perfil.',
+          button: 'Agregar certificación',
+    },
+  } as const
+)[section];
 
     return (
       <div className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-abyssal-blue/20 bg-white px-5 py-12 text-center shadow-sm sm:px-8">

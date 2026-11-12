@@ -118,7 +118,11 @@ export function ProfileRecordsManager({
         Agregar Registros
       </Link>
 
-      <div role="tablist" aria-label="Secciones del perfil" className="flex gap-6 overflow-x-auto border-b border-oatmeal">
+      <div
+        role="tablist"
+        aria-label="Secciones del perfil"
+        className="grid grid-cols-3 gap-2 border-b border-oatmeal sm:flex sm:gap-6"
+      >
         {SECTIONS.map((section) => {
           const isActive = section === activeSection;
           return (
@@ -135,7 +139,7 @@ export function ProfileRecordsManager({
                 window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params}`);
               }}
               className={cn(
-                '-mb-px whitespace-nowrap border-b-2 pb-2.5 text-sm transition',
+                '-mb-px min-w-0 border-b-2 pb-2.5 text-center text-xs transition sm:whitespace-nowrap sm:text-sm',
                 isActive
                   ? 'border-truffle-trouble font-bold text-blue-fantastic'
                   : 'border-transparent font-medium text-blue-fantastic/60 hover:text-blue-fantastic',
