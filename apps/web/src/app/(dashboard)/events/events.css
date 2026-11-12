@@ -2931,3 +2931,315 @@
   .hu9-event-actions .hu9-detail-action { flex-basis: 100%; justify-content: flex-start; width: auto; height: 30px; min-height: 30px; border: 0; padding: 0; text-decoration: underline; }
 }
 
+
+/* HU12: confirmación de almacenamiento del pase */
+.hu12-saved-badge {
+  display: table;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: #c9c1b1;
+  padding: 6px 14px;
+  color: #1b2632;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hu12-back-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c9c1b1;
+  border-radius: 8px;
+  padding: 10px 24px;
+  color: #1b2632;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+
+/* HU12: detalle del pase */
+.hu12-pass-detail .hu12-detail-heading {
+  margin-bottom: 30px;
+}
+
+.hu12-pass-detail .hu12-saved-badge {
+  margin: 0 0 24px;
+  align-self: flex-start;
+}
+
+.hu12-pass-detail .hu12-saved-badge + h1 {
+  font-family: var(--font-playfair), Georgia, serif;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .hu12-pass-detail .hu12-detail-heading {
+    margin-bottom: 20px;
+  }
+}
+
+.hu12-offline-notice {
+  max-width: 896px;
+  margin: 14px auto 0;
+  border: 1px solid #c9c1b1;
+  border-left: 4px solid #ffb162;
+  border-radius: 8px;
+  padding: 14px 18px;
+  color: #1b2632;
+}
+
+.hu12-offline-notice p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+
+/* HU12: posición del botón en las tarjetas de pases */
+@media (min-width: 761px) {
+  .qr-passes-list-copy .qr-passes-open {
+    align-self: flex-end;
+  }
+}
+
+/* HU12: pase no vigente */
+.hu12-invalid-wrapper {
+  width: min(100%, 720px);
+  margin: 0 auto;
+}
+
+.hu12-invalid-card {
+  display: grid;
+  grid-template-columns: 34% 66%;
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid #b9664e;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(27, 38, 50, 0.12);
+}
+
+.hu12-invalid-visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  background: #293b50;
+  overflow: hidden;
+}
+
+.hu12-invalid-pattern {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  opacity: 0.14;
+  background:
+    repeating-linear-gradient(90deg, #eee9df 0 9px, transparent 9px 18px),
+    repeating-linear-gradient(0deg, transparent 0 9px, #293b50 9px 18px);
+}
+
+.hu12-invalid-visual span {
+  position: relative;
+  z-index: 1;
+  padding: 12px 30px;
+  border-radius: 6px;
+  background: #a64e37;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hu12-invalid-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 38px;
+}
+
+.hu12-invalid-content h2 {
+  margin: 0 0 15px;
+  color: #1b2632;
+  font-family: var(--font-playfair), Georgia, serif;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.hu12-invalid-badge {
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid #b9664e;
+  border-radius: 999px;
+  color: #a64e37;
+  font-size: 11px;
+}
+
+.hu12-invalid-description {
+  margin: 25px 0;
+  color: #1b2632;
+  font-size: 13px;
+}
+
+.hu12-invalid-id {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #455160;
+  font-size: 11px;
+}
+
+.hu12-invalid-back {
+  display: inline-block;
+  margin-top: auto;
+  padding: 12px 28px;
+  border-radius: 8px;
+  background: #ffb162;
+  color: #1b2632;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+.hu12-invalid-notice {
+  margin-top: 24px;
+  padding: 14px 16px;
+  border: 1px solid #d5cdbf;
+  border-left: 4px solid #a64e37;
+  border-radius: 8px;
+  color: #1b2632;
+  font-size: 13px;
+}
+
+.hu12-invalid-notice p {
+  margin: 5px 0 0;
+}
+
+@media (max-width: 600px) {
+  .hu12-invalid-card {
+    grid-template-columns: 1fr;
+  }
+
+  .hu12-invalid-content {
+    min-height: 280px;
+    padding: 24px;
+  }
+}
+
+
+
+/* HU12: ajuste visual del pase no vigente */
+.hu12-invalid-wrapper {
+  width: min(100%, 896px);
+}
+
+.hu12-invalid-card {
+  min-height: 425px;
+}
+
+.hu12-invalid-pattern {
+  width: 160px;
+  height: 160px;
+  opacity: 0.22;
+  background: none;
+}
+
+
+/* HU12: pantallas de error y sesión */
+.hu12-state-card {
+  width: min(100%, 720px);
+  margin: 50px auto 0;
+  padding: 28px;
+  border: 1px solid #d3cbbd;
+  border-radius: 10px;
+  background: #eee9df;
+  color: #1b2632;
+}
+
+.hu12-state-card h2 {
+  margin: 24px 0;
+  font-family: var(--font-playfair), Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.hu12-state-card p {
+  margin: 20px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.hu12-state-badge {
+  display: inline-block;
+  min-width: 170px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #a64e37;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hu12-state-session {
+  border-left: 4px solid #1b2632;
+}
+
+.hu12-state-session .hu12-state-badge {
+  background: #c9c1b1;
+  color: #1b2632;
+}
+
+.hu12-state-error {
+  border-left: 4px solid #a64e37;
+}
+
+.hu12-state-unsaved .hu12-state-badge {
+  background: #ffb162;
+  color: #1b2632;
+}
+
+.hu12-state-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid #d3cbbd;
+}
+
+.hu12-state-primary,
+.hu12-state-secondary {
+  display: inline-flex;
+  min-width: 150px;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 18px;
+  border: 1px solid #c9c1b1;
+  border-radius: 7px;
+  color: #1b2632;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.hu12-state-primary {
+  border-color: #ffb162;
+  background: #ffb162;
+}
+
+.hu12-state-secondary {
+  background: transparent;
+}
+
+@media (max-width: 600px) {
+  .hu12-state-card {
+    margin-top: 24px;
+    padding: 20px;
+  }
+
+  .hu12-state-actions > * {
+    flex: 1 1 100%;
+  }
+}

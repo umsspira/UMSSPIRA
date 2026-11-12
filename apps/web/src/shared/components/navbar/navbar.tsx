@@ -26,14 +26,41 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
   const isCompany = (role as any) === 'empresa' || pagePath.includes('/companies');
   const currentRole = isCompany ? 'empresa' : role;
 
-  const sections = navigationFor(currentRole as any);
+  const isPassPage =
+    currentRole === 'titulado' &&
+    (pagePath === '/mis-pases' ||
+      pagePath.startsWith('/mis-pases/') ||
+      pagePath === '/events/catalog/passes');
+
+  const baseSections = navigationFor(currentRole as any);
+  const sections = isPassPage
+    ? [
+        ...baseSections.filter(section => section.id === 'events'),
+        ...baseSections.filter(section => section.id === 'jobs'),
+        ...baseSections.filter(section => section.id === 'mentorship'),
+        {
+          id: 'benefits',
+          label: 'Beneficios',
+          items: [{ id: 'benefits', label: 'Beneficios y convenios', href: '/portal/beneficios' }],
+        },
+        ...baseSections.filter(section => section.id === 'community'),
+      ]
+    : baseSections;
+
+  const sectionHref = (sectionId: string) => {
+    if (isPassPage) {
+      if (sectionId === 'benefits') return '/portal/beneficios';
+      if (['events', 'jobs', 'community'].includes(sectionId)) return null;
+    }
+    return directHref(sectionId, currentRole as any);
+  };
   const accountLinks = visibleLinks(NAVBAR_ACCOUNT_LINKS, currentRole as any);
   const home = session ? '/portal' : '/portal/institucional';
   
   // Inicio solo se ilumina en la portada real (sin ?tab=...).
   // Cualquier otra pantalla ilumina la sección a la que pertenece (con su query).
   const onHome = pagePath === home && !new URLSearchParams(query).get('tab');
-  const active = onHome ? null : activeSection(pagePath, query);
+  const active = onHome ? null : isPassPage ? 'events' : activeSection(pagePath, query);
   const homeActive = onHome;
   // Ruta completa (con query) para marcar el ítem seleccionado dentro del desplegable.
   const fullPath = query ? `${pagePath}?${query}` : pagePath;
@@ -103,7 +130,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
       <nav className={styles.desktopNavigation} aria-label="Navegación principal">
         <Link href={resolveHref(home)} className={`${styles.topLink} ${homeActive && !sectionOpen ? styles.active : ''}`} aria-current={homeActive ? 'page' : undefined} onClick={close} prefetch={false}>Inicio</Link>
         {sections.map(section => {
-          const direct = directHref(section.id, currentRole as any);
+          const direct = sectionHref(section.id);
           if (direct) return <Link key={section.id} href={resolveHref(direct)} className={`${styles.topLink} ${highlighted === section.id ? styles.active : ''}`} aria-current={active === section.id ? 'page' : undefined} onClick={close} prefetch={false}>{section.label}</Link>;
           return <div key={section.id} className={styles.dropdown}>
           <button type="button" className={`${styles.trigger} ${highlighted === section.id ? styles.active : ''}`} aria-expanded={opened === section.id} aria-controls={panelId(section.id)} onClick={event => toggle(section.id, event.currentTarget)} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); openWithKeyboard(section.id, event.currentTarget); } }}>{section.label}<ChevronDown size={13} strokeWidth={2.3} className={opened === section.id ? styles.rotated : undefined} /></button>
@@ -145,7 +172,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
         <button type="button" className={styles.mobileToggle} aria-label={mobile ? 'Cerrar navegación principal' : 'Abrir navegación principal'} aria-expanded={mobile} aria-controls={panelId('mobile')} onClick={event => { lastTrigger.current = event.currentTarget; setMobile(!mobile); setOpened(null); }}>{mobile ? <X size={24} /> : <Menu size={24} />}</button>
       </div>
     </div>
-    {mobile && <nav className={styles.mobileNavigation} id={panelId('mobile')} aria-label="Navegación móvil"><Link href={resolveHref(home)} className={styles.mobileHome} onClick={close} prefetch={false}>Inicio</Link>{sections.map(section => directHref(section.id, currentRole as any) ? <Link key={section.id} href={resolveHref(directHref(section.id, currentRole as any)!)} className={styles.mobileHome} onClick={close} prefetch={false}>{section.label}</Link> : <div key={section.id}><button type="button" className={styles.mobileSection} aria-expanded={opened === `mobile-${section.id}`} aria-controls={panelId(`mobile-${section.id}`)} onClick={() => setOpened(value => value === `mobile-${section.id}` ? null : `mobile-${section.id}`)}>{section.label}<ChevronDown size={15} /></button>{opened === `mobile-${section.id}` && <div className={styles.mobileLinks} id={panelId(`mobile-${section.id}`)}><NavbarLinks items={section.items} currentPath={fullPath} resolveHref={resolveHref} onNavigate={close} /></div>}</div>)}{session ? <div className={styles.mobileAccount}><strong>Mi cuenta</strong><NavbarLinks items={accountLinks} currentPath={fullPath} resolveHref={resolveHref} onNavigate={close} /><button type="button" className={styles.logout} onClick={logout}><LogOut size={16} />Cerrar sesión</button></div> : <div className={styles.mobileAuth}><Link href={resolveHref('/register')} onClick={close} className={styles.register} prefetch={false}>Crear mi cuenta</Link></div>}</nav>}
+    {mobile && <nav className={styles.mobileNavigation} id={panelId('mobile')} aria-label="Navegación móvil"><Link href={resolveHref(home)} className={styles.mobileHome} onClick={close} prefetch={false}>Inicio</Link>{sections.map(section => sectionHref(section.id) ? <Link key={section.id} href={resolveHref(sectionHref(section.id)!)} className={styles.mobileHome} onClick={close} prefetch={false}>{section.label}</Link> : <div key={section.id}><button type="button" className={styles.mobileSection} aria-expanded={opened === `mobile-${section.id}`} aria-controls={panelId(`mobile-${section.id}`)} onClick={() => setOpened(value => value === `mobile-${section.id}` ? null : `mobile-${section.id}`)}>{section.label}<ChevronDown size={15} /></button>{opened === `mobile-${section.id}` && <div className={styles.mobileLinks} id={panelId(`mobile-${section.id}`)}><NavbarLinks items={section.items} currentPath={fullPath} resolveHref={resolveHref} onNavigate={close} /></div>}</div>)}{session ? <div className={styles.mobileAccount}><strong>Mi cuenta</strong><NavbarLinks items={accountLinks} currentPath={fullPath} resolveHref={resolveHref} onNavigate={close} /><button type="button" className={styles.logout} onClick={logout}><LogOut size={16} />Cerrar sesión</button></div> : <div className={styles.mobileAuth}><Link href={resolveHref('/register')} onClick={close} className={styles.register} prefetch={false}>Crear mi cuenta</Link></div>}</nav>}
     <NavbarSearch open={search} onClose={() => setSearch(false)} links={[{ id: 'home', label: 'Inicio', href: home }, ...sections.flatMap(section => section.items), ...accountLinks]} resolveHref={resolveHref} />
   </header>;
 }
