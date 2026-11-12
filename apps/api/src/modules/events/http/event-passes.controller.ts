@@ -1,10 +1,11 @@
 
-import { Controller, Post, Param, Get, Req } from '@nestjs/common';
+import { Controller, Post, Param, Get, Header, Req } from '@nestjs/common';
 
 import { GenerateEventPassService } from '../application/generate-event-pass.service';
 import { ListUserPassesService } from '../application/list-user-passes.service';
 
 import type { AuthRequest } from '../../../shared/http/auth/contracts/auth-request';
+import { Roles } from '../../../shared/http/auth/decorators/roles.decorator';
 import { AccessError } from '../../../shared/security/errors/access-error';
 
 @Controller('registrations')
@@ -34,6 +35,8 @@ export class EventPassesController {
 
   // HU-7.11: Consultar los pases QR del usuario autenticado.
   @Get('my-passes')
+  @Roles('titulado')
+  @Header('Cache-Control', 'no-store')
   async listMyPasses(@Req() request: AuthRequest) {
     const usuarioTitularId = request.auth?.actor.id;
 

@@ -19,6 +19,14 @@ export class ListUserPassesService {
         inscripcion: {
           include: {
             evento: true,
+            usuario: {
+              select: {
+                nombre: true,
+                titulado: {
+                  select: { nombre: true, apellido: true },
+                },
+              },
+            },
           },
         },
       },
@@ -47,7 +55,16 @@ export class ListUserPassesService {
         // Agregamos esto para que el frontend dibuje la tarjeta completa:
         eventDetails: {
           name: pase.inscripcion?.evento?.titulo ?? 'Evento UMSSPIRA',
-          userName: 'Titulado', 
+          userName:
+            [
+              pase.inscripcion?.usuario?.titulado?.nombre,
+              pase.inscripcion?.usuario?.titulado?.apellido,
+            ]
+              .filter((part): part is string => Boolean(part?.trim()))
+              .map((part) => part.trim())
+              .join(' ') ||
+            pase.inscripcion?.usuario?.nombre?.trim() ||
+            'Titulado',
           dateTime: pase.inscripcion?.evento?.fecha_inicio?.toISOString() ?? '',
           location: pase.inscripcion?.evento?.ubicacion ?? 'Ubicación por definir'
         }
