@@ -205,3 +205,80 @@ export const IDLE_RESULT: ImageQualityResult = {
   warnings: [],
   metrics: null,
 };
+
+
+
+interface DecodedImage {
+  pixels: PixelBuffer;
+  originalWidth: number;
+  originalHeight: number;
+}
+
+/** Decodifica el archivo y lo reduce en un canvas. Solo corre en el navegador. */
+async function decodeImageFile(
+  file: File,
+  maxSide: number,
+): Promise<DecodedImage> {
+  if (typeof createImageBitmap !== "function") {
+    throw new Error("El navegador no admite createImageBitmap");
+  }
+
+  const bitmap = await createImageBitmap(file);
+  try {
+    const target = getAnalysisSize(bitmap.width, bitmap.height, maxSide);
+    const canvas = document.createElement("canvas");
+    canvas.width = target.width;
+    canvas.height = target.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("No se pudo crear el contexto 2D");
+
+    context.drawImage(bitmap, 0, 0, target.width, target.height);
+    const imageData = context.getImageData(0, 0, target.width, target.height);
+    return {
+      pixels: {
+        data: imageData.data,
+        width: imageData.width,
+        height: imageData.height,
+      },
+      originalWidth: bitmap.width,
+      originalHeight: bitmap.height,
+    };
+  } finally {
+    bitmap.close();
+  }
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException("Analisis cancelado", "AbortError");
+}
+
+/**
+ * Analiza un archivo sin enviarlo al servidor. Los PDF y los formatos no
+ * admitidos devuelven "skipped". Los errores se propagan al llamador.
+ */
+export async function analyzeImageFile(
+  file: File,
+  options: { config?: ImageQualityConfig; signal?: AbortSignal } = {},
+): Promise<ImageQualityResult> {
+  const config = options.config ?? IMAGE_QUALITY_CONFIG;
+  if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) return SKIPPED_RESULT;
+
+  const decoded = await decodeImageFile(file, config.analysisMaxSide);
+  throwIfAborted(options.signal);
+
+  // Cede el control para que la vista previa se pinte antes del calculo.
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  throwIfAborted(options.signal);
+
+  const metrics = computeImageQualityMetrics(
+    decoded.pixels,
+    decoded.originalWidth,
+    decoded.originalHeight,
+    config,
+  );
+  return {
+    status: "done",
+    warnings: evaluateImageQuality(metrics, config),
+    metrics,
+  };
+}
