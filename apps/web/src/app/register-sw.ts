@@ -94,13 +94,18 @@ function waitForPageLoad(): Promise<void> {
   });
 }
 
+// CA-05: indica si el navegador soporta Service Workers
+export function isServiceWorkerSupported(): boolean {
+  return typeof window !== 'undefined' && 'serviceWorker' in navigator;
+}
+
 export async function registerServiceWorker(
   onUpdate?: UpdateHandler,
 ): Promise<ServiceWorkerRegistration | undefined> {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+  if (!isServiceWorkerSupported()) {
     return undefined;
   }
-  
+
   await waitForPageLoad();
   // En la primera visita no había SW controlando la página: no hace falta recargar
   const hadController = Boolean(navigator.serviceWorker.controller);
