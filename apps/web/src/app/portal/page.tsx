@@ -1,3 +1,4 @@
+// apps/web/src/app/portal/page.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -13,6 +14,7 @@ import {
   Bookmark,
   MapPin,
   Clock3,
+  Settings, // 👈 NUEVO IMPORT
 } from 'lucide-react';
 
 import umssBg from '@/shared/assets/images/14sept.webp';
@@ -286,6 +288,16 @@ export default function Home() {
           </p>
         )}
       </section>
+
+      {/* 👇 BOTÓN FLOTANTE PARA IR A CONFIGURACIÓN (HU01) 👇 */}
+      <Link
+        href="/portal/configuracion"
+        className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-[#1B2632] text-white rounded-full shadow-lg hover:bg-slate-800 transition-colors z-50 font-medium"
+        title="Configuración de la PWA"
+      >
+        <Settings className="w-5 h-5" />
+        <span>Configuración</span>
+      </Link>
     </div>
   );
 }

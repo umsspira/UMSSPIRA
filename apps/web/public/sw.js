@@ -1,3 +1,4 @@
+// apps/web/public/sw.js
 
 const VERSION = 'v2';
 
@@ -353,10 +354,50 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// ==========================================
+// EVENTO MESSAGE (Actualizaciones y Perfiles)
+// ==========================================
 self.addEventListener('message', (event) => {
   const data = event.data;
   if (!data) return;
 
+  // CA-08: Escuchar la orden de actualizar caché desde la pantalla de configuración
+  if (data.type === 'UPDATE_CACHE') {
+    event.waitUntil(
+      (async () => {
+        try {
+          // Volvemos a descargar los recursos esenciales
+          const staticCache = await caches.open(STATIC_CACHE);
+          await Promise.allSettled(
+            PRECACHE_URLS.map(async (url) => {
+              const response = await fetch(url);
+              if (response.ok) await staticCache.put(url, response);
+            })
+          );
+
+          const assetsCache = await caches.open(ASSETS_CACHE);
+          await Promise.allSettled(
+            PRECACHE_ICONS.map(async (url) => {
+              const response = await fetch(url);
+              if (response.ok) await assetsCache.put(url, response);
+            })
+          );
+
+          await precacheShellAssets(staticCache);
+
+          // Avisamos a la pantalla que terminó la actualización
+          self.clients.matchAll().then((clients) => {
+            clients.forEach((client) => client.postMessage({ type: 'CACHE_UPDATED' }));
+          });
+        } catch (error) {
+          console.error('Error al actualizar la caché desde el SW:', error);
+        }
+      })()
+    );
+    return;
+  }
+
+  // Comandos originales de tu proyecto
   if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
     return;
