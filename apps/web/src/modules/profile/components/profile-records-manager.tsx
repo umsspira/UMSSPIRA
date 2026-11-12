@@ -38,6 +38,7 @@ export function ProfileRecordsManager({
   const records = store?.records ?? localRecords;
   const [activeSection, setActiveSection] = useState<RecordSection>(initialSection);
   const [recordToDelete, setRecordToDelete] = useState<ProfileRecord | null>(null);
+  const [isClosingModal, setIsClosingModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<DeleteRecordErrorCode | null>(null);
   const [isToastVisible, setIsToastVisible] = useState(false);
@@ -47,15 +48,26 @@ export function ProfileRecordsManager({
     const timeoutId = setTimeout(() => setIsToastVisible(false), TOAST_DURATION_MS);
     return () => clearTimeout(timeoutId);
   }, [isToastVisible]);
+  useEffect(() => {
+  if (!isClosingModal) return;
+
+  const timeoutId = setTimeout(() => {
+    setRecordToDelete(null);
+    setDeleteError(null);
+    setIsClosingModal(false);
+  }, 200);
+
+  return () => clearTimeout(timeoutId);
+  }, [isClosingModal]);
 
   function openDeleteModal(record: ProfileRecord) {
     setDeleteError(null);
+    setIsClosingModal(false);
     setRecordToDelete(record);
   }
 
   function closeDeleteModal() {
-    setRecordToDelete(null);
-    setDeleteError(null);
+    setIsClosingModal(true);
   }
 
   async function handleConfirmDelete() {
@@ -73,8 +85,8 @@ export function ProfileRecordsManager({
           [activeSection]: removeProfileRecord(current[activeSection], recordToDelete.id),
         }));
       }
-      setRecordToDelete(null);
       setIsToastVisible(true);
+      setIsClosingModal(true);
     } catch (error) {
       setDeleteError(error instanceof DeleteRecordException ? error.code : 'network');
     } finally {
@@ -163,6 +175,7 @@ export function ProfileRecordsManager({
           section={activeSection}
           record={recordToDelete}
           isDeleting={isDeleting}
+          isClosing={isClosingModal}
           errorCode={deleteError}
           onConfirm={handleConfirmDelete}
           onCancel={closeDeleteModal}

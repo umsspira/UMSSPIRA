@@ -26,7 +26,7 @@ const EDIT_ROUTES: Record<RecordSection, string> = {
 
 // Íconos sin borde, como en la v3 del Figma
 const actionClassName =
-  'flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-palladian';
+  'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors duration-200 hover:bg-palladian focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-truffle-trouble';
 
 function RecordActions({ section, record, onDelete }: RecordActionsProps) {
   return (
@@ -56,7 +56,7 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
   const columns = getRecordColumns(section);
 
   if (records.length === 0) {
-    const emptySection = {
+      const emptySection = {
       education: {
         id: 'formacion-academica',
         title: 'Aún no tienes formación académica registrada',
@@ -78,7 +78,7 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
     }[section];
 
     return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-abyssal-blue/20 bg-white px-5 py-10 text-center sm:px-8">
+      <div className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-abyssal-blue/20 bg-white px-5 py-12 text-center shadow-sm sm:px-8">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-palladian">
           <FilePlus2 className="h-6 w-6 text-truffle-trouble" aria-hidden="true" />
         </div>
@@ -105,7 +105,7 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
   return (
     <>
       {/* Tabla de escritorio */}
-      <div className="hidden overflow-hidden rounded-2xl border border-abyssal-blue/10 bg-white md:block">
+      <div className="hidden overflow-x-auto rounded-2xl border border-abyssal-blue/10 bg-white shadow-sm md:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-palladian/50">
             <tr>
@@ -122,7 +122,7 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
           </thead>
           <tbody>
             {records.map((record) => (
-              <tr key={record.id} className="border-t border-oatmeal/60">
+              <tr key={record.id} className="border-t border-oatmeal/60 transition-colors duration-200 hover:bg-palladian/20">
                 {columns.map((column) => (
                   <td key={column.label} className="px-5 py-4 text-blue-fantastic">
                     {column.getValue(record)}
@@ -144,7 +144,7 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
           return (
             <li
               key={record.id}
-              className="flex items-start justify-between gap-3 rounded-2xl border border-abyssal-blue/10 bg-white p-4"
+              className="flex items-start justify-between gap-4 rounded-2xl border border-abyssal-blue/10 bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
             >
               <div className="min-w-0 space-y-1">
                 <p className="text-base font-bold text-blue-fantastic">{primary.getValue(record)}</p>
