@@ -13,13 +13,19 @@ type ScannerState =
   | { status: 'idle' }
   | { status: 'validating' }
   | { status: 'valid'; attendance: EventAttendanceResult }
-  | { status: 'error'; message: string };
+  | { status: 'error'; message: string; code?: string };
+
+const INVALID_PASS_CODES = new Set([
+  'PASS_NOT_FOUND', 'PASS_EVENT_MISMATCH', 'PASS_INACTIVE', 'PASS_EXPIRED', 'ATTENDANCE_NOT_ALLOWED',
+]);
 
 export function EventPassScanner({ eventId }: { eventId: string }) {
   const request = useRef<AbortController | null>(null);
   const [state, setState] = useState<ScannerState>({ status: 'idle' });
   const pending = state.status === 'validating';
   const duplicate = state.status === 'valid' && state.attendance.code === 'ATTENDANCE_ALREADY_RECORDED';
+  const rejectedPass = state.status === 'error' && INVALID_PASS_CODES.has(state.code ?? '');
+  const showSideAction = duplicate || rejectedPass;
   const [cameraActions, setCameraActions] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => () => { request.current?.abort(); }, []);
@@ -40,6 +46,7 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             reason instanceof SessionError;
           setState({
             status: 'error',
+            code: reason instanceof ApiClientError ? reason.code : undefined,
             message: knownRejection
               ? reason.message
               : 'No se pudo confirmar la asistencia. Comprueba la conexión y vuelve a escanear el pase para verificar su estado.',
@@ -54,24 +61,26 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
   }, [eventId]);
 
   return (
-    <div className={`event-scanner-layout${duplicate ? ' event-scanner-duplicate' : ''}`}>
+    <div className={`event-scanner-layout${showSideAction ? ' event-scanner-feedback' : ''}`}>
       <EventScannerCamera
         onRead={onRead}
         disabled={pending}
         startLabel={state.status === 'valid' || state.status === 'error' ? 'Escanear otro pase' : 'Activar cámara'}
         onStart={() => setState({ status: 'idle' })}
-        actionContainer={duplicate ? cameraActions : null}
-        inactiveMessage={duplicate ? 'Lectura completada' : undefined}
+        actionContainer={showSideAction ? cameraActions : null}
+        inactiveMessage={showSideAction ? 'Lectura completada' : undefined}
       />
       <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions" aria-busy={pending}>
         <h2 id="scanner-instructions">
-          {pending ? 'Validando el pase' : state.status === 'valid'
+          {pending ? 'Validando el pase' : rejectedPass ? 'Pase no válido' : state.status === 'valid'
             ? state.attendance.code === 'ATTENDANCE_RECORDED' ? 'Asistencia registrada' : 'Asistencia ya registrada'
             : state.status === 'error' ? 'No se pudo validar el pase' : 'Cómo escanear'}
         </h2>
-        {duplicate ? (
+        {showSideAction ? (
           <p className="event-scanner-description">
-            Este pase ya se usó para registrar asistencia. No necesitas volver a registrarlo.
+            {duplicate
+              ? 'Este pase ya se usó para registrar asistencia. No necesitas volver a registrarlo.'
+              : 'Comprueba que el código sea válido y pertenezca al evento que estás revisando.'}
           </p>
         ) : null}
         {pending ? (
@@ -95,7 +104,10 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             )}
           </div>
         ) : state.status === 'error' ? (
-          <p className="event-scanner-result" role="alert">{state.message}</p>
+          <div className="event-scanner-result" role="alert">
+            {rejectedPass ? <strong>QR rechazado</strong> : null}
+            <p>{state.message}</p>
+          </div>
         ) : (
           <ol>
             <li>Coloca el pase frente a la cámara.</li>
@@ -119,9 +131,9 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             Cancelar validación
           </button>
         ) : null}
-        <div className={`event-scanner-panel-actions${duplicate ? ' has-camera-action' : ''}`}>
+        <div className={`event-scanner-panel-actions${showSideAction ? ' has-camera-action' : ''}`}>
           <Link href={`/events/${eventId}/participants`} className="event-button event-button-secondary">Participantes</Link>
-          {duplicate ? <div ref={setCameraActions} /> : null}
+          {showSideAction ? <div ref={setCameraActions} /> : null}
         </div>
       </aside>
     </div>

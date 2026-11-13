@@ -46,12 +46,22 @@ describe('Validación desde el escáner', () => {
     expect(screen.getByRole('heading', { name: 'Cómo escanear' })).toBeInTheDocument();
   });
 
-  it('muestra el rechazo del servidor y permite escanear otra vez', async () => {
-    jest.mocked(validateScannedPass).mockRejectedValue(new ApiClientError('El pase corresponde a otro evento', 409, 'PASS_EVENT_MISMATCH'));
+  it.each([
+    ['PASS_EVENT_MISMATCH', 409, 'El pase corresponde a otro evento'],
+    ['PASS_NOT_FOUND', 404, 'No se encontró un pase reconocido'],
+    ['PASS_INACTIVE', 409, 'El pase no está vigente'],
+    ['PASS_EXPIRED', 410, 'El pase ha vencido'],
+    ['ATTENDANCE_NOT_ALLOWED', 409, 'La inscripción debe estar confirmada'],
+  ])('muestra el mockup de pase rechazado para %s y permite escanear otra vez', async (code, status, message) => {
+    jest.mocked(validateScannedPass).mockRejectedValue(new ApiClientError(message, status, code));
     render(<EventPassScanner eventId="evento" />);
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('El pase corresponde a otro evento');
-    fireEvent.click(screen.getByRole('button', { name: 'Escanear otro pase' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(screen.getByRole('heading', { name: 'Pase no válido' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('QR rechazado');
+    expect(screen.getByText('Lectura completada')).toBeInTheDocument();
+    const panel = screen.getByRole('complementary');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Escanear otro pase' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
