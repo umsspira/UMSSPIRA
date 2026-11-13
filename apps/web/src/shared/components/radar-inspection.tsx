@@ -145,7 +145,7 @@ export default function RadarInspection({
 <div className="mt-2 space-y-2 text-xs text-gray-600 border-t border-gray-200 pt-3">
   <p>
     El cálculo utiliza únicamente la información textual guardada en tu perfil:
-    formación académica, experiencia laboral, certificaciones y descripción profesional.
+    título e institución de formación, cargo y empresa de experiencia laboral, nombre y entidad emisora de certificaciones, y descripción profesional. Las fechas y los archivos adjuntos quedan fuera del cálculo.
   </p>
 
   <p>
@@ -205,7 +205,7 @@ export default function RadarInspection({
             )}
             {projects.length > 0 && (
               <div>
-                <h5 className="font-semibold text-sm text-gray-700 mb-1">Proyectos asociados:</h5>
+                <h5 className="font-semibold text-sm text-gray-700 mb-1">Proyectos relacionados (informativos, sin aporte al cálculo):</h5>
                 <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
                   {projects.map((proj, idx) => (
                     <li key={idx}>
