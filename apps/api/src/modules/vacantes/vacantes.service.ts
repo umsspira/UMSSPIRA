@@ -1,5 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
+
+// HU-04: códigos de etapa. El front traduce a etiquetas ("En revisión", etc.).
+export const ETAPAS_POSTULACION = ['postulado', 'en_revision', 'preseleccionado', 'entrevista', 'descartado'] as const;
+export type EtapaPostulacion = (typeof ETAPAS_POSTULACION)[number];
 
 export interface UpdateVacanteData {
   titulo?: string;
@@ -86,6 +90,42 @@ export class VacantesService {
 
     return this.prisma.vacante.delete({
       where: { id: idVacante }
+    });
+  }
+
+  // HU-04: cambia la etapa de una postulación de una vacante de la empresa del actor.
+  // Acepta al usuario dueño (empresa.id_usuario) y a los usuarios activos invitados (empresa_usuario, HU-02).
+  async cambiarEtapaPostulante(idVacante: string, idPostulacion: string, idUsuario: string, etapa?: string) {
+    if (!etapa || !(ETAPAS_POSTULACION as readonly string[]).includes(etapa)) {
+      throw new BadRequestException('Etapa inválida');
+    }
+
+    const postulacion = await this.prisma.postulacion.findFirst({
+      where: { id: idPostulacion, id_vacante: idVacante },
+      select: { id: true, vacante: { select: { id_empresa: true } } },
+    });
+    if (!postulacion?.vacante?.id_empresa) {
+      throw new NotFoundException('Postulación no encontrada');
+    }
+
+    const idEmpresa = postulacion.vacante.id_empresa;
+    const tieneAcceso = await this.prisma.empresa.count({
+      where: {
+        id: idEmpresa,
+        OR: [
+          { id_usuario: idUsuario },
+          { empresa_usuario_registros: { some: { id_usuario: idUsuario, estado: 'activo' } } },
+        ],
+      },
+    });
+    if (!tieneAcceso) {
+      throw new ForbiddenException('No tienes permiso sobre esta vacante');
+    }
+
+    return this.prisma.postulacion.update({
+      where: { id: idPostulacion },
+      data: { estado: etapa },
+      select: { id: true, estado: true },
     });
   }
 }
