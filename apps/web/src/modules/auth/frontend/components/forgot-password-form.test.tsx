@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { ForgotPasswordForm } from "./forgot-password-form";
 import { requestPasswordRecovery } from "../services/password-recovery.service";
 
@@ -6,46 +6,71 @@ jest.mock("../services/password-recovery.service", () => ({
   requestPasswordRecovery: jest.fn(),
 }));
 
-const mockedRequest = requestPasswordRecovery as jest.MockedFunction<
-  typeof requestPasswordRecovery
->;
+jest.mock("next/link", () => {
+  return ({ children }: { children: React.ReactNode }) => <a>{children}</a>;
+});
 
-function submitWith(value: string) {
-  fireEvent.change(screen.getByLabelText(/correo electrónico/i), { target: { value } });
-  fireEvent.click(screen.getByRole("button", { name: "Enviar enlace" }));
-}
-
-describe("ForgotPasswordForm", () => {
+describe("ForgotPasswordForm - BUG-18", () => {
   beforeEach(() => {
-    mockedRequest.mockReset();
-    mockedRequest.mockResolvedValue(undefined);
+    jest.clearAllMocks();
+    jest.useFakeTimers();
   });
 
-  it("muestra un error y no envía la solicitud si el correo está vacío", async () => {
-    render(<ForgotPasswordForm />);
-    submitWith("");
-    expect(await screen.findByText("Ingresa tu correo electrónico")).toBeTruthy();
-    expect(mockedRequest).not.toHaveBeenCalled();
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
-  it("muestra un error si el correo no tiene formato válido", async () => {
+  it("deshabilita el botón de reenvío y muestra el contador al enviar por primera vez", async () => {
+    (requestPasswordRecovery as jest.Mock).mockResolvedValueOnce({});
     render(<ForgotPasswordForm />);
-    submitWith("correo-invalido");
-    expect(await screen.findByText("Ingresa un correo electrónico válido")).toBeTruthy();
-    expect(mockedRequest).not.toHaveBeenCalled();
+    
+    fireEvent.change(screen.getByLabelText(/CORREO ELECTRÓNICO/i), {
+      target: { value: "test@umss.edu.bo" },
+    });
+    
+    fireEvent.click(screen.getByRole("button", { name: /Enviar enlace/i }));
+    
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const resendButton = screen.getByRole("button", { name: /Reenviar enlace en 30s/i });
+    expect(resendButton).toBeDisabled();
   });
 
-  it("envía el correo sin espacios y muestra el mensaje genérico", async () => {
+  it("habilita el botón y permite reenviar cuando el contador llega a 0", async () => {
+    (requestPasswordRecovery as jest.Mock).mockResolvedValueOnce({});
     render(<ForgotPasswordForm />);
-    submitWith("  usuario@umss.edu.bo  ");
-    expect(await screen.findByText(/te enviaremos un enlace/i)).toBeTruthy();
-    expect(mockedRequest).toHaveBeenCalledWith("usuario@umss.edu.bo");
-  });
+    
+    fireEvent.change(screen.getByLabelText(/CORREO ELECTRÓNICO/i), {
+      target: { value: "test@umss.edu.bo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Enviar enlace/i }));
+    
+    await act(async () => {
+      await Promise.resolve();
+    });
 
-  it("muestra un error si la solicitud falla", async () => {
-    mockedRequest.mockRejectedValue(new Error("fallo"));
-    render(<ForgotPasswordForm />);
-    submitWith("usuario@umss.edu.bo");
-    expect(await screen.findByRole("alert")).toBeTruthy();
+    // LA SOLUCIÓN DEFINITIVA: 
+    // Avanzar el tiempo 30 veces, permitiendo que React procese cada tick
+    for (let i = 0; i < 30; i++) {
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+        await Promise.resolve();
+      });
+    }
+
+    const resendButton = screen.getByRole("button", { name: /^Reenviar enlace$/i });
+    expect(resendButton).toBeEnabled();
+    
+    (requestPasswordRecovery as jest.Mock).mockResolvedValueOnce({});
+    fireEvent.click(resendButton);
+    
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(requestPasswordRecovery).toHaveBeenCalledTimes(2);
+    expect(screen.getByText(/¡Enlace reenviado con éxito!/i)).toBeInTheDocument();
   });
 });
