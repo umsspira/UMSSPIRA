@@ -22,6 +22,13 @@ export default function AffinityLinkCard() {
         Descubre qué tan bien encaja tu perfil con las oportunidades laborales de la Red.
       </p>
 
+      {/* CA-03: el cálculo todavía no llega (mismo texto que la pantalla de la Épica 3) */}
+      {state.status === 'loading' && (
+        <p role="status" className="text-sm font-medium text-blue-fantastic">
+          Actualizando tu afinidad…
+        </p>
+      )}
+
       {/* CA-01: valores del último cálculo */}
       {state.status === 'ready' && <MiniRadarPlaceholder values={state.values} />}
 
