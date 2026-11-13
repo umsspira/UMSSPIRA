@@ -118,6 +118,7 @@ if (loadError) {
         <section className="min-w-0 flex-1 rounded-2xl border border-abyssal-blue/10 bg-white px-4 py-5 md:px-7 md:py-6">
           <ProfessionalDescription description={description} />
           <Timeline sections={sortSectionsByRecency(timeline)} />
+          {/* TODO(HU-19): en la sección «Proyectos», cada proyecto lleva <ViewProjectButton project={{ name, url, description, technologies }} /> (HU-20) */}
         </section>
       </div>
     </div>
