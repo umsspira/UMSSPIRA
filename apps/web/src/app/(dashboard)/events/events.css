@@ -67,14 +67,19 @@
   font-size: 13px;
 }
 
-.event-scanner-instructions h2 {
+.event-scanner-layout .event-scanner-instructions h2 {
   font-size: 14px;
+  line-height: 20px;
+  font-family: inherit;
+  font-weight: 600;
   color: #b64a2f;
   margin: 0;
 }
 
-.event-scanner-instructions ol { margin: 0; padding-left: 18px; }
+.event-scanner-instructions ol { margin: 0; padding-left: 18px; list-style: decimal; }
 .event-scanner-instructions .event-button { margin-top: auto; }
+
+.event-scanner-layout .event-button { font-size: 14px; line-height: 20px; }
 
 .event-scanner-result {
   width: 100%;

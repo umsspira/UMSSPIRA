@@ -83,7 +83,7 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             Cancelar validación
           </button>
         ) : null}
-        <Link href={`/events/${eventId}/participants`} className="event-button">Participantes</Link>
+        <Link href={`/events/${eventId}/participants`} className="event-button event-button-secondary">Participantes</Link>
       </aside>
     </div>
   );
