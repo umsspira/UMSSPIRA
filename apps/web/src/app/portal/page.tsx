@@ -13,6 +13,7 @@ import {
   Bookmark,
   MapPin,
   Clock3,
+  Settings,
   WifiOff,
   Wifi,
   AlertTriangle,
@@ -258,7 +259,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Tarjeta de Estado Dinámica */}
       {shouldShowStatusCard && (
         <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
           {isOnline ? (
@@ -383,6 +383,28 @@ export default function Home() {
           </p>
         )}
       </section>
+
+      <Link
+        href="/portal/configuracion"
+        className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-[#1B2632] text-white rounded-full shadow-lg hover:bg-slate-800 transition-colors z-50 font-medium"
+        title="Configuración de la PWA"
+      >
+        <Settings className="w-5 h-5" />
+        <span>Configuración</span>
+      </Link>
+
+      {showReconnectedToast && (
+        <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-[#E6F4EA] border border-[#B7E1CD] text-[#137333] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5" />
+            <div>
+              <h4 className="font-bold text-sm">Conexión restablecida</h4>
+              <p className="text-xs opacity-90">Este aviso desaparece en unos segundos.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
