@@ -25,6 +25,8 @@ import { ListUserPassesService } from './application/list-user-passes.service'; 
 import { EventPassesController } from './http/event-passes.controller';
 import { CancelPublishedEventController } from './http/controllers/cancel-published-event.controller';
 import { CancelEventRegistrationController } from './http/controllers/cancel-event-registration.controller';
+import { ValidateAttendancePassController } from './http/controllers/validate-attendance-pass.controller';
+import { ValidateAttendancePassService } from './application/validate-attendance-pass.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -47,9 +49,16 @@ import { CancelEventRegistrationController } from './http/controllers/cancel-eve
     RegisterEventController,
     CancelEventRegistrationController,
     GetEventParticipantsController,
+    ValidateAttendancePassController,
     EventPassesController,
     CancelPublishedEventController,
   ],
-  providers: [...eventsProviders, OptionalAuthenticationGuard , GenerateEventPassService, ListUserPassesService],
+  providers: [
+    ...eventsProviders,
+    OptionalAuthenticationGuard,
+    GenerateEventPassService,
+    ListUserPassesService,
+    ValidateAttendancePassService,
+  ],
 })
 export class EventsModule {}
