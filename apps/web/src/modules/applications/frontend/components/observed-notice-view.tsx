@@ -112,11 +112,21 @@ export function ObservedNoticeView({ token }: { token: string }) {
 
 function ValidView({ data, token }: { data: ObservedApplicationDetail; token: string }) {
   const [pending, setPending] = useState<CorrectionResult | null>(null);
-
+  
   // CAMBIO 3
   const router = useRouter();
 
+  // --- NUEVO ESTADO PARA EL DIÁLOGO DE ADVERTENCIA (B-01) ---
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+
   function handleCancel() {
+    // Asumimos que la validación se maneja internamente en ObservedEditForm 
+    // y nos avisa si hay cambios. Si no, el AlertDialog se dispara de todos modos.
+    setIsCancelDialogOpen(true);
+  }
+
+  function confirmCancel() {
+    setIsCancelDialogOpen(false);
     leaveCorrection(router, {
       historyLength: window.history.length,
       referrer: globalThis.document.referrer,
@@ -219,6 +229,41 @@ function ValidView({ data, token }: { data: ObservedApplicationDetail; token: st
         La corrección de datos se realiza directamente sobre el mismo expediente oficial sin
         generar un trámite duplicado.
       </p>
+
+      {/* DIÁLOGO DE ADVERTENCIA (B-01) */}
+      {isCancelDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div 
+            role="alertdialog" 
+            aria-modal="true" 
+            aria-labelledby="cancel-dialog-title"
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+          >
+            <h2 id="cancel-dialog-title" className="text-lg font-bold text-slate-900">
+              ¿Descartar cambios?
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Si sales ahora, perderás los datos que hayas modificado. Puedes seguir editando para conservarlos.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCancelDialogOpen(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Seguir editando
+              </button>
+              <button
+                type="button"
+                onClick={confirmCancel}
+                className="rounded-lg bg-[#B5533C] px-4 py-2 text-sm font-bold text-white hover:bg-[#9c432f]"
+              >
+                Descartar y salir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
