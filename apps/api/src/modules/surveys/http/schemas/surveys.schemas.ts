@@ -1,19 +1,60 @@
 import { z } from 'zod';
 
+export const WORK_MODALITIES = ['Presencial', 'Remoto', 'Híbrido', 'Hibrido'] as const;
+
+export const SALARY_RANGES = [
+  '0–2.999',
+  '3.000–5.000',
+  '5.001–8.000',
+  '8.001–12.000',
+  '12.001–21.000',
+] as const;
+
+const normalizeDashes = (str: unknown) =>
+  typeof str === 'string' ? str.replace(/-/g, '–') : str;
+
+const meaningfulText = (maxChars: number, fieldName: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, 'Este campo es obligatorio')
+    .max(maxChars, `No puede exceder ${maxChars} caracteres`)
+    .refine(
+      (val) => (val.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g) ?? []).length >= 2,
+      `Ingresa un ${fieldName} válido`,
+    );
+
 export const submitSurveySchema = z
   .object({
     id_encuesta: z.string().uuid().optional(),
     condicion_laboral: z.boolean(),
 
-    cargo: z.string().trim().min(1).max(100).optional(),
-    empresa: z.string().trim().min(1).max(100).optional(),
-    area: z.string().trim().min(1).max(100).optional(),
+    cargo: meaningfulText(150, 'cargo').optional(),
+    empresa: meaningfulText(200, 'empresa').optional(),
+    area: meaningfulText(150, 'área').optional(),
 
-    modalidad: z.string().trim().min(1).optional(),
+    modalidad: z
+      .enum(WORK_MODALITIES, {
+        message: 'Seleccione una modalidad válida',
+      })
+      .transform((val) => (val === 'Hibrido' ? 'Híbrido' : val))
+      .optional(),
 
-    salario_mensual: z.string().trim().min(1).max(30).optional(),
+    salario_mensual: z
+      .preprocess(
+        normalizeDashes,
+        z.enum(SALARY_RANGES, {
+          message: 'Seleccione un rango de salario válido',
+        }),
+      )
+      .optional(),
 
-    tiempo_insercion: z.string().trim().min(1).max(40).optional(),
+    tiempo_insercion: z
+      .string()
+      .trim()
+      .regex(/^\d+$/, 'El tiempo de inserción debe ser un número entero de meses')
+      .max(40)
+      .optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -58,5 +99,4 @@ export const submitSurveySchema = z
     }
   });
 
-export type SubmitSurveyDto =
-  z.infer<typeof submitSurveySchema>;
+export type SubmitSurveyDto = z.infer<typeof submitSurveySchema>;
