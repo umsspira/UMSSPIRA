@@ -134,12 +134,47 @@ export const applicationQuerySchema = z
 export const reviewSchema = z
   .strictObject({
     decision: z.enum(['APROBADA', 'OBSERVADA', 'RECHAZADA']),
+
+    motivos: z
+      .array(
+        z.string().trim().min(1).max(50),
+      )
+      .min(1, 'Selecciona al menos un motivo de observación')
+      .refine(
+        (motivos) => new Set(motivos).size === motivos.length,
+        'No puedes seleccionar el mismo motivo más de una vez',
+      )
+      .optional(),
+
     category: z.string().trim().min(1).max(100).optional(),
+
     note: z.string().trim().min(10).max(500).optional(),
+
     notifyDean: z.literal(false).optional(),
   })
   .superRefine((data, context) => {
-    if (data.decision !== 'APROBADA') {
+    if (data.decision === 'OBSERVADA') {
+      // Compatibilidad:
+      // Nuevo formato: motivos + note.
+      // Formato anterior: category + note.
+      if (!data.motivos?.length && !data.category) {
+        context.addIssue({
+          code: 'custom',
+          path: ['motivos'],
+          message: 'Selecciona al menos un motivo de observación',
+        });
+      }
+
+      if (!data.note) {
+        context.addIssue({
+          code: 'custom',
+          path: ['note'],
+          message: 'La explicación es obligatoria para observar una solicitud',
+        });
+      }
+    }
+
+    if (data.decision === 'RECHAZADA') {
       for (const field of ['category', 'note'] as const) {
         if (!data[field]) {
           context.addIssue({
@@ -149,6 +184,14 @@ export const reviewSchema = z
           });
         }
       }
+    }
+
+    if (data.decision !== 'OBSERVADA' && data.motivos !== undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['motivos'],
+        message: 'Los motivos de observación solo se permiten al observar',
+      });
     }
   });
 

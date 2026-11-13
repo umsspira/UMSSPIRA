@@ -31,12 +31,16 @@ export class ReviewApplicationUseCase {
     const correctionUrl = await this.issueCorrectionLink(id, input);
     const remainingAttempts =
       input.decision === 'RECHAZADA' ? await this.remainingAttempts(id) : null;
-
+    const observedMailCategory =
+      input.category ??
+      (input.decision === 'OBSERVADA' && input.motivos?.length
+        ? 'Motivos de observación'
+        : '');
     const mail =
       input.decision === 'OBSERVADA' && correctionUrl
         ? buildObservedMail({
             fullName: detail.fullName,
-            category: input.category ?? '',
+            category: observedMailCategory,
             note: input.note ?? '',
             correctionUrl,
           })
