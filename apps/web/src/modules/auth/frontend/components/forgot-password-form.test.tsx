@@ -6,8 +6,11 @@ jest.mock("../services/password-recovery.service", () => ({
   requestPasswordRecovery: jest.fn(),
 }));
 
+// CORRECCIÓN: Usamos un componente con nombre propio y displayName asignado
 jest.mock("next/link", () => {
-  return ({ children }: { children: React.ReactNode }) => <a>{children}</a>;
+  const MockLink = ({ children }: { children: React.ReactNode }) => <a>{children}</a>;
+  MockLink.displayName = "MockLink";
+  return MockLink;
 });
 
 describe("ForgotPasswordForm - BUG-18", () => {
@@ -51,8 +54,7 @@ describe("ForgotPasswordForm - BUG-18", () => {
       await Promise.resolve();
     });
 
-    // LA SOLUCIÓN DEFINITIVA: 
-    // Avanzar el tiempo 30 veces, permitiendo que React procese cada tick
+    // Avanzar el tiempo segundo a segundo
     for (let i = 0; i < 30; i++) {
       await act(async () => {
         jest.advanceTimersByTime(1000);
