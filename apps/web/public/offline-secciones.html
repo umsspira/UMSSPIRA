@@ -131,9 +131,13 @@
       <p id="descripcion"></p>
     </section>
 
-    <button type="button" onclick="location.reload()">
-      Reintentar
+    
+    <button type="button" id="btn-reintentar">
+      Reintentar conexión
     </button>
+
+    <p id="estado-reintento" role="status" aria-live="polite"></p>
+
   </main>
 
 
@@ -353,6 +357,33 @@
       });
 
       mostrarSeccion(normalizarRuta(location.pathname));
+    
+          
+          
+      const botonReintentar = document.getElementById('btn-reintentar');
+      const estadoReintento = document.getElementById('estado-reintento');
+
+      botonReintentar.addEventListener('click', () => {
+        if (!navigator.onLine) {
+          estadoReintento.textContent =
+            'Sigues sin conexión. Comprueba tu Internet e inténtalo nuevamente.';
+          return;
+        }
+
+        estadoReintento.textContent = 'Reintentando conexión...';
+        location.reload();
+      });
+
+      window.addEventListener('online', () => {
+        estadoReintento.textContent =
+          'Conexión recuperada. Presiona Reintentar conexión para actualizar.';
+      });
+
+      window.addEventListener('offline', () => {
+        estadoReintento.textContent =
+          'Sin conexión a Internet. Puedes seguir consultando el contenido guardado.';
+      });
+
     </script>
 
 </body>

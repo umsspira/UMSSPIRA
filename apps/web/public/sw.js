@@ -4,9 +4,9 @@
  * HU04 - Tarea #404: almacenamiento en caché de rutas
  */
 
-const VERSION = 'v7';
+const VERSION = 'v8';
 
-const CACHE_NAME = 'umsspira-core-portal-v7';
+const CACHE_NAME = 'umsspira-core-portal-v8';
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
 const ASSETS_CACHE = `umsspira-assets-${VERSION}`;
 const CONFIG_CACHE = `umsspira-config-${VERSION}`;
@@ -361,12 +361,13 @@ async function handleNavigation(request) {
         return cachedPage;
       }
 
-      // Compatibilidad con la precarga inicial.
-      const coreCache = await caches.open(CACHE_NAME);
-      const corePage = await coreCache.match('/portal');
+      if (new URL(request.url).pathname === '/portal') {
+        const coreCache = await caches.open(CACHE_NAME);
+        const corePage = await coreCache.match('/portal');
 
-      if (corePage) {
-        return corePage;
+        if (corePage) {
+          return corePage;
+        }
       }
     }
 
