@@ -6,6 +6,7 @@ import {
 } from '../../domain/policies/registration.policy';
 import type { RegistrationRepository } from '../ports/registration-repository.port';
 import type { RegistrationSecurity } from '../ports/registration-security.port';
+import { registrationCodeHtml } from '../../../../shared/notifications/account-email';
 export class IssueRegistrationCodeUseCase {
   constructor(
     private readonly repository: RegistrationRepository,
@@ -23,10 +24,31 @@ export class IssueRegistrationCodeUseCase {
       );
     }
     const code = this.security.code();
+    const origin = process.env.WEB_BASE_URL || 'http://localhost:3001';
     const mail = this.security.seal({
       to: draft.data.correo,
       subject: 'Verifica tu correo en UMSSPIRA',
-      text: 'Tu código de verificación es ' + code + '. Vence en 5 minutos.',
+      text: [
+      'Tu código de verificación es: ' + code,
+      '',
+      `Tiene una vigencia máxima de ${CODE_SECONDS / 60} minutos.`,
+      'Puede vencer antes si expira tu registro.',
+      '',
+      'Si necesitas otro código, vuelve a la pantalla',
+      'de verificación y selecciona «Reenviar código».',
+      `Debes esperar ${RESEND_SECONDS} segundos entre envíos.`,
+      'El código anterior dejará de funcionar.',
+      '',
+      'Este código solo verifica tu correo.',
+      'No implica aprobación ni activación de tu cuenta.',
+      '',
+      'Si no solicitaste este código, ignora este mensaje.',
+      ].join('\n'),
+      html: registrationCodeHtml(
+      code,
+      origin,
+      CODE_SECONDS / 60,
+      ),
     });
     const result = await this.repository.issueCode(
       hash,
