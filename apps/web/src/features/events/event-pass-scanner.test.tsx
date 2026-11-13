@@ -50,4 +50,24 @@ describe('Validación desde el escáner', () => {
     view.unmount();
     expect(signal.aborted).toBe(true);
   });
+
+  it('permite cancelar y evita que una respuesta tardía sustituya una nueva validación', async () => {
+    let finishFirst!: () => void;
+    let finishSecond!: () => void;
+    jest.mocked(validateScannedPass)
+      .mockReturnValueOnce(new Promise<void>((resolve) => { finishFirst = resolve; }))
+      .mockReturnValueOnce(new Promise<void>((resolve) => { finishSecond = resolve; }));
+    render(<EventPassScanner eventId="evento" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
+    const firstSignal = jest.mocked(validateScannedPass).mock.calls[0][2];
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar validación' }));
+    expect(firstSignal.aborted).toBe(true);
+    expect(screen.getByRole('heading', { name: 'Cómo escanear' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
+    await act(async () => { finishFirst(); });
+    expect(screen.getByRole('status')).toHaveTextContent('Comprobando pase');
+    expect(screen.getByRole('button', { name: 'Leer QR' })).toBeDisabled();
+    await act(async () => { finishSecond(); });
+    expect(screen.getByRole('status')).toHaveTextContent('Pase válido.');
+  });
 });

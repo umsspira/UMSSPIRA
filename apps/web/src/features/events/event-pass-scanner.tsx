@@ -5,11 +5,16 @@ import Link from 'next/link';
 import { EventScannerCamera } from './event-scanner-camera';
 import { validateScannedPass } from './validate-scanned-pass';
 
+type ScannerState =
+  | { status: 'idle' }
+  | { status: 'validating' }
+  | { status: 'valid' }
+  | { status: 'error'; message: string };
+
 export function EventPassScanner({ eventId }: { eventId: string }) {
   const request = useRef<AbortController | null>(null);
-  const [pending, setPending] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<ScannerState>({ status: 'idle' });
+  const pending = state.status === 'validating';
 
   useEffect(() => () => { request.current?.abort(); }, []);
 
@@ -17,22 +22,22 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
     if (request.current) return;
     const controller = new AbortController();
     request.current = controller;
-    setPending(true);
-    setResult(null);
-    setError(null);
+    setState({ status: 'validating' });
     void validateScannedPass(eventId, qrToken, controller.signal)
       .then(() => {
-        if (!controller.signal.aborted) setResult('Pase válido. El registro de asistencia aún está pendiente.');
+        if (!controller.signal.aborted) setState({ status: 'valid' });
       })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
-          setError(reason instanceof Error ? reason.message : 'No se pudo validar el pase.');
+          setState({
+            status: 'error',
+            message: reason instanceof Error ? reason.message : 'No fue posible conectar con el servidor. Vuelve a intentarlo.',
+          });
         }
       })
       .finally(() => {
         if (!controller.signal.aborted) {
           request.current = null;
-          setPending(false);
         }
       });
   }, [eventId]);
@@ -42,22 +47,22 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
       <EventScannerCamera
         onRead={onRead}
         disabled={pending}
-        startLabel={result || error ? 'Escanear otro pase' : 'Activar cámara'}
-        onStart={() => { setResult(null); setError(null); }}
+        startLabel={state.status === 'valid' || state.status === 'error' ? 'Escanear otro pase' : 'Activar cámara'}
+        onStart={() => setState({ status: 'idle' })}
       />
       <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions" aria-busy={pending}>
         <h2 id="scanner-instructions">
-          {pending ? 'Validando el pase' : result ? 'Pase válido' : error ? 'No se pudo validar el pase' : 'Cómo escanear'}
+          {pending ? 'Validando el pase' : state.status === 'valid' ? 'Pase válido' : state.status === 'error' ? 'No se pudo validar el pase' : 'Cómo escanear'}
         </h2>
         {pending ? (
           <div className="event-scanner-result" role="status">
             <strong>Comprobando pase</strong>
             <p>Verificación de inscripción y vigencia en curso.</p>
           </div>
-        ) : result ? (
-          <p className="event-scanner-result" role="status">{result}</p>
-        ) : error ? (
-          <p className="event-scanner-result" role="alert">{error}</p>
+        ) : state.status === 'valid' ? (
+          <p className="event-scanner-result" role="status">Pase válido. El registro de asistencia aún está pendiente.</p>
+        ) : state.status === 'error' ? (
+          <p className="event-scanner-result" role="alert">{state.message}</p>
         ) : (
           <ol>
             <li>Coloca el pase frente a la cámara.</li>
@@ -65,6 +70,19 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             <li>Espera el resultado en pantalla.</li>
           </ol>
         )}
+        {pending ? (
+          <button
+            type="button"
+            className="event-button"
+            onClick={() => {
+              request.current?.abort();
+              request.current = null;
+              setState({ status: 'idle' });
+            }}
+          >
+            Cancelar validación
+          </button>
+        ) : null}
         <Link href={`/events/${eventId}/participants`} className="event-button">Participantes</Link>
       </aside>
     </div>
