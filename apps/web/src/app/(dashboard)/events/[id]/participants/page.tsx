@@ -59,6 +59,7 @@ export default function EventParticipantsPage() {
 
   const occupation = data?.occupation;
   const isEmpty = data !== null && data.participants.length === 0;
+  const hasAttendance = data?.participants.some((participant) => participant.attendedAt) ?? false;
 
   return (
     <main className="events-page hu8-page">
@@ -157,8 +158,12 @@ export default function EventParticipantsPage() {
         <section className="hu8-panel">
           <header className="hu8-panel-heading">
             <div>
-              <h2>Participantes inscritos</h2>
-              <p>Actualizado con el estado real de las inscripciones.</p>
+              <h2>{hasAttendance ? 'Participantes y asistencia' : 'Participantes inscritos'}</h2>
+              <p>
+                {hasAttendance
+                  ? 'La asistencia se registró sin modificar la inscripción ni el cupo del evento.'
+                  : 'Actualizado con el estado real de las inscripciones.'}
+              </p>
             </div>
           </header>
           <div className="hu8-table-scroll">
@@ -196,13 +201,12 @@ export default function EventParticipantsPage() {
                     </td>
                     <td>
                       {participant.attendedAt ? (
-                        <>
-                          <span>Registrada</span>
-                          <br />
-                          <time dateTime={participant.attendedAt}>
-                            {formatEventDateTime(participant.attendedAt)}
-                          </time>
-                        </>
+                        <time
+                          dateTime={participant.attendedAt}
+                          title={formatEventDateTime(participant.attendedAt)}
+                        >
+                          Registrada
+                        </time>
                       ) : participant.status === 'CANCELADA' ? 'Sin asistencia' : 'Pendiente'}
                     </td>
                   </tr>

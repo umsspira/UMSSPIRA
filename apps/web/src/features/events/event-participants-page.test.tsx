@@ -18,18 +18,31 @@ const data: EventParticipantsDto = {
   ],
 };
 
-it('distingue la asistencia registrada, pendiente y ausente con la fecha en la zona del evento', async () => {
-  jest.mocked(getEventParticipants).mockResolvedValue(data);
+function renderParticipants(participants = data.participants) {
+  jest.mocked(getEventParticipants).mockResolvedValue({ ...data, participants });
   render(
     <AuthenticatedUserProvider userId="administrador" role="administrador">
       <EventParticipantsPage />
     </AuthenticatedUserProvider>,
   );
+}
+
+it('muestra el mockup de asistencia registrada y conserva la fecha del ingreso', async () => {
+  renderParticipants();
   const attended = await screen.findByRole('row', { name: /Ana/ });
-  expect(within(attended).getByText('Registrada')).toBeInTheDocument();
-  const timestamp = within(attended).getByText(formatEventDateTime(data.participants[0].attendedAt!));
+  expect(screen.getByRole('heading', { name: 'Participantes y asistencia' })).toBeInTheDocument();
+  expect(screen.getByText('La asistencia se registró sin modificar la inscripción ni el cupo del evento.')).toBeInTheDocument();
+  const timestamp = within(attended).getByText('Registrada');
   expect(timestamp).toHaveAttribute('datetime', data.participants[0].attendedAt);
+  expect(timestamp).toHaveAttribute('title', formatEventDateTime(data.participants[0].attendedAt!));
   expect(within(screen.getByRole('row', { name: /Luis/ })).getByText('Pendiente')).toBeInTheDocument();
   expect(within(screen.getByRole('row', { name: /Eva/ })).getByText('Sin asistencia')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Escanear QR' })).toHaveAttribute('href', '/events/evento/scanner');
+});
+
+it('presenta participantes inscritos mientras todas las asistencias estén pendientes', async () => {
+  renderParticipants(data.participants.map((participant) => ({ ...participant, attendedAt: null })));
+  await screen.findByRole('row', { name: /Ana/ });
+  expect(screen.getByRole('heading', { name: 'Participantes inscritos' })).toBeInTheDocument();
+  expect(screen.queryByText('La asistencia se registró sin modificar la inscripción ni el cupo del evento.')).not.toBeInTheDocument();
 });
