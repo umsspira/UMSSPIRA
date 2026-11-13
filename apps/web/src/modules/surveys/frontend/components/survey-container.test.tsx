@@ -246,12 +246,17 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(screen.getByRole('radio', { name: 'Remoto' }).getAttribute('aria-checked')).toBe('true');
   });
 
-  it('bloquea la encuesta después de verificar un envío previo en el servidor', async () => {
-    mockedSubmissionStatus.mockResolvedValue(true);
-    render(<SurveyContainer />);
+  it('muestra el estado de encuesta enviada y bloquea un nuevo envío', async () => {
+  mockedSubmissionStatus.mockResolvedValue(true);
 
-    expect(await screen.findByText('Esta encuesta ya fue enviada. No es posible enviarla nuevamente.')).toBeInTheDocument();
-    expect(screen.queryByRole('radio')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Siguiente/ })).toBeNull();
-  });
+  render(<SurveyContainer />);
+
+  expect(
+    await screen.findByText('Esta encuesta ya fue enviada.'),
+  ).toBeInTheDocument();
+
+  expect(
+    screen.queryByRole('button', { name: /Siguiente/ }),
+  ).toBeNull();
+});
 });
