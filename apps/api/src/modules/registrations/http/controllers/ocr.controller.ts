@@ -21,8 +21,16 @@ export class OcrController {
     return { data: await this.ocr.statuses(actor, body.ids) };
   }
   @Post('ocr/claim')
-  async claim(@CurrentActor() actor: ActorContext) {
-    return { data: await this.ocr.claim(actor) };
+  async claim(
+    @CurrentActor() actor: ActorContext,
+    @Body(
+      new ZodValidationPipe(
+        z.object({ applicationIds: z.array(uuid).max(20).optional() }).strict(),
+      ),
+    )
+    body: { applicationIds?: string[] },
+  ) {
+    return { data: await this.ocr.claim(actor, body.applicationIds) };
   }
   @Post('ocr/:jobId/renew')
   async renew(

@@ -33,10 +33,13 @@ const stale = () =>
 export class OcrService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async claim(actor: ActorContext): Promise<OcrJob | null> {
+  async claim(actor: ActorContext, applicationIds: string[] = []): Promise<OcrJob | null> {
     if (!actor.scopes.careerIds.length) {
       return null;
     }
+    const priority = applicationIds.length
+      ? Prisma.sql`array_position(ARRAY[${Prisma.join(applicationIds.map((id) => Prisma.sql`${id}::uuid`))}],j.id_solicitud)`
+      : Prisma.sql`NULL::integer`;
     return this.prisma.$transaction(
       async (tx) => {
         // Lock both application and job: re-submission and claim share the same serialization point.
@@ -46,8 +49,10 @@ export class OcrService {
         WHERE d.id_carrera IN (${Prisma.join(actor.scopes.careerIds.map((id) => Prisma.sql`${id}::uuid`))})
           AND s.estado IN ('PENDIENTE','PENDING') AND s.version_vigente=j.revision
           AND s.id_documento_respaldo=j.id_documento
-          AND (j.estado='PENDIENTE' OR (j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()))
-        ORDER BY j.creado_en FOR UPDATE OF s,j SKIP LOCKED LIMIT 1`);
+          AND ((j.estado='PENDIENTE' AND (j.reserva_hasta IS NULL OR j.reserva_hasta <= clock_timestamp()))
+            OR (j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()))
+        ORDER BY COALESCE(${priority},21), (j.intentos > 0), j.creado_en, j.id
+        FOR UPDATE OF s,j SKIP LOCKED LIMIT 1`);
         const row = rows[0];
         if (!row) {
           return null;
@@ -139,7 +144,8 @@ export class OcrService {
     return this.withLease(actor, id, token, async (tx) => {
       await tx.$executeRaw`UPDATE ocr_trabajo SET estado=CASE WHEN intentos>=3 THEN 'FALLIDO' ELSE 'PENDIENTE' END,
         error='No se pudo leer el respaldo. Se permite continuar con revisión manual.',
-        finalizado_en=CASE WHEN intentos>=3 THEN now() ELSE NULL END,reserva_token=NULL,reserva_hasta=NULL WHERE id=${id}::uuid`;
+        finalizado_en=CASE WHEN intentos>=3 THEN now() ELSE NULL END,reserva_token=NULL,
+        reserva_hasta=CASE WHEN intentos>=3 THEN NULL ELSE clock_timestamp()+interval '30 seconds' END WHERE id=${id}::uuid`;
       return { saved: true };
     });
   }
@@ -151,7 +157,10 @@ export class OcrService {
     return this.prisma.$queryRaw<
       { applicationId: string; status: OcrAnalysis['status']; revision: number }[]
     >(Prisma.sql`
-      SELECT s.id AS "applicationId",j.estado AS status,j.revision FROM solicitud s
+      SELECT s.id AS "applicationId",
+        CASE WHEN j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()
+          THEN CASE WHEN j.intentos>=3 THEN 'FALLIDO' ELSE 'PENDIENTE' END
+          ELSE j.estado END AS status,j.revision FROM solicitud s
       JOIN detalle_solicitud d ON d.id=s.id_detalle_solicitud
       JOIN ocr_trabajo j ON j.id_solicitud=s.id AND j.revision=s.version_vigente
       WHERE s.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
