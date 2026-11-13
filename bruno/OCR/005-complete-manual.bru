@@ -1,0 +1,43 @@
+meta {
+  name: Guardar lectura insuficiente
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/{{ocrJobId}}/complete
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{ocrToken}}",
+    "reading": {
+      "lines": [],
+      "pagesRead": 1,
+      "totalPages": 1,
+      "partial": false,
+      "engine": "PaddleOCR.js@0.4.2/PP-OCRv6_small/es",
+      "loadMs": 1,
+      "readMs": 1
+    }
+  }
+}
+
+tests {
+  test("HTTP 201", function () { expect(res.getStatus()).to.equal(201); });
+  test("Sin evidencia exige revision manual", function () { expect(res.getBody().data.suggestion).to.equal("REVISION_MANUAL"); });
+}
+
+docs {
+  Solo para reserva de una solicitud ficticia. Guarda un resultado sin texto; no genera dictamen ni correo. No ejecutar sobre expedientes reales.
+}

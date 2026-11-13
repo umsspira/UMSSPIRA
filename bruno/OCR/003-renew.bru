@@ -1,0 +1,34 @@
+meta {
+  name: Renovar reserva vigente
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/{{ocrJobId}}/renew
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{ocrToken}}"
+  }
+}
+
+tests {
+  test("HTTP 201", function () { expect(res.getStatus()).to.equal(201); });
+  test("Fecha de reserva", function () { expect(res.getBody().data.expiresAt).to.be.a("string"); });
+}
+
+docs {
+  Usar exclusivamente solicitudes ficticias. Requiere baseUrl y accessToken; ejecutar claim tras enviar una solicitud pendiente.
+}

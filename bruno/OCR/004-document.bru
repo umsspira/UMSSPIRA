@@ -1,0 +1,34 @@
+meta {
+  name: Descargar respaldo reservado
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/{{ocrJobId}}/document
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{ocrToken}}"
+  }
+}
+
+tests {
+  test("HTTP 201", function () { expect(res.getStatus()).to.equal(201); });
+  test("Formato admitido", function () { expect(res.getHeader("content-type")).to.match(/application\/pdf|image\/png|image\/jpeg/); });
+}
+
+docs {
+  Usar exclusivamente solicitudes ficticias. Requiere baseUrl y accessToken; ejecutar claim tras enviar una solicitud pendiente.
+}
