@@ -10,10 +10,6 @@ import {
 
 import { ApiError, apiClient, apiFetch } from './api-client';
 
-import affinityVectorMock from '../mocks/affinity-vector-mock.json';
-import affinityConfigMock from '../mocks/affinity-config-mock.json';
-import affinitySnapshotsMock from '../mocks/affinity-snapshots-mock.json';
-
 const AREA_BY_ID = Object.fromEntries(
   Object.entries(RADAR_AREA_IDS).map(([area, id]) => [id, area]),
 ) as Record<string, AffinityArea>;
@@ -121,9 +117,25 @@ function orderConfigAxes(
   return { axes };
 }
 
+// Los mocks se importan dinámicamente para que el flag apagado no los cargue en producción.
+async function loadAffinityVectorMock(): Promise<AffinityVectorResponse> {
+  const { default: mock } = await import('../mocks/affinity-vector-mock.json');
+  return mock as AffinityVectorResponse;
+}
+
+async function loadAffinityConfigMock(): Promise<AffinityConfigPayload> {
+  const { default: mock } = await import('../mocks/affinity-config-mock.json');
+  return mock as AffinityConfigPayload;
+}
+
+async function loadAffinitySnapshotsMock(): Promise<AffinityVectorResponse[]> {
+  const { default: mock } = await import('../mocks/affinity-snapshots-mock.json');
+  return mock as AffinityVectorResponse[];
+}
+
 export async function getAffinityVector(): Promise<AffinityVectorResponse> {
   if (USE_AFFINITY_MOCK) {
-    return affinityVectorMock as AffinityVectorResponse;
+    return loadAffinityVectorMock();
   }
 
   const response = await requestRadar(AFFINITY_ENDPOINT);
@@ -136,9 +148,9 @@ export async function calculateAffinityVector(): Promise<AffinityVectorResponse>
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     return {
-      ...affinityVectorMock,
+      ...(await loadAffinityVectorMock()),
       calculatedAt: new Date().toISOString(),
-    } as AffinityVectorResponse;
+    };
   }
 
   return recalculateAffinity();
@@ -146,7 +158,7 @@ export async function calculateAffinityVector(): Promise<AffinityVectorResponse>
 
 export async function getAffinityConfig(): Promise<AffinityConfigPayload> {
   const payload = USE_AFFINITY_MOCK
-    ? (affinityConfigMock as AffinityConfigPayload)
+    ? await loadAffinityConfigMock()
     : {
         axes: (await getAffinityVector()).areas.map(({ area, weighting }) => ({
           area,
@@ -172,15 +184,15 @@ export async function recalculateAffinity(): Promise<AffinityVectorResponse> {
   if (USE_AFFINITY_MOCK) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const snapshot = affinitySnapshotsMock[snapshotIndex];
+    const snapshots = await loadAffinitySnapshotsMock();
+    const snapshot = snapshots[snapshotIndex];
 
-    snapshotIndex =
-      (snapshotIndex + 1) % affinitySnapshotsMock.length;
+    snapshotIndex = (snapshotIndex + 1) % snapshots.length;
 
     return {
       ...snapshot,
       calculatedAt: new Date().toISOString(),
-    } as AffinityVectorResponse;
+    };
   }
 
   return adaptRadarResponse(

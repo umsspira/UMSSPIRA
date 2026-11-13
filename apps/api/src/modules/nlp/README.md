@@ -53,7 +53,7 @@ Las palabras desconocidas dentro del paréntesis siguen la regla normal de `unma
 
 ## Carga del diccionario
 
-`application/services/keyword-dictionary-loader.ts` carga `palabra_clave` y sus alias en la primera petición mediante `KeywordDictionaryPort`. Si la consulta falla o el diccionario queda vacío, responde `503` con `NLP_DICTIONARY_UNAVAILABLE` y reintenta en la siguiente petición. Las cargas concurrentes comparten la misma promesa. `NlpModule` intenta un calentamiento no bloqueante al arrancar; un fallo allí no impide que la API arranque.
+`application/services/keyword-dictionary-loader.ts` carga `palabra_clave` y sus alias en la primera petición mediante `KeywordDictionaryPort`. Si la consulta falla o el diccionario queda vacío, responde `503` con `NLP_DICTIONARY_UNAVAILABLE` y reintenta en la siguiente petición. Las cargas concurrentes comparten la misma promesa. La carga del diccionario es perezosa (lazy load) y se ejecuta únicamente en la primera petición; el módulo no realiza ningún calentamiento al arrancar.
 
 `PrismaKeywordDictionaryRepository` solo lee términos con `esta_activo = true`. El extractor ignora con una advertencia las claves vacías, sin normalizar, de más de tres palabras o en conflicto.
 
