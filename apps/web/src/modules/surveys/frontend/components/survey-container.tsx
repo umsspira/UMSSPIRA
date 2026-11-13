@@ -296,7 +296,7 @@ export function SurveyContainer() {
       {submissionCheck === 'no_survey' && (
         <div
           role="status"
-          className="mt-6 flex flex-col gap-4 rounded-lg border border-abyssal-blue/20 bg-palladian/60 p-6 sm:flex-row sm:items-center sm:justify-between"
+          className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#E6D7BF] bg-[#FEF1E0] p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between"
         >
           <p className="text-base font-medium text-abyssal-blue">
             No hay una encuesta disponible por el momento
@@ -304,6 +304,7 @@ export function SurveyContainer() {
           <Button
             type="button"
             variant="secondary"
+            className="rounded-xl border border-[#D1C6B4] bg-[#E5DECF] font-semibold text-abyssal-blue hover:bg-[#DACFBE]"
             onClick={() => router.push('/portal')}
           >
             Volver al inicio
