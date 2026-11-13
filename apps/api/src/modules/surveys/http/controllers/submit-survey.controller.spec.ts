@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client';
 import type { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
@@ -39,7 +40,7 @@ describe('SubmitSurveyController', () => {
     empresa: 'UMSS',
     area: 'Sistemas',
     modalidad: 'Remoto',
-    salario_mensual: '3500',
+    salario_mensual: '3.000–5.000',
     tiempo_insercion: '3',
   };
 
@@ -112,7 +113,7 @@ describe('SubmitSurveyController', () => {
       empresa: 'UMSS',
       area: 'Sistemas',
       modalidad: 'Remoto',
-      salarioMensual: '3500',
+      salarioMensual: '3.000–5.000',
       tiempoInsercion: '3',
     });
     expect(response).toEqual({ data: { id: '123e4567-e89b-12d3-a456-426614174222' } });
