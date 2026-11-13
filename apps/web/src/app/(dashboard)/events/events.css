@@ -93,6 +93,24 @@
 .event-scanner-result strong { font-size: 16px; }
 .event-scanner-result p { margin-bottom: 0; }
 
+.event-scanner-panel-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  width: 100%;
+}
+
+.event-scanner-panel-actions.has-camera-action { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.event-scanner-panel-actions .event-button { width: 100%; height: 100%; margin-top: 0; padding-inline: 8px; }
+.event-scanner-panel-actions.has-camera-action .event-button { font-size: 12px; white-space: nowrap; }
+.event-scanner-description { margin: 0; }
+.event-scanner-duplicate .event-scanner-instructions h2 { text-transform: uppercase; font-size: 13px; }
+.event-scanner-duplicate .event-scanner-preview > p { align-self: flex-start; }
+.event-scanner-duplicate .event-button-secondary { background: transparent; border-color: #d2caba; }
+.event-scanner-duplicate .event-scanner-description,
+.event-scanner-duplicate .event-scanner-result p { font-size: 12px; line-height: 1.4; }
+.event-scanner-duplicate .event-scanner-result strong { font-size: 14px; font-weight: 600; }
+
 @media (max-width: 760px) {
   .event-scanner-layout { grid-template-columns: 1fr; margin: 24px 0 0; gap: 20px; }
   .event-scanner-preview { min-height: 300px; }

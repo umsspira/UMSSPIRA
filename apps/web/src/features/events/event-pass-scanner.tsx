@@ -19,6 +19,8 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
   const request = useRef<AbortController | null>(null);
   const [state, setState] = useState<ScannerState>({ status: 'idle' });
   const pending = state.status === 'validating';
+  const duplicate = state.status === 'valid' && state.attendance.code === 'ATTENDANCE_ALREADY_RECORDED';
+  const [cameraActions, setCameraActions] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => () => { request.current?.abort(); }, []);
 
@@ -52,12 +54,14 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
   }, [eventId]);
 
   return (
-    <div className="event-scanner-layout">
+    <div className={`event-scanner-layout${duplicate ? ' event-scanner-duplicate' : ''}`}>
       <EventScannerCamera
         onRead={onRead}
         disabled={pending}
         startLabel={state.status === 'valid' || state.status === 'error' ? 'Escanear otro pase' : 'Activar cámara'}
         onStart={() => setState({ status: 'idle' })}
+        actionContainer={duplicate ? cameraActions : null}
+        inactiveMessage={duplicate ? 'Lectura completada' : undefined}
       />
       <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions" aria-busy={pending}>
         <h2 id="scanner-instructions">
@@ -65,6 +69,11 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             ? state.attendance.code === 'ATTENDANCE_RECORDED' ? 'Asistencia registrada' : 'Asistencia ya registrada'
             : state.status === 'error' ? 'No se pudo validar el pase' : 'Cómo escanear'}
         </h2>
+        {duplicate ? (
+          <p className="event-scanner-description">
+            Este pase ya se usó para registrar asistencia. No necesitas volver a registrarlo.
+          </p>
+        ) : null}
         {pending ? (
           <div className="event-scanner-result" role="status">
             <strong>Comprobando pase</strong>
@@ -72,9 +81,18 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
           </div>
         ) : state.status === 'valid' ? (
           <div className="event-scanner-result" role="status">
-            <strong>{state.attendance.participantName}</strong>
-            <p>{state.attendance.eventTitle}</p>
-            <p>Ingreso registrado el {formatEventDateTime(state.attendance.attendedAt)}</p>
+            {duplicate ? (
+              <>
+                <strong>Ya tiene asistencia</strong>
+                <p>No se creó un segundo registro.</p>
+              </>
+            ) : (
+              <>
+                <strong>{state.attendance.participantName}</strong>
+                <p>{state.attendance.eventTitle}</p>
+                <p>Ingreso registrado el {formatEventDateTime(state.attendance.attendedAt)}</p>
+              </>
+            )}
           </div>
         ) : state.status === 'error' ? (
           <p className="event-scanner-result" role="alert">{state.message}</p>
@@ -101,7 +119,10 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             Cancelar validación
           </button>
         ) : null}
-        <Link href={`/events/${eventId}/participants`} className="event-button event-button-secondary">Participantes</Link>
+        <div className={`event-scanner-panel-actions${duplicate ? ' has-camera-action' : ''}`}>
+          <Link href={`/events/${eventId}/participants`} className="event-button event-button-secondary">Participantes</Link>
+          {duplicate ? <div ref={setCameraActions} /> : null}
+        </div>
       </aside>
     </div>
   );

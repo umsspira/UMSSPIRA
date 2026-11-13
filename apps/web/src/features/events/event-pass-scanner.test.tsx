@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { EventPassScanner } from './event-pass-scanner';
 import { validateScannedPass } from './validate-scanned-pass';
 import type { EventAttendanceResult } from '@umsspira/shared-types';
@@ -13,14 +13,17 @@ const attendance: EventAttendanceResult = {
 
 jest.mock('./validate-scanned-pass', () => ({ validateScannedPass: jest.fn() }));
 jest.mock('./event-scanner-camera', () => ({
-  EventScannerCamera: ({ onRead, onStart, disabled, startLabel }: {
+  EventScannerCamera: ({ onRead, onStart, disabled, startLabel, actionContainer, inactiveMessage }: {
     onRead: (value: string) => void; onStart: () => void; disabled: boolean; startLabel: string;
-  }) => (
-    <div>
+    actionContainer?: HTMLElement | null; inactiveMessage?: string;
+  }) => {
+    const action = <button disabled={disabled} onClick={onStart}>{startLabel}</button>;
+    return <div>
       <button disabled={disabled} onClick={() => onRead('token-leido')}>Leer QR</button>
-      <button disabled={disabled} onClick={onStart}>{startLabel}</button>
-    </div>
-  ),
+      {inactiveMessage ? <span>{inactiveMessage}</span> : null}
+      {actionContainer ? require('react-dom').createPortal(action, actionContainer) : action}
+    </div>;
+  },
 }));
 
 describe('Validación desde el escáner', () => {
@@ -88,7 +91,14 @@ describe('Validación desde el escáner', () => {
     render(<EventPassScanner eventId="evento" />);
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
     expect(await screen.findByRole('heading', { name: 'Asistencia ya registrada' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Evento de prueba');
+    expect(screen.getByRole('status')).toHaveTextContent('Ya tiene asistencia');
+    expect(screen.getByRole('status')).toHaveTextContent('No se creó un segundo registro.');
+    expect(screen.getByText('Lectura completada')).toBeInTheDocument();
+    const panel = screen.getByRole('complementary');
+    const nextPass = within(panel).getByRole('button', { name: 'Escanear otro pase' });
+    expect(within(panel).getByRole('link', { name: 'Participantes' })).toHaveAttribute('href', '/events/evento/participants');
+    fireEvent.click(nextPass);
+    expect(screen.getByRole('heading', { name: 'Cómo escanear' })).toBeInTheDocument();
   });
 
   it.each([

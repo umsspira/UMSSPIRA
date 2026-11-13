@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { EventScannerCamera } from './event-scanner-camera';
 import jsQR from 'jsqr';
 
@@ -26,6 +26,22 @@ describe('Cámara del escáner', () => {
     await screen.findByText('Ubica el QR dentro del marco');
     expect(getUserMedia).toHaveBeenCalledWith({ audio: false, video: { facingMode: { ideal: 'environment' } } });
     view.unmount();
+    expect(stop).toHaveBeenCalled();
+  });
+
+  it('permite iniciar la cámara desde el panel lateral con el mismo control', async () => {
+    const actions = document.createElement('div');
+    document.body.appendChild(actions);
+    const view = render(<EventScannerCamera actionContainer={actions} inactiveMessage="Lectura completada" startLabel="Escanear otro pase" />);
+    try {
+      expect(screen.getByRole('status')).toHaveTextContent('Lectura completada');
+      fireEvent.click(within(actions).getByRole('button', { name: 'Escanear otro pase' }));
+      await screen.findByText('Ubica el QR dentro del marco');
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+    } finally {
+      view.unmount();
+      actions.remove();
+    }
     expect(stop).toHaveBeenCalled();
   });
 

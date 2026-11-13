@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
+import { createPortal } from 'react-dom';
 
 function cameraErrorMessage(error: unknown): string {
   const name = error instanceof Error ? error.name : '';
@@ -11,11 +12,16 @@ function cameraErrorMessage(error: unknown): string {
   return 'No se pudo iniciar la cámara. Comprueba su conexión y vuelve a intentarlo.';
 }
 
-export function EventScannerCamera({ onRead, onStart, startLabel = 'Activar cámara', disabled = false }: {
+export function EventScannerCamera({
+  onRead, onStart, startLabel = 'Activar cámara', disabled = false,
+  actionContainer = null, inactiveMessage = 'Activa la cámara para leer un pase',
+}: {
   onRead?: (token: string) => void;
   onStart?: () => void;
   startLabel?: string;
   disabled?: boolean;
+  actionContainer?: HTMLElement | null;
+  inactiveMessage?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [enabled, setEnabled] = useState(false);
@@ -121,15 +127,8 @@ export function EventScannerCamera({ onRead, onStart, startLabel = 'Activar cám
     };
   }, [enabled, disabled, onRead]);
 
-  return (
-    <section className="event-scanner-preview" aria-label="Vista previa del lector QR">
-      <div className="event-scanner-camera-view">
-        <video ref={videoRef} muted playsInline aria-label="Cámara del escáner" />
-        <div className="event-scanner-frame" aria-hidden="true" />
-      </div>
-      <p role="status">{enabled ? ready ? 'Ubica el QR dentro del marco' : 'Abriendo cámara…' : 'Activa la cámara para leer un pase'}</p>
-      {error ? <p role="alert">{error}</p> : null}
-      <button
+  const cameraAction = (
+    <button
         type="button"
         disabled={disabled}
         className="event-button event-button-primary"
@@ -140,7 +139,18 @@ export function EventScannerCamera({ onRead, onStart, startLabel = 'Activar cám
         }}
       >
         {enabled ? 'Detener cámara' : startLabel}
-      </button>
+    </button>
+  );
+
+  return (
+    <section className="event-scanner-preview" aria-label="Vista previa del lector QR">
+      <div className="event-scanner-camera-view">
+        <video ref={videoRef} muted playsInline aria-label="Cámara del escáner" />
+        <div className="event-scanner-frame" aria-hidden="true" />
+      </div>
+      <p role="status">{enabled ? ready ? 'Ubica el QR dentro del marco' : 'Abriendo cámara…' : inactiveMessage}</p>
+      {error ? <p role="alert">{error}</p> : null}
+      {actionContainer ? createPortal(cameraAction, actionContainer) : cameraAction}
     </section>
   );
 }
