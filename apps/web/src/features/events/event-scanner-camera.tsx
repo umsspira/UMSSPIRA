@@ -28,33 +28,58 @@ export function EventScannerCamera({ onRead, disabled = false }: {
     const cameraSupported = typeof navigator.mediaDevices?.getUserMedia === 'function';
     let timer: ReturnType<typeof setTimeout> | undefined;
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d', { willReadFrequently: true });
+    let context: CanvasRenderingContext2D | null = null;
     setError(null);
     setReady(false);
 
+    function fail(message: string) {
+      if (!active) return;
+      active = false;
+      clearTimeout(timer);
+      stream?.getTracks().forEach((track) => track.stop());
+      setReady(false);
+      setEnabled(false);
+      setError(message);
+    }
+
+    function cameraEnded() {
+      fail('Se interrumpió la cámara. Comprueba su conexión y vuelve a activarla.');
+    }
+
     function scan() {
       if (!active || !video) return;
-      if (context && video.readyState >= 2 && video.videoWidth > 0) {
-        const scale = Math.min(1, 960 / video.videoWidth);
-        canvas.width = Math.round(video.videoWidth * scale);
-        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(pixels.data, pixels.width, pixels.height);
-        if (code?.data) {
-          setReady(false);
-          setEnabled(false);
-          onRead?.(code.data);
-          return;
+      try {
+        if (context && video.readyState >= 2 && video.videoWidth > 0) {
+          const scale = Math.min(1, 960 / video.videoWidth);
+          canvas.width = Math.round(video.videoWidth * scale);
+          canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(pixels.data, pixels.width, pixels.height);
+          if (code?.data) {
+            setReady(false);
+            setEnabled(false);
+            onRead?.(code.data);
+            return;
+          }
         }
+        timer = setTimeout(scan, 200);
+      } catch {
+        fail('No se pudo procesar la imagen de la cámara. Vuelve a activarla para reintentar.');
       }
-      timer = setTimeout(scan, 200);
     }
 
     async function start() {
       try {
         if (!cameraSupported) {
           throw new Error('Cámara no compatible');
+        }
+        if (onRead) {
+          context = canvas.getContext('2d', { willReadFrequently: true });
+          if (!context) {
+            fail('El navegador no permite procesar imágenes para leer el QR.');
+            return;
+          }
         }
         const acquired = await navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -65,6 +90,7 @@ export function EventScannerCamera({ onRead, disabled = false }: {
           return;
         }
         stream = acquired;
+        stream.getTracks().forEach((track) => track.addEventListener('ended', cameraEnded));
         if (video) {
           video.srcObject = stream;
           await video.play();
@@ -74,20 +100,21 @@ export function EventScannerCamera({ onRead, disabled = false }: {
           if (onRead) timer = setTimeout(scan, 200);
         }
       } catch (reason: unknown) {
-        stream?.getTracks().forEach((track) => track.stop());
-        if (active) {
-          setError(cameraSupported
+        fail(
+          cameraSupported
             ? cameraErrorMessage(reason)
-            : 'La cámara requiere un navegador compatible y una conexión HTTPS o localhost.');
-          setEnabled(false);
-        }
+            : 'La cámara requiere un navegador compatible y una conexión HTTPS o localhost.',
+        );
       }
     }
     void start();
     return () => {
       active = false;
       clearTimeout(timer);
-      stream?.getTracks().forEach((track) => track.stop());
+      stream?.getTracks().forEach((track) => {
+        track.removeEventListener('ended', cameraEnded);
+        track.stop();
+      });
       if (video) video.srcObject = null;
     };
   }, [enabled, disabled, onRead]);

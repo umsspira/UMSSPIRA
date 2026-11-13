@@ -7,7 +7,8 @@ jest.mock('jsqr', () => ({ __esModule: true, default: jest.fn() }));
 describe('Cámara del escáner', () => {
   const getUserMedia = jest.fn();
   const stop = jest.fn();
-  const stream = { getTracks: () => [{ stop }] } as unknown as MediaStream;
+  const track = Object.assign(new EventTarget(), { stop });
+  const stream = { getTracks: () => [track] } as unknown as MediaStream;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,6 +46,26 @@ describe('Cámara del escáner', () => {
     view.unmount();
     await act(async () => { resolve(stream); });
     expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('informa la desconexión y permite activar la cámara de nuevo', async () => {
+    render(<EventScannerCamera />);
+    fireEvent.click(screen.getByRole('button', { name: 'Activar cámara' }));
+    await screen.findByText('Ubica el QR dentro del marco');
+    act(() => { track.dispatchEvent(new Event('ended')); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Se interrumpió la cámara');
+    expect(stop).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Activar cámara' }));
+    await screen.findByText('Ubica el QR dentro del marco');
+  });
+
+  it('rechaza la lectura si el navegador no permite procesar la imagen', async () => {
+    const onRead = jest.fn();
+    render(<EventScannerCamera onRead={onRead} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Activar cámara' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('no permite procesar imágenes');
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(onRead).not.toHaveBeenCalled();
   });
 
   it('envía una sola lectura y libera la cámara cuando encuentra un QR', async () => {
