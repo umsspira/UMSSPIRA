@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { HomeIcon, ArrowRightIcon, CompassIcon, UserRoundCogIcon } from 'lucide-react';
+import { HomeIcon, CompassIcon } from 'lucide-react';
 import { ExploreCard } from '@/features/mentorship/components/explore-card';
-import { ActiveMentorRequestsLink } from '@/features/mentorship/components/active-mentor-requests-link';
+import { MentorEntryCard } from '@/features/mentorship/components/mentor-entry-card';
 
 export default function MentoriasPage() {
   return (
@@ -35,26 +35,7 @@ export default function MentoriasPage() {
       <div className="mentorship-cards">
         <ExploreCard icon={CompassIcon} />
 
-        <article className="mentor-card">
-          <span aria-hidden="true" className="mentor-card-icon mentor-card-icon-primary">
-            <UserRoundCogIcon className="icon-lg" />
-          </span>
-          <h2 className="mentor-card-title">Comparte tu experiencia</h2>
-          <p className="mentor-card-description">
-            Activa tu participación como mentor y configura las áreas e intereses en los que deseas orientar a otros miembros de la comunidad.
-          </p>
-          <div className="mentor-card-actions">
-            <Link
-              href="/mentorship/profile"
-              className="mentor-button mentor-button-primary mentor-card-button"
-            >
-              Configurar mi perfil de mentor
-              <ArrowRightIcon className="icon" aria-hidden="true" />
-            </Link>
-            <ActiveMentorRequestsLink />
-            <p aria-hidden="true" className="mentor-card-notice" />
-          </div>
-        </article>
+        <MentorEntryCard />
       </div>
     </main>
   );

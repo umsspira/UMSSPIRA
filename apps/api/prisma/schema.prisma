@@ -561,8 +561,23 @@ model Mentor {
   disponibilidad_mentor_registros     DisponibilidadMentor[]    @relation("disponibilidad_mentor_id_mentor_mentor")
   espacio_disponible_mentor_registros EspacioDisponibleMentor[] @relation("espacio_disponible_mentor_id_mentor_mentor")
   mentoria_solicitud_registros        MentoriaSolicitud[]       @relation("mentoria_solicitud_id_mentor_mentor")
+  onboarding                          MentorOnboarding?
 
   @@map("mentor")
+}
+
+model MentorOnboarding {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_mentor            String    @unique @db.Uuid
+  paso_actual          Int       @default(1)
+  pasos_completados    Int[]     @default([])
+  finalizado_en        DateTime? @db.Timestamptz(6)
+  fecha_creacion       DateTime  @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion  DateTime  @default(now()) @db.Timestamptz(6)
+
+  mentor Mentor @relation(fields: [id_mentor], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("mentor_onboarding")
 }
 
 model MentorArea {
@@ -574,6 +589,7 @@ model MentorArea {
   mentor Mentor? @relation("mentor_area_id_mentor_mentor", fields: [id_mentor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "mentor_area_id_mentor_fkey")
   area   Area?   @relation("mentor_area_id_area_area", fields: [id_area], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "mentor_area_id_area_fkey")
 
+  @@unique([id_mentor, id_area])
   @@map("mentor_area")
 }
 

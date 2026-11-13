@@ -15,6 +15,11 @@ import {
 } from '../../application/ports/mentor-availability-repository.port';
 import { PrismaMentorAvailabilityRepository } from '../repositories/prisma-mentor-availability.repository';
 import {
+  MENTOR_ONBOARDING_REPOSITORY,
+  type MentorOnboardingRepository,
+} from '../../application/ports/mentor-onboarding-repository.port';
+import { PrismaMentorOnboardingRepository } from '../repositories/prisma-mentor-onboarding.repository';
+import {
   MENTORSHIP_REQUEST_REPOSITORY,
   type MentorshipRequestRepository,
 } from '../../application/ports/mentorship-request-repository.port';
@@ -43,6 +48,10 @@ import { ListReceivedMentorshipRequestsUseCase } from '../../application/use-cas
 import { GetReceivedMentorshipRequestUseCase } from '../../application/use-cases/get-received-mentorship-request.use-case';
 import { RespondToMentorshipRequestUseCase } from '../../application/use-cases/respond-to-mentorship-request.use-case';
 import { GetMentorSlotsUseCase } from '../../application/use-cases/get-mentor-slots.use-case';
+import { GetMentorOnboardingUseCase } from '../../application/use-cases/get-mentor-onboarding.use-case';
+import { SaveMentorOnboardingAreasUseCase } from '../../application/use-cases/save-mentor-onboarding-areas.use-case';
+import { SaveMentorOnboardingInterestsUseCase } from '../../application/use-cases/save-mentor-onboarding-interests.use-case';
+import { SaveMentorOnboardingAvailabilityUseCase } from '../../application/use-cases/save-mentor-onboarding-availability.use-case';
 
 export const mentorshipProviders: Provider[] = [
   PrismaMentorRepository,
@@ -51,6 +60,8 @@ export const mentorshipProviders: Provider[] = [
   { provide: MENTOR_CATALOG_REPOSITORY, useExisting: PrismaMentorCatalogRepository },
   PrismaMentorAvailabilityRepository,
   { provide: MENTOR_AVAILABILITY_REPOSITORY, useExisting: PrismaMentorAvailabilityRepository },
+  PrismaMentorOnboardingRepository,
+  { provide: MENTOR_ONBOARDING_REPOSITORY, useExisting: PrismaMentorOnboardingRepository },
   PrismaMentorshipRequestRepository,
   { provide: MENTORSHIP_REQUEST_REPOSITORY, useExisting: PrismaMentorshipRequestRepository },
   {
@@ -180,7 +191,30 @@ export const mentorshipProviders: Provider[] = [
   {
     provide: GetMentorSlotsUseCase,
     inject: [MENTORSHIP_REQUEST_REPOSITORY],
-    useFactory: (repository: MentorshipRequestRepository) =>
-      new GetMentorSlotsUseCase(repository),
+    useFactory: (repository: MentorshipRequestRepository) => new GetMentorSlotsUseCase(repository),
+  },
+  {
+    provide: GetMentorOnboardingUseCase,
+    inject: [MENTOR_ONBOARDING_REPOSITORY],
+    useFactory: (repository: MentorOnboardingRepository) =>
+      new GetMentorOnboardingUseCase(repository),
+  },
+  {
+    provide: SaveMentorOnboardingAreasUseCase,
+    inject: [MENTOR_ONBOARDING_REPOSITORY],
+    useFactory: (repository: MentorOnboardingRepository) =>
+      new SaveMentorOnboardingAreasUseCase(repository),
+  },
+  {
+    provide: SaveMentorOnboardingInterestsUseCase,
+    inject: [MENTOR_ONBOARDING_REPOSITORY],
+    useFactory: (repository: MentorOnboardingRepository) =>
+      new SaveMentorOnboardingInterestsUseCase(repository),
+  },
+  {
+    provide: SaveMentorOnboardingAvailabilityUseCase,
+    inject: [MENTOR_ONBOARDING_REPOSITORY],
+    useFactory: (repository: MentorOnboardingRepository) =>
+      new SaveMentorOnboardingAvailabilityUseCase(repository),
   },
 ];

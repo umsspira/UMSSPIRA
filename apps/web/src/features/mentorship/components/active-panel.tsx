@@ -3,7 +3,7 @@ import type { Requirements } from '@umsspira/shared-types';
 import { ArrowLeftIcon, ArrowRightIcon, AwardIcon, CirclePauseIcon, InboxIcon } from 'lucide-react';
 import { ApprovedChip } from './approved-chip';
 import { StatusBadge } from './status-badge';
-import { MentorConfiguration } from './mentor-configuration';
+import { MentorConfigurationGate } from './mentor-configuration-gate';
 
 export function ActivePanel({ requirements, onDeactivate }: { requirements: Requirements; onDeactivate: () => void }) {
   return <section aria-labelledby="active-title" className="mentor-card active-panel-card">
@@ -17,7 +17,7 @@ export function ActivePanel({ requirements, onDeactivate }: { requirements: Requ
           <InboxIcon aria-hidden="true" /> Ver solicitudes recibidas <ArrowRightIcon aria-hidden="true" />
         </Link>
       </div>
-      <MentorConfiguration />
+      <MentorConfigurationGate />
     </div>
     <div className="active-panel-footer inactive-footer">
       <Link href="/mentorship" className="inactive-back"><ArrowLeftIcon className="icon" aria-hidden="true" />Volver a Mentorías</Link>

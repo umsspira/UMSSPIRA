@@ -36,6 +36,17 @@
 | `GET` | `/api/v1/mentorship/availability` | `mentores:self:write` | Disponibilidad propia (vocabulario en español). |
 | `PATCH` | `/api/v1/mentorship/availability` | `mentores:self:write` | Cambiar disponibilidad: `DISPONIBLE`, `EN_PAUSA` o `NO_DISPONIBLE`. |
 
+#### Onboarding de mentor (3 pasos, en orden)
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| `GET` | `/api/v1/mentorship/onboarding` | `mentores:self:write` | Estado del onboarding derivado de los datos persistidos: `isComplete`, `currentStep`, `totalSteps`, `completedSteps`, catálogos y selección actual. |
+| `PUT` | `/api/v1/mentorship/onboarding/areas` | `mentores:self:write` | Paso 1. Reemplaza las áreas (1 a 5) y guarda el avance de forma atómica. |
+| `PUT` | `/api/v1/mentorship/onboarding/interests` | `mentores:self:write` | Paso 2. Reemplaza los intereses, restringidos a las áreas ya guardadas. Exige el paso 1. |
+| `PUT` | `/api/v1/mentorship/onboarding/availability` | `mentores:self:write` | Paso 3. Guarda estado y días/horarios (`weekday` 1–7, `start`/`end` `HH:MM`, `end > start`). Exige los pasos 1 y 2. |
+
+El orden se valida dentro de la misma transacción que escribe, por lo que un guardado concurrente no puede saltarse pasos ni duplicar registros. La identidad siempre sale del token; `usuario_id`, `id_usuario`, `mentor_id` y similares se aceptan pero se ignoran. Un mentor sin participación activa recibe 403 `MENTOR_NO_HABILITADO`; un paso previo incompleto, 409 `PASO_PREVIO_INCOMPLETO`; y los campos inválidos, 422 `DATOS_PASO_INVALIDOS` con `fields`.
+
 ### 1.3 Solicitudes de mentoría (HU 6.10 y bandeja de recibidas)
 
 | Método | Ruta | Acceso | Descripción |
@@ -61,7 +72,8 @@
 
 | Ruta | Pantalla | Componente |
 |---|---|---|
-| `/mentorship` | Inicio de mentorías | `explore-card` + `active-mentor-requests-link` |
+| `/mentorship` | Inicio de mentorías | `mentor-entry-card` + `active-mentor-requests-link` |
+| `/mentorship/onboarding` | Configuración guiada del mentor (3 pasos) | `mentor-onboarding-wizard` |
 | `/mentorship/directory` | Directorio de mentores | `mentor-directory-page` |
 | `/mentorship/mentors/[mentorId]` | Perfil del mentor | `mentor-detail-page` |
 | `/mentorship/request/[mentorId]` | Solicitar mentoría | `mentorship-request-flow` |
@@ -80,5 +92,5 @@
 - **Comunicación**: las pantallas consumen `/api/v1/mentorship/*` a través del proxy `apps/web/src/app/api/v1/[...path]/route.ts` (`apiUrl()`); el namespace `mentorship` ya está en el allowlist `MODULES`. Las mutaciones autenticadas requieren el header `X-CSRF-Token`.
 - **Sesión**: los clientes usan `authenticatedFetch` de `@/shared/services/auth-session`; el directorio exige sesión y nunca consulta la API de forma anónima.
 - **Protección de rutas web**: `/mentorship/:path*` **no** está registrado en el `matcher` de `apps/web/src/middleware.ts` ni en `route-access.ts`, por lo que a nivel de router las páginas son públicas: la exigencia de sesión la impone la API. Para blindarlas como `/surveys` o `/reports` deben registrarse en ambos archivos.
-- **Errores comunes**: 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`, 404 `MENTOR_NOT_FOUND`. Los cuerpos son estrictos: campos no declarados producen 400.
+- **Errores comunes**: 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`/`MENTOR_NO_HABILITADO`, 400 `VALIDATION_ERROR`, 404 `MENTOR_NOT_FOUND`, 409 `PASO_PREVIO_INCOMPLETO`, 422 `DATOS_PASO_INVALIDOS` (incluye `fields`). Los cuerpos son estrictos: campos no declarados producen 400.
 - **Referencias**: `apps/api/docs/endpoints/epic6/HUXX.md` (contrato detallado), `apps/api/src/modules/mentorship/README.md` (convenciones del módulo), `packages/shared-types/src/mentor.ts` (tipos compartidos).
