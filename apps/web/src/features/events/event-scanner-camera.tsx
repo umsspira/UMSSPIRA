@@ -11,8 +11,10 @@ function cameraErrorMessage(error: unknown): string {
   return 'No se pudo iniciar la cámara. Comprueba su conexión y vuelve a intentarlo.';
 }
 
-export function EventScannerCamera({ onRead, disabled = false }: {
+export function EventScannerCamera({ onRead, onStart, startLabel = 'Activar cámara', disabled = false }: {
   onRead?: (token: string) => void;
+  onStart?: () => void;
+  startLabel?: string;
   disabled?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -131,9 +133,13 @@ export function EventScannerCamera({ onRead, disabled = false }: {
         type="button"
         disabled={disabled}
         className="event-button event-button-primary"
-        onClick={() => { setReady(false); setEnabled((value) => !value); }}
+        onClick={() => {
+          if (!enabled) onStart?.();
+          setReady(false);
+          setEnabled((value) => !value);
+        }}
       >
-        {enabled ? 'Detener cámara' : 'Activar cámara'}
+        {enabled ? 'Detener cámara' : startLabel}
       </button>
     </section>
   );

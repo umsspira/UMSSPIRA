@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { EventItem } from '@umsspira/shared-types';
@@ -42,18 +41,7 @@ export default function EventScannerPage() {
       {error ? <p role="alert" className="event-feedback">{error}</p> : !event ? (
         <p role="status">Cargando evento…</p>
       ) : (
-        <div className="event-scanner-layout">
-          <EventPassScanner key={id} eventId={id} />
-          <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions">
-            <h2 id="scanner-instructions">Cómo escanear</h2>
-            <ol>
-              <li>Coloca el pase frente a la cámara.</li>
-              <li>Centra el código dentro del marco.</li>
-              <li>Espera el resultado en pantalla.</li>
-            </ol>
-            <Link href={`/events/${id}/participants`} className="event-button">Participantes</Link>
-          </aside>
-        </div>
+        <EventPassScanner key={id} eventId={id} />
       )}
     </main>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { EventScannerCamera } from './event-scanner-camera';
 import { validateScannedPass } from './validate-scanned-pass';
 
@@ -37,11 +38,35 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
   }, [eventId]);
 
   return (
-    <div>
-      <EventScannerCamera onRead={onRead} disabled={pending} />
-      {pending ? <p role="status">Validando el pase…</p> : null}
-      {result ? <p role="status">{result}</p> : null}
-      {error ? <p role="alert">{error}</p> : null}
+    <div className="event-scanner-layout">
+      <EventScannerCamera
+        onRead={onRead}
+        disabled={pending}
+        startLabel={result || error ? 'Escanear otro pase' : 'Activar cámara'}
+        onStart={() => { setResult(null); setError(null); }}
+      />
+      <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions" aria-busy={pending}>
+        <h2 id="scanner-instructions">
+          {pending ? 'Validando el pase' : result ? 'Pase válido' : error ? 'No se pudo validar el pase' : 'Cómo escanear'}
+        </h2>
+        {pending ? (
+          <div className="event-scanner-result" role="status">
+            <strong>Comprobando pase</strong>
+            <p>Verificación de inscripción y vigencia en curso.</p>
+          </div>
+        ) : result ? (
+          <p className="event-scanner-result" role="status">{result}</p>
+        ) : error ? (
+          <p className="event-scanner-result" role="alert">{error}</p>
+        ) : (
+          <ol>
+            <li>Coloca el pase frente a la cámara.</li>
+            <li>Centra el código dentro del marco.</li>
+            <li>Espera el resultado en pantalla.</li>
+          </ol>
+        )}
+        <Link href={`/events/${eventId}/participants`} className="event-button">Participantes</Link>
+      </aside>
     </div>
   );
 }

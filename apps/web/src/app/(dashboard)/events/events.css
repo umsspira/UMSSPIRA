@@ -76,6 +76,18 @@
 .event-scanner-instructions ol { margin: 0; padding-left: 18px; }
 .event-scanner-instructions .event-button { margin-top: auto; }
 
+.event-scanner-result {
+  width: 100%;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #d2caba;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.event-scanner-result strong { font-size: 16px; }
+.event-scanner-result p { margin-bottom: 0; }
+
 @media (max-width: 760px) {
   .event-scanner-layout { grid-template-columns: 1fr; margin: 24px 0 0; gap: 20px; }
   .event-scanner-preview { min-height: 300px; }

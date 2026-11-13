@@ -4,8 +4,13 @@ import { validateScannedPass } from './validate-scanned-pass';
 
 jest.mock('./validate-scanned-pass', () => ({ validateScannedPass: jest.fn() }));
 jest.mock('./event-scanner-camera', () => ({
-  EventScannerCamera: ({ onRead, disabled }: { onRead: (value: string) => void; disabled: boolean }) => (
-    <button disabled={disabled} onClick={() => onRead('token-leido')}>Leer QR</button>
+  EventScannerCamera: ({ onRead, onStart, disabled, startLabel }: {
+    onRead: (value: string) => void; onStart: () => void; disabled: boolean; startLabel: string;
+  }) => (
+    <div>
+      <button disabled={disabled} onClick={() => onRead('token-leido')}>Leer QR</button>
+      <button disabled={disabled} onClick={onStart}>{startLabel}</button>
+    </div>
   ),
 }));
 
@@ -17,11 +22,15 @@ describe('Validación desde el escáner', () => {
     jest.mocked(validateScannedPass).mockReturnValue(new Promise<void>((done) => { resolve = done; }));
     render(<EventPassScanner eventId="evento" />);
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
-    expect(screen.getByRole('button')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Leer QR' })).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Comprobando pase');
     expect(validateScannedPass).toHaveBeenCalledWith('evento', 'token-leido', expect.any(AbortSignal));
     await act(async () => { resolve(); });
     expect(screen.getByRole('status')).toHaveTextContent('Pase válido. El registro de asistencia aún está pendiente.');
-    expect(screen.getByRole('button')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Escanear otro pase' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Escanear otro pase' }));
+    expect(screen.queryByText('Pase válido. El registro de asistencia aún está pendiente.')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cómo escanear' })).toBeInTheDocument();
   });
 
   it('muestra el rechazo del servidor y permite escanear otra vez', async () => {
@@ -29,7 +38,8 @@ describe('Validación desde el escáner', () => {
     render(<EventPassScanner eventId="evento" />);
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('El pase corresponde a otro evento');
-    expect(screen.getByRole('button')).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Escanear otro pase' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('cancela la espera del cliente al salir de la pantalla', () => {
