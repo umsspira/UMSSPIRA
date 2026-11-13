@@ -13,6 +13,7 @@ import { CreateEventUseCase } from '../../application/use-cases/create-event.use
 import { UpdateEventDraftUseCase } from '../../application/use-cases/update-event-draft.use-case';
 import { UpdatePublishedEventUseCase } from '../../application/use-cases/update-published-event.use-case';
 import { PublishEventDraftUseCase } from '../../application/use-cases/publish-event-draft.use-case';
+import { ScheduleEventDraftUseCase } from '../../application/use-cases/schedule-event-draft.use-case';
 import { CancelPublishedEventUseCase } from '../../application/use-cases/cancel-published-event.use-case';
 import { DeleteEventCoverUseCase } from '../../application/use-cases/delete-event-cover.use-case';
 import { ReadEventCoverUseCase } from '../../application/use-cases/read-event-cover.use-case';
@@ -27,7 +28,19 @@ import { ListMyEventRegistrationsUseCase } from '../../application/use-cases/lis
 // 1. IMPORTACIÓN DEL SERVICIO QR
 import { GenerateEventPassService } from '../../application/generate-event-pass.service';
 
+import { CancelEventScheduleUseCase } from '../../application/use-cases/cancel-event-schedule.use-case';
+
 export const eventsProviders: Provider[] = [
+  {
+    provide: CancelEventScheduleUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new CancelEventScheduleUseCase(repository),
+  },
+  {
+    provide: ScheduleEventDraftUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new ScheduleEventDraftUseCase(repository),
+  },
   PrismaEventsRepository,
   { provide: EVENTS_REPOSITORY, useExisting: PrismaEventsRepository },
   {

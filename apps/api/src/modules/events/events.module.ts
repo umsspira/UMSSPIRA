@@ -13,6 +13,9 @@ import { CreateEventController } from './http/controllers/create-event.controlle
 import { UpdateEventDraftController } from './http/controllers/update-event-draft.controller';
 import { UpdatePublishedEventController } from './http/controllers/update-published-event.controller';
 import { PublishEventDraftController } from './http/controllers/publish-event-draft.controller';
+import { ScheduleEventDraftController } from './http/controllers/schedule-event-draft.controller';
+import { ScheduledEventPublicationWorker } from './infrastructure/workers/scheduled-event-publication.worker';
+import { CancelEventScheduleController } from './http/controllers/cancel-event-schedule.controller';
 import { ListInactiveEventsController } from './http/controllers/list-inactive-events.controller';
 import { RetireEventController } from './http/controllers/retire-event.controller';
 import { DeleteEventCoverController } from './http/controllers/delete-event-cover.controller';
@@ -40,6 +43,8 @@ import { ValidateAttendancePassService } from './application/validate-attendance
     UpdateEventDraftController,
     UpdatePublishedEventController,
     PublishEventDraftController,
+    ScheduleEventDraftController,
+    CancelEventScheduleController,
     ListInactiveEventsController,
     RetireEventController,
     DeleteEventCoverController,
@@ -54,6 +59,7 @@ import { ValidateAttendancePassService } from './application/validate-attendance
     CancelPublishedEventController,
   ],
   providers: [
+    ScheduledEventPublicationWorker,
     ...eventsProviders,
     OptionalAuthenticationGuard,
     GenerateEventPassService,

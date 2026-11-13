@@ -742,6 +742,8 @@ model Postulacion {
 }
 
 model Evento {
+  fecha_publicacion_programada DateTime? @db.Timestamptz(6)
+  estado_programacion          String?   @db.VarChar(20)
   archivado       Boolean        @default(false)
   fecha_archivado DateTime?      @db.Timestamptz(6)
   id_portada      String?        @unique @db.Uuid
@@ -761,6 +763,7 @@ model Evento {
   usuario                      Usuario?            @relation("evento_id_usuario_usuario", fields: [id_usuario], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "evento_id_usuario_fkey")
   inscripcion_evento_registros InscripcionEvento[] @relation("inscripcion_evento_id_evento_evento")
 
+  @@index([estado_programacion, fecha_publicacion_programada], map: "evento_publicacion_programada_idx")
   @@map("evento")
 }
 

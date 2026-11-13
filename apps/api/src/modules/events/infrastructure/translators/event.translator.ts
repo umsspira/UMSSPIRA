@@ -42,5 +42,9 @@ export function toEvent(row: EventRow): Event {
     status: status as EventStatus,
     creatorName: 'usuario' in row ? row.usuario?.nombre ?? null : null,
     createdAt: row.fecha_creacion,
+    scheduledAt: row.fecha_publicacion_programada,
+    schedulingStatus: row.estado_programacion === 'PENDIENTE'
+      ? 'PENDIENTE'
+      : row.estado_programacion === 'FALLIDA' ? 'FALLIDA' : null,
   };
 }
