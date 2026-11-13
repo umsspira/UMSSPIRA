@@ -1,6 +1,15 @@
 
 export type EventPassStatus = 'ACTIVO' | 'INVALIDADO' | 'VENCIDO';
 
+export interface ValidateEventPassInput {
+  qrToken: string;
+}
+
+export interface ValidateEventPassResult {
+  code: 'PASS_VALIDATED';
+  attendanceRecorded: false;
+}
+
 export interface EventPassQrPayload {
   v: 1;
   token: string;

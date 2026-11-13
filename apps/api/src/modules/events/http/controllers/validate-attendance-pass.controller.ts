@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
+import type { ValidateEventPassInput, ValidateEventPassResult } from '@umsspira/shared-types';
 import { CurrentActor } from '../../../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../../../shared/http/auth/decorators/require-permissions.decorator';
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
@@ -16,8 +17,8 @@ export class ValidateAttendancePassController {
   async handle(
     @CurrentActor() actor: ActorContext,
     @Param('id', new ZodValidationPipe(eventIdSchema)) eventId: string,
-    @Body(new ZodValidationPipe(recordAttendanceSchema)) body: { qrToken: string },
-  ) {
+    @Body(new ZodValidationPipe(recordAttendanceSchema)) body: ValidateEventPassInput,
+  ): Promise<{ data: ValidateEventPassResult }> {
     await this.service.execute(actor, eventId, body.qrToken);
     return { data: { code: 'PASS_VALIDATED', attendanceRecorded: false } };
   }
