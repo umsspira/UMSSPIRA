@@ -1,4 +1,3 @@
-// apps/web/src/app/portal/configuracion/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';

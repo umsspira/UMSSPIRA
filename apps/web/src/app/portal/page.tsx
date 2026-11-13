@@ -1,3 +1,4 @@
+// apps/web/src/app/portal/page.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -213,6 +214,8 @@ export default function Home() {
         </div>
       )}
 
+      {/* Banner principal */}
+      {/* Añadimos relative al section para posicionar la etiqueta */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
         <div className="absolute inset-0 z-0 overflow-hidden">
           <Image
@@ -226,6 +229,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-[#0F172A]/60"></div>
         </div>
 
+        {/* 👇 ETIQUETA MOVIDA A LA ESQUINA SUPERIOR DERECHA 👇 */}
         <div className={`absolute top-6 right-6 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${
           isOnline ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
         }`}>
@@ -234,7 +238,7 @@ export default function Home() {
         </div>
 
         <div className="relative z-10 max-w-2xl space-y-4 pt-8 sm:pt-0">
-          <h3 className="text-sm font-medium text-slate-300">Bienvenido a</h3>
+          <h3 className="text-sm font-medium text-slate-300">Estado de conexión</h3>
           <h1 className="text-3xl md:text-5xl font-serif font-bold text-white tracking-tight">
             UMSS<span className="text-amber-500">PIRA</span>
           </h1>
@@ -259,16 +263,20 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 👇 TARJETA DE ESTADO AGRANDADA 👇 */}
       {shouldShowStatusCard && (
         <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
           {isOnline ? (
             <>
+              {/* Icono más grande */}
               <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6 text-green-600">
                 <Wifi className="w-12 h-12" />
               </div>
+              {/* Textos más grandes */}
               <h2 className="text-3xl font-bold text-slate-900 mb-3">Conectado a Internet</h2>
               <p className="text-slate-500 text-base">Todas las funcionalidades están disponibles.</p>
               
+              {/* Cuadro azul más ancho y grande */}
               <div className="mt-10 w-full max-w-3xl bg-blue-50/50 border border-blue-100 rounded-xl p-5 flex items-start gap-4 text-left">
                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
                   <Info className="w-4 h-4" />
@@ -353,9 +361,7 @@ export default function Home() {
                     aria-hidden="true"
                     className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow"
                   >
-                    <Bookmark
-                      size={19}
-                    />
+                    <Bookmark size={19} />
                   </span>
                 </div>
                 <Link
