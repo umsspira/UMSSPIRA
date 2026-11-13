@@ -14,15 +14,37 @@
 const PUSH_DEFAULT_TITLE = 'UMSSPIRA';
 const PUSH_DEFAULT_ICON = '/icons/icon-192.png';
 
-function toInternalPushUrl(value) {
-  if (typeof value !== 'string' || value.length === 0) return '/portal';
+const PUSH_HOME = '/portal';
 
+// Normaliza una ruta a una URL absoluta del mismo origen.
+// Si el destino es externo o inválido, cae a la portada del portal.
+function toInternalPushUrl(value) {
   try {
     const destination = new URL(value, self.location.origin);
-    return destination.origin === self.location.origin ? destination.href : '/portal';
+    if (destination.origin !== self.location.origin) {
+      return new URL(PUSH_HOME, self.location.origin).href;
+    }
+    return destination.href;
   } catch {
-    return '/portal';
+    return new URL(PUSH_HOME, self.location.origin).href;
   }
+}
+
+// HU13 - T11: resuelve la ruta a abrir al tocar la notificación.
+// Acepta una `url` interna provista por el servidor o un `eventId` para
+// armar el detalle del evento. Siempre devuelve una URL del mismo origen.
+function resolveNotificationTarget(data) {
+  if (!data || typeof data !== 'object') return toInternalPushUrl('/portal');
+
+  if (typeof data.url === 'string' && data.url.length > 0) {
+    return toInternalPushUrl(data.url);
+  }
+
+  if (typeof data.eventId === 'string' && data.eventId.trim() !== '') {
+    return toInternalPushUrl(`/portal/eventos/${encodeURIComponent(data.eventId.trim())}`);
+  }
+
+  return toInternalPushUrl('/portal');
 }
 
 function parsePushPayload(event) {
@@ -43,7 +65,7 @@ self.addEventListener('push', (event) => {
   const icon = typeof payload.icon === 'string' && payload.icon.startsWith('/')
     ? payload.icon
     : PUSH_DEFAULT_ICON;
-  const url = toInternalPushUrl(payload.url);
+  const url = resolveNotificationTarget(payload);
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -57,15 +79,39 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = toInternalPushUrl(event.notification.data && event.notification.data.url);
+  const url = resolveNotificationTarget(event.notification.data);
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      const existing = clients.find((client) => new URL(client.url).origin === self.location.origin);
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      // Reutiliza una ventana de la app si ya está abierta.
+      const existing = clients.find((client) => {
+        try {
+          return new URL(client.url).origin === self.location.origin;
+        } catch {
+          return false;
+        }
+      });
+
       if (existing) {
-        return existing.navigate(url).then(() => existing.focus());
+        try {
+          // Navega la ventana existente al destino y la enfoca.
+          if (typeof existing.navigate === 'function') {
+            const navigated = await existing.navigate(url);
+            const target = navigated || existing;
+            if (typeof target.focus === 'function') await target.focus();
+            return;
+          }
+          if (typeof existing.focus === 'function') await existing.focus();
+          return;
+        } catch {
+          // Si la ventana existente no se puede navegar, se abre una nueva.
+        }
       }
-      return self.clients.openWindow(url);
+
+      // Sin ventana reutilizable (o si falló), abre una nueva en el destino.
+      if (typeof self.clients.openWindow === 'function') {
+        await self.clients.openWindow(url);
+      }
     }),
   );
 });
@@ -136,3 +182,4 @@ self.UMSSPIRA_SW.routes.push({
     }
   },
 });
+
