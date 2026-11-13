@@ -19,7 +19,6 @@ export class UpdateApplicationStageController {
     @Body() body: { stage: string },
     @CurrentActor() actor: ActorContext,
   ) {
-    console.log('>>> CONECTADO A LA BD:', process.env.DATABASE_URL);
     if (!body?.stage || !ALLOWED_STAGES.includes(body.stage)) {
       throw new BadRequestException('Etapa inválida.');
     }
