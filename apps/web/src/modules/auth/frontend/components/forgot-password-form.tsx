@@ -174,11 +174,16 @@ export function ForgotPasswordForm() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             aria-invalid={Boolean(emailError)}
+            aria-describedby={emailError ? "email-error" : undefined}
             aria-required="true"
             className={fieldInput}
           />
         </div>
-        {emailError && <p className="text-xs text-truffle-trouble">{emailError}</p>}
+        {emailError && (
+          <p id="email-error" role="alert" className="text-xs text-truffle-trouble">
+            {emailError}
+          </p>
+        )}
       </div>
 
       {requestError && (

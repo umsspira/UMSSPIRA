@@ -38,10 +38,11 @@ interface PasswordFieldProps {
   label: string;
   value: string;
   disabled: boolean;
+  describedBy?: string;
   onChange: (value: string) => void;
 }
 
-function PasswordField({ id, label, value, disabled, onChange }: PasswordFieldProps) {
+function PasswordField({ id, label, value, disabled, describedBy, onChange }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
   return (
     <div className="space-y-2">
@@ -58,6 +59,7 @@ function PasswordField({ id, label, value, disabled, onChange }: PasswordFieldPr
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
           aria-required="true"
+          aria-describedby={describedBy}
           className={fieldInput}
         />
         <button
@@ -195,6 +197,7 @@ export function ResetPasswordForm() {
         label="Nueva contraseña"
         value={password}
         disabled={submitting}
+        describedBy="password-requirements"
         onChange={setPassword}
       />
       <PasswordField
@@ -202,10 +205,11 @@ export function ResetPasswordForm() {
         label="Confirmar contraseña"
         value={confirmation}
         disabled={submitting}
+        describedBy="password-requirements"
         onChange={setConfirmation}
       />
 
-      <ul aria-label="Requisitos de la contraseña" className="space-y-1.5 text-xs">
+      <ul id="password-requirements" aria-label="Requisitos de la contraseña" className="space-y-1.5 text-xs">
         {requirements.map(([met, text]) => (
           <li
             key={text}
