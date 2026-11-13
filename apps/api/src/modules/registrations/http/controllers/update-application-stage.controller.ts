@@ -6,7 +6,7 @@ import { RequirePermissions } from '../../../../shared/http/auth/decorators/requ
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 
-const ALLOWED_STAGES = ['Postulado', 'En revisión', 'Preseleccionado', 'Entrevista', 'Descartado'];
+const ALLOWED_STAGES = ['Postulado', 'En revisiÃ³n', 'Preseleccionado', 'Entrevista', 'Descartado'];
 
 @Controller('applications')
 export class UpdateApplicationStageController {
@@ -20,14 +20,14 @@ export class UpdateApplicationStageController {
     @CurrentActor() actor: ActorContext,
   ) {
     if (!body?.stage || !ALLOWED_STAGES.includes(body.stage)) {
-      throw new BadRequestException('Etapa inválida.');
+      throw new BadRequestException('Etapa invÃ¡lida.');
     }
     const postulacion = await this.prisma.postulacion.findUnique({
       where: { id },
       include: { vacante: { include: { empresa: true } } },
     });
     if (!postulacion) {
-      throw new NotFoundException('Postulación no encontrada');
+      throw new NotFoundException('PostulaciÃ³n no encontrada');
     }
     if (postulacion.vacante?.empresa?.id_usuario !== actor.id) {
       throw new ForbiddenException('No tienes permiso');
