@@ -90,30 +90,33 @@ function isPrivateRoute(pathname) {
 
 
 
+const OFFLINE_ALLOWED_ROUTES = [
+  '/portal',
+  '/portal/eventos',
+  '/portal/empleos',
+  '/portal/beneficios',
+  '/portal/comunidad',
+];
+
 function isSafeOfflineRoute(request) {
   if (request.method !== 'GET') return false;
-
   if (request.mode !== 'navigate') return false;
 
   const url = new URL(request.url);
 
-  if (url.origin !== self.location.origin) {
-    return false;
-  }
+  if (url.origin !== self.location.origin) return false;
+  if (isPrivateRoute(url.pathname)) return false;
+  if (request.headers.get('Authorization')) return false;
+  if (url.search) return false;
 
-  if (isPrivateRoute(url.pathname)) {
-    return false;
-  }
+  const pathname = url.pathname.replace(/\/$/, '') || '/';
 
-  if (request.headers.get('Authorization')) {
-    return false;
-  }
-
-  return (
-    url.pathname === '/portal' &&
-    !url.search
-  );
+  return OFFLINE_ALLOWED_ROUTES.includes(pathname);
 }
+
+
+
+
 
 function isCacheable(response) {
   return (
