@@ -4,9 +4,9 @@
  * HU04 - Tarea #404: almacenamiento en caché de rutas
  */
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 
-const CACHE_NAME = 'umsspira-core-portal-v4';
+const CACHE_NAME = 'umsspira-core-portal-v5';
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
 const ASSETS_CACHE = `umsspira-assets-${VERSION}`;
 const CONFIG_CACHE = `umsspira-config-${VERSION}`;
@@ -24,6 +24,7 @@ const CORE_ASSETS = ['/portal'];
 
 const PRECACHE_URLS = [
   '/offline',
+  '/offline-secciones.html',
   '/manifest.webmanifest',
   '/favicon.ico',
 ];
@@ -97,6 +98,7 @@ const OFFLINE_ALLOWED_ROUTES = [
   '/portal/beneficios',
   '/portal/comunidad',
 ];
+
 
 function isSafeOfflineRoute(request) {
   if (request.method !== 'GET') return false;
@@ -201,14 +203,17 @@ self.addEventListener('install', (event) => {
 
           const response = await fetch(request);
 
+          const pathname = new URL(url, self.location.origin).pathname;
+
           if (
-            isSafeOfflineRoute(
-              new Request(url, { mode: 'navigate' })
-            ) &&
+            OFFLINE_ALLOWED_ROUTES.includes(pathname) &&
+            !isPrivateRoute(pathname) &&
             canStoreNavigationResponse(response)
           ) {
-            await coreCache.put(url, response);
+            await coreCache.put(url, response.clone());
           }
+
+
         })
       );
 
@@ -362,6 +367,16 @@ async function handleNavigation(request) {
 
       if (corePage) {
         return corePage;
+      }
+    }
+
+    if (canCache) {
+      const offlineSections = await caches.match(
+        '/offline-secciones.html'
+      );
+
+      if (offlineSections) {
+        return offlineSections;
       }
     }
 

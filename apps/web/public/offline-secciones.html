@@ -1,0 +1,83 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UMSSPIRA | Navegación sin conexión</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #eee9df;
+      color: #1b2632;
+    }
+    header {
+      background: #1b2632;
+      color: white;
+      padding: 24px;
+    }
+    main {
+      max-width: 1000px;
+      margin: 32px auto;
+      padding: 16px;
+    }
+    .aviso {
+      background: #fff3df;
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .secciones {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    a {
+      display: block;
+      padding: 24px;
+      border-radius: 12px;
+      background: white;
+      color: #1b2632;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    a:hover {
+      background: #ffdfb7;
+    }
+    button {
+      margin-top: 24px;
+      padding: 12px 24px;
+      background: #ffb162;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>UMSSPIRA</h1>
+    <p>Navegación sin conexión</p>
+  </header>
+
+  <main>
+    <div class="aviso">
+      Estás sin conexión. Puedes consultar las secciones
+      disponibles en modo offline.
+    </div>
+
+    <h2>Secciones</h2>
+
+    <nav class="secciones" aria-label="Secciones offline">
+      <a href="/portal">Inicio</a>
+      <a href="/portal/eventos">Eventos</a>
+      <a href="/portal/empleos">Empleos</a>
+      <a href="/portal/beneficios">Beneficios</a>
+      <a href="/portal/comunidad">Comunidad</a>
+    </nav>
+
+    <button onclick="location.reload()">Reintentar</button>
+  </main>
+</body>
+</html>
