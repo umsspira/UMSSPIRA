@@ -18,7 +18,7 @@ import {
 import { PreviousDocumentPreview } from "./previous-document-preview";
 
 type Props = {
-  token: string;
+  token?: string;
   hasPreviousDocument?: boolean;
   initial: CorrectionValues;
   currentDocument: {
@@ -85,7 +85,7 @@ function Card({ n, title, children }: { n: number; title: string; children: Reac
 }
 
 export function ObservedEditForm({
-  token,
+  token = "",
   hasPreviousDocument = true,
   initial,
   currentDocument,
@@ -226,7 +226,7 @@ export function ObservedEditForm({
           </p>
           <PreviousDocumentPreview
            token={token}
-           available={hasPreviousDocument}
+           available={hasPreviousDocument && Boolean(token)}
           />
 
         </div>
