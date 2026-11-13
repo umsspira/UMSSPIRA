@@ -1,4 +1,5 @@
 import type { OcrReading } from "@umsspira/shared-types";
+import { withOcrDeadline } from "./ocr-control";
 
 export const OCR_ENGINE = "PaddleOCR.js@0.4.2/PP-OCRv6_small/es";
 const MAX_PAGES = 5;
@@ -19,6 +20,24 @@ export function getOcrRuntime() {
 }
 
 export async function readOcrDocument(
+  blob: Blob,
+  signal: AbortSignal,
+  progress: (message: string) => void,
+): Promise<OcrReading> {
+  return withOcrDeadline(
+    async (bounded) => {
+      try {
+        return await readDocument(blob, bounded, progress);
+      } finally {
+        if (bounded.aborted) disposeOcrEngine();
+      }
+    },
+    signal,
+    120000,
+  );
+}
+
+async function readDocument(
   blob: Blob,
   signal: AbortSignal,
   progress: (message: string) => void,
@@ -209,18 +228,18 @@ export async function readOcrDocument(
     ) {
       terminate();
       if (pdf) {
-        await pdf.destroy();
+        void pdf.destroy().catch(() => undefined);
         pdf = undefined;
-      } else if (loading) await loading.destroy();
+      } else if (loading) void loading.destroy().catch(() => undefined);
       loading = undefined;
-      return await readOcrDocument(blob, signal, progress, true);
+      return await readDocument(blob, signal, progress, true);
     }
     throw error;
   } finally {
     signal.removeEventListener("abort", terminate);
     // Keep one initialized engine for this board; discard it on error, abort or navigation.
     if (!healthy || signal.aborted) terminate();
-    if (pdf) await pdf.destroy();
-    else if (loading) await loading.destroy();
+    if (pdf) void pdf.destroy().catch(() => undefined);
+    else if (loading) void loading.destroy().catch(() => undefined);
   }
 }
