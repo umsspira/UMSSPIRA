@@ -280,3 +280,41 @@ describe('Completar perfil · espera la carga inicial del perfil (revisión PR #
     expect(screen.getByText('AWS Cloud Practitioner')).toBeInTheDocument();
   });
 });
+
+describe('Completar perfil · cambiar respaldo sin duplicar (HU-18, T18.6)', () => {
+  beforeEach(() => {
+    crearCertificacion.mockReset();
+    subirRespaldo.mockReset();
+  });
+
+  it('reemplaza el respaldo de la misma certificación y no crea otra', async () => {
+    crearCertificacion.mockResolvedValue(CREADA);
+    subirRespaldo.mockResolvedValue(undefined);
+    abrirCertificaciones();
+    llenarYAgregar();
+    await screen.findByText('Certificación guardada');
+
+    const pdf = new File(['%PDF-1.4'], 'titulo.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Cambiar respaldo', { selector: 'input' }), { target: { files: [pdf] } });
+
+    expect(await screen.findByText('Respaldo actualizado')).toBeInTheDocument();
+    expect(subirRespaldo).toHaveBeenLastCalledWith('cert-1', pdf, expect.any(Function));
+    expect(crearCertificacion).toHaveBeenCalledTimes(1);
+    // Sigue habiendo una sola certificación registrada
+    expect(screen.getAllByText('AWS Cloud Practitioner')).toHaveLength(1);
+  });
+
+  it('un archivo de más de 5 MB no se sube al cambiar el respaldo', async () => {
+    crearCertificacion.mockResolvedValue(CREADA);
+    subirRespaldo.mockResolvedValue(undefined);
+    abrirCertificaciones();
+    llenarYAgregar();
+    await screen.findByText('Certificación guardada');
+    const grande = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'grande.pdf', { type: 'application/pdf' });
+
+    fireEvent.change(screen.getByLabelText('Cambiar respaldo', { selector: 'input' }), { target: { files: [grande] } });
+
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
+    expect(subirRespaldo).toHaveBeenCalledTimes(1);
+  });
+});
