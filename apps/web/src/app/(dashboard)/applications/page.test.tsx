@@ -469,7 +469,7 @@ describe('ApplicationsPage', () => {
     expect(mockedFetchBoard).toHaveBeenCalledTimes(1);
     expect(mockedFetchMetrics).toHaveBeenCalledTimes(1);
   });
-    it('envía correctamente el dictamen de observación', async () => {
+        it('envía correctamente el dictamen de observación', async () => {
     mockedFetchBoard.mockResolvedValue({
       ok: true,
       data: boardPage,
@@ -483,14 +483,10 @@ describe('ApplicationsPage', () => {
     expect(observeButton).toBeEnabled();
     fireEvent.click(observeButton);
 
-    fireEvent.change(
-      screen.getByLabelText(/Categoría de la observación/),
-      {
-        target: { value: 'Documento ilegible' },
-      },
-    );
+    fireEvent.click(screen.getByLabelText('Documento ilegible'));
+    fireEvent.click(screen.getByLabelText('Datos incorrectos'));
 
-    fireEvent.change(screen.getByLabelText(/Nota de observación/), {
+    fireEvent.change(screen.getByLabelText(/Qué debe corregir el Titulado/), {
       target: { value: 'El documento presentado no se puede leer.' },
     });
 
@@ -505,7 +501,7 @@ describe('ApplicationsPage', () => {
           method: 'POST',
           body: JSON.stringify({
             decision: 'OBSERVADA',
-            category: 'Documento ilegible',
+            motivos: ['Documento ilegible', 'Datos incorrectos'],
             note: 'El documento presentado no se puede leer.',
           }),
         }),

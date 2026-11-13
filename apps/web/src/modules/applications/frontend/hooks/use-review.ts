@@ -10,7 +10,8 @@ export type ReviewDecision = "APROBADA" | "OBSERVADA" | "RECHAZADA";
 
 export type ReviewPayload = {
   decision: ReviewDecision;
-  category?: string; // obligatoria si OBSERVADA o RECHAZADA (causal)
+  motivos?: string[]; // solo al observar: uno o más motivos distintos (HU-16)
+  category?: string; // causal de rechazo; en observaciones antiguas, su única categoría
   note?: string; // mínimo 10 caracteres si OBSERVADA o RECHAZADA
   notifyDean?: boolean; // checkbox del diseño de Observar
 };
