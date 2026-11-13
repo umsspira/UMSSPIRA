@@ -1,5 +1,7 @@
 import type { UserRole } from '@umsspira/shared-types';
 import { apiFetch } from '@/shared/services/api-client';
+import { apiUrl } from '@/shared/services/api-contract';
+
 export type { UserRole };
 
 export interface LoginCredentials { email: string; password: string; remember?: boolean; }
@@ -14,14 +16,17 @@ export interface CurrentUser {
 }
 
 export function getCurrentUser(): Promise<CurrentUser> {
-  return apiFetch<CurrentUser>('/api/v1/auth/me');
+  return apiFetch<CurrentUser>('/auth/me');
 }
+
 export const LOGIN_ERROR_MESSAGE = 'Correo electrónico o contraseña incorrectos';
 
 export async function login(credentials: LoginCredentials): Promise<LoginResult> {
-  const response = await fetch('/api/v1/auth/login', {
-    method: 'POST', credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials),
+  const response = await fetch(apiUrl('/auth/login'), {
+    method: 'POST', 
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify(credentials),
   });
   if (!response.ok) {
     throw new Error(response.status === 429 ? 'Demasiados intentos. Inténtalo nuevamente más tarde'

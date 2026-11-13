@@ -8,7 +8,6 @@ import {
   Pause, Trash2, Laptop, Building2, Users, BarChart2, Calendar, Ban, Plus
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
-import { API_BASE_URL } from '@/shared/config/api';
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
 
 interface Vacante {
@@ -23,7 +22,6 @@ interface Vacante {
 
 export default function MisVacantesPage() {
   const router = useRouter();
-  // BUG-06-01: en celular la tabla se muestra como tarjetas
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [vacantes, setVacantes] = useState<Vacante[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +43,8 @@ export default function MisVacantesPage() {
       setIsLoading(true);
       try {
         const token = getAccessToken();
-        const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/mis-vacantes`, {
+        // Usamos ruta relativa para que pase por el Proxy de Next.js
+        const response = await fetch('/api/v1/vacantes/mis-vacantes', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -104,7 +103,7 @@ export default function MisVacantesPage() {
   const handlePausar = async (vacante: Vacante) => {
     try {
       const token = getAccessToken();
-      const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${vacante.id}`, {
+      const response = await fetch(`/api/v1/vacantes/${vacante.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +128,7 @@ export default function MisVacantesPage() {
     setIsCerrando(true);
     try {
       const token = getAccessToken();
-      const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${vacanteACerrar.id}/cerrar`, {
+      const response = await fetch(`/api/v1/vacantes/${vacanteACerrar.id}/cerrar`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -153,7 +152,7 @@ export default function MisVacantesPage() {
     setIsEliminando(true);
     try {
       const token = getAccessToken();
-      const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${vacanteAEliminar.id}`, {
+      const response = await fetch(`/api/v1/vacantes/${vacanteAEliminar.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -176,19 +175,18 @@ export default function MisVacantesPage() {
   };
 
   const getBadgeStyle = (estado: string) => {
-    // Convertimos todo a mayúsculas para que no falle si llega como "Pausada" o "pausada"
     const estadoNormalizado = estado?.toUpperCase() || 'BORRADOR'; 
     
     switch(estadoNormalizado) {
       case 'ACTIVA': 
-        return { bg: '#dcfce7', color: '#166534', dot: '#22c55e' }; // Verde
+        return { bg: '#dcfce7', color: '#166534', dot: '#22c55e' };
       case 'PAUSADA': 
-        return { bg: '#f3f4f6', color: '#4b5563', dot: '#6b7280' }; // Gris oscuro (BUG corregido)
+        return { bg: '#f3f4f6', color: '#4b5563', dot: '#6b7280' };
       case 'CERRADA': 
-        return { bg: '#e5e7eb', color: '#374151', dot: '#6b7280' }; // Gris
+        return { bg: '#e5e7eb', color: '#374151', dot: '#6b7280' };
       case 'BORRADOR':
       default: 
-        return { bg: '#f9fafb', color: '#9ca3af', dot: '#d1d5db' }; // Gris claro
+        return { bg: '#f9fafb', color: '#9ca3af', dot: '#d1d5db' };
     }
   };
 
@@ -326,13 +324,11 @@ export default function MisVacantesPage() {
             })}
           </div>
 
-          {/* BUG-06-01: en celular el contenedor no lleva borde y las filas son tarjetas separadas */}
           <div style={isMobile
             ? { display: 'flex', flexDirection: 'column', gap: '0.75rem' }
             : { border: '1px solid var(--oatmeal)', borderRadius: '0.75rem', backgroundColor: '#fff' }
           }>
             
-            {/* BUG-06-01: los encabezados se ocultan en celular */}
             {!isMobile && (
               <div style={{ display: 'grid', gridTemplateColumns: '40px 2.5fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '1rem', backgroundColor: '#fcfcfc', borderBottom: '1px solid var(--oatmeal)', fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center', borderRadius: '0.75rem 0.75rem 0 0' }}>
                 <div><input type="checkbox" style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: 'var(--flame)' }} /></div>
@@ -384,7 +380,6 @@ export default function MisVacantesPage() {
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}
                   >
                     
-                    {/* En celular el checkbox va arriba a la derecha de la tarjeta */}
                     <div style={isMobile
                       ? { position: 'absolute', top: '1rem', right: '1rem', display: 'flex' }
                       : { display: 'flex', alignItems: 'center', justifyContent: 'center' }

@@ -11,6 +11,15 @@ const nextConfig = {
       },
     ];
   },
+  // ESTO ES LO NUEVO: El Proxy para evitar bloqueos de cookies entre puertos
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: 'http://localhost:3000/api/v1/:path*',
+      },
+    ];
+  },
   async headers() {
     return [
       {

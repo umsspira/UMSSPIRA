@@ -30,9 +30,8 @@ export function readApiError(value: unknown, fallback: string) {
 }
 
 export function apiUrl(path: string): string {
-  if (path.startsWith("/api/v1/")) return path;
-  const base = (
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
-  ).replace(/\/+$/, "");
-  return `${base}${path}`;
+  // Usamos rutas relativas para que Next.js haga el proxy y no haya problemas de CORS/Cookies
+  const cleanPath = path.startsWith("/api/v1") ? path.substring(7) : path;
+  const normalizedPath = cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`;
+  return `/api/v1${normalizedPath}`;
 }
