@@ -3,7 +3,11 @@ import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { ReportRepository } from '../../application/ports/report-repository.port';
-import type { GraduateListQuery, ReportFilter } from '../../application/contracts/report-inputs';
+import type {
+  CompetencyHeatmap,
+  GraduateListQuery,
+  ReportFilter,
+} from '../../application/contracts/report-inputs';
 import { reportInclude, toGraduateReport } from '../translators/report.translator';
 
 export const MAX_EXPORT_ROWS = 10000;
@@ -44,6 +48,68 @@ export class PrismaReportRepository implements ReportRepository {
         { isolationLevel: 'RepeatableRead' },
       );
     return { totalApplications, approvedApplications, observedApplications, activeMentors };
+  }
+
+  async competencyHeatmap(careerIds: readonly string[]): Promise<CompetencyHeatmap> {
+    // Integración T2.2/T2.3: esta consulta entrega el contrato completo del
+    // mapa; radar solo es la fuente de cálculos y no se modifica desde reports.
+    const calculations = await this.prisma.calculoRadar.findMany({
+      where: { titulado: { id_carrera: { in: [...careerIds] } } },
+      orderBy: [{ id_titulado: 'asc' }, { fecha_calculo: 'desc' }, { id: 'desc' }],
+      include: {
+        titulado: { select: { id: true, anio_egreso: true } },
+        afinidad_registros: {
+          include: { area: { select: { id: true, nombre: true } } },
+        },
+      },
+    });
+
+    const latestByGraduate = new Map<string, (typeof calculations)[number]>();
+    for (const calculation of calculations) {
+      if (!latestByGraduate.has(calculation.id_titulado)) {
+        latestByGraduate.set(calculation.id_titulado, calculation);
+      }
+    }
+
+    const areaMap = new Map<string, { id: string; name: string }>();
+    const cohortMap = new Map<string, Map<string, { total: number; sum: number }>>();
+
+    for (const calculation of latestByGraduate.values()) {
+      const cohort = String(calculation.titulado.anio_egreso ?? 'Sin cohorte');
+      const cohortCells = cohortMap.get(cohort) ?? new Map();
+      cohortMap.set(cohort, cohortCells);
+
+      for (const affinity of calculation.afinidad_registros) {
+        const area = {
+          id: affinity.area.id,
+          name: affinity.area.nombre ?? 'Área sin nombre',
+        };
+        areaMap.set(area.id, area);
+        const current = cohortCells.get(area.id) ?? { total: 0, sum: 0 };
+        current.total += 1;
+        current.sum += Number(affinity.porcentaje);
+        cohortCells.set(area.id, current);
+      }
+    }
+
+    const cohorts = [...cohortMap.keys()].sort();
+    const areas = [...areaMap.values()].sort((left, right) => left.name.localeCompare(right.name));
+    const cells = cohorts.flatMap((cohort) =>
+      areas.map((area) => {
+        const value = cohortMap.get(cohort)?.get(area.id);
+        const graduateCount = value?.total ?? 0;
+        return {
+          cohort,
+          areaId: area.id,
+          areaName: area.name,
+          graduateCount,
+          percentage:
+            graduateCount >= 5 ? Number((value!.sum / graduateCount).toFixed(2)) : null,
+        };
+      }),
+    );
+
+    return { areas, cohorts, cells };
   }
 
   async list(careerIds: readonly string[], query: GraduateListQuery) {
