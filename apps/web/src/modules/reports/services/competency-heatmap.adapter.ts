@@ -7,9 +7,9 @@ import type {
 import { createHeatmapHttpLoader } from './competency-heatmap.service';
 
 /**
- * Adaptador de la respuesta observada en la rama de Diego (T2.1).
+ * Adaptador de la respuesta HTTP de T2.1.
  *
- * Contrato revisado en la rama T2.1 de Diego: status `ok`, `insufficient`
+ * Contrato de T2.1: status `ok`, `insufficient`
  * o `no-data`, y `updatedAt` ISO-8601 (null cuando no hay cálculos).
  * El servidor debe omitir percentage y graduateCount en muestras N=1..4.
  * La carga HTTP se activará al montar el mapa en la ruta administrativa real.
@@ -71,7 +71,7 @@ function readCell(raw: Record<string, unknown>): HeatmapCell {
  * `updatedAt` debe ser la fecha del cálculo más reciente pertinente, NO la hora
  * ficticia de renderizado ni una fecha del mockup.
  */
-export function adaptDiegoCompetencyHeatmap(payload: unknown): HeatmapData {
+export function adaptCompetencyHeatmap(payload: unknown): HeatmapData {
   const envelope = object(payload, 'Envoltorio');
   const data = object(envelope.data, 'data');
 
@@ -133,7 +133,7 @@ export function adaptDiegoCompetencyHeatmap(payload: unknown): HeatmapData {
  * Loader preparado para /reports/acreditacion. No modifica el backend ni
  * monta la ruta; la pantalla institucional debe importarlo explícitamente.
  */
-export const loadCompetencyHeatmapFromDiego = createHeatmapHttpLoader({
+export const loadCompetencyHeatmap = createHeatmapHttpLoader({
   endpoint: '/api/v1/reports/accreditation/heatmap',
-  adapt: adaptDiegoCompetencyHeatmap,
+  adapt: adaptCompetencyHeatmap,
 });

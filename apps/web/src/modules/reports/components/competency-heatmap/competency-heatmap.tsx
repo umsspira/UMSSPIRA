@@ -24,7 +24,7 @@ interface Props {
 /**
  * HU-EP09-06 / T2.2 y T2.3.
  * Sin navbar, sin acceso directo a API, sin datos falsos en producción.
- * HU-001 integra el componente en /reports/acreditacion; Diego entrega la carga.
+ * La página /reports/acreditacion integra el componente mediante un cargador HTTP.
  */
 export function CompetencyHeatmap({
   careerName, data, loading = false, error = null, onRefresh,

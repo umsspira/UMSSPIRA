@@ -2,7 +2,7 @@ import type { AffinityArea } from '@umsspira/shared-types';
 
 /**
  * Contrato INTERNO de presentación para HU-EP09-06.
- * No representa todavía el JSON HTTP de T2.1 (Diego).
+ * Independiente del contrato JSON HTTP de T2.1.
  */
 export type HeatmapCell =
   | { status: 'calculated'; percentage: number; graduateCount: number }
@@ -22,5 +22,5 @@ export interface HeatmapData {
   cohorts: HeatmapCohort[];
 }
 
-/** Inyectable: evita fijar una URL o un formato de T2.1 sin acuerdo con Diego. */
+/** Inyectable: desacopla la presentación del transporte y contrato HTTP. */
 export type HeatmapLoader = (signal: AbortSignal) => Promise<HeatmapData>;

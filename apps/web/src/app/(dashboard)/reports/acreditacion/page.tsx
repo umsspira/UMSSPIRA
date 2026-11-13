@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ConnectedCompetencyHeatmap } from '@/modules/reports/components/competency-heatmap';
-import { loadCompetencyHeatmapFromDiego } from '@/modules/reports/services/competency-heatmap.diego-adapter';
+import { loadCompetencyHeatmap } from '@/modules/reports/services/competency-heatmap.adapter';
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 
@@ -122,7 +122,7 @@ export default function AccreditationHeatmapPage() {
         ) : careerName ? (
           <ConnectedCompetencyHeatmap
             careerName={careerName}
-            load={loadCompetencyHeatmapFromDiego}
+            load={loadCompetencyHeatmap}
           />
         ) : null}
       </div>

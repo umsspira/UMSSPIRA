@@ -14,8 +14,8 @@ jest.mock('@/modules/auth/frontend/services/session-expired', () => ({
   notifySessionExpired: jest.fn(),
 }));
 
-jest.mock('@/modules/reports/services/competency-heatmap.diego-adapter', () => ({
-  loadCompetencyHeatmapFromDiego: jest.fn(),
+jest.mock('@/modules/reports/services/competency-heatmap.adapter', () => ({
+  loadCompetencyHeatmap: jest.fn(),
 }));
 
 jest.mock('@/modules/reports/components/competency-heatmap', () => ({

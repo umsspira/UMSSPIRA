@@ -9,7 +9,7 @@ import {
 } from '../components/competency-heatmap/heatmap.utils';
 
 /**
- * Factoria de adaptador HTTP para cuando Diego publique T2.1.
+ * Factoría del cargador HTTP, desacoplada del contrato de T2.1.
  * No decide la ruta, ni la estructura JSON, ni fabrica valores por defecto.
  */
 export function createHeatmapHttpLoader(options: {

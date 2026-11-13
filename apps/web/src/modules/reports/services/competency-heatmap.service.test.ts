@@ -1,7 +1,7 @@
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { assertHeatmapData, createHeatmapHttpLoader } from './competency-heatmap.service';
 import { heatmapMockupFixture } from '../components/competency-heatmap/__fixtures__/competency-heatmap.fixture';
-import { adaptDiegoCompetencyHeatmap } from './competency-heatmap.diego-adapter';
+import { adaptCompetencyHeatmap } from './competency-heatmap.adapter';
 
 jest.mock('@/shared/services/auth-session', () => {
   const actual = jest.requireActual('@/shared/services/auth-session');
@@ -38,7 +38,7 @@ describe('Integración futura de T2.1: servicio aislado', () => {
     expect(() => assertHeatmapData(fixture)).toThrow(/no puede exponer/);
   });
 
-  it('consume el JSON de Diego con status ok mediante authenticatedFetch', async () => {
+  it('consume el JSON de T2.1 con status ok mediante authenticatedFetch', async () => {
     const software = '60000000-0000-4000-8000-000000000003';
     http.mockResolvedValue({
       ok: true, status: 200,
@@ -53,7 +53,7 @@ describe('Integración futura de T2.1: servicio aislado', () => {
     const signal = new AbortController().signal;
     const load = createHeatmapHttpLoader({
       endpoint: '/api/v1/reports/accreditation/heatmap',
-      adapt: adaptDiegoCompetencyHeatmap,
+      adapt: adaptCompetencyHeatmap,
     });
     const result = await load(signal);
     expect(result.cohorts[0].areas['software-development']).toEqual({

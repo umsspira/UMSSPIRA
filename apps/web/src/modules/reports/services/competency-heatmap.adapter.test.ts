@@ -1,5 +1,5 @@
 import { RADAR_AREA_IDS } from '@umsspira/shared-types';
-import { adaptDiegoCompetencyHeatmap } from './competency-heatmap.diego-adapter';
+import { adaptCompetencyHeatmap } from './competency-heatmap.adapter';
 
 const software = RADAR_AREA_IDS['software-development'];
 const quality = RADAR_AREA_IDS['quality-assurance'];
@@ -19,9 +19,9 @@ function response(cells: unknown[], changes: Record<string, unknown> = {}) {
   };
 }
 
-describe('T2.2/T2.3: adaptación del contrato HTTP de Diego', () => {
+describe('T2.2/T2.3: adaptación del contrato HTTP de T2.1', () => {
   it('mapea UUID a las seis áreas oficiales, conserva el 0 % y las cohortes', () => {
-    const parsed = adaptDiegoCompetencyHeatmap(response([
+    const parsed = adaptCompetencyHeatmap(response([
       { cohort: '2021', areaId: software, areaName: 'Desarrollo de Software',
         graduateCount: 5, percentage: 0 },
       { cohort: '2023', areaId: quality, areaName: 'Aseguramiento de Calidad (QA)',
@@ -40,7 +40,7 @@ describe('T2.2/T2.3: adaptación del contrato HTTP de Diego', () => {
   });
 
   it('distingue ausencia real de datos y muestra insuficiente ya protegida', () => {
-    const result = adaptDiegoCompetencyHeatmap(response([
+    const result = adaptCompetencyHeatmap(response([
       { cohort: '2021', areaId: software, percentage: null, graduateCount: 0 },
       { cohort: '2021', areaId: quality, status: 'insufficient',
         percentage: null, graduateCount: null },
@@ -51,18 +51,18 @@ describe('T2.2/T2.3: adaptación del contrato HTTP de Diego', () => {
   });
 
   it.each([1, 2, 3, 4])('rechaza que la API divulgue %s titulados (CA-06)', count => {
-    expect(() => adaptDiegoCompetencyHeatmap(response([
+    expect(() => adaptCompetencyHeatmap(response([
       { cohort: '2021', areaId: software, percentage: null, graduateCount: count },
     ]))).toThrow(/CA-06/);
   });
 
   it('rechaza la ausencia del campo updatedAt (CA-07)', () => {
-    expect(() => adaptDiegoCompetencyHeatmap(response([], { updatedAt: undefined })))
+    expect(() => adaptCompetencyHeatmap(response([], { updatedAt: undefined })))
       .toThrow(/CA-07/);
   });
 
   it('acepta los tres estados del contrato real de T2.1: ok, insufficient y no-data', () => {
-    const result = adaptDiegoCompetencyHeatmap(response([
+    const result = adaptCompetencyHeatmap(response([
       { cohort: '2021', areaId: software, status: 'ok', graduateCount: 5, percentage: 70 },
       { cohort: '2021', areaId: quality, status: 'no-data' },
       { cohort: '2023', areaId: software, status: 'insufficient' },
@@ -75,19 +75,19 @@ describe('T2.2/T2.3: adaptación del contrato HTTP de Diego', () => {
   });
 
   it('admite fecha nula exclusivamente cuando no hay cálculos', () => {
-    const empty = adaptDiegoCompetencyHeatmap(response([], { cohorts: [], updatedAt: null }));
+    const empty = adaptCompetencyHeatmap(response([], { cohorts: [], updatedAt: null }));
     expect(empty).toEqual({ updatedAt: null, cohorts: [] });
-    expect(() => adaptDiegoCompetencyHeatmap(response([], { updatedAt: null })))
+    expect(() => adaptCompetencyHeatmap(response([], { updatedAt: null })))
       .toThrow(/CA-07/);
   });
 
   it('rechaza cohortes, porcentajes y celdas incoherentes', () => {
-    expect(() => adaptDiegoCompetencyHeatmap(response([], { cohorts: ['Sin cohorte'] })))
+    expect(() => adaptCompetencyHeatmap(response([], { cohorts: ['Sin cohorte'] })))
       .toThrow(/Cohorte inválida/);
-    expect(() => adaptDiegoCompetencyHeatmap(response([
+    expect(() => adaptCompetencyHeatmap(response([
       { cohort: '2021', areaId: software, graduateCount: 5, percentage: 102 },
     ]))).toThrow(/Porcentaje inválido/);
-    expect(() => adaptDiegoCompetencyHeatmap(response([
+    expect(() => adaptCompetencyHeatmap(response([
       { cohort: '2020', areaId: software, graduateCount: 5, percentage: 72 },
     ]))).toThrow(/no declarada/);
   });
