@@ -21,6 +21,19 @@ async function main() {
   });
   try {
     const page = await browser.newPage();
+    if (process.env.OCR_DISABLE_WEBGPU === "1") {
+      await page.route("**/ocr/runtime/paddle-worker.js", (route) =>
+        route.fulfill({
+          contentType: "text/javascript",
+          body:
+            'Object.defineProperty(self.navigator, "gpu", {value: undefined});\n' +
+            readFileSync(
+              resolve("public/ocr/runtime/paddle-worker.js"),
+              "utf8",
+            ),
+        }),
+      );
+    }
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     page.on("console", (m) => {
@@ -52,7 +65,8 @@ async function main() {
       );
       const result = await page.evaluate(
         async ({ bytes, mime }) => {
-          const { readOcrDocument } = await import("/__hu13-reader.mjs");
+          const { readOcrDocument, getOcrRuntime } =
+            await import("/__hu13-reader.mjs");
           const blob = new Blob(
             [Uint8Array.from(atob(bytes), (c) => c.charCodeAt(0))],
             { type: mime },
@@ -69,6 +83,7 @@ async function main() {
                 (message) => console.log(message),
               ),
               ticks,
+              runtime: getOcrRuntime(),
             };
           } finally {
             clearTimeout(timeout);
