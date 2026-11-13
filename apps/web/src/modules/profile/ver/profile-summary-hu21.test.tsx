@@ -25,7 +25,8 @@ describe('ProfileSummary · ajustes de la revisión (HU-21)', () => {
   it('CA-01: al volver tras guardar muestra «Se guardó correctamente» y se cierra con la X', () => {
     renderSummary(true);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Se guardó correctamente');
+    // Al integrar hay otros avisos con role="status" (por ejemplo Mi afinidad, HU-17): se busca el de guardado
+    expect(screen.getAllByRole('status').some((aviso) => aviso.textContent?.includes('Se guardó correctamente'))).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar aviso' }));
 

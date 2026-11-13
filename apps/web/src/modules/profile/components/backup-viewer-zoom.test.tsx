@@ -34,6 +34,21 @@ describe('BackupViewerModal · zoom (HU-21, T21.7, CA-07)', () => {
     expect(screen.getByText('75 %')).toBeInTheDocument();
   });
 
+  it('con un respaldo PDF (HU-18), el zoom también acerca y aleja el documento', async () => {
+    render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" backupType="pdf" onClose={jest.fn()} />);
+    const pdf = await screen.findByTitle('Respaldo de AWS');
+    expect(pdf.tagName).toBe('IFRAME');
+    expect(screen.queryByRole('button', { name: 'Acercar' })).not.toBeInTheDocument();
+
+    fireEvent.load(pdf);
+    fireEvent.click(screen.getByRole('button', { name: 'Acercar' }));
+    expect(screen.getByText('125 %')).toBeInTheDocument();
+    expect(screen.getByTestId('backup-zoom-content')).toContainElement(pdf);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Alejar' }));
+    expect(screen.getByText('100 %')).toBeInTheDocument();
+  });
+
   it('usar el zoom no cierra el visor', async () => {
     const onClose = jest.fn();
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={onClose} />);
