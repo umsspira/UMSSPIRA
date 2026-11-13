@@ -1,17 +1,18 @@
 'use client';
 
+import { RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 import { AFFINITY_ROUTE } from '@/modules/profile/data/affinity-route';
 import MiniRadarPlaceholder from '@/modules/profile/ver/mini-radar-placeholder';
 import { useMiniAffinity } from '@/modules/profile/ver/use-mini-affinity';
 
-// Pantalla donde el egresado completa su perfil (HU-01)
+// Pantalla donde el titulado completa su perfil 
 const COMPLETE_PROFILE_ROUTE = '/profile/completar';
 
-// Tarjeta "Mi afinidad" del resumen del perfil (HU-07) con el mini radar de 6 ejes (HU-17)
+// Tarjeta "Mi afinidad" del resumen del perfil  con el mini radar de 6 ejes 
 export default function AffinityLinkCard() {
-  const { state } = useMiniAffinity();
+  const { state, retry } = useMiniAffinity();
 
   return (
     <section
@@ -25,14 +26,14 @@ export default function AffinityLinkCard() {
         Descubre qué tan bien encaja tu perfil con las oportunidades laborales de la Red.
       </p>
 
-      {/* CA-03: el cálculo todavía no llega (mismo texto que la pantalla de la Épica 3) */}
+    
       {state.status === 'loading' && (
         <p role="status" className="text-sm font-medium text-blue-fantastic">
           Actualizando tu afinidad…
         </p>
       )}
 
-      {/* CA-01: valores del último cálculo */}
+      
       {state.status === 'ready' && <MiniRadarPlaceholder values={state.values} />}
 
       {/* CA-04: el perfil no tiene datos suficientes */}
@@ -48,9 +49,25 @@ export default function AffinityLinkCard() {
         </div>
       )}
 
-      {/* CA-02: el enlace se estira con "after:" para que toda la tarjeta abra Mi afinidad.
-          Los botones de los estados quedan encima (relative z-10) y siguen funcionando.
-          No usar "brightness" en el hover: un filtro encoge el "after:" al botón. */}
+   
+      {state.status === 'error' && (
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-oatmeal bg-palladian p-4"
+        >
+          <p className="text-sm font-semibold text-truffle-trouble">No se pudo calcular tu afinidad</p>
+          <button
+            type="button"
+            onClick={() => void retry()}
+            className="relative z-10 inline-flex items-center gap-1.5 rounded-lg border border-abyssal-blue px-4 py-2 text-sm font-bold text-abyssal-blue transition hover:bg-abyssal-blue/5"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      
       <Link
         href={AFFINITY_ROUTE}
         className="inline-flex items-center justify-center rounded-lg bg-burning-flame px-6 py-3.5 text-sm font-bold text-abyssal-blue transition after:absolute after:inset-0 after:rounded-2xl hover:bg-burning-flame/90"
