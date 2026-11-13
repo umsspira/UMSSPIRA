@@ -13,6 +13,11 @@ import {
   Bookmark,
   MapPin,
   Clock3,
+  WifiOff,
+  Wifi,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
 } from 'lucide-react';
 
 import umssBg from '@/shared/assets/images/14sept.webp';
@@ -112,6 +117,11 @@ export default function Home() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [eventsError, setEventsError] = useState(false);
+
+  // Nuevos estados para manejo de red
+  const [isOnline, setIsOnline] = useState(true);
+  const [showReconnectedToast, setShowReconnectedToast] = useState(false);
+  const [showTemporaryConnected, setShowTemporaryConnected] = useState(false);
 
   useEffect(() => {
     let isActive = true;
