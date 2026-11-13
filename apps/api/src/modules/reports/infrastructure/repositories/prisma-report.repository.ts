@@ -11,7 +11,7 @@ import type {
 import { reportInclude, toGraduateReport } from '../translators/report.translator';
 import {
   AFFINITY_AREAS,
-  AFFINITY_AREA_SHORT_LABELS,
+  AFFINITY_AREA_LABELS,
   RADAR_AREA_IDS,
 } from '@umsspira/shared-types';
 
@@ -84,7 +84,7 @@ export class PrismaReportRepository implements ReportRepository {
 
     const areas = AFFINITY_AREAS.map((area) => ({
       id: RADAR_AREA_IDS[area],
-      name: AFFINITY_AREA_SHORT_LABELS[area],
+      name: AFFINITY_AREA_LABELS[area],
     }));
     const cohortMap = new Map<string, Map<string, { total: number; sum: number }>>();
     let updatedAt: Date | null = null;
@@ -119,8 +119,8 @@ export class PrismaReportRepository implements ReportRepository {
           areaId: area.id,
           areaName: area.name,
         };
-        if (graduateCount === 0) return { ...base, status: 'no-data' as const };
-        if (graduateCount < 5) return { ...base, status: 'insufficient' as const };
+        if (graduateCount === 0) {return { ...base, status: 'no-data' as const };}
+        if (graduateCount < 5) {return { ...base, status: 'insufficient' as const };}
         return {
           ...base,
           status: 'ok' as const,
