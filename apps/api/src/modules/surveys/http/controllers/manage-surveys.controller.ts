@@ -26,7 +26,7 @@ export class ManageSurveysController {
   async list(@CurrentActor() actor: ActorContext) {
     // Integración T5.3: la pantalla de gestión consume este listado para
     // mostrar encuestas de la carrera del administrador y sus estados.
-    return { data: await this.repository.listManaged(actor.id) };
+    return { data: await this.repository.listManaged(actor.id, actor.scopes.careerIds) };
   }
 
   @Post()
@@ -37,7 +37,7 @@ export class ManageSurveysController {
     // Integración T5.3: crear siempre inicia en BORRADOR; la publicación se
     // realiza mediante el endpoint separado para evitar estados ambiguos.
     return {
-      data: await this.repository.createManaged(actor.id, {
+      data: await this.repository.createManaged(actor.id, actor.scopes.careerIds, {
         title: body.title,
         startDate: body.startDate,
         endDate: body.endDate,
@@ -54,7 +54,7 @@ export class ManageSurveysController {
   ) {
     // Integración T5.3: reutilizar esta respuesta para refrescar el formulario
     // y mostrar los errores de fechas sin consultar Prisma desde el frontend.
-    return { data: await this.repository.updateManaged(actor.id, id, body) };
+    return { data: await this.repository.updateManaged(actor.id, actor.scopes.careerIds, id, body) };
   }
 
   @Post(':id/publish')
@@ -64,7 +64,7 @@ export class ManageSurveysController {
   ) {
     // Integración T5.3: después de publicar, actualizar la lista porque otra
     // encuesta vigente de la misma carrera puede pasar a BORRADOR.
-    return { data: await this.repository.publishManaged(actor.id, id) };
+    return { data: await this.repository.publishManaged(actor.id, actor.scopes.careerIds, id) };
   }
 
   @Post(':id/unpublish')
@@ -74,6 +74,6 @@ export class ManageSurveysController {
   ) {
     // Integración T5.3: despublicar devuelve la encuesta en BORRADOR para que
     // la pantalla pueda reflejar inmediatamente el nuevo estado.
-    return { data: await this.repository.unpublishManaged(actor.id, id) };
+    return { data: await this.repository.unpublishManaged(actor.id, actor.scopes.careerIds, id) };
   }
 }

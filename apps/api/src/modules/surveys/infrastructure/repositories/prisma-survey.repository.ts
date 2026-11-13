@@ -29,17 +29,17 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
       });
   }
 
-  async listManaged(actorId: string): Promise<SurveyAdminRecord[]> {
-    const assignment = await this.assignment(actorId);
+  async listManaged(actorId: string, careerIds: readonly string[]): Promise<SurveyAdminRecord[]> {
+    await this.assignment(actorId, careerIds);
     const surveys = await this.prisma.encuesta.findMany({
-      where: { id_administrador: assignment.id },
+      where: { id_carrera: { in: [...careerIds] } },
       orderBy: [{ fecha_creacion: 'desc' }, { id: 'asc' }],
     });
     return surveys.map((survey) => this.presentManaged(survey));
   }
 
-  async createManaged(actorId: string, input: SurveyAdminInput): Promise<SurveyAdminRecord> {
-    const assignment = await this.assignment(actorId);
+  async createManaged(actorId: string, careerIds: readonly string[], input: SurveyAdminInput): Promise<SurveyAdminRecord> {
+    const assignment = await this.assignment(actorId, careerIds);
     this.validateDates(input.startDate, input.endDate);
     const survey = await this.prisma.encuesta.create({
       data: {
@@ -58,14 +58,18 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
 
   async updateManaged(
     actorId: string,
+    careerIds: readonly string[],
     id: string,
     input: SurveyAdminPatch,
   ): Promise<SurveyAdminRecord> {
-    const assignment = await this.assignment(actorId);
+    await this.assignment(actorId, careerIds);
     const current = await this.prisma.encuesta.findFirst({
-      where: { id, id_administrador: assignment.id },
+      where: { id, id_carrera: { in: [...careerIds] } },
     });
     if (!current) {throw new BusinessRuleError('missing', 'SURVEY_NOT_FOUND', 'Encuesta no encontrada');}
+    if (current.estado !== 'BORRADOR') {
+      throw new BusinessRuleError('conflict', 'SURVEY_NOT_EDITABLE', 'Solo se pueden editar encuestas en borrador');
+    }
     const startDate = input.startDate ?? current.fecha_inicio;
     const endDate = input.endDate ?? current.fecha_fin;
     if (startDate && endDate) {this.validateDates(startDate, endDate);}
@@ -81,47 +85,51 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     return this.presentManaged(survey);
   }
 
-  async publishManaged(actorId: string, id: string): Promise<SurveyAdminRecord> {
-    const assignment = await this.assignment(actorId);
+  async publishManaged(actorId: string, careerIds: readonly string[], id: string): Promise<SurveyAdminRecord> {
+    await this.assignment(actorId, careerIds);
     const current = await this.prisma.encuesta.findFirst({
-      where: { id, id_administrador: assignment.id },
+      where: { id, id_carrera: { in: [...careerIds] } },
     });
     if (!current) {throw new BusinessRuleError('missing', 'SURVEY_NOT_FOUND', 'Encuesta no encontrada');}
     if (!current.fecha_inicio || !current.fecha_fin) {
       throw new BusinessRuleError('invalid', 'SURVEY_DATES_REQUIRED', 'La encuesta requiere fechas');
     }
-    this.validateDates(current.fecha_inicio, current.fecha_fin);
-    const published = await this.prisma.encuesta.findFirst({
-      where: {
-        id_carrera: assignment.id_carrera,
-        estado: 'PUBLICADA',
-        id: { not: id },
-        fecha_inicio: { lte: current.fecha_fin },
-        fecha_fin: { gte: current.fecha_inicio },
-      },
-      select: { id: true },
-    });
-    if (published) {
+    const startDate = current.fecha_inicio;
+    const endDate = current.fecha_fin;
+    this.validateDates(startDate, endDate);
+    const survey = await this.prisma.$transaction(async (tx) => {
+      const today = new Date();
+      const published = await tx.encuesta.findFirst({
+        where: {
+          id_carrera: current.id_carrera,
+          estado: 'PUBLICADA',
+          id: { not: id },
+          OR: [
+            { fecha_inicio: { lte: endDate }, fecha_fin: { gte: startDate } },
+            { fecha_inicio: { lte: today }, fecha_fin: { gte: today } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (published) {
       // Integración T5.3: la pantalla debe conservar la nueva encuesta en
       // BORRADOR y mostrar este conflicto sin cambiar el estado anterior.
       // T5.2 puede seguir consultando la encuesta publicada existente.
-      throw new BusinessRuleError(
-        'conflict',
-        'SURVEY_ALREADY_PUBLISHED',
-        'Ya existe una encuesta publicada y vigente para esta carrera',
-      );
-    }
-    const survey = await this.prisma.encuesta.update({
-      where: { id },
-      data: { estado: 'PUBLICADA' },
+        throw new BusinessRuleError(
+          'conflict',
+          'SURVEY_ALREADY_PUBLISHED',
+          'Ya existe una encuesta publicada y vigente para esta carrera',
+        );
+      }
+      return tx.encuesta.update({ where: { id }, data: { estado: 'PUBLICADA' } });
     });
     return this.presentManaged(survey);
   }
 
-  async unpublishManaged(actorId: string, id: string): Promise<SurveyAdminRecord> {
-    const assignment = await this.assignment(actorId);
+  async unpublishManaged(actorId: string, careerIds: readonly string[], id: string): Promise<SurveyAdminRecord> {
+    await this.assignment(actorId, careerIds);
     const survey = await this.prisma.encuesta.findFirst({
-      where: { id, id_administrador: assignment.id },
+      where: { id, id_carrera: { in: [...careerIds] } },
     });
     if (!survey) {throw new BusinessRuleError('missing', 'SURVEY_NOT_FOUND', 'Encuesta no encontrada');}
     return this.presentManaged(
@@ -129,9 +137,12 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     );
   }
 
-  private async assignment(actorId: string) {
+  private async assignment(actorId: string, careerIds: readonly string[]) {
+    if (!careerIds.length) {
+      throw new BusinessRuleError('forbidden', 'SURVEY_CAREER_FORBIDDEN', 'No tienes una carrera asignada');
+    }
     const assignment = await this.prisma.administradorDeCarrera.findFirst({
-      where: { id_usuario: actorId, estado: 'ACTIVO' },
+      where: { id_usuario: actorId, estado: 'ACTIVO', id_carrera: { in: [...careerIds] } },
       select: { id: true, id_carrera: true },
     });
     if (!assignment?.id_carrera) {
@@ -142,7 +153,7 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
 
   private validateDates(startDate: Date, endDate: Date): void {
     if (endDate < startDate) {
-      throw new BusinessRuleError('invalid', 'SURVEY_INVALID_DATES', 'La fecha final debe ser posterior a la inicial');
+      throw new BusinessRuleError('invalid', 'SURVEY_INVALID_DATES', 'La fecha de fin no puede ser anterior a la de inicio');
     }
   }
 

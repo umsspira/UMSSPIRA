@@ -13,9 +13,9 @@ export interface SurveyRepositoryPort {
   }>;
   // T5.2 reutiliza este repositorio para resolver la encuesta publicada y
   // vigente que consumen /status, /me y el envío del titulado.
-  listManaged(actorId: string): Promise<SurveyAdminRecord[]>;
-  createManaged(actorId: string, input: SurveyAdminInput): Promise<SurveyAdminRecord>;
-  updateManaged(actorId: string, id: string, input: SurveyAdminPatch): Promise<SurveyAdminRecord>;
-  publishManaged(actorId: string, id: string): Promise<SurveyAdminRecord>;
-  unpublishManaged(actorId: string, id: string): Promise<SurveyAdminRecord>;
+  listManaged(actorId: string, careerIds: readonly string[]): Promise<SurveyAdminRecord[]>;
+  createManaged(actorId: string, careerIds: readonly string[], input: SurveyAdminInput): Promise<SurveyAdminRecord>;
+  updateManaged(actorId: string, careerIds: readonly string[], id: string, input: SurveyAdminPatch): Promise<SurveyAdminRecord>;
+  publishManaged(actorId: string, careerIds: readonly string[], id: string): Promise<SurveyAdminRecord>;
+  unpublishManaged(actorId: string, careerIds: readonly string[], id: string): Promise<SurveyAdminRecord>;
 }
