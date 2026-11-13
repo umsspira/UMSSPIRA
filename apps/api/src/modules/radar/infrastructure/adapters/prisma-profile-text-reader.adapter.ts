@@ -4,6 +4,7 @@ import {
   type ProfileTextSources,
 } from '../../application/ports/profile-text-reader.port';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import { CURRENT_PROFILE_DESCRIPTION_ORDER } from '../../domain/policies/profile-description-order';
 
 /**
  * Lee los textos del perfil desde las cuatro fuentes definidas por el radar.
@@ -14,7 +15,7 @@ export class PrismaProfileTextReaderAdapter implements ProfileTextReaderPort {
   constructor(private readonly prisma: PrismaService) {}
 
   async getProfileTexts(tituladoId: string): Promise<ProfileTextSources> {
-    const [educations, experiences, certifications, profiles] = await Promise.all([
+    const [educations, experiences, certifications, currentDescription] = await Promise.all([
       this.prisma.formacionAcademica.findMany({
         where: { id_titulado: tituladoId },
         select: { titulo: true, institucion: true },
@@ -27,8 +28,9 @@ export class PrismaProfileTextReaderAdapter implements ProfileTextReaderPort {
         where: { id_titulado: tituladoId },
         select: { nombre: true, entidad_emisora: true },
       }),
-      this.prisma.perfilArea.findMany({
+      this.prisma.perfilArea.findFirst({
         where: { id_titulado: tituladoId },
+        orderBy: CURRENT_PROFILE_DESCRIPTION_ORDER,
         select: { descripcion_profesional: true },
       }),
     ]);
@@ -37,7 +39,7 @@ export class PrismaProfileTextReaderAdapter implements ProfileTextReaderPort {
       ...educations.flatMap(({ titulo, institucion }) => [titulo, institucion]),
       ...experiences.flatMap(({ cargo, empresa }) => [cargo, empresa]),
       ...certifications.flatMap(({ nombre, entidad_emisora }) => [nombre, entidad_emisora]),
-      ...profiles.map(({ descripcion_profesional }) => descripcion_profesional),
+      currentDescription?.descripcion_profesional,
     ]
       .filter((text): text is string => typeof text === 'string')
       .map((text) => text.trim())

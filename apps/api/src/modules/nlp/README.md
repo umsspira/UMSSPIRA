@@ -65,6 +65,8 @@ Las palabras desconocidas dentro del paréntesis siguen la regla normal de `unma
 
 ## Carga del diccionario
 
+La carga se realiza en la primera petición. El módulo no precarga el diccionario al arrancar.
+
 `application/services/keyword-dictionary-loader.ts` carga `palabra_clave` y sus alias en la primera petición mediante `KeywordDictionaryPort`. La entidad de dominio `DictionaryEntry` maneja exclusivamente `{ canonical, aliases }`; no carga ni contiene asociaciones de áreas ni ponderaciones de radar.
 
 Si la consulta falla o el diccionario queda vacío, responde `503` con `NLP_DICTIONARY_UNAVAILABLE` y reintenta en la siguiente petición. Las cargas concurrentes comparten la misma promesa. `NlpModule` intenta un calentamiento no bloqueante al arrancar; un fallo allí no impide que la API arranque.

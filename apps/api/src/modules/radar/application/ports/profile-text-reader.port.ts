@@ -20,7 +20,7 @@ export interface ProfileTextReaderPort {
    * 1. formacion_academica (titulo, institucion)
    * 2. experiencia_laboral (cargo, empresa)
    * 3. certificacion (nombre, entidad_emisora)
-   * 4. perfil_area (descripcion_profesional)
+   * 4. perfil_area (solo la descripción vigente que muestra y actualiza Perfil)
    */
   getProfileTexts(tituladoId: string): Promise<ProfileTextSources>;
 }
