@@ -22,7 +22,7 @@ jest.mock('@/modules/profile/services/perfil-api', () => ({
   subirRespaldo: jest.fn(),
 }));
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
 const BORRADORES: DraftRecord[] = [
   {

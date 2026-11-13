@@ -21,7 +21,7 @@ jest.mock('@/modules/profile/services/perfil-api', () => ({
   subirRespaldo: jest.fn(),
 }));
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 const MOTIVO = 'Termina o quita el borrador incompleto para guardar tu perfil.';
 
 const BORRADORES: DraftRecord[] = [

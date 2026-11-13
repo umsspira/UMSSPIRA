@@ -10,7 +10,7 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
 function renderAcordeon(returnTo?: string) {
   render(

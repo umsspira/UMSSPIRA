@@ -11,7 +11,7 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
 }));
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
 const BORRADORES: DraftRecord[] = [
   {

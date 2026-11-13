@@ -11,8 +11,9 @@ describe('ProfileCompleteness (T6.5)', () => {
     const records = { ...PROFILE_RECORDS_MOCK, certification: [] };
     render(<ProfileCompleteness completeness={profileCompleteness(records, '')} />);
 
-    expect(screen.getByText('50%')).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Completitud del perfil' })).toHaveAttribute('aria-valuenow', '50');
+    // Formación, experiencia y proyectos completos: 3 de 5 secciones (HU-19)
+    expect(screen.getByText('60%')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Completitud del perfil' })).toHaveAttribute('aria-valuenow', '60');
     const faltantes = within(screen.getByRole('list', { name: 'Secciones faltantes' })).getAllByRole('listitem');
     expect(faltantes.map((item) => item.textContent)).toEqual(['Certificaciones', 'Descripción']);
   });
@@ -64,17 +65,8 @@ describe('Completitud resaltada (HU-21, CA-05)', () => {
 });
 
 describe('Completitud de 5 secciones en el resumen (HU-21, T21.5)', () => {
-  // Forma que devuelve profileCompleteness con Proyectos (HU-19, T19.6); cada sección vale 20 %
-  const FIVE_SECTIONS: Completeness = (() => {
-    const sections = [
-      { id: 'formacion-academica', label: 'Formación', complete: true },
-      { id: 'experiencia-laboral', label: 'Experiencia', complete: true },
-      { id: 'certificaciones', label: 'Certificaciones', complete: true },
-      { id: 'descripcion-profesional', label: 'Descripción', complete: false },
-      { id: 'proyectos', label: 'Proyectos', complete: false },
-    ] as unknown as Completeness['sections'];
-    return { percentage: 60, sections, missing: sections.filter((section) => !section.complete) };
-  })();
+  // Completitud real con Proyectos (HU-19, T19.6): sin descripción ni proyectos, 3 de 5 secciones (20 % cada una)
+  const FIVE_SECTIONS: Completeness = profileCompleteness({ ...PROFILE_RECORDS_MOCK, project: [] }, '');
 
   it('muestra el estado de las 5 secciones y cuántas están completas', () => {
     render(<ProfileCompleteness completeness={FIVE_SECTIONS} />);
@@ -106,6 +98,6 @@ describe('Completitud de 5 secciones en el resumen (HU-21, T21.5)', () => {
     const records = { ...PROFILE_RECORDS_MOCK, certification: [] };
     render(<ProfileCompleteness completeness={profileCompleteness(records, '')} />);
 
-    expect(screen.getByText('2 de 4 secciones completas')).toBeInTheDocument();
+    expect(screen.getByText('3 de 5 secciones completas')).toBeInTheDocument();
   });
 });

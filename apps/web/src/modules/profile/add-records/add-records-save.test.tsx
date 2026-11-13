@@ -28,7 +28,7 @@ const mockCrearExperiencia = crearExperiencia as jest.Mock;
 const mockCrearCertificacion = crearCertificacion as jest.Mock;
 const mockAfterBatchSave = afterBatchSave as jest.Mock;
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
 const BORRADORES: DraftRecord[] = [
   {

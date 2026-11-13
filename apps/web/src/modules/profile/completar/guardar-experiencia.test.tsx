@@ -20,7 +20,7 @@ function responder(status: number, cuerpo: unknown) {
   fetchMock.mockResolvedValue({ ok, status, json: async () => (ok ? { data: cuerpo } : cuerpo) });
 }
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
 function abrirExperiencia() {
   const { container } = render(

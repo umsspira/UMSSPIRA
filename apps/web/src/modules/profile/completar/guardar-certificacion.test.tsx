@@ -31,7 +31,7 @@ jest.mock('@/modules/profile/services/profile-records-service', () => ({
 const crearCertificacion = api.crearCertificacion as jest.Mock;
 const subirRespaldo = api.subirRespaldo as jest.Mock;
  
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
  
 const CREADA: CertificationRecord = {
   id: 'cert-1',

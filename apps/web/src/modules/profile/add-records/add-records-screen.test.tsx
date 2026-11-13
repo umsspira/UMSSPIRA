@@ -13,7 +13,7 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
 }));
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
 const CON_FORMACION: ProfileRecords = {
   ...SIN_REGISTROS,
@@ -88,7 +88,7 @@ describe('Agregar registros (HU-13)', () => {
 
   it('cada apartado tiene el botón «Guardar en borrador»', () => {
     renderScreen();
-    expect(screen.getAllByRole('button', { name: /guardar en borrador/i })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /guardar en borrador/i })).toHaveLength(4);
   });
 
   it('CA-02: «Guardar en borrador» con datos válidos manda a borradores, limpia el formulario y no toca Mis registros', async () => {

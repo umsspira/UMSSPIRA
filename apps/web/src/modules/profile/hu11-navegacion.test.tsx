@@ -12,7 +12,7 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
 // CA-04: desde cada pantalla del perfil hay camino directo a Mi perfil, Mis registros y Mi afinidad
 function expectQuickLinks(current?: string) {

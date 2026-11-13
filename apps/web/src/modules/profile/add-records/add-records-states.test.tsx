@@ -18,7 +18,7 @@ jest.mock('@/modules/profile/services/perfil-api', () => ({
 
 const mockObtenerResumenPerfil = obtenerResumenPerfil as jest.Mock;
 
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
 // Sin initialRecords el estado del perfil se carga desde la API (simulada aquí)
 function renderFromApi() {

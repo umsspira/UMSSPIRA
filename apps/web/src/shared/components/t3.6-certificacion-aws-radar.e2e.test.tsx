@@ -203,7 +203,7 @@ function IntegratedAffinityCertificationFlow({
 
   return (
     <div onClick={handleContainerClick}>
-      <ProfileStoreProvider initialRecords={{ education: [], experience: [], certification: [] }}>
+      <ProfileStoreProvider initialRecords={{ education: [], experience: [], certification: [], project: [] }}>
         {route === '/afinidad' && (
           <div data-testid="view-affinity">
             <GraduateAffinityView />
@@ -252,7 +252,7 @@ describe('T3.6 · E2E: agregar certificación AWS en la Épica 2 -> volver a «M
 
   it('Paso 2 y 3: en la Épica 2, llena y guarda la certificación AWS mockeando crearCertificacion y muestra el enlace de retorno', async () => {
     render(
-      <ProfileStoreProvider initialRecords={{ education: [], experience: [], certification: [] }}>
+      <ProfileStoreProvider initialRecords={{ education: [], experience: [], certification: [], project: [] }}>
         <AcordeonPerfil returnTo="/afinidad" seccionInicial="certificaciones" />
       </ProfileStoreProvider>
     );
