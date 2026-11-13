@@ -85,14 +85,7 @@ describe('PrismaSurveyRepository', () => {
         where: {
           id_carrera: 'career-1',
           estado: {
-            in: [
-              'PUBLICADA',
-              'PUBLICADO',
-              'Publicada',
-              'Publicado',
-              'publicada',
-              'publicado',
-            ],
+            in: ['PUBLICADA'],
           },
           fecha_inicio: { lte: expect.any(Date) },
           fecha_fin: { gte: expect.any(Date) },
@@ -114,6 +107,18 @@ describe('PrismaSurveyRepository', () => {
           }),
         }),
       );
+    });
+
+    it('compara contra el inicio del día en Bolivia para no expirar en el último día de vigencia', async () => {
+      prisma.encuesta.findFirst.mockResolvedValue(null);
+
+      await repository.findActiveSurveyByCareer('career-1');
+
+      const callArgs = prisma.encuesta.findFirst.mock.calls[0][0];
+      const hoyUsado = callArgs.where.fecha_fin.gte as Date;
+      expect(hoyUsado).toBeInstanceOf(Date);
+      expect(callArgs.where.fecha_inicio.lte).toEqual(hoyUsado);
+      expect(callArgs.where.estado).toEqual({ in: ['PUBLICADA'] });
     });
   });
 

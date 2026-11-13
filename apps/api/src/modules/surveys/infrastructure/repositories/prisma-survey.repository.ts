@@ -12,14 +12,7 @@ import type {
 } from '../../application/ports/survey-repository.port';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 
-const ACTIVE_SURVEY_STATUSES = [
-  'PUBLICADA',
-  'PUBLICADO',
-  'Publicada',
-  'Publicado',
-  'publicada',
-  'publicado',
-];
+const ACTIVE_SURVEY_STATUSES = ['PUBLICADA'];
 
 @Injectable()
 export class PrismaSurveyRepository implements SurveyRepositoryPort {
@@ -45,14 +38,14 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     careerId: string,
     surveyId?: string,
   ): Promise<ActiveSurvey | null> {
-    const now = new Date();
+    const hoy = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/La_Paz' }));
     return this.prisma.encuesta.findFirst({
       where: {
         id_carrera: careerId,
         ...(surveyId ? { id: surveyId } : {}),
         estado: { in: ACTIVE_SURVEY_STATUSES },
-        fecha_inicio: { lte: now },
-        fecha_fin: { gte: now },
+        fecha_inicio: { lte: hoy },
+        fecha_fin: { gte: hoy },
       },
       orderBy: { fecha_creacion: 'desc' },
     });
