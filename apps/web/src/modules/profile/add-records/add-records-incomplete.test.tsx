@@ -58,15 +58,36 @@ describe('Borrador incompleto (HU-14, T14.1)', () => {
     renderScreen();
     fireEvent.change(within(apartadoFormacion()).getByLabelText('Institución'), { target: { value: 'UPB' } });
     fireEvent.click(within(borradores()).getByRole('button', { name: 'Editar Ingeniería de Sistemas' }));
-    // Se guarda el borrador editado y se empieza otro a medias
+    // Se guarda el borrador editado (el incompleto vuelve a las casillas, T14.2), se sigue escribiendo y se edita otro
     fireEvent.click(within(apartadoFormacion()).getByRole('button', { name: /guardar en borrador/i }));
     fireEvent.change(within(apartadoFormacion()).getByLabelText('Título'), { target: { value: 'Derecho' } });
     fireEvent.click(within(borradores()).getByRole('button', { name: 'Editar Maestría en Datos' }));
 
     expect(within(borradores()).getAllByText('borrador incompleto')).toHaveLength(1);
     expect(within(borradores()).getByText('Derecho')).toBeInTheDocument();
-    expect(within(borradores()).queryByText(/UPB/)).not.toBeInTheDocument();
     expect(within(borradores()).getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('T14.2: al guardar el borrador editado, el incompleto vuelve a las casillas y sale de la lista', () => {
+    renderScreen();
+    fireEvent.change(within(apartadoFormacion()).getByLabelText('Institución'), { target: { value: 'UPB' } });
+    fireEvent.click(within(borradores()).getByRole('button', { name: 'Editar Ingeniería de Sistemas' }));
+    fireEvent.click(within(apartadoFormacion()).getByRole('button', { name: /guardar en borrador/i }));
+
+    expect(within(apartadoFormacion()).getByLabelText('Institución')).toHaveValue('UPB');
+    expect(within(borradores()).queryByText('borrador incompleto')).not.toBeInTheDocument();
+    expect(within(borradores()).getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('T14.2: al quitar el borrador que se edita, el incompleto también vuelve a las casillas', () => {
+    renderScreen();
+    fireEvent.change(within(apartadoFormacion()).getByLabelText('Título'), { target: { value: 'Derecho' } });
+    fireEvent.click(within(borradores()).getByRole('button', { name: 'Editar Ingeniería de Sistemas' }));
+    fireEvent.click(within(borradores()).getByRole('button', { name: 'Quitar Ingeniería de Sistemas' }));
+
+    expect(within(apartadoFormacion()).getByLabelText('Título')).toHaveValue('Derecho');
+    expect(within(borradores()).queryByText('borrador incompleto')).not.toBeInTheDocument();
+    expect(within(borradores()).getAllByRole('listitem')).toHaveLength(1);
   });
 
   it('con el formulario vacío no sube nada', () => {

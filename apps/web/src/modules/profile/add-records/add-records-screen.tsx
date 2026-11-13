@@ -86,6 +86,8 @@ function AddRecordsContent() {
     }),
     [],
   );
+  // T14.2: datos con los que arranca el formulario nuevo de cada apartado (el borrador incompleto devuelto)
+  const [formStart, setFormStart] = useState<Partial<DraftDataBySection>>({});
 
   // Formaciones ya guardadas y en borrador (menos la que se edita): con ellas la regla existente avisa de duplicadas
   const existingEducation = useMemo<FormacionAcademica[]>(
@@ -111,10 +113,20 @@ function AddRecordsContent() {
       updateDraft(editingDraft.id, section, data);
       // Con otros datos ya no vale el intento anterior de esa certificación
       certificationAttempts.current.delete(editingDraft.id);
-      setEditingId(null);
+      finishEditing(editingDraft);
       return;
     }
     addDraft(section, data);
+  }
+
+  // T14.2: al terminar de editar, el borrador incompleto de ese apartado vuelve a sus casillas y sale de la lista
+  function finishEditing(edited: DraftRecord) {
+    const incomplete = drafts.find(
+      (draft) => draft.section === edited.section && draft.isIncomplete && draft.id !== edited.id,
+    );
+    if (incomplete) removeDraft(incomplete.id);
+    setFormStart((current) => ({ ...current, [edited.section]: incomplete?.data }));
+    setEditingId(null);
   }
 
   function editDraft(draft: DraftRecord) {
@@ -131,7 +143,7 @@ function AddRecordsContent() {
   function removeDraftById(id: string) {
     removeDraft(id);
     certificationAttempts.current.delete(id);
-    if (editingId === id) setEditingId(null);
+    if (editingDraft?.id === id) finishEditing(editingDraft);
   }
 
   function addToRecords(saved: SavedDraft) {
@@ -235,7 +247,7 @@ function AddRecordsContent() {
             <DraftSectionCard number={1} title="Formación académica">
               <FormacionAcademicaForm
                 key={formKey('education')}
-                valoresIniciales={editingDraft?.section === 'education' ? editingDraft.data : undefined}
+                valoresIniciales={editingDraft?.section === 'education' ? editingDraft.data : formStart.education}
                 formaciones={existingEducation}
                 mostrarRegistradas={false}
                 textoBoton={DRAFT_BUTTON_TEXT}
@@ -246,7 +258,7 @@ function AddRecordsContent() {
             <DraftSectionCard number={2} title="Experiencia laboral">
               <FormularioExperiencia
                 key={formKey('experience')}
-                valoresIniciales={editingDraft?.section === 'experience' ? editingDraft.data : undefined}
+                valoresIniciales={editingDraft?.section === 'experience' ? editingDraft.data : formStart.experience}
                 experiencias={[]}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 onAgregar={(experiencia) => saveDraft('experience', experiencia)}
@@ -256,7 +268,7 @@ function AddRecordsContent() {
             <DraftSectionCard number={3} title="Certificaciones">
               <FormularioCertificaciones
                 key={formKey('certification')}
-                valoresIniciales={editingDraft?.section === 'certification' ? editingDraft.data : undefined}
+                valoresIniciales={editingDraft?.section === 'certification' ? editingDraft.data : formStart.certification}
                 certificaciones={[]}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 textoGuardada="Certificación guardada en borrador"
