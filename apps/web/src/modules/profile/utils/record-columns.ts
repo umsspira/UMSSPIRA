@@ -1,8 +1,8 @@
-import type { ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
+import type { ProfileRecord, ProjectRecord, RecordSection } from '@/modules/profile/types/profile-record';
 
-export type RecordColumn = {
+export type RecordColumn<T = ProfileRecord> = {
   label: string;
-  getValue: (record: ProfileRecord) => string;
+  getValue: (record: T) => string;
 };
 
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -40,5 +40,14 @@ export function getRecordColumns(section: RecordSection): RecordColumn[] {
     { label: 'Entidad emisora', getValue: readField('issuer') },
     { label: 'Año', getValue: readField('issueYear') },
     { label: 'Grado', getValue: readField('degree') },
+  ];
+}
+
+// Columnas de la pestaña Proyectos (HU-19, T19.4)
+export function getProjectColumns(): RecordColumn<ProjectRecord>[] {
+  return [
+    { label: 'Proyecto', getValue: (project) => project.name },
+    { label: 'Enlace', getValue: (project) => project.url },
+    { label: 'Descripción', getValue: (project) => project.description ?? '' },
   ];
 }

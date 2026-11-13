@@ -1,5 +1,8 @@
 export type RecordSection = 'education' | 'experience' | 'certification';
 
+// Pestañas de Mis registros: las 3 secciones y los proyectos (HU-19, T19.4)
+export type RecordsTab = RecordSection | 'projects';
+
 type OwnedRecord = {
   id: string;
   // Egresado dueño del registro

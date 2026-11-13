@@ -1,12 +1,18 @@
 import { Lock, Trash2, WifiOff } from 'lucide-react';
 
 import { SECTION_LABELS } from '@/modules/profile/data/profile-records-data';
-import type { DeleteRecordErrorCode, ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
-import { getRecordColumns } from '@/modules/profile/utils/record-columns';
+import type {
+  DeleteRecordErrorCode,
+  ProfileRecord,
+  ProjectRecord,
+  RecordsTab,
+} from '@/modules/profile/types/profile-record';
+import { getProjectColumns, getRecordColumns } from '@/modules/profile/utils/record-columns';
 
 type DeleteRecordModalProps = {
-  section: RecordSection;
-  record: ProfileRecord;
+  // 'projects' = proyecto o portafolio (HU-19, T19.4)
+  section: RecordsTab;
+  record: ProfileRecord | ProjectRecord;
   isDeleting: boolean;
   errorCode: DeleteRecordErrorCode | null;
   onConfirm: () => void;
@@ -29,6 +35,26 @@ const secondaryButtonClassName =
 const primaryButtonClassName =
   'rounded-lg bg-truffle-trouble px-5 py-2.5 text-sm font-bold text-white transition hover:brightness-95 disabled:opacity-60';
 
+// Datos del registro que se muestran en la tarjeta del modal
+function summarize(section: RecordsTab, record: ProfileRecord | ProjectRecord) {
+  if (section === 'projects') {
+    const [name, ...rest] = getProjectColumns();
+    const project = record as ProjectRecord;
+    return {
+      label: 'Proyectos y portafolio',
+      title: name.getValue(project),
+      detail: rest.map((column) => column.getValue(project)).filter(Boolean).join(' · '),
+    };
+  }
+  const [primary, ...rest] = getRecordColumns(section);
+  const profileRecord = record as ProfileRecord;
+  return {
+    label: SECTION_LABELS[section],
+    title: primary.getValue(profileRecord),
+    detail: rest.map((column) => column.getValue(profileRecord)).join(' · '),
+  };
+}
+
 export function DeleteRecordModal({
   section,
   record,
@@ -37,7 +63,7 @@ export function DeleteRecordModal({
   onConfirm,
   onCancel,
 }: DeleteRecordModalProps) {
-  const [primary, secondary, ...rest] = getRecordColumns(section);
+  const { label, title, detail } = summarize(section, record);
   const error = errorCode ? ERROR_CONTENT[errorCode] : null;
   const Icon = errorCode === 'network' ? WifiOff : errorCode === 'forbidden' ? Lock : Trash2;
 
@@ -60,12 +86,10 @@ export function DeleteRecordModal({
         {/* Registro seleccionado */}
         <div className="mt-4 rounded-lg border border-oatmeal bg-palladian/60 px-4 py-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-blue-fantastic/60">
-            {SECTION_LABELS[section]}
+            {label}
           </p>
-          <p className="text-sm font-bold text-blue-fantastic">{primary.getValue(record)}</p>
-          <p className="text-xs text-blue-fantastic/70">
-            {[secondary, ...rest].map((column) => column.getValue(record)).join(' · ')}
-          </p>
+          <p className="text-sm font-bold text-blue-fantastic">{title}</p>
+          <p className="break-all text-xs text-blue-fantastic/70">{detail}</p>
         </div>
 
         <p role={error ? 'alert' : undefined} className="mt-3 text-xs text-blue-fantastic/70">

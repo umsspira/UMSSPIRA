@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 
 import { ProfileRecordsManager } from '@/modules/profile/components/profile-records-manager';
 import { clearPendingProfileChanges, hasPendingProfileChanges } from '@/shared/services/pending-profile-changes';
-import { PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
+import { PROFILE_PROJECTS_MOCK, PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
 import { ProfileStoreProvider } from '@/modules/profile/state/profile-store';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';
 
@@ -223,5 +223,120 @@ describe('ProfileRecordsManager', () => {
       expect(hasPendingProfileChanges()).toBe(true);
       clearPendingProfileChanges();
     });
+  });
+});
+
+describe('pestaña Proyectos (HU-19, T19.4)', () => {
+  function abrirProyectos(proyectos = PROFILE_PROJECTS_MOCK) {
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} initialProjects={proyectos} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Proyectos' }));
+  }
+
+  function getRows() {
+    return within(screen.getByRole('table')).getAllByRole('row').slice(1);
+  }
+
+  it('lista los proyectos del más reciente al más antiguo con su enlace', () => {
+    abrirProyectos();
+
+    const rows = getRows();
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText('Portafolio personal')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('Sistema de inventario')).toBeInTheDocument();
+    expect(within(rows[0]).getByRole('link', { name: 'https://carlos-mendoza.dev' })).toHaveAttribute(
+      'href',
+      'https://carlos-mendoza.dev',
+    );
+  });
+
+  it('muestra el estado vacío sin proyectos', () => {
+    abrirProyectos([]);
+
+    expect(screen.getByText('Aún no tienes proyectos guardados.')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('abre la pestaña Proyectos desde la URL', () => {
+    render(
+      <ProfileRecordsManager
+        initialRecords={PROFILE_RECORDS_MOCK}
+        initialProjects={PROFILE_PROJECTS_MOCK}
+        initialSection="projects"
+      />,
+    );
+
+    expect(screen.getByRole('tab', { name: 'Proyectos' })).toHaveAttribute('aria-selected', 'true');
+    expect(getRows()).toHaveLength(2);
+  });
+
+  it('edita un proyecto y muestra "Proyecto actualizado"', () => {
+    abrirProyectos();
+    fireEvent.click(within(getRows()[1]).getByRole('button', { name: 'Editar proyecto' }));
+
+    const form = screen.getByRole('form', { name: 'Editar proyecto' });
+    fireEvent.change(within(form).getByLabelText('Nombre del proyecto'), { target: { value: 'Inventario v2' } });
+    fireEvent.change(within(form).getByLabelText('Descripción corta (opcional)'), { target: { value: '' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(screen.queryByRole('form', { name: 'Editar proyecto' })).not.toBeInTheDocument();
+    expect(within(getRows()[1]).getByText('Inventario v2')).toBeInTheDocument();
+    expect(screen.queryByText('Aplicación web para el control de stock de una ferretería.')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Proyecto actualizado');
+  });
+
+  it('no guarda un enlace que no es https válido y muestra el error junto al campo', () => {
+    abrirProyectos();
+    fireEvent.click(within(getRows()[0]).getByRole('button', { name: 'Editar proyecto' }));
+
+    const form = screen.getByRole('form', { name: 'Editar proyecto' });
+    const enlace = within(form).getByLabelText('Enlace');
+    fireEvent.change(enlace, { target: { value: 'http://carlos-mendoza.dev' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(within(form).getByRole('alert')).toHaveTextContent('Ingresa una dirección https válida');
+    expect(enlace).toHaveAttribute('aria-invalid', 'true');
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Cancelar' }));
+    expect(within(getRows()[0]).getByText('https://carlos-mendoza.dev')).toBeInTheDocument();
+  });
+
+  it('pide confirmación antes de eliminar y "Cancelar" no borra nada', () => {
+    abrirProyectos();
+    fireEvent.click(within(getRows()[0]).getByRole('button', { name: 'Eliminar proyecto' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('¿Estás seguro de que deseas eliminar este registro?')).toBeInTheDocument();
+    expect(within(dialog).getByText('Proyectos y portafolio')).toBeInTheDocument();
+    expect(within(dialog).getByText('Portafolio personal')).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(getRows()).toHaveLength(2);
+  });
+
+  it('al confirmar quita solo ese proyecto y muestra "Proyecto eliminado"', () => {
+    abrirProyectos();
+    fireEvent.click(within(getRows()[0]).getByRole('button', { name: 'Eliminar proyecto' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(getRows()).toHaveLength(1);
+    expect(screen.queryByText('Portafolio personal')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Sistema de inventario').length).toBeGreaterThan(0);
+    expect(screen.getByRole('status')).toHaveTextContent('Proyecto eliminado');
+  });
+
+  it('usa los proyectos del estado compartido del perfil', () => {
+    render(
+      <ProfileStoreProvider initialRecords={PROFILE_RECORDS_MOCK} initialProjects={PROFILE_PROJECTS_MOCK}>
+        <ProfileRecordsManager />
+      </ProfileStoreProvider>,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Proyectos' }));
+    fireEvent.click(within(getRows()[1]).getByRole('button', { name: 'Eliminar proyecto' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar' }));
+
+    expect(getRows()).toHaveLength(1);
+    expect(screen.queryByText('Sistema de inventario')).not.toBeInTheDocument();
   });
 });
