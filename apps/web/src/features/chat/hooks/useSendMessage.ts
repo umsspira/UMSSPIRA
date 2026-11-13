@@ -1,4 +1,4 @@
-// apps/web/src/features/chat/hooks/useSendMessage.ts
+
 import { useState } from 'react';
 import {
   sendChatMessage,
@@ -13,17 +13,34 @@ export const useSendMessage = () => {
     conversationId: string,
     content: string,
   ): Promise<SendChatMessageResult> => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const message = 'Necesitas conexión para enviar mensajes.';
+
+      setError(message);
+
+      return {
+        success: false,
+        error: message,
+      };
+    }
+
     setSending(true);
     setError(null);
 
-    const result = await sendChatMessage({ conversationId, content });
+    try {
+      const result = await sendChatMessage({
+        conversationId,
+        content,
+      });
 
-    if (!result.success) {
-      setError(result.error ?? 'Error al enviar el mensaje');
+      if (!result.success) {
+        setError(result.error ?? 'Error al enviar el mensaje');
+      }
+
+      return result;
+    } finally {
+      setSending(false);
     }
-
-    setSending(false);
-    return result;
   };
 
   return { send, sending, error };
