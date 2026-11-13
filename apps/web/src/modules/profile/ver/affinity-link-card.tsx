@@ -1,10 +1,15 @@
+'use client';
+
 import Link from 'next/link';
 
 import { AFFINITY_ROUTE } from '@/modules/profile/data/affinity-route';
+import MiniRadarPlaceholder from '@/modules/profile/ver/mini-radar-placeholder';
+import { useMiniAffinity } from '@/modules/profile/ver/use-mini-affinity';
 
-// Tarjeta "Mi afinidad" del resumen del perfil (HU-07): solo un enlace a la pantalla de la Épica 3,
-// sin radar, porcentajes ni llamadas a GET /api/v1/radar
+
 export default function AffinityLinkCard() {
+  const { state } = useMiniAffinity();
+
   return (
     <section
       aria-labelledby="affinity-card-title"
@@ -16,6 +21,10 @@ export default function AffinityLinkCard() {
       <p className="text-[13px] leading-[1.5] text-blue-fantastic/70">
         Descubre qué tan bien encaja tu perfil con las oportunidades laborales de la Red.
       </p>
+
+      {/* CA-01: valores del último cálculo */}
+      {state.status === 'ready' && <MiniRadarPlaceholder values={state.values} />}
+
       <Link
         href={AFFINITY_ROUTE}
         className="inline-flex items-center justify-center rounded-lg bg-burning-flame px-6 py-3.5 text-sm font-bold text-abyssal-blue transition hover:brightness-95"
