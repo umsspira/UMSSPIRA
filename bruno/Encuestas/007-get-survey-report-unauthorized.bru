@@ -22,7 +22,7 @@ tests {
 
   test("requiere iniciar sesión", function () {
     const body = res.getBody();
-    expect(body?.error?.code).to.equal("UNAUTHORIZED");
+    expect(body?.error?.code).to.equal("UNAUTHENTICATED");
   });
 }
 

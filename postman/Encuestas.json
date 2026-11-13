@@ -234,7 +234,7 @@
               "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
               "const body = pm.response.json();",
               "pm.test(\"requiere iniciar sesión\", () => {",
-              "  pm.expect(body.error.code).to.eql(\"UNAUTHORIZED\");",
+              "  pm.expect(body.error.code).to.eql(\"UNAUTHENTICATED\");",
               "});"
             ],
             "type": "text/javascript"
