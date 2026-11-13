@@ -16,8 +16,15 @@ describe('POST /events/owned/:id/attendance', () => {
   let app: INestApplication;
   const ownerId = randomUUID();
   const eventId = randomUUID();
+  const registrationId = randomUUID();
+  const attendedAt = new Date('2026-11-12T20:00:00Z');
   const path = '/api/v1/events/owned/' + eventId + '/attendance';
-  const tx = { evento: { findFirst: jest.fn() }, paseQr: { findUnique: jest.fn() } };
+  const tx = {
+    $queryRaw: jest.fn(),
+    evento: { findFirst: jest.fn() },
+    paseQr: { findUnique: jest.fn() },
+    asistenciaEvento: { createMany: jest.fn(), findUniqueOrThrow: jest.fn() },
+  };
   const transaction = jest.fn((run) => run(tx));
 
   beforeAll(async () => {
@@ -49,28 +56,61 @@ describe('POST /events/owned/:id/attendance', () => {
     jest.clearAllMocks();
     tx.evento.findFirst.mockResolvedValue({
       id: eventId,
+      titulo: 'Evento de prueba',
       estado: 'PUBLICADO',
       fecha_fin: new Date(Date.now() + 60000),
     });
     tx.paseQr.findUnique.mockResolvedValue({
       estado: 'VIGENTE',
       fecha_expiracion: null,
-      inscripcion: { id_evento: eventId, id_usuario: randomUUID(), estado: 'CONFIRMADA' },
+      inscripcion: {
+        id: registrationId,
+        id_evento: eventId,
+        id_usuario: randomUUID(),
+        estado: 'CONFIRMADA',
+        usuario: { nombre: 'Ana' },
+      },
+    });
+    tx.asistenciaEvento.createMany.mockResolvedValue({ count: 1 });
+    tx.asistenciaEvento.findUniqueOrThrow.mockResolvedValue({
+      id_inscripcion: registrationId,
+      fecha_asistencia: attendedAt,
     });
   });
   afterAll(() => app.close());
 
-  it('confirma solo la validación al recibir un pase vigente', async () => {
+  it('confirma la asistencia con 201 después de completar la transacción', async () => {
     await request(app.getHttpServer())
       .post(path)
       .set('Authorization', 'Bearer admin')
       .send({ qrToken: 'token' })
-      .expect(200, { data: { code: 'PASS_VALIDATED', attendanceRecorded: false } });
+      .expect(201, {
+        data: {
+          code: 'ATTENDANCE_RECORDED',
+          attendanceRecorded: true,
+          registrationId,
+          eventId,
+          eventTitle: 'Evento de prueba',
+          participantName: 'Ana',
+          attendedAt: attendedAt.toISOString(),
+        },
+      });
     expect(tx.evento.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: eventId, id_usuario: ownerId, archivado: false },
       }),
     );
+  });
+
+  it('devuelve 200 con la fecha original cuando la asistencia ya existe', async () => {
+    tx.asistenciaEvento.createMany.mockResolvedValue({ count: 0 });
+    const response = await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer admin')
+      .send({ qrToken: 'token' })
+      .expect(200);
+    expect(response.body.data.code).toBe('ATTENDANCE_ALREADY_RECORDED');
+    expect(response.body.data.attendedAt).toBe(attendedAt.toISOString());
   });
 
   it('rechaza peticiones sin sesión, sin permiso o con datos ajenos al contrato', async () => {

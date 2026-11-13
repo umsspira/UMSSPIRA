@@ -14,9 +14,12 @@ export async function findAttendancePass(
     throw new AccessError('FORBIDDEN');
   }
 
+  // Compatible con otros lectores y excluyente con cancelación o edición del evento.
+  await tx.$queryRaw`SELECT id FROM evento WHERE id = ${eventId}::uuid
+    AND id_usuario = ${actor.id}::uuid AND archivado = false FOR SHARE`;
   const event = await tx.evento.findFirst({
     where: { id: eventId, id_usuario: actor.id, archivado: false },
-    select: { id: true, estado: true, fecha_fin: true },
+    select: { id: true, titulo: true, estado: true, fecha_fin: true },
   });
   if (!event) {
     throw new BusinessRuleError(
@@ -26,12 +29,24 @@ export async function findAttendancePass(
     );
   }
 
+  // Comparte el bloqueo de inscripción con la generación y cancelación de pases.
+  await tx.$queryRaw`SELECT i.id FROM inscripcion_evento i
+    JOIN pase_qr p ON p.id_inscripcion = i.id
+    WHERE p.token_hash = ${qrToken} AND i.id_evento = ${eventId}::uuid FOR UPDATE OF i`;
   const pass = await tx.paseQr.findUnique({
     where: { token_hash: qrToken },
     select: {
       estado: true,
       fecha_expiracion: true,
-      inscripcion: { select: { id: true, id_evento: true, id_usuario: true, estado: true } },
+      inscripcion: {
+        select: {
+          id: true,
+          id_evento: true,
+          id_usuario: true,
+          estado: true,
+          usuario: { select: { nombre: true } },
+        },
+      },
     },
   });
   if (!pass || !pass.inscripcion.id_evento || !pass.inscripcion.id_usuario) {

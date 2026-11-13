@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import type { EventAttendanceResult } from '@umsspira/shared-types';
+import { formatEventDateTime } from '@/shared/utils/event-date-time';
 import { EventScannerCamera } from './event-scanner-camera';
 import { validateScannedPass } from './validate-scanned-pass';
 
 type ScannerState =
   | { status: 'idle' }
   | { status: 'validating' }
-  | { status: 'valid' }
+  | { status: 'valid'; attendance: EventAttendanceResult }
   | { status: 'error'; message: string };
 
 export function EventPassScanner({ eventId }: { eventId: string }) {
@@ -24,8 +26,8 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
     request.current = controller;
     setState({ status: 'validating' });
     void validateScannedPass(eventId, qrToken, controller.signal)
-      .then(() => {
-        if (!controller.signal.aborted) setState({ status: 'valid' });
+      .then((attendance) => {
+        if (!controller.signal.aborted) setState({ status: 'valid', attendance });
       })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
@@ -52,7 +54,9 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
       />
       <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions" aria-busy={pending}>
         <h2 id="scanner-instructions">
-          {pending ? 'Validando el pase' : state.status === 'valid' ? 'Pase válido' : state.status === 'error' ? 'No se pudo validar el pase' : 'Cómo escanear'}
+          {pending ? 'Validando el pase' : state.status === 'valid'
+            ? state.attendance.code === 'ATTENDANCE_RECORDED' ? 'Asistencia registrada' : 'Asistencia ya registrada'
+            : state.status === 'error' ? 'No se pudo validar el pase' : 'Cómo escanear'}
         </h2>
         {pending ? (
           <div className="event-scanner-result" role="status">
@@ -60,7 +64,11 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             <p>Verificación de inscripción y vigencia en curso.</p>
           </div>
         ) : state.status === 'valid' ? (
-          <p className="event-scanner-result" role="status">Pase válido. El registro de asistencia aún está pendiente.</p>
+          <div className="event-scanner-result" role="status">
+            <strong>{state.attendance.participantName}</strong>
+            <p>{state.attendance.eventTitle}</p>
+            <p>Ingreso registrado el {formatEventDateTime(state.attendance.attendedAt)}</p>
+          </div>
         ) : state.status === 'error' ? (
           <p className="event-scanner-result" role="alert">{state.message}</p>
         ) : (
@@ -77,7 +85,10 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             onClick={() => {
               request.current?.abort();
               request.current = null;
-              setState({ status: 'idle' });
+              setState({
+                status: 'error',
+                message: 'Se canceló la espera. La asistencia puede haberse registrado. Vuelve a escanear el pase para comprobarlo.',
+              });
             }}
           >
             Cancelar validación

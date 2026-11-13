@@ -11,8 +11,13 @@ describe('Contrato HTTP de validación QR', () => {
   beforeEach(() => jest.resetAllMocks());
 
   it('usa la sesión del cliente y envía únicamente el token del escáner', async () => {
-    jest.mocked(apiClient).mockResolvedValue({ data: { code: 'PASS_VALIDATED', attendanceRecorded: false } });
-    await validateScannedPass('evento/1', 'token', signal);
+    const data = {
+      code: 'ATTENDANCE_RECORDED', attendanceRecorded: true, eventId: 'evento/1',
+      eventTitle: 'Evento de prueba', registrationId: 'inscripcion', participantName: 'Ana',
+      attendedAt: '2026-11-12T20:00:00Z',
+    };
+    jest.mocked(apiClient).mockResolvedValue({ data });
+    await expect(validateScannedPass('evento/1', 'token', signal)).resolves.toEqual(data);
     expect(apiClient).toHaveBeenCalledWith('/api/v1/events/owned/evento%2F1/attendance', {
       method: 'POST', authenticated: true, body: { qrToken: 'token' }, signal,
     });
@@ -21,7 +26,8 @@ describe('Contrato HTTP de validación QR', () => {
   it.each([
     null,
     { data: null },
-    { data: { code: 'PASS_VALIDATED', attendanceRecorded: true } },
+    { data: { code: 'PASS_VALIDATED', attendanceRecorded: false } },
+    { data: { code: 'ATTENDANCE_RECORDED', attendanceRecorded: true } },
     { data: { code: 'DESCONOCIDO', attendanceRecorded: false } },
   ])('rechaza una respuesta incompatible con el contrato (%#)', async (response) => {
     jest.mocked(apiClient).mockResolvedValue(response);

@@ -5,9 +5,14 @@ export interface ValidateEventPassInput {
   qrToken: string;
 }
 
-export interface ValidateEventPassResult {
-  code: 'PASS_VALIDATED';
-  attendanceRecorded: false;
+export interface EventAttendanceResult {
+  code: 'ATTENDANCE_RECORDED' | 'ATTENDANCE_ALREADY_RECORDED';
+  attendanceRecorded: true;
+  eventId: string;
+  eventTitle: string;
+  registrationId: string;
+  participantName: string;
+  attendedAt: string;
 }
 
 export interface EventPassQrPayload {

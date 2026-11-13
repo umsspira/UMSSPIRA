@@ -17,6 +17,7 @@ describe('findAttendancePass', () => {
   const findEvent = jest.fn();
   const findPass = jest.fn();
   const tx = {
+    $queryRaw: jest.fn(),
     evento: { findFirst: findEvent },
     paseQr: { findUnique: findPass },
   } as unknown as Prisma.TransactionClient;
