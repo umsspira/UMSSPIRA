@@ -87,10 +87,10 @@ async function main() {
     );
 
     const required = [
-      "JosÃ© AndrÃ©s",
-      "PÃ©rez Mamani",
+      "José Andrés",
+      "Pérez Mamani",
       "5918234",
-      "IngenierÃ­a de Sistemas",
+      "Ingeniería de Sistemas",
       "2023",
       "201704981",
     ];
