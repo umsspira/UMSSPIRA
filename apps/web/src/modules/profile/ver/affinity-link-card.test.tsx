@@ -31,7 +31,7 @@ describe('AffinityLinkCard', () => {
     await screen.findByTestId('mini-radar');
   });
 
-  // HU-17 CA-01
+  
   it('muestra el mini radar con los valores del último cálculo', async () => {
     mockCalculation();
     render(<AffinityLinkCard />);
@@ -41,7 +41,7 @@ describe('AffinityLinkCard', () => {
     expect(radar).toHaveAccessibleName(expect.stringContaining('Gestión TI 30%'));
   });
 
-  // HU-17 CA-02: toda la tarjeta abre Mi afinidad (el enlace se estira sobre la tarjeta)
+  
   it('toda la tarjeta lleva a /afinidad', async () => {
     mockCalculation();
     render(<AffinityLinkCard />);
@@ -55,5 +55,14 @@ describe('AffinityLinkCard', () => {
     // Un filtro (brightness) en el enlace encogería su "after:" al pasar el mouse
     expect(link.className).not.toMatch(/brightness|filter/);
     await screen.findByTestId('mini-radar');
+  });
+
+  
+  it('dice «Actualizando tu afinidad…» mientras el cálculo no llega', () => {
+    fetchMiniAffinityMock.mockReturnValue(new Promise(() => {}));
+    render(<AffinityLinkCard />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Actualizando tu afinidad…');
+    expect(screen.queryByTestId('mini-radar')).not.toBeInTheDocument();
   });
 });
