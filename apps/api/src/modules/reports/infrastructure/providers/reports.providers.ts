@@ -16,6 +16,7 @@ import { ListReportGraduatesUseCase } from '../../application/use-cases/list-rep
 import { GetGraduateReportUseCase } from '../../application/use-cases/get-graduate-report.use-case';
 import { ExportReportCsvUseCase } from '../../application/use-cases/export-report-csv.use-case';
 import { ExportReportPdfUseCase } from '../../application/use-cases/export-report-pdf.use-case';
+import { GetCompetencyHeatmapUseCase } from '../../application/use-cases/get-competency-heatmap.use-case';
 
 export const reportsProviders: Provider[] = [
   PrismaReportRepository,
@@ -48,5 +49,10 @@ export const reportsProviders: Provider[] = [
     inject: [GetGraduateReportUseCase, REPORT_PDF_WRITER],
     useFactory: (reader: GetGraduateReportUseCase, writer: ReportWriter) =>
       new ExportReportPdfUseCase(reader, writer),
+  },
+  {
+    provide: GetCompetencyHeatmapUseCase,
+    inject: [REPORT_REPOSITORY],
+    useFactory: (repository: ReportRepository) => new GetCompetencyHeatmapUseCase(repository),
   },
 ];
