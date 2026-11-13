@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftIcon, CheckIcon, PlusIcon, AlertTriangleIcon, Undo2Icon, ShieldCheckIcon, LockKeyholeIcon, BriefcaseBusinessIcon, ServerIcon, MonitorIcon, DatabaseIcon, CloudIcon, BrainCircuitIcon, SmartphoneIcon, NetworkIcon, BlocksIcon, ClipboardCheckIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, PlusIcon, AlertTriangleIcon, Undo2Icon, ShieldCheckIcon, LockKeyholeIcon, BriefcaseBusinessIcon, ServerIcon, MonitorIcon, DatabaseIcon, CloudIcon, BrainCircuitIcon, SmartphoneIcon, NetworkIcon, BlocksIcon, ClipboardCheckIcon } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { SecondaryButton, PrimaryButton } from './mentor-button';
+import { MentorSetupSteps } from './mentor-setup-steps';
 import { getMentorProfile } from '../services/mentorship-api';
 import type { MentorState } from '@umsspira/shared-types';
 import { getMentorAreas, updateMentorAreas, MentorAreasError, type MentorArea, type MentorAreasState } from '../services/mentor-areas-api';
@@ -52,6 +53,7 @@ export function MentorAreasPage() {
   const [dialog, setDialog] = useState<'discard' | 'dependencies' | 'minimum' | null>(null);
   const [participation, setParticipation] = useState<MentorState | null>(null);
   const [destination, setDestination] = useState('/mentorship/profile');
+  const [pendingDestination, setPendingDestination] = useState<string | null>(null);
   const busy = useRef(false);
   const dirty = savedIds.length !== selectedIds.length || savedIds.some(id => !selectedIds.includes(id));
   const removedIds = savedIds.filter(id => !selectedIds.includes(id));
@@ -130,7 +132,7 @@ export function MentorAreasPage() {
     else setSelectedIds([...selectedIds, id]);
   }
 
-  async function save() {
+  async function save(nextHref?: string) {
     if (busy.current || !valid || !catalogFromDatabase || forbidden) return;
     busy.current = true;
     setSaving(true);
@@ -144,6 +146,8 @@ export function MentorAreasPage() {
       setSaved(true);
       setInterests(state.intereses);
       setDialog(null);
+      setPendingDestination(null);
+      if (nextHref) router.push(nextHref);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudieron guardar las áreas.');
       if (reason instanceof MentorAreasError && reason.status === 403) setForbidden(true);
@@ -151,6 +155,19 @@ export function MentorAreasPage() {
       setSaving(false);
       busy.current = false;
     }
+  }
+
+  function requestSave(nextHref?: string) {
+    if (nextHref && !dirty) {
+      router.push(nextHref);
+      return;
+    }
+    if (removedIds.length && (interests === undefined || interests.some(interest => removedIds.includes(interest.id_area)))) {
+      setPendingDestination(nextHref ?? null);
+      setDialog('dependencies');
+      return;
+    }
+    void save(nextHref);
   }
 
 
@@ -233,13 +250,7 @@ export function MentorAreasPage() {
 
         {saved && <div role="status" className="mentor-areas-saved"><p>Áreas técnicas actualizadas correctamente</p><p>Áreas guardadas: {areas.filter(area => savedIds.includes(area.id)).map(area => area.nombre).join(', ')}</p></div>}
 
-        <section className="areas-setup-progress" aria-labelledby="areas-progress-title">
-          <div><h2 id="areas-progress-title">Completa tu perfil de mentor</h2><span>{savedIds.length ? 'Áreas técnicas guardadas' : 'En edición'}</span></div>
-          <div className="areas-progress-track" aria-hidden="true"><span style={{ width: savedIds.length ? '33.333%' : '0%' }} /></div>
-          <ol><li aria-current="step"><span className="areas-step-number">1</span><div><small>Paso actual · En edición</small><strong>Áreas técnicas</strong></div></li>
-            <li><span className="areas-step-number">2</span><div><small>Paso 2</small><strong>Intereses de mentoría</strong></div></li>
-            <li><span className="areas-step-number">3</span><div><small>Paso 3</small><strong>Disponibilidad horaria</strong></div></li></ol>
-        </section>
+        <MentorSetupSteps currentStep={1} completedSteps={savedIds.length ? 1 : 0} />
 
         <div className="mentor-areas-page-actions">
           <Link href="/mentorship/profile" className="mentor-areas-back">
@@ -247,11 +258,20 @@ export function MentorAreasPage() {
           </Link>
           <div className="mentor-areas-actions">
             <SecondaryButton onClick={cancel} disabled={saving || loading}>Cancelar</SecondaryButton>
-            <PrimaryButton onClick={() => {
-              if (removedIds.length && (interests === undefined || interests.some(interest => removedIds.includes(interest.id_area)))) setDialog('dependencies');
-              else void save();
-            }} disabled={loading || saving || !valid || !catalogFromDatabase || areas.length === 0 || !dirty}>
-              {saving ? 'Guardando…' : 'Guardar'}
+            <SecondaryButton
+              onClick={() => requestSave()}
+              disabled={loading || saving || !valid || !catalogFromDatabase || areas.length === 0 || !dirty}
+            >
+              Guardar
+            </SecondaryButton>
+            <PrimaryButton
+              onClick={() => requestSave('/mentorship/profile/interests')}
+              disabled={loading || saving || !valid || !catalogFromDatabase || areas.length === 0}
+              loading={saving}
+              loadingLabel="Guardando…"
+              iconRight={ArrowRightIcon}
+            >
+              Guardar y continuar
             </PrimaryButton>
           </div>
         </div>
@@ -269,7 +289,7 @@ export function MentorAreasPage() {
         const name = areas.find(area => area.id === id)?.nombre || id;
         const names = interests?.filter(interest => interest.id_area === id).map(interest => interest.nombre);
         return <p key={id}>{names?.length ? `Al quitar ${name} también se eliminarán los intereses: ${names.join(', ')}` : `Al quitar ${name}, deben revisarse los intereses asociados a esta área antes de confirmar.`}</p>;
-      })} confirmLabel="Confirmar" confirming={saving} onCancel={() => { setSelectedIds(savedIds); setDialog(null); setError(''); setLimitError(''); }} onConfirm={() => void save()}>{error && <p role="alert">{error}</p>}</ConfirmModal>
+      })} confirmLabel="Confirmar" confirming={saving} onCancel={() => { setSelectedIds(savedIds); setPendingDestination(null); setDialog(null); setError(''); setLimitError(''); }} onConfirm={() => void save(pendingDestination ?? undefined)}>{error && <p role="alert">{error}</p>}</ConfirmModal>
     </main>
   );
 }
