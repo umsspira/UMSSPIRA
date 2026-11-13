@@ -58,7 +58,7 @@ export const useEmailVerificationStore = create<EmailVerificationState>((set, ge
   isExpired: false,
   maxAttemptsReached: false,
   cooldownSeconds: 0,
-  expiresInSeconds: 600,
+  expiresInSeconds: 300,
 
   setEmail: (email: string) => {
     const normalized = email.trim().toLowerCase();
@@ -210,7 +210,7 @@ export const useEmailVerificationStore = create<EmailVerificationState>((set, ge
         isExpired: false,
         maxAttemptsReached: false,
         error: null,
-        cooldownSeconds: response.cooldownSeconds || 30,
+        cooldownSeconds: response.cooldownSeconds ?? 60,
         ...(response.maskedEmail ? { maskedEmail: response.maskedEmail } : {}),
       });
       return true;

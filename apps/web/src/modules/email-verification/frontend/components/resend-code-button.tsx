@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { cn } from '@/shared/utils/cn';
 
 export interface ResendCodeButtonProps {
-  onResend: () => Promise<boolean | void>;
+  onResend: () => Promise<boolean | number | void>;
   cooldownSeconds?: number;
   disabled?: boolean;
   isResending?: boolean;
@@ -45,8 +45,11 @@ export const ResendCodeButton: React.FC<ResendCodeButtonProps> = ({
 
   const handleClick = async () => {
     if (disabled || isResending || secondsRemaining > 0) return;
-    await onResend();
-    setSecondsRemaining(30);
+    const result = await onResend();
+    if (result === false) return;
+    setSecondsRemaining(
+      typeof result === 'number' ? result : cooldownSeconds || 60,
+    );
   };
 
   const isLocked = disabled || isResending || secondsRemaining > 0;
