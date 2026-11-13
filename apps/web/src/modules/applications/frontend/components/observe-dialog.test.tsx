@@ -51,7 +51,7 @@ describe('ObserveDialog', () => {
   it('exige la explicación aunque haya motivos seleccionados', () => {
     renderDialog();
 
-    fireEvent.click(screen.getByLabelText('Documento ilegible'));
+    fireEvent.click(screen.getByLabelText('Documento ilegible o borroso'));
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar Observación' }));
 
     expect(screen.getByText('Este campo es obligatorio.')).toBeInTheDocument();
@@ -71,15 +71,15 @@ describe('ObserveDialog', () => {
   it('envía varios motivos y una sola explicación en el orden de la lista', async () => {
     renderDialog();
 
-    fireEvent.click(screen.getByLabelText('Datos incorrectos'));
-    fireEvent.click(screen.getByLabelText('Documento ilegible'));
+    fireEvent.click(screen.getByLabelText('Datos declarados no coinciden con el respaldo'));
+    fireEvent.click(screen.getByLabelText('Documento ilegible o borroso'));
     fireEvent.change(screen.getByLabelText(/Qué debe corregir el Titulado/), { target: { value: NOTE } });
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar Observación' }));
 
     await waitFor(() =>
       expect(submitReview).toHaveBeenCalledWith({
         decision: 'OBSERVADA',
-        motivos: ['Documento ilegible', 'Datos incorrectos'],
+        motivos: ['documento_ilegible', 'datos_no_coinciden'],
         note: NOTE,
       }),
     );

@@ -1,7 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ReasonsSelector } from './reasons-selector';
 
-const OPTIONS = ['Documento ilegible', 'Documento incompleto', 'Datos incorrectos'];
+const OPTIONS = [
+  { code: 'documento_ilegible', label: 'Documento ilegible o borroso' },
+  { code: 'documento_incompleto', label: 'Documento de respaldo incompleto o formato no válido' },
+  { code: 'datos_no_coinciden', label: 'Datos declarados no coinciden con el respaldo' },
+];
 
 describe('ReasonsSelector', () => {
   it('muestra una casilla por motivo y ninguna marcada al inicio', () => {
@@ -14,11 +18,11 @@ describe('ReasonsSelector', () => {
 
   it('entrega los motivos marcados en el orden de la lista', () => {
     const onChange = jest.fn();
-    render(<ReasonsSelector options={OPTIONS} selected={['Datos incorrectos']} onChange={onChange} />);
+    render(<ReasonsSelector options={OPTIONS} selected={['datos_no_coinciden']} onChange={onChange} />);
 
-    fireEvent.click(screen.getByLabelText('Documento ilegible'));
+    fireEvent.click(screen.getByLabelText('Documento ilegible o borroso'));
 
-    expect(onChange).toHaveBeenCalledWith(['Documento ilegible', 'Datos incorrectos']);
+    expect(onChange).toHaveBeenCalledWith(['documento_ilegible', 'datos_no_coinciden']);
   });
 
   it('quita un motivo al desmarcarlo', () => {
@@ -26,14 +30,14 @@ describe('ReasonsSelector', () => {
     render(
       <ReasonsSelector
         options={OPTIONS}
-        selected={['Documento ilegible', 'Datos incorrectos']}
+        selected={['documento_ilegible', 'datos_no_coinciden']}
         onChange={onChange}
       />,
     );
 
-    fireEvent.click(screen.getByLabelText('Documento ilegible'));
+    fireEvent.click(screen.getByLabelText('Documento ilegible o borroso'));
 
-    expect(onChange).toHaveBeenCalledWith(['Datos incorrectos']);
+    expect(onChange).toHaveBeenCalledWith(['datos_no_coinciden']);
   });
 
   it('muestra el error cuando se indica', () => {

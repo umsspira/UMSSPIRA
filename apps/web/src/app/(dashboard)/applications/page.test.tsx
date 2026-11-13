@@ -483,8 +483,8 @@ describe('ApplicationsPage', () => {
     expect(observeButton).toBeEnabled();
     fireEvent.click(observeButton);
 
-    fireEvent.click(screen.getByLabelText('Documento ilegible'));
-    fireEvent.click(screen.getByLabelText('Datos incorrectos'));
+    fireEvent.click(screen.getByLabelText('Documento ilegible o borroso'));
+    fireEvent.click(screen.getByLabelText('Datos declarados no coinciden con el respaldo'));
 
     fireEvent.change(screen.getByLabelText(/Qué debe corregir el Titulado/), {
       target: { value: 'El documento presentado no se puede leer.' },
@@ -501,7 +501,7 @@ describe('ApplicationsPage', () => {
           method: 'POST',
           body: JSON.stringify({
             decision: 'OBSERVADA',
-            motivos: ['Documento ilegible', 'Datos incorrectos'],
+            motivos: ['documento_ilegible', 'datos_no_coinciden'],
             note: 'El documento presentado no se puede leer.',
           }),
         }),
