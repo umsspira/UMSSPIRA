@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import jsQR from 'jsqr';
 
 function cameraErrorMessage(error: unknown): string {
   const name = error instanceof Error ? error.name : '';
@@ -10,23 +11,49 @@ function cameraErrorMessage(error: unknown): string {
   return 'No se pudo iniciar la cámara. Comprueba su conexión y vuelve a intentarlo.';
 }
 
-export function EventScannerCamera() {
+export function EventScannerCamera({ onRead, disabled = false }: {
+  onRead?: (token: string) => void;
+  disabled?: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [enabled, setEnabled] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || disabled) return;
     let active = true;
     let stream: MediaStream | undefined;
     const video = videoRef.current;
+    const cameraSupported = typeof navigator.mediaDevices?.getUserMedia === 'function';
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
     setError(null);
     setReady(false);
 
+    function scan() {
+      if (!active || !video) return;
+      if (context && video.readyState >= 2 && video.videoWidth > 0) {
+        const scale = Math.min(1, 960 / video.videoWidth);
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(pixels.data, pixels.width, pixels.height);
+        if (code?.data) {
+          setReady(false);
+          setEnabled(false);
+          onRead?.(code.data);
+          return;
+        }
+      }
+      timer = setTimeout(scan, 200);
+    }
+
     async function start() {
       try {
-        if (!navigator.mediaDevices?.getUserMedia) {
+        if (!cameraSupported) {
           throw new Error('Cámara no compatible');
         }
         const acquired = await navigator.mediaDevices.getUserMedia({
@@ -42,11 +69,14 @@ export function EventScannerCamera() {
           video.srcObject = stream;
           await video.play();
         }
-        if (active) setReady(true);
+        if (active) {
+          setReady(true);
+          if (onRead) timer = setTimeout(scan, 200);
+        }
       } catch (reason: unknown) {
         stream?.getTracks().forEach((track) => track.stop());
         if (active) {
-          setError(navigator.mediaDevices?.getUserMedia
+          setError(cameraSupported
             ? cameraErrorMessage(reason)
             : 'La cámara requiere un navegador compatible y una conexión HTTPS o localhost.');
           setEnabled(false);
@@ -56,10 +86,11 @@ export function EventScannerCamera() {
     void start();
     return () => {
       active = false;
+      clearTimeout(timer);
       stream?.getTracks().forEach((track) => track.stop());
       if (video) video.srcObject = null;
     };
-  }, [enabled]);
+  }, [enabled, disabled, onRead]);
 
   return (
     <section className="event-scanner-preview" aria-label="Vista previa del lector QR">
@@ -71,6 +102,7 @@ export function EventScannerCamera() {
       {error ? <p role="alert">{error}</p> : null}
       <button
         type="button"
+        disabled={disabled}
         className="event-button event-button-primary"
         onClick={() => { setReady(false); setEnabled((value) => !value); }}
       >

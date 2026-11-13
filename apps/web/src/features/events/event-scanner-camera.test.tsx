@@ -1,5 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { EventScannerCamera } from './event-scanner-camera';
+import jsQR from 'jsqr';
+
+jest.mock('jsqr', () => ({ __esModule: true, default: jest.fn() }));
 
 describe('Cámara del escáner', () => {
   const getUserMedia = jest.fn();
@@ -10,6 +13,7 @@ describe('Cámara del escáner', () => {
     jest.clearAllMocks();
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
     jest.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
     getUserMedia.mockResolvedValue(stream);
   });
   afterEach(() => jest.restoreAllMocks());
@@ -41,5 +45,26 @@ describe('Cámara del escáner', () => {
     view.unmount();
     await act(async () => { resolve(stream); });
     expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('envía una sola lectura y libera la cámara cuando encuentra un QR', async () => {
+    jest.useFakeTimers();
+    try {
+      const context = { drawImage: jest.fn(), getImageData: () => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 }) };
+      jest.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValue(context as unknown as CanvasRenderingContext2D);
+      jest.mocked(jsQR).mockReturnValue({ data: 'token-leido' } as ReturnType<typeof jsQR>);
+      const onRead = jest.fn();
+      render(<EventScannerCamera onRead={onRead} />);
+      const video = screen.getByLabelText('Cámara del escáner');
+      Object.defineProperties(video, { readyState: { value: 2 }, videoWidth: { value: 640 }, videoHeight: { value: 480 } });
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Activar cámara' })); });
+      await act(async () => { jest.advanceTimersByTime(200); });
+      await act(async () => { jest.advanceTimersByTime(1000); });
+      expect(onRead).toHaveBeenCalledTimes(1);
+      expect(onRead).toHaveBeenCalledWith('token-leido');
+      expect(stop).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
