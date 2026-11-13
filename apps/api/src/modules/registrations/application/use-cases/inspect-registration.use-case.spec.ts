@@ -48,10 +48,10 @@ describe('InspectRegistrationUseCase', () => {
       codeExpiresInSeconds: 127,
       resendAvailableInSeconds: 31,
     });
-
   });
 
   it('reports no OTP when the draft has never received a code', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(now);
     const repository = {
       findDraft: jest.fn().mockResolvedValue({
         ...draft,
