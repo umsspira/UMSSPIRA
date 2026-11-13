@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { OcrAnalysis } from "@umsspira/shared-types";
 import { ocrRequest } from "../services/ocr-api";
 import { pollOcr } from "../services/ocr-polling";
+import { prioritizeOcr } from "../services/ocr-control";
 const states = {
   PENDIENTE: "Pendiente",
   EN_CURSO: "En curso",
@@ -34,6 +35,7 @@ export function OcrPanel({
     const controller = new AbortController();
     setAnalyses([]);
     setError("");
+    prioritizeOcr(applicationId);
     const load = async () => {
       return ocrRequest<OcrAnalysis[]>(
         `${applicationId}/ocr`,
