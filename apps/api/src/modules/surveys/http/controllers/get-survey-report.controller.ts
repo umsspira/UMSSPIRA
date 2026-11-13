@@ -1,42 +1,56 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Inject,
+  Query,
+} from '@nestjs/common';
+import { CurrentActor } from '../../../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../../../shared/http/auth/decorators/require-permissions.decorator';
-import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
+import type { SurveyRepositoryPort } from '../../application/ports/survey-repository.port';
+import { SURVEY_REPOSITORY_PORT } from '../../infrastructure/providers/surveys.providers';
 
 @Controller('reports')
 export class GetSurveyReportController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(SURVEY_REPOSITORY_PORT)
+    private readonly repository: SurveyRepositoryPort,
+  ) {}
 
   @Get('surveys')
   @RequirePermissions('reportes:read')
-  async handle() {
-    const responses = await this.prisma.respuestaEncuesta.findMany({ orderBy: { fechaEnvio: 'desc' } });
-    const working = responses.filter((item) => item.condicionLaboral === 'true');
-    const countBy = (values: Array<string | null>) => values.reduce<Record<string, number>>((result, value) => {
-      const key = value?.trim() || 'Sin dato';
-      result[key] = (result[key] ?? 0) + 1;
-      return result;
-    }, {});
+  async handle(
+    @CurrentActor() actor: ActorContext,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('careerId') careerId?: string,
+  ) {
+    const allowedCareerIds = actor.scopes.careerIds ?? [];
+
+    if (careerId && allowedCareerIds.length > 0 && !allowedCareerIds.includes(careerId)) {
+      throw new ForbiddenException('No tiene acceso al reporte de esta carrera');
+    }
+
+    const targetCareerId = careerId ?? allowedCareerIds[0];
+    if (!targetCareerId) {
+      throw new ForbiddenException('No tiene una carrera asignada para consultar reportes');
+    }
+
+    const parsedPage = Number(page);
+    const parsedLimit = Number(limit);
+    const safePage = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const safeLimit =
+      Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 10;
+
+    const report = await this.repository.getSurveyReport({
+      careerId: targetCareerId,
+      page: safePage,
+      limit: safeLimit,
+    });
 
     return {
-      data: {
-        total: responses.length,
-        trabajan: working.length,
-        noTrabajan: responses.length - working.length,
-        porModalidad: countBy(working.map((item) => item.modalidad)),
-        porSalario: countBy(working.map((item) => item.salarioMensual)),
-        porInsercion: countBy(working.map((item) => item.tiempoInsercion)),
-        respuestas: responses.map((item) => ({
-          id: item.id,
-          condicionLaboral: item.condicionLaboral === 'true' ? 'Trabaja' : 'No trabaja',
-          cargo: item.cargo,
-          empresa: item.empresa,
-          area: item.area,
-          modalidad: item.modalidad,
-          salarioMensual: item.salarioMensual,
-          tiempoInsercion: item.tiempoInsercion,
-          fechaEnvio: item.fechaEnvio.toISOString(),
-        })),
-      },
+      data: report,
     };
   }
 }
