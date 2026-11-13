@@ -76,15 +76,18 @@ const extractKeywords = (areas: CandidateArea[]): string[] =>
 
 export interface GraduateAffinityViewProps {
   enableSimulationControls?: boolean;
+  showDemoNotice?: boolean;
 }
 
 export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   enableSimulationControls,
+  showDemoNotice,
 }) => {
   const isSimulationControlsEnabled =
     enableSimulationControls ??
     process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS === 'true';
-
+  const isDemoMode =
+    showDemoNotice ?? process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK === 'true';
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [profileState, setProfileState] = useState<'calculated' | 'customizing'>('calculated');
@@ -359,6 +362,15 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {isDemoMode && (
+          <div
+            role="status"
+            data-testid="affinity-demo-notice"
+            className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] text-amber-900"
+          >
+            Demostración: los datos de esta pantalla son de ejemplo y no corresponden a tu perfil.
+          </div>
+        )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
