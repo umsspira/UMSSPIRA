@@ -4,6 +4,7 @@ import { createTransport, type Transporter } from 'nodemailer';
 import type { Environment } from '../../../../config/environment';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { recoveryLinkState } from '../../domain/policies/password-recovery.policy';
+import { passwordRecoveryHtml } from '../../../../shared/notifications/account-email';
 
 interface PendingMail {
   id: string;
@@ -158,11 +159,12 @@ export class PasswordResetMailWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async sendMail(row: PendingMail, text: string): Promise<{ messageId?: string }> {
+    const html = passwordRecoveryHtml(text, this.config.get<string>('WEB_BASE_URL', 'http://localhost:3001'));
     const from = this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>');
     const apiKey = this.config.get<string>('BREVO_API_KEY');
     if (!apiKey) {
       return this.transport!.sendMail({
-        from, to: row.email_destino, subject: row.asunto, text,
+        from, to: row.email_destino, subject: row.asunto, text, html,
         messageId: `<${row.id}@umsspira.local>`,
       });
     }
@@ -177,6 +179,7 @@ export class PasswordResetMailWorker implements OnModuleInit, OnModuleDestroy {
         to: [{ email: row.email_destino }],
         subject: row.asunto,
         textContent: text,
+        htmlContent: html,
       }),
     });
     if (!response.ok) {

@@ -68,6 +68,7 @@ describe('PasswordResetMailWorker', () => {
       sender: { name: 'UMSSPIRA', email: 'verificado@example.com' },
       to: [{ email: 'cuenta.prueba@gmail.com' }], subject: 'Asunto',
       textContent: row().cuerpo,
+      htmlContent: expect.stringContaining('Crear nueva contraseña'),
     });
     expect(lastUpdate(prisma)).toMatchObject({ estado: 'enviada', cuerpo: null,
       smtp_message_id: 'brevo-message-id', ultimo_error: null });
@@ -111,6 +112,7 @@ describe('PasswordResetMailWorker', () => {
         to: 'admin@umss.edu.bo',
         subject: 'Asunto',
         text: expect.stringContaining('reset-password?token=abc'),
+        html: expect.stringContaining('href="http://localhost:3001/reset-password?token=abc"'),
       }),
     );
     expect(lastUpdate(prisma)).toMatchObject({ estado: 'enviada', cuerpo: null, ultimo_error: null });
