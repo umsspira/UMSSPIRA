@@ -8,6 +8,7 @@ import { ListReportGraduatesController } from './http/controllers/list-report-gr
 import { GetGraduateReportController } from './http/controllers/get-graduate-report.controller';
 import { ExportReportCsvController } from './http/controllers/export-report-csv.controller';
 import { ExportReportPdfController } from './http/controllers/export-report-pdf.controller';
+import { GetCompetencyHeatmapController } from './http/controllers/get-competency-heatmap.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -17,6 +18,7 @@ import { ExportReportPdfController } from './http/controllers/export-report-pdf.
     GetGraduateReportController,
     ExportReportCsvController,
     ExportReportPdfController,
+    GetCompetencyHeatmapController,
   ],
   providers: [...reportsProviders, ReportExportGuard],
 })
