@@ -7,7 +7,7 @@ import { CancelPublishedEventUseCase } from './cancel-published-event.use-case';
 import { UpdatePublishedEventUseCase } from './update-published-event.use-case';
 
 const actor: ActorContext = {
-  id: 'owner-1', email: 'owner@umsspira.test', name: 'Owner', role: 'administrador_carrera',
+  id: 'owner-1', email: 'owner@umsspira.test', name: 'Owner', role: 'administrador',
   permissions: ['eventos:manage'], scopes: { companyIds: [], graduateId: null, careerIds: [] }, credentialVersion: 1,
 };
 
@@ -28,6 +28,7 @@ function event(overrides: Partial<Event> = {}): Event {
 function repository(): jest.Mocked<EventsRepository> {
   return {
     findOwned: jest.fn(), updatePublished: jest.fn(), confirmedRegistrantUserIds: jest.fn(),
+    cancelPublished: jest.fn(),
   } as unknown as jest.Mocked<EventsRepository>;
 }
 
@@ -102,3 +103,4 @@ describe('notificaciones Push de eventos publicados', () => {
     expect(events.confirmedRegistrantUserIds).not.toHaveBeenCalled();
   });
 });
+

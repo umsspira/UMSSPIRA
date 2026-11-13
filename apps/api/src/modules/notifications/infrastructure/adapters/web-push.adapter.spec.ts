@@ -15,7 +15,26 @@ const mockedWebPush = webpush as jest.Mocked<typeof webpush>;
 const subscription = { endpoint: 'https://push.test/endpoint', p256dh: 'key', auth: 'auth' };
 
 describe('WebPushAdapter', () => {
-  beforeEach(() => jest.clearAllMocks());
+  // Estas pruebas construyen el ConfigService con su propio objeto; se aísla
+  // de las claves VAPID que `test/setup.ts` define en process.env para los e2e.
+  const originalVapid = {
+    VAPID_SUBJECT: process.env.VAPID_SUBJECT,
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.VAPID_SUBJECT;
+    delete process.env.VAPID_PUBLIC_KEY;
+    delete process.env.VAPID_PRIVATE_KEY;
+  });
+
+  afterAll(() => {
+    process.env.VAPID_SUBJECT = originalVapid.VAPID_SUBJECT;
+    process.env.VAPID_PUBLIC_KEY = originalVapid.VAPID_PUBLIC_KEY;
+    process.env.VAPID_PRIVATE_KEY = originalVapid.VAPID_PRIVATE_KEY;
+  });
 
   function adapter(): WebPushAdapter {
     return new WebPushAdapter(new ConfigService<Environment, true>({
@@ -46,3 +65,4 @@ describe('WebPushAdapter', () => {
     await expect(adapter().send(subscription, { title: 'Título', body: 'Cuerpo' })).resolves.toBe('invalid');
   });
 });
+

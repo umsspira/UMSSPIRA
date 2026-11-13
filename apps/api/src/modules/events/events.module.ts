@@ -22,7 +22,7 @@ import { UploadEventCoverController } from './http/controllers/upload-event-cove
 import { RegisterEventController } from './http/controllers/register-event.controller';
 import { GetEventParticipantsController } from './http/controllers/get-event-participants.controller';
 import { GenerateEventPassService } from './application/generate-event-pass.service';
-import { ListUserPassesService } from './application/list-user-passes.service'; // <-- 1. AÑADIDO AQUÍ
+import { ListUserPassesService } from './application/list-user-passes.service';
 import { EventPassesController } from './http/event-passes.controller';
 import { CancelPublishedEventController } from './http/controllers/cancel-published-event.controller';
 import { CancelEventRegistrationController } from './http/controllers/cancel-event-registration.controller';
