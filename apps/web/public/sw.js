@@ -4,9 +4,9 @@
  * HU04 - Tarea #404: almacenamiento en caché de rutas
  */
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 
-const CACHE_NAME = 'umsspira-core-portal-v5';
+const CACHE_NAME = 'umsspira-core-portal-v6n';
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
 const ASSETS_CACHE = `umsspira-assets-${VERSION}`;
 const CONFIG_CACHE = `umsspira-config-${VERSION}`;

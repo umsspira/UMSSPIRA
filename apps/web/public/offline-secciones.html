@@ -1,50 +1,68 @@
-
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UMSSPIRA | Navegación sin conexión</title>
+  <title>UMSSPIRA | Sin conexión</title>
   <style>
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #eee9df;
       color: #1b2632;
     }
+
     header {
       background: #1b2632;
       color: white;
-      padding: 24px;
+      padding: 20px;
     }
+
+    header h1 { margin: 0 0 8px; }
+
     main {
       max-width: 1000px;
-      margin: 32px auto;
+      margin: 30px auto;
       padding: 16px;
     }
+
     .aviso {
       background: #fff3df;
       padding: 16px;
       border-radius: 12px;
       margin-bottom: 24px;
     }
-    .secciones {
+
+    nav {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
     }
-    a {
+
+    nav a {
       display: block;
-      padding: 24px;
-      border-radius: 12px;
+      padding: 16px;
+      border-radius: 10px;
       background: white;
       color: #1b2632;
       text-decoration: none;
       font-weight: bold;
     }
-    a:hover {
-      background: #ffdfb7;
+
+    nav a[aria-current="page"] {
+      background: #ffb162;
     }
+
+    .contenido {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      min-height: 180px;
+    }
+
     button {
       margin-top: 24px;
       padding: 12px 24px;
@@ -62,14 +80,11 @@
   </header>
 
   <main>
-    <div class="aviso">
-      Estás sin conexión. Puedes consultar las secciones
-      disponibles en modo offline.
+    <div class="aviso" role="status">
+      Estás navegando sin conexión. Algunas funciones no están disponibles.
     </div>
 
-    <h2>Secciones</h2>
-
-    <nav class="secciones" aria-label="Secciones offline">
+    <nav aria-label="Navegación offline">
       <a href="/portal">Inicio</a>
       <a href="/portal/eventos">Eventos</a>
       <a href="/portal/empleos">Empleos</a>
@@ -77,7 +92,51 @@
       <a href="/portal/comunidad">Comunidad</a>
     </nav>
 
-    <button onclick="location.reload()">Reintentar</button>
+    <section class="contenido" aria-live="polite">
+      <h2 id="titulo">Inicio</h2>
+      <p id="descripcion"></p>
+    </section>
+
+    <button type="button" onclick="location.reload()">
+      Reintentar
+    </button>
   </main>
+
+  <script>
+    const secciones = {
+      '/portal': {
+        titulo: 'Inicio',
+        descripcion: 'Bienvenido a UMSSPIRA. Puedes navegar por las secciones disponibles sin conexión.'
+      },
+      '/portal/eventos': {
+        titulo: 'Eventos',
+        descripcion: 'Estás en la sección de eventos. Los eventos guardados estarán disponibles cuando implementemos su caché.'
+      },
+      '/portal/empleos': {
+        titulo: 'Bolsa de trabajo',
+        descripcion: 'Estás en la sección de empleos. Las ofertas que requieren conexión no están disponibles.'
+      },
+      '/portal/beneficios': {
+        titulo: 'Beneficios',
+        descripcion: 'Beneficios (próximamente).'
+      },
+      '/portal/comunidad': {
+        titulo: 'Comunidad',
+        descripcion: 'Estás en la sección de comunidad. Las funciones interactivas requieren conexión.'
+      }
+    };
+
+    const ruta = location.pathname.replace(/\/$/, '') || '/';
+    const seccion = secciones[ruta] || secciones['/portal'];
+
+    document.getElementById('titulo').textContent = seccion.titulo;
+    document.getElementById('descripcion').textContent = seccion.descripcion;
+
+    document.querySelectorAll('nav a').forEach((enlace) => {
+      if (enlace.getAttribute('href') === ruta) {
+        enlace.setAttribute('aria-current', 'page');
+      }
+    });
+  </script>
 </body>
 </html>
