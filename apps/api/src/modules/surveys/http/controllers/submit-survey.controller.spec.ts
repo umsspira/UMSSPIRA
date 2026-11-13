@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client';
 import type { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';

@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { submitSurveySchema, SALARY_RANGES } from './surveys.schemas';
 
 const respuestaCompleta = {
