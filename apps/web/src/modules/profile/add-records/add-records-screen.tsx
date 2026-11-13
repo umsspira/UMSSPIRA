@@ -86,6 +86,8 @@ function AddRecordsContent() {
     }),
     [],
   );
+  // T14.5: con un borrador incompleto no se puede guardar el perfil (sus datos no pasarían la API)
+  const hasIncomplete = drafts.some((draft) => draft.isIncomplete);
   // T14.2: datos con los que arranca el formulario nuevo de cada apartado (el borrador incompleto devuelto)
   const [formStart, setFormStart] = useState<Partial<DraftDataBySection>>({});
 
@@ -155,7 +157,7 @@ function AddRecordsContent() {
   // «Guardar perfil profesional» (CA-04): guarda los borradores uno por uno; cada uno guardado pasa a Mis
   // registros y sale de la lista. Si uno falla, se detiene y los que faltan siguen como borradores
   async function saveProfile() {
-    if (drafts.length === 0 || isSaving) return;
+    if (drafts.length === 0 || isSaving || hasIncomplete) return;
     setEditingId(null);
     setSaveStatus({ status: 'saving' });
     let savedCount = 0;
@@ -318,8 +320,10 @@ function AddRecordsContent() {
             <button
               type="button"
               onClick={() => void saveProfile()}
-              disabled={drafts.length === 0 || isSaving}
-              aria-describedby={drafts.length === 0 ? 'ayuda-guardar-perfil' : undefined}
+              disabled={drafts.length === 0 || isSaving || hasIncomplete}
+              aria-describedby={
+                drafts.length === 0 ? 'ayuda-guardar-perfil' : hasIncomplete ? 'motivo-borrador-incompleto' : undefined
+              }
               className="flex-1 rounded-lg bg-burning-flame px-6 py-3.5 text-[15px] font-bold text-abyssal-blue transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving ? 'Guardando…' : 'Guardar perfil profesional'}
@@ -334,6 +338,11 @@ function AddRecordsContent() {
           {drafts.length === 0 && (
             <p id="ayuda-guardar-perfil" className="text-xs text-blue-fantastic/55">
               Agrega al menos un borrador para poder guardar.
+            </p>
+          )}
+          {hasIncomplete && (
+            <p id="motivo-borrador-incompleto" className="text-xs font-semibold text-truffle-trouble">
+              Termina o quita el borrador incompleto para guardar tu perfil.
             </p>
           )}
         </div>
