@@ -43,7 +43,7 @@ test('CA-01: muestra «Generando…» mientras se prepara el PDF y luego lo desc
 
   expect(screen.getByRole('button', { name: 'Generando…' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Exportar Excel' })).toBeDisabled();
-  expect(mockRequest).toHaveBeenCalledWith('pdf', filters, undefined);
+  expect(mockRequest).toHaveBeenCalledWith('pdf', filters);
 
   await act(async () => resolve(file));
   expect(mockSave).toHaveBeenCalledWith(file);
@@ -55,7 +55,7 @@ test('CA-05: «Exportar Excel» pide el archivo .xlsx con los filtros aplicados'
   render(<AccreditationExportButtons filters={filters} hasData />);
   fireEvent.click(screen.getByRole('button', { name: 'Exportar Excel' }));
   await waitFor(() => expect(mockSave).toHaveBeenCalled());
-  expect(mockRequest).toHaveBeenCalledWith('xlsx', filters, undefined);
+  expect(mockRequest).toHaveBeenCalledWith('xlsx', filters);
 });
 
 test('CA-08: sin datos en el periodo muestra el aviso y no descarga nada', () => {

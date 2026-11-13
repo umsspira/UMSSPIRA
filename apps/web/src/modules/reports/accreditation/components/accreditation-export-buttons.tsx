@@ -15,7 +15,6 @@ interface AccreditationExportButtonsProps {
   filters: AccreditationExportFilters;
   /** false cuando el periodo no tiene respuestas: no se pide ni se descarga nada (CA-08). */
   hasData: boolean;
-  apiBaseUrl?: string;
 }
 
 type Feedback = { kind: 'info' | 'error'; text: string } | null;
@@ -30,7 +29,6 @@ const buttonClassName =
 export function AccreditationExportButtons({
   filters,
   hasData,
-  apiBaseUrl,
 }: AccreditationExportButtonsProps) {
   const [generating, setGenerating] = useState<AccreditationExportFormat | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -43,7 +41,7 @@ export function AccreditationExportButtons({
     }
     setGenerating(format);
     try {
-      const file = await requestAccreditationExport(format, filters, apiBaseUrl);
+      const file = await requestAccreditationExport(format, filters);
       saveExportFile(file);
     } catch (error) {
       const reason = error instanceof AccreditationExportError ? error.reason : 'failure';
@@ -66,7 +64,7 @@ export function AccreditationExportButtons({
           onClick={() => handleExport('pdf')}
           disabled={busy}
           aria-busy={generating === 'pdf'}
-          className={`${buttonClassName} bg-[#1B2632] text-white hover:bg-[#2C3B4D]`}
+          className={`${buttonClassName} bg-burning-flame text-abyssal-blue hover:brightness-95`}
         >
           {generating === 'pdf' ? EXPORT_MESSAGES.generating : EXPORT_MESSAGES.exportPdf}
         </button>

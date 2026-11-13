@@ -1,5 +1,11 @@
 import { authenticatedFetch } from '@/shared/services/auth-session';
-import { API_BASE_URL } from '@/shared/config/api';
+import { readApiError } from '@/shared/services/api-contract';
+
+/** Ruta relativa: pasa por el proxy de la web y conserva el Content-Disposition (como graduates-report-service). */
+const ACCREDITATION_EXPORT_PATH = '/api/v1/reports/accreditation';
+
+/** Código que envía la API (T4.1 y T4.2) cuando el periodo no tiene datos. */
+export const EMPTY_PERIOD_CODE = 'ACCREDITATION_EMPTY_PERIOD';
 
 export type AccreditationExportFormat = 'pdf' | 'xlsx';
 
@@ -73,16 +79,15 @@ function readFilename(
 /**
  * Pide al backend el reporte en PDF (T4.1) o Excel (T4.2):
  * GET /api/v1/reports/accreditation/pdf | /xlsx
- * Si el periodo no tiene datos (204 o 404) lanza «noData»; ante cualquier otra falla, «failure».
+ * Un 404 es «noData» solo si la API envía error.code = ACCREDITATION_EMPTY_PERIOD;
+ * cualquier otra falla (incluido otro 404) es «failure».
  */
 export async function requestAccreditationExport(
   format: AccreditationExportFormat,
   filters: AccreditationExportFilters,
-  apiBaseUrl: string = API_BASE_URL,
 ): Promise<AccreditationExportFile> {
   const query = buildExportQuery(filters);
-  const baseUrl = apiBaseUrl.replace(/\/$/, '');
-  const url = `${baseUrl}/api/v1/reports/accreditation/${format}${query ? `?${query}` : ''}`;
+  const url = `${ACCREDITATION_EXPORT_PATH}/${format}${query ? `?${query}` : ''}`;
 
   let response: Response;
   try {
@@ -91,8 +96,9 @@ export async function requestAccreditationExport(
     throw new AccreditationExportError('failure');
   }
 
-  if (response.status === 204 || response.status === 404) {
-    throw new AccreditationExportError('noData');
+  if (response.status === 404) {
+    const detail = readApiError(await response.json().catch(() => null), '');
+    throw new AccreditationExportError(detail.code === EMPTY_PERIOD_CODE ? 'noData' : 'failure');
   }
   if (!response.ok) {
     throw new AccreditationExportError('failure');
@@ -100,7 +106,7 @@ export async function requestAccreditationExport(
 
   try {
     const blob = await response.blob();
-    if (blob.size === 0) throw new AccreditationExportError('noData');
+    if (blob.size === 0) throw new AccreditationExportError('failure');
     return {
       blob: blob.type ? blob : new Blob([blob], { type: MIME_TYPES[format] }),
       filename: readFilename(response.headers.get('Content-Disposition'), format),
