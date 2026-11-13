@@ -280,7 +280,7 @@ function AddRecordsContent() {
           </div>
 
           {/* Bloque «Borradores» (CA-03): solo borradores, cada uno con «Editar» y «Quitar». En celular va debajo
-              de los apartados. El aviso «Los borradores son provisionales…» es de HU-14 */}
+              de los apartados. Con el aviso de que los borradores son provisionales (HU-14, T14.4) */}
           <aside aria-label="Borradores" className={`${CARD_CLASS} flex flex-col gap-3.5 p-5 md:p-6 lg:w-[380px] lg:shrink-0`}>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-blue-fantastic">
               Borradores
@@ -288,6 +288,9 @@ function AddRecordsContent() {
                 {drafts.length}
               </span>
             </h2>
+            <p role="note" className="rounded-lg border border-umss-orange/40 bg-umss-cream px-3.5 py-2.5 text-xs text-umss-dark">
+              Tus borradores son provisionales y solo se guardan en este navegador
+            </p>
             {drafts.length === 0 ? (
               <p className="text-xs text-blue-fantastic/55">
                 Aún no hay borradores. Llena un apartado y presiona «Guardar en borrador».
