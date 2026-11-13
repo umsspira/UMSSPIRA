@@ -55,6 +55,11 @@ async function main() {
     }`,
         }),
       );
+      await page.addInitScript(() =>
+        Object.defineProperty(navigator, "gpu", {
+          value: { requestAdapter: async () => ({}) },
+        }),
+      );
       await page.goto("http://localhost:3001/__fallback");
       const result = await page.evaluate(
         async ({ bytes, abort }) => {

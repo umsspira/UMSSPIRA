@@ -22,6 +22,9 @@ async function main() {
   try {
     const page = await browser.newPage();
     if (process.env.OCR_DISABLE_WEBGPU === "1") {
+      await page.addInitScript(() =>
+        Object.defineProperty(navigator, "gpu", { value: undefined }),
+      );
       await page.route("**/ocr/runtime/paddle-worker.js", (route) =>
         route.fulfill({
           contentType: "text/javascript",
