@@ -53,14 +53,19 @@ type DraftCardProps = {
 };
 
 export function DraftCard({ draft, isEditing = false, onEdit, onRemove }: DraftCardProps) {
-  const { title, detail } = describeDraft(draft);
+  const described = describeDraft(draft);
+  // Un borrador incompleto (HU-14) puede no tener título todavía
+  const title = described.title || 'Sin título';
+  const { detail } = described;
   return (
     <li
       className={`flex flex-col gap-1.5 rounded-lg border bg-white p-3.5 ${
         isEditing ? 'border-truffle-trouble' : 'border-oatmeal'
       }`}
     >
-      <p className="text-xs font-semibold text-truffle-trouble">{SECTION_LABELS[draft.section]}</p>
+      <p className="text-xs font-semibold text-truffle-trouble">
+        {draft.isIncomplete ? 'borrador incompleto' : SECTION_LABELS[draft.section]}
+      </p>
       <p className="break-words text-sm font-semibold text-blue-fantastic">{title}</p>
       <p className="break-words text-xs text-blue-fantastic/55">{detail}</p>
       <div className="flex gap-2 pt-0.5">

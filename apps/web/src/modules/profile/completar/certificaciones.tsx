@@ -43,6 +43,8 @@ type FormularioCertificacionesProps = {
   textoGuardada?: string;
   // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
   valoresIniciales?: Certificacion;
+  // Avisa lo que hay escrito en cada cambio, para subirlo como borrador incompleto (HU-14)
+  onDatosChange?: (datos: Certificacion) => void;
 };
  
 const VACIO: Certificacion = { nombre: '', entidadEmisora: '', anioEmision: '', grado: '', respaldo: null };
@@ -70,8 +72,10 @@ export function FormularioCertificaciones({
   textoBoton = 'Agregar certificación',
   textoGuardada = 'Certificación guardada',
   valoresIniciales,
+  onDatosChange,
 }: FormularioCertificacionesProps) {
   const [datos, setDatos] = useState<Certificacion>(valoresIniciales ?? VACIO);
+  useEffect(() => onDatosChange?.(datos), [datos, onDatosChange]);
   const fotoRef = useRef<HTMLInputElement>(null);
   const documentoRef = useRef<HTMLInputElement>(null);
   // Archivo rechazado (no es JPG o supera 5 MB): no se adjunta y se explica junto al campo

@@ -31,6 +31,8 @@ type FormacionAcademicaFormProps = {
   mostrarRegistradas?: boolean;
   // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
   valoresIniciales?: FormacionAcademica;
+  // Avisa lo que hay escrito en cada cambio, para subirlo como borrador incompleto (HU-14)
+  onDatosChange?: (datos: FormacionAcademica) => void;
 };
 
 const VACIO: FormacionAcademica = { institucion: '', titulo: '', anioEgreso: '', grado: '' };
@@ -49,8 +51,10 @@ export function FormacionAcademicaForm({
   textoBoton = 'Agregar formación',
   mostrarRegistradas = true,
   valoresIniciales,
+  onDatosChange,
 }: FormacionAcademicaFormProps) {
   const [datos, setDatos] = useState<FormacionAcademica>(valoresIniciales ?? VACIO);
+  useEffect(() => onDatosChange?.(datos), [datos, onDatosChange]);
   // Error del año de egreso; una vez mostrado se recalcula mientras se corrige
   const [errorAnio, setErrorAnio] = useState<string>();
   // Formación ya registrada (Institución + Título + Año); se quita al cambiar cualquier campo

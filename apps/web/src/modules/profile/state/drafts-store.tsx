@@ -23,7 +23,13 @@ export type DraftDataBySection = {
 export type DraftSection = RecordSection;
 
 export type DraftRecord = {
-  [S in DraftSection]: { id: string; section: S; data: DraftDataBySection[S] };
+  [S in DraftSection]: {
+    id: string;
+    section: S;
+    data: DraftDataBySection[S];
+    // HU-14 (T14.1): datos a medias subidos al pulsar «Editar» en otro borrador; uno por sección como máximo
+    isIncomplete?: boolean;
+  };
 }[DraftSection];
 
 type DraftsStore = {
@@ -34,6 +40,8 @@ type DraftsStore = {
   updateDraft: <S extends DraftSection>(id: string, section: S, data: DraftDataBySection[S]) => void;
   removeDraft: (id: string) => void;
   clearDrafts: () => void;
+  // Sube los datos a medias de un apartado como «borrador incompleto»; si ya hay uno en ese apartado, lo reemplaza
+  saveIncompleteDraft: <S extends DraftSection>(section: S, data: DraftDataBySection[S]) => void;
 };
 
 const DraftsStoreContext = createContext<DraftsStore | null>(null);
@@ -72,9 +80,19 @@ export function DraftsStoreProvider({
 
   const clearDrafts = useCallback(() => setDrafts([]), []);
 
+  const saveIncompleteDraft = useCallback(<S extends DraftSection>(section: S, data: DraftDataBySection[S]) => {
+    setDrafts((current) => {
+      const previous = current.find((draft) => draft.section === section && draft.isIncomplete);
+      if (!previous) return [...current, { id: createDraftId(), section, data, isIncomplete: true } as DraftRecord];
+      return current.map((draft) =>
+        draft.id === previous.id ? ({ id: previous.id, section, data, isIncomplete: true } as DraftRecord) : draft,
+      );
+    });
+  }, []);
+
   const value = useMemo<DraftsStore>(
-    () => ({ drafts, addDraft, updateDraft, removeDraft, clearDrafts }),
-    [drafts, addDraft, updateDraft, removeDraft, clearDrafts],
+    () => ({ drafts, addDraft, updateDraft, removeDraft, clearDrafts, saveIncompleteDraft }),
+    [drafts, addDraft, updateDraft, removeDraft, clearDrafts, saveIncompleteDraft],
   );
 
   return <DraftsStoreContext.Provider value={value}>{children}</DraftsStoreContext.Provider>;

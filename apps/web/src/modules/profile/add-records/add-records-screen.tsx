@@ -31,6 +31,11 @@ type SaveStatus = { status: 'idle' | 'saving' | 'error' } | { status: 'saved'; c
 
 const SECTION_NUMBERS: Record<DraftSection, number> = { education: 1, experience: 2, certification: 3 };
 
+// Algún campo escrito o un respaldo elegido
+function hasData(data: DraftDataBySection[DraftSection]): boolean {
+  return Object.values(data).some((value) => (typeof value === 'string' ? value.trim() !== '' : value != null));
+}
+
 /** Pantalla «Agregar registros» (HU-13): los registros se preparan como borradores y se guardan juntos. */
 export function AddRecordsScreen({ initialDrafts }: { initialDrafts?: DraftRecord[] }) {
   return (
@@ -58,13 +63,29 @@ function DraftSectionCard({ number, title, children }: { number: number; title: 
 
 function AddRecordsContent() {
   const { records, isLoading, loadError, retryLoad, addEducation, addExperience, addCertification } = useProfileStore();
-  const { drafts, addDraft, updateDraft, removeDraft } = useDraftsStore();
+  const { drafts, addDraft, updateDraft, removeDraft, saveIncompleteDraft } = useDraftsStore();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ status: 'idle' });
   const certificationAttempts = useRef(new Map<string, CertificationAttempt>());
   const isSaving = saveStatus.status === 'saving';
   // Borrador cargado en su formulario con «Editar»; al guardarlo se reemplaza en vez de agregar otro
   const [editingId, setEditingId] = useState<string | null>(null);
   const editingDraft = drafts.find((draft) => draft.id === editingId) ?? null;
+  // T14.1: lo que hay escrito en el formulario de cada apartado, para subirlo como borrador incompleto
+  const formData = useRef<Partial<DraftDataBySection>>({});
+  const trackForm = useMemo(
+    () => ({
+      education: (data: DraftDataBySection['education']) => {
+        formData.current.education = data;
+      },
+      experience: (data: DraftDataBySection['experience']) => {
+        formData.current.experience = data;
+      },
+      certification: (data: DraftDataBySection['certification']) => {
+        formData.current.certification = data;
+      },
+    }),
+    [],
+  );
 
   // Formaciones ya guardadas y en borrador (menos la que se edita): con ellas la regla existente avisa de duplicadas
   const existingEducation = useMemo<FormacionAcademica[]>(
@@ -97,6 +118,11 @@ function AddRecordsContent() {
   }
 
   function editDraft(draft: DraftRecord) {
+    // T14.1: si el formulario nuevo de ese apartado tiene datos a medias, no se pierden al cargar el borrador
+    const pending = formData.current[draft.section];
+    if (editingDraft?.section !== draft.section && pending && hasData(pending)) {
+      saveIncompleteDraft(draft.section, pending);
+    }
     setEditingId(draft.id);
     // jsdom no implementa scrollIntoView, por eso la llamada es opcional
     document.getElementById(`seccion-${SECTION_NUMBERS[draft.section]}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
@@ -214,6 +240,7 @@ function AddRecordsContent() {
                 mostrarRegistradas={false}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 onAgregar={(formacion) => saveDraft('education', formacion)}
+                onDatosChange={trackForm.education}
               />
             </DraftSectionCard>
             <DraftSectionCard number={2} title="Experiencia laboral">
@@ -223,6 +250,7 @@ function AddRecordsContent() {
                 experiencias={[]}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 onAgregar={(experiencia) => saveDraft('experience', experiencia)}
+                onDatosChange={trackForm.experience}
               />
             </DraftSectionCard>
             <DraftSectionCard number={3} title="Certificaciones">
@@ -233,6 +261,7 @@ function AddRecordsContent() {
                 textoBoton={DRAFT_BUTTON_TEXT}
                 textoGuardada="Certificación guardada en borrador"
                 onAgregar={(certificacion) => saveDraft('certification', certificacion)}
+                onDatosChange={trackForm.certification}
               />
             </DraftSectionCard>
             {/* El apartado 4 «Proyectos y portafolio» lo suma HU-19 en la integración */}
