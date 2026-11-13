@@ -87,6 +87,7 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
     auth.reset();
     companies.reset();
     jobs.postings.clear();
+    jobs.available.length = 0;
     invitations.create
       .mockClear()
       .mockResolvedValue({ status: 'created', invitationId: 'invitation-id' });
@@ -372,6 +373,118 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
     expect(z.uuid().safeParse(response.body.data.id).success).toBe(true);
     expect(response.body.data.empresaId).not.toBe(DEMO_ACCOUNTS[2].id);
     expect(jobs.postings.size).toBe(1);
+  });
+
+  it('lista vacantes por afinidad descendente, conserva 0% y deja sin calcular al final', async () => {
+    const session = await login(DEMO_ACCOUNTS[0]);
+    jobs.available.push(
+      {
+        id: '00000000-0000-4000-8000-000000000003',
+        title: 'Analista',
+        companyName: 'Empresa',
+        companyLogoUrl: null,
+        technicalDescription: 'Descripción de prueba',
+        area: 'Tecnología',
+        modality: 'REMOTO',
+        experienceLevel: 'Junior',
+        location: 'Cochabamba',
+        publishedAt: new Date('2026-10-01T00:00:00.000Z'),
+        affinityPercentage: 0,
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000002',
+        title: 'Backend',
+        companyName: 'Empresa',
+        companyLogoUrl: null,
+        technicalDescription: 'Descripción de prueba',
+        area: 'Tecnología',
+        modality: 'REMOTO',
+        experienceLevel: 'Junior',
+        location: 'Cochabamba',
+        publishedAt: new Date('2026-10-01T00:00:00.000Z'),
+        affinityPercentage: 87,
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000004',
+        title: 'Backend',
+        companyName: 'Empresa',
+        companyLogoUrl: null,
+        technicalDescription: 'Descripción de prueba',
+        area: 'Tecnología',
+        modality: 'REMOTO',
+        experienceLevel: 'Junior',
+        location: 'Cochabamba',
+        publishedAt: new Date('2026-10-01T00:00:00.000Z'),
+        affinityPercentage: 87,
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000001',
+        title: 'Sin porcentaje',
+        companyName: 'Empresa',
+        companyLogoUrl: null,
+        technicalDescription: 'Descripción de prueba',
+        area: 'Tecnología',
+        modality: 'REMOTO',
+        experienceLevel: 'Junior',
+        location: 'Cochabamba',
+        publishedAt: new Date('2026-10-01T00:00:00.000Z'),
+        affinityPercentage: null,
+      },
+    );
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .expect(200);
+
+    expect(response.body.data.map((item: { id: string }) => item.id)).toEqual([
+      '00000000-0000-4000-8000-000000000002',
+      '00000000-0000-4000-8000-000000000004',
+      '00000000-0000-4000-8000-000000000003',
+      '00000000-0000-4000-8000-000000000001',
+    ]);
+    expect(response.body.data.map((item: { porcentajeAfinidad: number | null }) => item.porcentajeAfinidad)).toEqual([
+      87,
+      87,
+      0,
+      null,
+    ]);
+  });
+
+  it('devuelve una lista vacía y permite consultar a otros roles autenticados', async () => {
+    await request(app.getHttpServer()).get('/api/v1/job-postings').expect(401);
+    const graduateSession = await login(DEMO_ACCOUNTS[0]);
+    await request(app.getHttpServer())
+      .get('/api/v1/job-postings')
+      .auth(graduateSession.token, { type: 'bearer' })
+      .expect(200, { data: [] });
+
+    const companySession = await login(DEMO_ACCOUNTS[2]);
+    await request(app.getHttpServer())
+      .get('/api/v1/job-postings')
+      .auth(companySession.token, { type: 'bearer' })
+      .expect(200, { data: [] });
+  });
+
+  it('muestra en la bolsa una vacante inmediatamente después de publicarla', async () => {
+    const companySession = await login(DEMO_ACCOUNTS[2]);
+    await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(companySession.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/job-postings')
+      .auth(companySession.token, { type: 'bearer' })
+      .expect(200);
+
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0]).toMatchObject({
+      titulo: validPosting.titulo,
+      empresa: 'Empresa de demostración',
+      porcentajeAfinidad: null,
+    });
   });
 
   it.each([
