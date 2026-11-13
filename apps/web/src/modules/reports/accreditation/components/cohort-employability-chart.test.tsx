@@ -161,3 +161,19 @@ describe('Task 1.4 — Empleabilidad por cohorte', () => {
     ).toBeInTheDocument();
   });
 });
+it('CA-03: el porcentaje va justo encima de su propia barra (mock-up 01)', () => {
+  render(
+    <CohortEmployabilityChart
+      cohorts={[
+        { cohort: 2019, responses: 6, employed: 4 },
+        { cohort: 2020, responses: 9, employed: 7 },
+      ]}
+    />,
+  );
+
+  const bar = screen.getByTestId('employability-bar-2019');
+  const percentage = screen.getByTestId('employability-percentage-2019');
+  expect(bar).toContainElement(percentage);
+  expect(percentage).toHaveClass('absolute', 'bottom-full');
+  expect(percentage).toHaveTextContent('67 %');
+});

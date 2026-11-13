@@ -97,28 +97,28 @@ export function CohortEmployabilityChart({
               className="flex min-w-0 flex-col items-center"
             >
               {hasEnoughResponses ? (
-                <>
-                  <p
-                    data-testid={`employability-percentage-${cohort.cohort}`}
-                    className="mb-2 text-xs font-semibold text-abyssal-blue sm:text-sm"
-                  >
-                    {employabilityRate} %
-                  </p>
-
+                // El porcentaje va justo encima de su barra, como en el mock-up 01 (CA-03);
+                // pt-6 deja espacio para el texto cuando la barra llega al 100 %.
+                <div
+                  className="flex h-44 w-full items-end justify-center pt-6"
+                  role="img"
+                  aria-label={`Cohorte ${cohort.cohort}: ${employabilityRate} % de empleabilidad`}
+                >
                   <div
-                    className="flex h-44 w-full items-end justify-center"
-                    role="img"
-                    aria-label={`Cohorte ${cohort.cohort}: ${employabilityRate} % de empleabilidad`}
+                    data-testid={`employability-bar-${cohort.cohort}`}
+                    className="relative w-8 rounded-t-sm bg-abyssal-blue sm:w-12"
+                    style={{
+                      height: `${employabilityRate}%`,
+                    }}
                   >
-                    <div
-                      data-testid={`employability-bar-${cohort.cohort}`}
-                      className="w-8 rounded-t-sm bg-abyssal-blue sm:w-12"
-                      style={{
-                        height: `${employabilityRate}%`,
-                      }}
-                    />
+                    <span
+                      data-testid={`employability-percentage-${cohort.cohort}`}
+                      className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap text-xs font-semibold text-abyssal-blue sm:text-sm"
+                    >
+                      {employabilityRate} %
+                    </span>
                   </div>
-                </>
+                </div>
               ) : (
                 <div className="flex h-44 w-full items-end justify-center">
                   <div
