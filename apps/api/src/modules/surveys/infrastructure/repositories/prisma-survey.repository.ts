@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import type { SubmitSurveyInput } from '../../application/contracts/submit-survey.input';
-import type { SurveyRepositoryPort } from '../../application/ports/survey-repository.port';
+import type {
+  SurveyReportResult,
+  SurveyRepositoryPort,
+} from '../../application/ports/survey-repository.port';
 
 @Injectable()
 export class PrismaSurveyRepository implements SurveyRepositoryPort {
@@ -23,16 +26,38 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     });
   }
 
-  // Task 1.6: Reporte de encuestas por carrera paginado y procesado en BD
-  async getSurveyReport(params: { careerId: string; page?: number; limit?: number }) {
+  async getSurveyReport(params: {
+    careerIds: string[];
+    page?: number;
+    limit?: number;
+  }): Promise<SurveyReportResult> {
     const page = params.page && params.page > 0 ? Number(params.page) : 1;
     const limit = params.limit && params.limit > 0 ? Number(params.limit) : 10;
     const skip = (page - 1) * limit;
 
-    // 1. Obtener los IDs de titulados pertenecientes a la carrera del administrador (id_carrera en Titulado)
+    if (params.careerIds.length === 0) {
+      return {
+        total: 0,
+        trabajan: 0,
+        noTrabajan: 0,
+        porModalidad: {},
+        porSalario: {},
+        porInsercion: {},
+        respuestas: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+
     const titulados = await this.prisma.titulado.findMany({
       where: {
-        id_carrera: params.careerId,
+        id_carrera: {
+          in: params.careerIds,
+        },
       },
       select: {
         id: true,
@@ -41,28 +66,138 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
 
     const tituladoIds = titulados.map((t) => t.id);
 
+    if (tituladoIds.length === 0) {
+      return {
+        total: 0,
+        trabajan: 0,
+        noTrabajan: 0,
+        porModalidad: {},
+        porSalario: {},
+        porInsercion: {},
+        respuestas: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+
     const where = {
       idTitulado: {
         in: tituladoIds,
       },
     };
 
-    // 2. Conteo total directamente en PostgreSQL [Mejora 3.1]
-    const total = await this.prisma.respuestaEncuesta.count({ where });
+    const [
+      total,
+      condicionGroups,
+      modalidadGroups,
+      salarioGroups,
+      insercionGroups,
+      rawRespuestas,
+    ] = await Promise.all([
+      this.prisma.respuestaEncuesta.count({ where }),
+      this.prisma.respuestaEncuesta.groupBy({
+        by: ['condicionLaboral'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.respuestaEncuesta.groupBy({
+        by: ['modalidad'],
+        where: { ...where, modalidad: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.respuestaEncuesta.groupBy({
+        by: ['salarioMensual'],
+        where: { ...where, salarioMensual: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.respuestaEncuesta.groupBy({
+        by: ['tiempoInsercion'],
+        where: { ...where, tiempoInsercion: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.respuestaEncuesta.findMany({
+        where,
+        select: {
+          id: true,
+          condicionLaboral: true,
+          cargo: true,
+          empresa: true,
+          area: true,
+          modalidad: true,
+          salarioMensual: true,
+          tiempoInsercion: true,
+          fechaEnvio: true,
+        },
+        orderBy: {
+          fechaEnvio: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+    ]);
 
-    // 3. Consulta paginada de respuestas [Mejora 1.4]
-    const data = await this.prisma.respuestaEncuesta.findMany({
-      where,
-      skip,
-      take: limit,
-    });
+    let trabajan = 0;
+    let noTrabajan = 0;
+    for (const group of condicionGroups) {
+      const normalized = group.condicionLaboral.trim().toLowerCase();
+      if (normalized === 'trabaja' || normalized === 'true') {
+        trabajan += group._count._all;
+      } else {
+        noTrabajan += group._count._all;
+      }
+    }
+
+    const porModalidad: Record<string, number> = {};
+    for (const group of modalidadGroups) {
+      if (group.modalidad) {
+        porModalidad[group.modalidad] = group._count._all;
+      }
+    }
+
+    const porSalario: Record<string, number> = {};
+    for (const group of salarioGroups) {
+      if (group.salarioMensual) {
+        porSalario[group.salarioMensual] = group._count._all;
+      }
+    }
+
+    const porInsercion: Record<string, number> = {};
+    for (const group of insercionGroups) {
+      if (group.tiempoInsercion) {
+        porInsercion[group.tiempoInsercion] = group._count._all;
+      }
+    }
+
+    const respuestas = rawRespuestas.map((item) => ({
+      id: item.id,
+      condicionLaboral: item.condicionLaboral,
+      cargo: item.cargo,
+      empresa: item.empresa,
+      area: item.area,
+      modalidad: item.modalidad,
+      salarioMensual: item.salarioMensual,
+      tiempoInsercion: item.tiempoInsercion,
+      fechaEnvio: item.fechaEnvio.toISOString(),
+    }));
 
     return {
-      data,
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      trabajan,
+      noTrabajan,
+      porModalidad,
+      porSalario,
+      porInsercion,
+      respuestas,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 }
