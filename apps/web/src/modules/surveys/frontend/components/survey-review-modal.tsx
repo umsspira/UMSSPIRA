@@ -118,7 +118,7 @@ export function SurveyReviewModal({
 
         <div className="space-y-3 px-7 pt-3 sm:px-14">
           {/* T3.6: el aviso offline debe ser visible incluso con el modal abierto. */}
-          <SurveyOfflineBanner />
+          <SurveyOfflineBanner isOffline={offline} />
           {isSubmitting && (
             <p role="status" aria-live="polite" className="mb-4 rounded-lg border border-abyssal-blue/30 bg-palladian p-3 text-abyssal-blue">
               Enviando encuesta...
@@ -142,11 +142,6 @@ export function SurveyReviewModal({
           )}
         </div>
         <div className="overflow-y-auto px-7 py-6 sm:px-14 sm:py-9">
-          {offline && (
-            <div className="mb-5">
-              <SurveyOfflineBanner />
-            </div>
-          )}
           {showNoWorkWarning && (
             <p role="note" className="mb-5 rounded-xl border border-[#d8c7a0] bg-[#fff8e8] px-5 py-4 text-base text-[#4f4f4f]">
               No corresponde información de empleo. Se enviará únicamente la condición laboral &quot;No trabaja&quot;.
