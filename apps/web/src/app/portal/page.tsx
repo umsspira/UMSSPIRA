@@ -281,7 +281,7 @@ export default function Home() {
         ) : (
           <p role="status" className="text-sm text-slate-500">
             {query.trim()
-              ? 'No hay eventos que coincidan con la búsqueda.'
+              ? 'No  eventos que coincidan con la búsqueda.'
               : 'Todavía no hay eventos publicados próximos.'}
           </p>
         )}
