@@ -874,7 +874,7 @@ model Solicitud {
   correo_tramite_registros     CorreoTramite[]
   auditoria_dictamen_registros AuditoriaDictamen[]
   control_reenvio_otp          ControlReenvioOtp?
-  
+  consultas_estado             ConsultaEstadoSolicitud[]
   @@map("solicitud")
 }
 
@@ -909,7 +909,7 @@ model Dictamen {
   solicitud                Solicitud?            @relation("dictamen_id_solicitud_solicitud", fields: [id_solicitud], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dictamen_id_solicitud_fkey")
   correo_tramite_registros CorreoTramite[]
   auditoria_registros      AuditoriaDictamen[]
-
+  motivos                  DictamenMotivo[]  
   @@map("dictamen")
 }
 
@@ -1413,4 +1413,35 @@ model CertificacionCreacion {
 
   @@id([id_titulado, id_operacion])
   @@map("certificacion_creacion")
+}
+
+model MotivoObservacion {
+  id       Int      @id @default(autoincrement())
+  codigo   String   @unique @db.VarChar(50)
+  etiqueta String   @db.VarChar(255)
+  activo   Boolean  @default(true)
+  dictamenes DictamenMotivo[]
+  @@map("motivo_observacion")
+}
+
+model DictamenMotivo {
+  id_dictamen String @db.Uuid
+  id_motivo   Int
+  dictamen    Dictamen          @relation(fields: [id_dictamen], references: [id], onDelete: Cascade)
+  motivo      MotivoObservacion @relation(fields: [id_motivo], references: [id]) // <--- AGREGAR
+  @@id([id_dictamen, id_motivo])
+  @@map("dictamen_motivo")
+}
+
+model ConsultaEstadoSolicitud {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  correo_normalizado String   @db.VarChar(255)
+  origen_hash        String   @db.VarChar(64)
+  id_solicitud       String?  @db.Uuid
+  resultado          String   @db.VarChar(30)
+  creado_en          DateTime @default(now()) @db.Timestamptz(6)
+  solicitud Solicitud? @relation(fields: [id_solicitud], references: [id], onDelete: SetNull) // <--- AGREGAR
+  @@index([correo_normalizado, creado_en(sort: Desc)], map: "idx_ces_correo_ventana")
+  @@index([origen_hash, creado_en(sort: Desc)], map: "idx_ces_origen_ventana")
+  @@map("consulta_estado_solicitud")
 }
