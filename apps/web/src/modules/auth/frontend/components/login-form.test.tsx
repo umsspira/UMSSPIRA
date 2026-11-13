@@ -59,6 +59,13 @@ describe("LoginForm", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
+  it("permite consultar el estado desde el inicio de sesión (18.3)", () => {
+  render(<LoginForm />);
+    expect(
+      screen.getByRole("link", { name: "Consulta su estado aquí." }),
+    ).toHaveAttribute("href", "/status");
+  });
+
   it("rechaza un correo con formato inválido", () => {
     render(<LoginForm />);
 
