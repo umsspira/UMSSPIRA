@@ -37,7 +37,7 @@ export const submitSurveySchema = z
       .enum(WORK_MODALITIES, {
         message: 'Seleccione una modalidad válida',
       })
-      .transform((val) => (val === 'Hibrido' ? 'Híbrido' : val))
+      .transform((val) => (val === 'Híbrido' ? 'Hibrido' : val))
       .optional(),
 
     salario_mensual: z

@@ -79,7 +79,7 @@ describe('submitSurveySchema (Task 1.5 - Mejora 1.1)', () => {
   });
 
   describe('Catálogo de modalidades', () => {
-    it.each(['Presencial', 'Remoto', 'Híbrido'] as const)('acepta modalidad válida: %s', (modalidad) => {
+    it.each(['Presencial', 'Remoto', 'Hibrido'] as const)('acepta modalidad válida: %s', (modalidad) => {
       const result = submitSurveySchema.safeParse({ ...respuestaCompleta, modalidad });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -87,11 +87,11 @@ describe('submitSurveySchema (Task 1.5 - Mejora 1.1)', () => {
       }
     });
 
-    it('normaliza "Hibrido" sin tilde hacia "Híbrido"', () => {
-      const result = submitSurveySchema.safeParse({ ...respuestaCompleta, modalidad: 'Hibrido' });
+    it('normaliza "Híbrido" con tilde hacia "Hibrido"', () => {
+      const result = submitSurveySchema.safeParse({ ...respuestaCompleta, modalidad: 'Híbrido' });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.modalidad).toBe('Híbrido');
+        expect(result.data.modalidad).toBe('Hibrido');
       }
     });
 
