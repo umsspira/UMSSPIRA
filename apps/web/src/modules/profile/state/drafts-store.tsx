@@ -1,11 +1,12 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import type { Certificacion } from '@/modules/profile/completar/certificaciones';
 import type { Experiencia } from '@/modules/profile/completar/experiencia-laboral';
 import type { FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
 import type { RecordSection } from '@/modules/profile/types/profile-record';
+import { loadDrafts, saveDrafts } from '@/modules/profile/utils/drafts-storage';
 
 /**
  * Borradores de «Agregar registros» (HU-13). Forma de los datos:
@@ -52,15 +53,40 @@ function createDraftId(): string {
   return `borrador-${nextDraftId}`;
 }
 
+// Los ids restaurados del navegador no deben repetirse con los nuevos
+function skipRestoredIds(drafts: DraftRecord[]) {
+  for (const draft of drafts) {
+    const number = Number(draft.id.replace('borrador-', ''));
+    if (Number.isInteger(number) && number > nextDraftId) nextDraftId = number;
+  }
+}
+
 export function DraftsStoreProvider({
   children,
-  initialDrafts = [],
+  initialDrafts,
 }: {
   children: React.ReactNode;
-  // Solo para pruebas
+  // Solo para pruebas; con ellos no se restaura lo guardado en el navegador
   initialDrafts?: DraftRecord[];
 }) {
-  const [drafts, setDrafts] = useState<DraftRecord[]>(initialDrafts);
+  const [drafts, setDrafts] = useState<DraftRecord[]>(initialDrafts ?? []);
+  // T14.3: hasta restaurar no se guarda, para no pisar lo conservado con la lista vacía del inicio
+  const [isRestored, setIsRestored] = useState(false);
+
+  useEffect(() => {
+    if (!initialDrafts) {
+      const saved = loadDrafts();
+      skipRestoredIds(saved);
+      if (saved.length > 0) setDrafts(saved);
+    }
+    setIsRestored(true);
+    // Solo al montar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (isRestored) void saveDrafts(drafts);
+  }, [drafts, isRestored]);
 
   const addDraft = useCallback(<S extends DraftSection>(section: S, data: DraftDataBySection[S]) => {
     const id = createDraftId();
