@@ -10,10 +10,12 @@ describe('GetCompetencyHeatmapUseCase', () => {
           cohort: '2025',
           areaId: 'area-1',
           areaName: 'Tecnología',
+          status: 'ok',
           percentage: 80,
           graduateCount: 5,
         },
       ],
+      updatedAt: new Date('2026-02-01T00:00:00Z'),
     });
     const useCase = new GetCompetencyHeatmapUseCase({ competencyHeatmap } as never);
 
@@ -32,6 +34,7 @@ describe('GetCompetencyHeatmapUseCase', () => {
       areaId: 'area-1',
       percentage: 80,
       graduateCount: 5,
+      status: 'ok',
     });
   });
 

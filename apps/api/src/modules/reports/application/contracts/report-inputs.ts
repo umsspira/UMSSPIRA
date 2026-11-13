@@ -15,14 +15,16 @@ export interface CompetencyHeatmapCell {
   cohort: string;
   areaId: string;
   areaName: string;
-  percentage: number | null;
-  graduateCount: number;
+  status: 'ok' | 'insufficient' | 'no-data';
+  percentage?: number;
+  graduateCount?: number;
 }
 
 export interface CompetencyHeatmap {
   areas: Array<{ id: string; name: string }>;
   cohorts: string[];
   cells: CompetencyHeatmapCell[];
+  updatedAt: Date | null;
 }
 
 export interface ReportFile {

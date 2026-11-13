@@ -9,6 +9,11 @@ import type {
   ReportFilter,
 } from '../../application/contracts/report-inputs';
 import { reportInclude, toGraduateReport } from '../translators/report.translator';
+import {
+  AFFINITY_AREAS,
+  AFFINITY_AREA_SHORT_LABELS,
+  RADAR_AREA_IDS,
+} from '@umsspira/shared-types';
 
 export const MAX_EXPORT_ROWS = 10000;
 
@@ -54,8 +59,14 @@ export class PrismaReportRepository implements ReportRepository {
     // Integración T2.2/T2.3: esta consulta entrega el contrato completo del
     // mapa; radar solo es la fuente de cálculos y no se modifica desde reports.
     const calculations = await this.prisma.calculoRadar.findMany({
-      where: { titulado: { id_carrera: { in: [...careerIds] } } },
+      where: {
+        titulado: {
+          id_carrera: { in: [...careerIds] },
+          anio_egreso: { not: null },
+        },
+      },
       orderBy: [{ id_titulado: 'asc' }, { fecha_calculo: 'desc' }, { id: 'desc' }],
+      distinct: ['id_titulado'],
       include: {
         titulado: { select: { id: true, anio_egreso: true } },
         afinidad_registros: {
@@ -71,10 +82,17 @@ export class PrismaReportRepository implements ReportRepository {
       }
     }
 
-    const areaMap = new Map<string, { id: string; name: string }>();
+    const areas = AFFINITY_AREAS.map((area) => ({
+      id: RADAR_AREA_IDS[area],
+      name: AFFINITY_AREA_SHORT_LABELS[area],
+    }));
     const cohortMap = new Map<string, Map<string, { total: number; sum: number }>>();
+    let updatedAt: Date | null = null;
 
     for (const calculation of latestByGraduate.values()) {
+      if (!updatedAt || calculation.fecha_calculo > updatedAt) {
+        updatedAt = calculation.fecha_calculo;
+      }
       const cohort = String(calculation.titulado.anio_egreso ?? 'Sin cohorte');
       const cohortCells = cohortMap.get(cohort) ?? new Map();
       cohortMap.set(cohort, cohortCells);
@@ -84,7 +102,6 @@ export class PrismaReportRepository implements ReportRepository {
           id: affinity.area.id,
           name: affinity.area.nombre ?? 'Área sin nombre',
         };
-        areaMap.set(area.id, area);
         const current = cohortCells.get(area.id) ?? { total: 0, sum: 0 };
         current.total += 1;
         current.sum += Number(affinity.porcentaje);
@@ -93,23 +110,27 @@ export class PrismaReportRepository implements ReportRepository {
     }
 
     const cohorts = [...cohortMap.keys()].sort();
-    const areas = [...areaMap.values()].sort((left, right) => left.name.localeCompare(right.name));
     const cells = cohorts.flatMap((cohort) =>
       areas.map((area) => {
         const value = cohortMap.get(cohort)?.get(area.id);
         const graduateCount = value?.total ?? 0;
-        return {
+        const base = {
           cohort,
           areaId: area.id,
           areaName: area.name,
+        };
+        if (graduateCount === 0) return { ...base, status: 'no-data' as const };
+        if (graduateCount < 5) return { ...base, status: 'insufficient' as const };
+        return {
+          ...base,
+          status: 'ok' as const,
           graduateCount,
-          percentage:
-            graduateCount >= 5 ? Number((value!.sum / graduateCount).toFixed(2)) : null,
+          percentage: Number((value!.sum / graduateCount).toFixed(2)),
         };
       }),
     );
 
-    return { areas, cohorts, cells };
+    return { areas, cohorts, cells, updatedAt };
   }
 
   async list(careerIds: readonly string[], query: GraduateListQuery) {
