@@ -32,4 +32,15 @@ describe('MiniRadarPlaceholder (HU-17)', () => {
     expect(rows[1]).toHaveTextContent('0%');
     expect(rows[5]).toHaveTextContent('0%');
   });
+
+  // CA-06: se ajusta al ancho sin deformarse
+  it('usa un viewBox cuadrado y aspect-square, sin ancho ni alto fijos', () => {
+    render(<MiniRadarPlaceholder values={VALUES} />);
+
+    const svg = screen.getByRole('img');
+    expect(svg).toHaveAttribute('viewBox', '0 0 200 200');
+    expect(svg).toHaveClass('aspect-square', 'w-full');
+    expect(svg).not.toHaveAttribute('width');
+    expect(svg).not.toHaveAttribute('height');
+  });
 });
