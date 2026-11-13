@@ -14,6 +14,7 @@ type ScannerState =
   | { status: 'validating' }
   | { status: 'valid'; attendance: EventAttendanceResult }
   | { status: 'camera-error'; failure: CameraFailure }
+  | { status: 'request-error' }
   | { status: 'error'; message: string; code?: string };
 
 const INVALID_PASS_CODES = new Set([
@@ -28,7 +29,8 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
   const rejectedPass = state.status === 'error' && INVALID_PASS_CODES.has(state.code ?? '');
   const cameraFailed = state.status === 'camera-error';
   const cameraDenied = cameraFailed && state.failure.kind === 'permission-denied';
-  const showSideAction = duplicate || rejectedPass || cameraFailed;
+  const requestFailed = state.status === 'request-error';
+  const showSideAction = duplicate || rejectedPass || cameraFailed || requestFailed;
   const [cameraActions, setCameraActions] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => () => { request.current?.abort(); }, []);
@@ -51,13 +53,11 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
           const knownRejection =
             (reason instanceof ApiClientError && reason.status < 500) ||
             reason instanceof SessionError;
-          setState({
+          setState(knownRejection ? {
             status: 'error',
             code: reason instanceof ApiClientError ? reason.code : undefined,
-            message: knownRejection
-              ? reason.message
-              : 'No se pudo confirmar la asistencia. Comprueba la conexión y vuelve a escanear el pase para verificar su estado.',
-          });
+            message: reason.message,
+          } : { status: 'request-error' });
         }
       })
       .finally(() => {
@@ -72,21 +72,23 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
       <EventScannerCamera
         onRead={onRead}
         disabled={pending}
-        startLabel={cameraFailed ? 'Reintentar cámara' : state.status === 'valid' || state.status === 'error' ? 'Escanear otro pase' : 'Activar cámara'}
+        startLabel={requestFailed ? 'Reintentar' : cameraFailed ? 'Reintentar cámara' : state.status === 'valid' || state.status === 'error' ? 'Escanear otro pase' : 'Activar cámara'}
         onStart={() => setState({ status: 'idle' })}
         onError={onCameraError}
         actionContainer={showSideAction ? cameraActions : null}
-        inactiveMessage={cameraDenied ? 'Cámara sin permiso' : cameraFailed ? 'Cámara no disponible' : showSideAction ? 'Lectura completada' : undefined}
+        inactiveMessage={requestFailed ? 'Error de conexión' : cameraDenied ? 'Cámara sin permiso' : cameraFailed ? 'Cámara no disponible' : showSideAction ? 'Lectura completada' : undefined}
       />
       <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions" aria-busy={pending}>
         <h2 id="scanner-instructions">
-          {pending ? 'Validando el pase' : cameraFailed ? 'Activar la cámara' : rejectedPass ? 'Pase no válido' : state.status === 'valid'
+          {pending ? 'Validando el pase' : requestFailed ? 'No se pudo validar' : cameraFailed ? 'Activar la cámara' : rejectedPass ? 'Pase no válido' : state.status === 'valid'
             ? state.attendance.code === 'ATTENDANCE_RECORDED' ? 'Asistencia registrada' : 'Asistencia ya registrada'
             : state.status === 'error' ? 'No se pudo validar el pase' : 'Cómo escanear'}
         </h2>
         {showSideAction ? (
-          <p className="event-scanner-description">
-            {cameraFailed
+          <p className="event-scanner-description" id="scanner-result-description">
+            {requestFailed
+              ? 'Comprueba la conexión y vuelve a escanear el pase. El registro de asistencia está sin confirmar.'
+              : cameraFailed
               ? cameraDenied
                 ? 'Permite usar la cámara desde tu navegador. Después, selecciona «Reintentar cámara».'
                 : 'Comprueba que la cámara esté disponible y selecciona «Reintentar cámara».'
@@ -114,6 +116,11 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
                 <p>Ingreso registrado el {formatEventDateTime(state.attendance.attendedAt)}</p>
               </>
             )}
+          </div>
+        ) : requestFailed ? (
+          <div className="event-scanner-result" role="alert" aria-describedby="scanner-result-description">
+            <strong>No se pudo validar</strong>
+            <p>Comprueba la conexión e intenta nuevamente.</p>
           </div>
         ) : state.status === 'camera-error' ? (
           <div className="event-scanner-result" role="alert">

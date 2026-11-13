@@ -121,9 +121,29 @@ describe('Validación desde el escáner', () => {
     jest.mocked(validateScannedPass).mockRejectedValue(error);
     render(<EventPassScanner eventId="evento" />);
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('vuelve a escanear el pase para verificar su estado');
+    const alert = await screen.findByRole('alert');
+    expect(screen.getByRole('heading', { name: 'No se pudo validar' })).toBeInTheDocument();
+    expect(alert).toHaveTextContent('No se pudo validar');
+    expect(alert).toHaveAccessibleDescription('Comprueba la conexión y vuelve a escanear el pase. El registro de asistencia está sin confirmar.');
+    expect(screen.getByText('Error de conexión')).toBeInTheDocument();
     expect(screen.queryByText(error.message)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Escanear otro pase' })).toBeEnabled();
+    const panel = screen.getByRole('complementary');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Reintentar' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cómo escanear' })).toBeInTheDocument();
+  });
+
+  it('recupera el registro original al reintentar después de perder la respuesta', async () => {
+    jest.mocked(validateScannedPass)
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce({ ...attendance, code: 'ATTENDANCE_ALREADY_RECORDED' });
+    render(<EventPassScanner eventId="evento" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
+    await screen.findByRole('heading', { name: 'No se pudo validar' });
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
+    expect(await screen.findByRole('heading', { name: 'Asistencia ya registrada' })).toBeInTheDocument();
+    expect(validateScannedPass).toHaveBeenCalledTimes(2);
   });
 
   it('conserva el mensaje de sesión expirada del cliente de autenticación', async () => {
