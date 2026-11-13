@@ -312,3 +312,29 @@ describe('EditCertificationForm', () => {
     });
   });
 });
+
+describe('EditCertificationForm · respaldo PDF (HU-18, T18.6)', () => {
+  beforeEach(() => {
+    routeId = 'cert-1';
+    obtenerCertificacionMock.mockReset();
+    obtenerCertificacionMock.mockResolvedValue(GUARDADA);
+    actualizarCertificacionMock.mockReset();
+    actualizarCertificacionMock.mockResolvedValue(GUARDADA);
+    subirRespaldoMock.mockReset();
+    subirRespaldoMock.mockResolvedValue(undefined);
+  });
+
+  it('reemplaza la foto por un PDF en la misma certificación', async () => {
+    renderForm();
+    await screen.findByLabelText('Nombre de la certificación');
+    const pdf = new File(['%PDF-1.4'], 'titulo.pdf', { type: 'application/pdf' });
+
+    elegirFoto(pdf);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(subirRespaldoMock).toHaveBeenCalledTimes(1);
+    expect(subirRespaldoMock).toHaveBeenCalledWith('cert-1', pdf);
+    expect(screen.getByTestId('respaldo-guardado')).toHaveTextContent('titulo.pdf');
+  });
+});
