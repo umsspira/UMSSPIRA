@@ -4,6 +4,7 @@ import { RADAR_AREA_IDS } from '../../domain/entities/radar-area';
 import { KeywordDictionaryUnavailableError } from '../../domain/errors/keyword-dictionary-unavailable-error';
 import type { RadarAreaVector } from '../contracts/radar-vector';
 import { RecalculateRadarUseCase } from './recalculate-radar.use-case';
+import type { AreaWeightReaderPort } from '../ports/area-weight-reader.port';
 
 const SOFTWARE = RADAR_AREA_IDS['software-development'];
 const GRADUATE = '10000000-0000-4000-8000-000000000002';
@@ -21,6 +22,7 @@ function findArea(areas: RadarAreaVector[], areaId: string): RadarAreaVector {
 describe('RecalculateRadarUseCase - keywords influyentes y afinidad previa', () => {
   let repository: InMemoryRadarRepository;
   let extractor: StubKeywordExtractor;
+  let areaWeightReader: AreaWeightReaderPort;
   let useCase: RecalculateRadarUseCase;
 
   beforeEach(() => {
@@ -32,7 +34,8 @@ describe('RecalculateRadarUseCase - keywords influyentes y afinidad previa', () 
       ],
     };
     extractor = new StubKeywordExtractor();
-    useCase = new RecalculateRadarUseCase(extractor, repository);
+    areaWeightReader = { getAreaWeights: async () => repository.areaWeights };
+    useCase = new RecalculateRadarUseCase(extractor, repository, areaWeightReader);
   });
 
   it('en el primer calculo previousAffinity es null y persiste el top de cada area', async () => {
@@ -86,11 +89,7 @@ describe('RecalculateRadarUseCase - keywords influyentes y afinidad previa', () 
     await useCase.execute(GRADUATE, ['javascript javascript'], true);
 
     extractor.keywords = [{ term: 'javascript', count: 3 }];
-    const third = await useCase.execute(
-      GRADUATE,
-      ['javascript javascript javascript'],
-      true,
-    );
+    const third = await useCase.execute(GRADUATE, ['javascript javascript javascript'], true);
 
     expect(findArea(third.areas, SOFTWARE)).toMatchObject({
       affinity: 37.5,
@@ -122,9 +121,9 @@ describe('RecalculateRadarUseCase - keywords influyentes y afinidad previa', () 
 
     expect(result.status).toBe('empty');
     expect(result.hasLaborHistory).toBe(false);
-    expect(
-      result.areas.every((area) => area.affinity === 0 && area.topKeywords.length === 0),
-    ).toBe(true);
+    expect(result.areas.every((area) => area.affinity === 0 && area.topKeywords.length === 0)).toBe(
+      true,
+    );
   });
 
   it('si falla la persistencia no deja ninguna fila guardada', async () => {

@@ -54,7 +54,10 @@ export interface RadarRepositoryPort {
    * Obtiene el cálculo inmediatamente anterior al actual.
    * Requerido para contrastar variaciones (+8%, -3%) y exponer el campo previousAffinity.
    */
-  getPreviousCalculation(tituladoId: string, currentCalculationId: string): Promise<RadarCalculationSnapshot | null>;
+  getPreviousCalculation(
+    tituladoId: string,
+    currentCalculationId: string,
+  ): Promise<RadarCalculationSnapshot | null>;
 
   /**
    * Obtiene los términos no mapeados vigentes del titulado para exponerlos en la respuesta.
@@ -84,10 +87,4 @@ export interface RadarRepositoryPort {
     areas: AreaScoreRecord[];
     unmapped: Array<{ term: string; count: number }>;
   }): Promise<RadarCalculationSnapshot>;
-
-  /**
-   * Consulta el catálogo de pesos asignados por área desde la tabla 'palabra_clave_area'.
-   * La clave del registro es el UUID del área.
-   */
-  getAreaWeights(): Promise<Record<string, Array<{ term: string; peso: number }>>>;
 }

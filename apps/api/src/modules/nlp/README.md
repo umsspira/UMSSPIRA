@@ -2,6 +2,18 @@
 
 Extrae palabras clave canónicas de textos de perfiles y vacantes usando un diccionario cargado en memoria. No usa machine learning ni escribe en la base de datos.
 
+Es un módulo de procesamiento de lenguaje natural **completamente desacoplado del negocio**: no conoce conceptos de afinidad, áreas técnicas, pesos ni puntajes de radar. Por regla arquitectónica enforzada con ESLint (`no-restricted-imports`), el módulo NLP tiene prohibido importar código o contratos desde el módulo Radar.
+
+## Responsabilidades del módulo
+
+- **Normalización lingüística**: tokenización, separación de segmentos y canónicos normalizados de palabras y alias.
+- **Extracción determinista**: búsqueda de n-gramas (1 a 3 palabras) sobre texto plano sin cruzar segmentos.
+- **Consolidación de misma mención**: reconocimiento de aclaraciones entre paréntesis o barras adyacentes.
+- **Detección de candidatos no mapeados (`unmapped`)**: filtrado por stopwords de términos no reconocidos en el diccionario.
+- **Carga en memoria del catálogo de términos**: lectura exclusiva de palabras clave y alias activos desde PostgreSQL.
+
+*Nota de frontera*: La traducción de keywords a áreas técnicas, asignación de pesos (1 a 5), cálculo matemático de porcentajes, determinación de top palabras influyentes y persistencia del vector son responsabilidad exclusiva del módulo **Radar**.
+
 ## Normalización
 
 `domain/policies/text-normalizer.ts` expone:
@@ -53,7 +65,11 @@ Las palabras desconocidas dentro del paréntesis siguen la regla normal de `unma
 
 ## Carga del diccionario
 
-`application/services/keyword-dictionary-loader.ts` carga `palabra_clave` y sus alias en la primera petición mediante `KeywordDictionaryPort`. Si la consulta falla o el diccionario queda vacío, responde `503` con `NLP_DICTIONARY_UNAVAILABLE` y reintenta en la siguiente petición. Las cargas concurrentes comparten la misma promesa. La carga del diccionario es perezosa (lazy load) y se ejecuta únicamente en la primera petición; el módulo no realiza ningún calentamiento al arrancar.
+La carga se realiza en la primera petición. El módulo no precarga el diccionario al arrancar.
+
+`application/services/keyword-dictionary-loader.ts` carga `palabra_clave` y sus alias en la primera petición mediante `KeywordDictionaryPort`. La entidad de dominio `DictionaryEntry` maneja exclusivamente `{ canonical, aliases }`; no carga ni contiene asociaciones de áreas ni ponderaciones de radar.
+
+Si la consulta falla o el diccionario queda vacío, responde `503` con `NLP_DICTIONARY_UNAVAILABLE` y reintenta en la siguiente petición. Las cargas concurrentes comparten la misma promesa. `NlpModule` intenta un calentamiento no bloqueante al arrancar; un fallo allí no impide que la API arranque.
 
 `PrismaKeywordDictionaryRepository` solo lee términos con `esta_activo = true`. El extractor ignora con una advertencia las claves vacías, sin normalizar, de más de tres palabras o en conflicto.
 
@@ -63,5 +79,6 @@ El error de dominio propio `NlpDictionaryUnavailableError` se traduce a 503 medi
 
 - `keyword-extractor.service.spec.ts`: reglas de extracción y anexo B.
 - `keyword-dictionary-loader.spec.ts`: carga única, concurrencia, `503` y reintento.
-- `prisma-keyword-dictionary.repository.spec.ts`: consulta de solo lectura y mapeo.
+- `text-normalizer.spec.ts`: normalización de tokens, frases y preservación de símbolos técnicos (`C++`, `C#`, `Node.js`).
+- `prisma-keyword-dictionary.repository.spec.ts`: consulta de solo lectura de palabras canónicas y alias activos.
 - `test/nlp-extract.e2e.spec.ts`: contrato HTTP completo con autenticación y diccionario en memoria.

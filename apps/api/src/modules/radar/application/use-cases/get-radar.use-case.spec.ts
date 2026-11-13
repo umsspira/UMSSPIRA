@@ -10,6 +10,7 @@ import type { RadarCalculationSnapshot } from '../ports/radar-repository.port';
 import type { RadarAreaVector } from '../contracts/radar-vector';
 import { GetRadarUseCase } from './get-radar.use-case';
 import { RecalculateRadarUseCase } from './recalculate-radar.use-case';
+import type { AreaWeightReaderPort } from '../ports/area-weight-reader.port';
 
 const SOFTWARE = RADAR_AREA_IDS['software-development'];
 const GRADUATE = '10000000-0000-4000-8000-000000000002';
@@ -65,7 +66,9 @@ describe('GetRadarUseCase - lectura de keywords y afinidad previa', () => {
     useCase = new GetRadarUseCase(
       reader,
       repository,
-      new RecalculateRadarUseCase(extractor, repository),
+      new RecalculateRadarUseCase(extractor, repository, {
+        getAreaWeights: async () => repository.areaWeights,
+      } satisfies AreaWeightReaderPort),
     );
   });
 
