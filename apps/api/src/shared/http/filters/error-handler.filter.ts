@@ -1,3 +1,4 @@
+import { databaseErrorSummary } from '../../errors/database-error-summary';
 import { DependencyUnavailableError } from '../../errors/dependency-unavailable-error';
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 import type { Response } from 'express';
@@ -104,7 +105,7 @@ export class ErrorHandlerFilter implements ExceptionFilter {
     const rawCode =
       error instanceof AppError ? error.code : (error as { code?: unknown } | null)?.code;
     const code = typeof rawCode === 'string' ? ` (${rawCode})` : '';
-    this.logger.error(`Error inesperado: ${name}${code}`);
+    this.logger.error(`Error inesperado: ${name}${code}${databaseErrorSummary(error)}`);
     response
       .status(500)
       .json({ error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado' } });
