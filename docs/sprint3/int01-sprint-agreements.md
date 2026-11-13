@@ -1,13 +1,13 @@
 # INT-01: alcance y acuerdos técnicos del Sprint 3
 
 Fecha de registro: 12 de noviembre de 2026. Sprint: 11 al 28 de noviembre de 2026.
-Responsable: Yadira Peredo. Apoyo y revisión: Nicole Flores.
+Responsable: coordinación del sprint. Apoyo y revisión: coordinación de integración.
 Rama: `feat/G8-INT1-sprintAgreements`. Destino de integración: `epic1`.
 
 ## Estado y fuentes
 
 Este registro fija la línea base técnica propuesta para las tareas dependientes.
-La revisión de Nicole, la aceptación del equipo y las mediciones en equipos administrativos
+La revisión de la coordinación de integración, la aceptación del equipo y las mediciones en equipos administrativos
 quedan pendientes; este documento no acredita reuniones, aprobaciones ni pruebas ejecutadas.
 Las implementaciones ya existentes se contrastarán con esta línea base antes de integrarlas.
 
@@ -21,22 +21,22 @@ Base consultada: `origin/epic1`, commit `b29fe3c1`.
 
 | Bloque | Resultado verificable | Responsable principal / apoyo |
 | --- | --- | --- |
-| INT-01 | Muestras, presupuestos OCR, reglas y límites de consulta documentados | Yadira / Nicole |
-| INT-03 y INT-04 | Revisión única, concurrencia y migraciones preservando solicitudes | Jhoan / Daniel y Nicole, respectivamente |
-| HU-13 | Reserva por revisión, lectura en Worker, hallazgos y resultado compartido | Yadira, Mauricio y Jhoan según tareas 13.1-13.6 |
-| HU-14 | Expediente, comprobación humana y confirmación vigente con correo único | Santiago, Abby y Daniel según tareas 14.1-14.5 |
-| HU-15 | Avisos de calidad y calibración del respaldo | Nicole y Alba |
-| HU-16 | Motivos múltiples, explicación única y canales consistentes | Wendy, Alba y Daniel |
-| HU-17 | Historial y acceso al documento de cada revisión | Jhoan, Mauricio y Jhair |
-| HU-18 | Consulta por correo sin revelar existencia ni modificar dictámenes | Daniel, Nicole y Rogelio |
-| BUG-01 a BUG-18 | Corregir incidencias de la planificación oficial | Titular de cada BUG; Nicole coordina integración |
-| MAIL-01 a MAIL-03 | Estilo común, envío y límites según planificación oficial | Titular de cada MAIL; Nicole coordina integración |
-| INT-02, INT-05 a INT-08 | Validación integrada, permisos, accesibilidad, móvil y entrega | Yadira, Daniel, Santiago, Wendy y Mauricio |
+| INT-01 | Muestras, presupuestos OCR, reglas y límites de consulta documentados | coordinación del sprint / coordinación de integración |
+| INT-03 y INT-04 | Revisión única, concurrencia y migraciones preservando solicitudes | responsable de base de datos / responsable de backend y coordinación de integración, respectivamente |
+| HU-13 | Reserva por revisión, lectura en Worker, hallazgos y resultado compartido | coordinación del sprint, responsable de lectura OCR y responsable de base de datos según tareas 13.1-13.6 |
+| HU-14 | Expediente, comprobación humana y confirmación vigente con correo único | responsable de frontend, responsable de comparación visual y responsable de backend según tareas 14.1-14.5 |
+| HU-15 | Avisos de calidad y calibración del respaldo | coordinación de integración y responsable de interfaz |
+| HU-16 | Motivos múltiples, explicación única y canales consistentes | responsable de motivos y validación móvil, responsable de interfaz y responsable de backend |
+| HU-17 | Historial y acceso al documento de cada revisión | responsable de base de datos, responsable de lectura OCR y responsable de historial visual |
+| HU-18 | Consulta por correo sin revelar existencia ni modificar dictámenes | responsable de backend, coordinación de integración y responsable de consulta pública |
+| BUG-01 a BUG-18 | Corregir incidencias de la planificación oficial | Titular de cada BUG; la coordinación de integración coordina integración |
+| MAIL-01 a MAIL-03 | Estilo común, envío y límites según planificación oficial | Titular de cada MAIL; la coordinación de integración coordina integración |
+| INT-02, INT-05 a INT-08 | Validación integrada, permisos, accesibilidad, móvil y entrega | coordinación del sprint, responsable de backend, responsable de frontend, responsable de motivos y validación móvil y responsable de lectura OCR |
 
 Se mantiene el alcance de seis mejoras, 26 tareas de HU y 29 tareas independientes.
 Ante capacidad insuficiente se atienden primero versión, permisos, bugs que bloquean
 recorridos, reserva OCR y decisión humana; luego presentación, calidad y consulta pública.
-Yadira registra el ajuste de alcance y Nicole reordena la integración; no se omiten
+La coordinación del sprint registra el ajuste de alcance y la coordinación de integración reordena la integración; no se omiten
 criterios de seguridad, consistencia o confirmación humana para cumplir una fecha.
 
 ## Muestras y entorno OCR
@@ -44,7 +44,7 @@ criterios de seguridad, consistencia o confirmación humana para cumplir una fec
 La [matriz de aceptación](int01-acceptance-matrix.md) identifica muestras y resultados.
 Usar documentos sintéticos con la marca visible `MUESTRA DE PRUEBA SIN VALIDEZ`,
 o copias anonimizadas autorizadas; no publicar respaldos personales, tokens o correos reales.
-Yadira prepara y registra el conjunto; Mauricio verifica su lectura; Nicole revisa su uso.
+La coordinación del sprint prepara y registra el conjunto; el responsable de lectura OCR verifica su lectura; la coordinación de integración revisa su uso.
 Cada archivo debe registrar ID, tipo documental, MIME, páginas, SHA-256, procedencia,
 campos declarados, transcripción esperada, sugerencia y regla aplicable.
 Los archivos físicos y sus hashes se incorporan con la evidencia de 13.1/13.6;
@@ -104,14 +104,14 @@ Orden: lectura fallida, parcial o insuficiente -> `REVISION_MANUAL`; evidencia c
 y causa de rechazo comprobada -> `RECHAZAR`; diferencia subsanable -> `OBSERVAR`;
 todos los obligatorios coinciden y no hay diferencias -> `APROBAR`.
 Un tipo desconocido, encabezado ausente o supuesto fraude exige comprobación humana;
-no se deduce falsedad del OCR. La revisión de estas causas por Nicole queda pendiente.
+no se deduce falsedad del OCR. La revisión de estas causas por la coordinación de integración queda pendiente.
 Las reglas implementadas en otras ramas deben contrastarse por tipo antes de su integración.
 La sugerencia nunca cambia el estado oficial, emite dictamen o envía correo por sí sola.
 
 ## Consulta de estado por correo: contrato de límites para HU-18
 
-Daniel implementa y prueba los contadores; Nicole revisa plantillas y entrega;
-Rogelio valida formulario y casos de abuso. Parámetros propuestos para 18.1/18.4:
+El responsable de backend implementa y prueba los contadores; la coordinación de integración revisa plantillas y entrega;
+El responsable de consulta pública valida formulario y casos de abuso. Parámetros propuestos para 18.1/18.4:
 
 | Clave | Espera mínima | Máximo por ventana fija |
 | --- | --- | --- |
@@ -141,9 +141,9 @@ y recuperación existentes; consultar nunca crea dictamen ni modifica sus contad
 5. Ejecutar INT-02, INT-05, INT-06 e INT-07 sobre los recorridos integrados; INT-08 reúne evidencia.
 
 Ventanas objetivo: primer pase a dev el 15/11, segundo el 20/11 y final el 25/11;
-review el 28/11. Solo Nicole coordina epic1 y pases a dev; INT-01 publica su propia rama.
+review el 28/11. Solo la coordinación de integración coordina epic1 y pases a dev; INT-01 publica su propia rama.
 La evidencia consumidora registra caso, revisión, entorno, esperado, observado y resultado.
-Para cerrar la coordinación: revisión de Nicole registrada, responsables informados,
+Para cerrar la coordinación: revisión de la coordinación de integración registrada, responsables informados,
 muestras identificadas y criterios enlazados desde 13.1, 13.3 y 18.1.
 Pendiente de coordinación: validar presupuestos en equipos reales y confirmar límites
 y causas de rechazo. Este commit entrega la documentación; no acredita esas aceptaciones.

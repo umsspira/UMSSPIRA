@@ -2,13 +2,13 @@
 
 Contrato: [alcance y acuerdos técnicos](int01-sprint-agreements.md), versión `int01-v1`.
 Estado inicial de todos los casos: pendiente de ejecución; no hay resultados medidos.
-Yadira custodia el catálogo; Mauricio registra OCR real; Nicole revisa criterios.
+La coordinación del sprint custodia el catálogo; el responsable de lectura OCR registra OCR real; la coordinación de integración revisa criterios.
 
 ## Catálogo reproducible de muestras
 
-Identidad sintética de referencia: María José Muñoz Pérez; CI `00123456 CB`;
+Identidad sintética de referencia: Nombre Compuesto Apellido Compuesto; CI `00123456 CB`;
 SIS `001234567`; carrera Ingeniería de Sistemas; año de egreso `2024`.
-Separar nombres `María José` y apellidos `Muñoz Pérez` en el formulario declarado.
+Separar nombres `Nombre Compuesto` y apellidos `Apellido Compuesto` en el formulario declarado.
 Las variantes indicadas solo cambian el respaldo y mantienen el formulario de referencia.
 Cada ID requiere archivo físico, SHA-256 y transcripción antes de ejecutar la validación.
 En títulos y diplomas no exigir CI, SIS o egreso cuando no aparecen en el diseño.
@@ -22,7 +22,7 @@ En títulos y diplomas no exigir CI, SIS o egreso cuando no aparecen en el dise�
 | M05 | Certificado / PDF escaneado | Persona, carrera y egreso 2024 rotulados | APROBAR |
 | M06 | Certificado / JPEG | Foto legible del mismo contenido que M05 | APROBAR |
 | M07 | Certificado / PNG | Egreso rotulado 2023, restantes datos coinciden | OBSERVAR con evidencia del año |
-| M08 | Cada tipo / PNG | Persona Luis Rojas y carrera Medicina, legibles | RECHAZAR sugerido, sin dictamen automático |
+| M08 | Cada tipo / PNG | Otra persona y carrera Medicina, legibles | RECHAZAR sugerido, sin dictamen automático |
 | M09 | Cada tipo / JPEG | Desenfoque o recorte impide leer campos obligatorios | REVISION_MANUAL, nunca rechazo por ilegibilidad |
 | M10 | Certificado / PDF | Solo fecha de emisión 2024, sin egreso rotulado | REVISION_MANUAL para egreso |
 | M11 | Certificado / PDF de seis páginas | Evidencia necesaria en página seis | Lectura parcial y REVISION_MANUAL |
@@ -39,21 +39,21 @@ memoria/método, evidencia por campo y sugerencia observada, sin datos personale
 
 | Caso | Acción y comprobación esperada | Responsable / tarea |
 | --- | --- | --- |
-| P01 | Una carga fría y tres calientes por navegador; cumplir presupuestos del acuerdo | Yadira y Mauricio / 13.1 |
-| P02 | Buscar, filtrar y navegar durante OCR; respuesta inferior a 1 s | Mauricio / 13.2 |
-| P03 | M01-M14 conservan clasificación, evidencia y reglas por tipo | Yadira / 13.3 y 13.6 |
-| P04 | Dos sesiones compiten por trabajo; una reserva, resultado compartido | Jhoan y Yadira / 13.5 y 13.6 |
-| P05 | Cerrar pestaña, vencer reserva y reasignar; descartar resultado de revisión vieja | Jhoan y Mauricio / INT-03 y 13.5 |
-| P06 | OCR falla o se cancela; liberar recursos, conservar expediente y decisión humana | Mauricio y Yadira / 13.2 y INT-02 |
-| E01 | Correo con espacios/mayúsculas usa la misma clave y destinatario verificado | Daniel / 18.1 |
-| E02 | Consultas a los 0, 59 y 60 s: admitir primera y tercera, suprimir segunda | Daniel y Rogelio / 18.1 y 18.4 |
-| E03 | Admitir tres consultas espaciadas; cuarta en 15 min no envía; probar reinicio de ventana | Daniel y Rogelio / 18.4 |
-| E04 | Un origen usa correos distintos: undécima petición en 15 min devuelve 429 | Daniel y Rogelio / 18.4 |
-| E05 | Alcanzar 10 por destinatario y 50 por origen en 24 h, respetando ventanas cortas | Daniel y Rogelio / 18.4 |
-| E06 | Solicitud existente/inexistente y destinatario limitado dan el mismo 202 y cuerpo | Rogelio / 18.4 |
-| E07 | Dos consultas simultáneas, origen falsificado y almacén de límites caído no evaden control | Daniel / 18.1 |
-| E08 | Pendiente, observado, rechazado, aprobado y cuenta activa usan correo correcto | Nicole y Rogelio / 18.2 y 18.4 |
-| E09 | Borrador excluido, último envío seleccionado, reintento sin nuevo dictamen | Daniel y Nicole / 18.1 y 18.2 |
+| P01 | Una carga fría y tres calientes por navegador; cumplir presupuestos del acuerdo | coordinación del sprint y responsable de lectura OCR / 13.1 |
+| P02 | Buscar, filtrar y navegar durante OCR; respuesta inferior a 1 s | responsable de lectura OCR / 13.2 |
+| P03 | M01-M14 conservan clasificación, evidencia y reglas por tipo | coordinación del sprint / 13.3 y 13.6 |
+| P04 | Dos sesiones compiten por trabajo; una reserva, resultado compartido | responsable de base de datos y coordinación del sprint / 13.5 y 13.6 |
+| P05 | Cerrar pestaña, vencer reserva y reasignar; descartar resultado de revisión vieja | responsable de base de datos y responsable de lectura OCR / INT-03 y 13.5 |
+| P06 | OCR falla o se cancela; liberar recursos, conservar expediente y decisión humana | responsable de lectura OCR y coordinación del sprint / 13.2 y INT-02 |
+| E01 | Correo con espacios/mayúsculas usa la misma clave y destinatario verificado | responsable de backend / 18.1 |
+| E02 | Consultas a los 0, 59 y 60 s: admitir primera y tercera, suprimir segunda | responsable de backend y responsable de consulta pública / 18.1 y 18.4 |
+| E03 | Admitir tres consultas espaciadas; cuarta en 15 min no envía; probar reinicio de ventana | responsable de backend y responsable de consulta pública / 18.4 |
+| E04 | Un origen usa correos distintos: undécima petición en 15 min devuelve 429 | responsable de backend y responsable de consulta pública / 18.4 |
+| E05 | Alcanzar 10 por destinatario y 50 por origen en 24 h, respetando ventanas cortas | responsable de backend y responsable de consulta pública / 18.4 |
+| E06 | Solicitud existente/inexistente y destinatario limitado dan el mismo 202 y cuerpo | responsable de consulta pública / 18.4 |
+| E07 | Dos consultas simultáneas, origen falsificado y almacén de límites caído no evaden control | responsable de backend / 18.1 |
+| E08 | Pendiente, observado, rechazado, aprobado y cuenta activa usan correo correcto | coordinación de integración y responsable de consulta pública / 18.2 y 18.4 |
+| E09 | Borrador excluido, último envío seleccionado, reintento sin nuevo dictamen | responsable de backend y coordinación de integración / 18.1 y 18.2 |
 
 En E02-E05 usar reloj controlado y verificar cantidades de notificaciones encoladas,
 no solo respuestas HTTP. Probar cada límite con los demás disponibles para aislarlo.
