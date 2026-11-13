@@ -19,34 +19,34 @@ describe('BackupViewerModal', () => {
     obtenerEnlaceMock.mockResolvedValue({ url: ENLACE, expiraEn: '2026-10-23T23:05:00.000Z' });
   });
 
-  it('muestra la foto real con el nombre de la certificación como título', async () => {
+  it.each(['JPG', 'PDF'])('abre un respaldo %s usando el tipo de contenido real de la API', async () => {
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS Solutions Architect" onClose={jest.fn()} />);
 
     expect(screen.getByRole('dialog', { name: 'AWS Solutions Architect' })).toBeInTheDocument();
-    expect(await screen.findByRole('img', { name: 'Respaldo de AWS Solutions Architect' })).toHaveAttribute('src', ENLACE);
+    expect(await screen.findByRole('link', { name: 'Abrir respaldo' })).toHaveAttribute('href', ENLACE);
     expect(obtenerEnlaceMock).toHaveBeenCalledWith('cert-1');
   });
 
   it('pide un enlace nuevo cada vez que se abre', async () => {
     const { unmount } = render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
-    await screen.findByRole('img');
+    await screen.findByRole('link', { name: 'Abrir respaldo' });
     unmount();
 
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
-    await screen.findByRole('img');
+    await screen.findByRole('link', { name: 'Abrir respaldo' });
     expect(obtenerEnlaceMock).toHaveBeenCalledTimes(2);
   });
 
   it('«Cerrar» avisa para cerrar el visor', async () => {
     const onClose = jest.fn();
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={onClose} />);
-    await screen.findByRole('img');
+    await screen.findByRole('link', { name: 'Abrir respaldo' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('«Descargar» apunta al JPG original como adjunto', async () => {
+  it('«Descargar» apunta al archivo original como adjunto', async () => {
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
 
     expect(await screen.findByRole('link', { name: 'Descargar' })).toHaveAttribute('href', `${ENLACE}&descargar=1`);
@@ -55,7 +55,7 @@ describe('BackupViewerModal', () => {
   it('Esc cierra el visor', async () => {
     const onClose = jest.fn();
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={onClose} />);
-    await screen.findByRole('img');
+    await screen.findByRole('link', { name: 'Abrir respaldo' });
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -65,7 +65,7 @@ describe('BackupViewerModal', () => {
     const onClose = jest.fn();
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={onClose} />);
     const dialog = screen.getByRole('dialog');
-    await screen.findByRole('img');
+    await screen.findByRole('link', { name: 'Abrir respaldo' });
 
     fireEvent.click(dialog);
     expect(onClose).not.toHaveBeenCalled();
@@ -78,7 +78,7 @@ describe('BackupViewerModal', () => {
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
-    await screen.findByRole('img');
+    await screen.findByRole('link', { name: 'Abrir respaldo' });
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
@@ -95,32 +95,22 @@ describe('BackupViewerModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('si la foto no carga también muestra el error', async () => {
-    render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
-
-    fireEvent.error(await screen.findByRole('img'));
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
-  });
-
-  it('«Reintentar» pide un enlace nuevo y muestra la foto', async () => {
+  it('«Reintentar» pide un enlace nuevo y vuelve a mostrar el respaldo', async () => {
     obtenerEnlaceMock.mockRejectedValueOnce(new Error('sin conexión'));
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
 
-    expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
-    expect(await screen.findByRole('img')).toHaveAttribute('src', ENLACE);
+    expect(await screen.findByRole('link', { name: 'Abrir respaldo' })).toHaveAttribute('href', ENLACE);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(obtenerEnlaceMock).toHaveBeenCalledTimes(2);
   });
 
-  it('en celular la foto se ajusta sin deformarse y los botones quedan fijos abajo', async () => {
+  it('en celular el visor se ajusta y los botones quedan fijos abajo', async () => {
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
 
-    const image = await screen.findByRole('img');
-    expect(image).toHaveClass('w-full', 'object-contain');
-    // Los botones no se encogen aunque la foto sea muy alta
+    await screen.findByRole('link', { name: 'Abrir respaldo' });
+    // Los botones no se encogen cuando el archivo ocupa mucho espacio
     expect(screen.getByRole('button', { name: 'Cerrar' }).parentElement).toHaveClass('shrink-0');
     expect(screen.getByRole('dialog')).toHaveClass('max-h-[calc(100dvh-2rem)]');
   });
