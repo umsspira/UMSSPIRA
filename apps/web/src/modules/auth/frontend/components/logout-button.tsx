@@ -1,5 +1,6 @@
 "use client";
 
+import { clearOfflineQrPasses } from '@/features/event-passes/offline/offline-qr-storage';
 import { authStore } from "../store";
 import { clearSession } from "../services";
 import { hardRedirect } from "../services/navigation";
@@ -11,19 +12,33 @@ export function LogoutButton() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function handleLogout() {
-    if (pending) return;
-    setPending(true);
-    setError(null);
+  if (pending) return;
+
+  setPending(true);
+  setError(null);
+
+  try {
+    await revokeCurrentSession();
+
     try {
-      await revokeCurrentSession();
-      clearAllSurveyDrafts();
-      clearSession();
-      authStore.reset();
-      hardRedirect("/login");
-    } catch {
-      setError('No se pudo cerrar la sesión. Inténtalo nuevamente.');
-    } finally { setPending(false); }
+      await clearOfflineQrPasses();
+    } catch (storageError) {
+      console.error(
+        'No se pudieron eliminar los pases QR almacenados localmente:',
+        storageError
+      );
+    }
+
+    clearAllSurveyDrafts();
+    clearSession();
+    authStore.reset();
+    hardRedirect("/login");
+  } catch {
+    setError('No se pudo cerrar la sesión. Inténtalo nuevamente.');
+  } finally {
+    setPending(false);
   }
+}
 
   return (
     <><button
