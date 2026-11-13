@@ -54,6 +54,18 @@ describe('Cámara del escáner', () => {
     await screen.findByText('Ubica el QR dentro del marco');
   });
 
+  it('notifica el permiso denegado al panel sin duplicar el mensaje de error', async () => {
+    getUserMedia.mockRejectedValueOnce(new DOMException('Denegado', 'NotAllowedError'));
+    const onError = jest.fn();
+    render(<EventScannerCamera onError={onError} />);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Activar cámara' })); });
+    expect(onError).toHaveBeenCalledWith({
+      kind: 'permission-denied',
+      message: 'Permite el acceso a la cámara en tu navegador y vuelve a intentarlo.',
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('libera una cámara cuyo permiso se concede después de abandonar la pantalla', async () => {
     let resolve!: (value: MediaStream) => void;
     getUserMedia.mockReturnValue(new Promise<MediaStream>((done) => { resolve = done; }));

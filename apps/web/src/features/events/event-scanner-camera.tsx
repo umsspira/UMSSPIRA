@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
 import { createPortal } from 'react-dom';
 
+export interface CameraFailure {
+  kind: 'permission-denied' | 'unavailable';
+  message: string;
+}
+
 function cameraErrorMessage(error: unknown): string {
   const name = error instanceof Error ? error.name : '';
   if (name === 'NotAllowedError') return 'Permite el acceso a la cámara en tu navegador y vuelve a intentarlo.';
@@ -13,11 +18,12 @@ function cameraErrorMessage(error: unknown): string {
 }
 
 export function EventScannerCamera({
-  onRead, onStart, startLabel = 'Activar cámara', disabled = false,
+  onRead, onStart, onError, startLabel = 'Activar cámara', disabled = false,
   actionContainer = null, inactiveMessage = 'Activa la cámara para leer un pase',
 }: {
   onRead?: (token: string) => void;
   onStart?: () => void;
+  onError?: (failure: CameraFailure) => void;
   startLabel?: string;
   disabled?: boolean;
   actionContainer?: HTMLElement | null;
@@ -40,14 +46,19 @@ export function EventScannerCamera({
     setError(null);
     setReady(false);
 
-    function fail(message: string) {
+    function fail(message: string, kind: CameraFailure['kind'] = 'unavailable') {
       if (!active) return;
       active = false;
       clearTimeout(timer);
       stream?.getTracks().forEach((track) => track.stop());
       setReady(false);
       setEnabled(false);
-      setError(message);
+      if (onError) {
+        setError(null);
+        onError({ kind, message });
+      } else {
+        setError(message);
+      }
     }
 
     function cameraEnded() {
@@ -112,6 +123,7 @@ export function EventScannerCamera({
           cameraSupported
             ? cameraErrorMessage(reason)
             : 'La cámara requiere un navegador compatible y una conexión HTTPS o localhost.',
+          reason instanceof Error && reason.name === 'NotAllowedError' ? 'permission-denied' : 'unavailable',
         );
       }
     }
@@ -125,7 +137,7 @@ export function EventScannerCamera({
       });
       if (video) video.srcObject = null;
     };
-  }, [enabled, disabled, onRead]);
+  }, [enabled, disabled, onRead, onError]);
 
   const cameraAction = (
     <button

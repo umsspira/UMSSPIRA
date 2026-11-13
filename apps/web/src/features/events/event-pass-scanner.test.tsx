@@ -4,6 +4,7 @@ import { validateScannedPass } from './validate-scanned-pass';
 import type { EventAttendanceResult } from '@umsspira/shared-types';
 import { ApiClientError } from '@/shared/services/api-client';
 import { SessionError } from '@/shared/services/auth-session';
+import type { CameraFailure } from './event-scanner-camera';
 
 const attendance: EventAttendanceResult = {
   code: 'ATTENDANCE_RECORDED', attendanceRecorded: true,
@@ -13,13 +14,15 @@ const attendance: EventAttendanceResult = {
 
 jest.mock('./validate-scanned-pass', () => ({ validateScannedPass: jest.fn() }));
 jest.mock('./event-scanner-camera', () => ({
-  EventScannerCamera: ({ onRead, onStart, disabled, startLabel, actionContainer, inactiveMessage }: {
+  EventScannerCamera: ({ onRead, onStart, onError, disabled, startLabel, actionContainer, inactiveMessage }: {
     onRead: (value: string) => void; onStart: () => void; disabled: boolean; startLabel: string;
     actionContainer?: HTMLElement | null; inactiveMessage?: string;
+    onError: (failure: CameraFailure) => void;
   }) => {
     const action = <button disabled={disabled} onClick={onStart}>{startLabel}</button>;
     return <div>
       <button disabled={disabled} onClick={() => onRead('token-leido')}>Leer QR</button>
+      <button disabled={disabled} onClick={() => onError({ kind: 'permission-denied', message: 'Acceso denegado' })}>Denegar cámara</button>
       {inactiveMessage ? <span>{inactiveMessage}</span> : null}
       {actionContainer ? require('react-dom').createPortal(action, actionContainer) : action}
     </div>;
@@ -128,5 +131,19 @@ describe('Validación desde el escáner', () => {
     render(<EventPassScanner eventId="evento" />);
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Inicia sesión para continuar');
+  });
+
+  it('muestra el mockup de cámara denegada y permite reintentar desde el panel lateral', () => {
+    render(<EventPassScanner eventId="evento" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Denegar cámara' }));
+    expect(screen.getByRole('heading', { name: 'Activar la cámara' })).toBeInTheDocument();
+    expect(screen.getByText('Cámara sin permiso')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Permiso denegado');
+    expect(screen.getByRole('alert')).toHaveTextContent('Habilita la cámara desde el navegador.');
+    expect(validateScannedPass).not.toHaveBeenCalled();
+    const panel = screen.getByRole('complementary');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Reintentar cámara' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cómo escanear' })).toBeInTheDocument();
   });
 });
