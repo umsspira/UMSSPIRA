@@ -1,0 +1,24 @@
+meta {
+  name: Denegar resultado de otra carrera
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/applications/{{ocrApplicationId}}/ocr
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{otherCareerAccessToken}}
+}
+
+tests {
+  test("HTTP 404", function () { expect(res.getStatus()).to.equal(404); });
+
+}
+
+docs {
+  Usar otro administrador con solicitudes:read pero sin la carrera de ocrApplicationId. Debe ocultar el expediente con 404.
+}

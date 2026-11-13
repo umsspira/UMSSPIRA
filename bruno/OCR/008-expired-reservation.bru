@@ -1,0 +1,34 @@
+meta {
+  name: Rechazar reserva vencida
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/{{ocrExpiredJobId}}/renew
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{ocrExpiredToken}}"
+  }
+}
+
+tests {
+  test("HTTP 409", function () { expect(res.getStatus()).to.equal(409); });
+
+}
+
+docs {
+  Reservar trabajo ficticio y copiar jobId/token a ocrExpiredJobId y ocrExpiredToken. No renovar, esperar mas de 90 segundos y ejecutar. Debe responder OCR_LEASE_EXPIRED.
+}
