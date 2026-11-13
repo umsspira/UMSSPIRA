@@ -57,7 +57,7 @@ type CertificacionCuerpo = {
 
 export type CertificacionApi = RegistroApi & Required<CertificacionCuerpo> & {
   // tieneRespaldo null = el backend todavía no sabe leer respaldos
-  respaldo?: { tieneRespaldo: boolean | null };
+  respaldo?: { tieneRespaldo: boolean | null; tipo?: 'FOTO' | 'QR' | 'DOCUMENTO' | null };
 };
 
 // GET /api/v1/perfil (profile.presenter.ts del backend)
@@ -109,6 +109,7 @@ export function aExperienceRecord(experiencia: ExperienciaApi): ExperienceRecord
 
 // La API no devuelve el nombre del archivo de respaldo ni si fue validado: solo si existe
 export function aCertificationRecord(certificacion: CertificacionApi): CertificationRecord {
+  const esPdf = certificacion.respaldo?.tipo === 'DOCUMENTO';
   return {
     id: certificacion.id,
     ownerId: certificacion.idTitulado,
@@ -116,8 +117,10 @@ export function aCertificationRecord(certificacion: CertificacionApi): Certifica
     issuer: certificacion.entidadEmisora,
     degree: certificacion.grado,
     issueYear: String(certificacion.anioEmision),
-    backupFile: certificacion.respaldo?.tieneRespaldo ? 'respaldo.jpg' : undefined,
+    backupFile: certificacion.respaldo?.tieneRespaldo ? (esPdf ? 'respaldo.pdf' : 'respaldo.jpg') : undefined,
     backupVerified: false,
+    // HU-18: el backend guarda el PDF como DOCUMENTO y la foto como FOTO
+    backupType: certificacion.respaldo?.tieneRespaldo ? (esPdf ? 'pdf' : 'image') : undefined,
   };
 }
 

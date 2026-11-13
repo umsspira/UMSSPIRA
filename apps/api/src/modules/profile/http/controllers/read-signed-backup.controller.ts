@@ -24,7 +24,7 @@ export class ReadSignedBackupController {
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader(
       'Content-Disposition',
-      `${disposition}; filename="respaldo.jpg"; filename*=UTF-8''` + encodeURIComponent(file.name),
+      `${disposition}; filename="${file.mime === 'application/pdf' ? 'respaldo.pdf' : 'respaldo.jpg'}"; filename*=UTF-8''` + encodeURIComponent(file.name),
     );
     response.send(Buffer.from(file.bytes));
   }

@@ -139,3 +139,21 @@ describe('CertificationItem', () => {
     expect(screen.queryByRole('button', { name: 'Ver respaldo' })).not.toBeInTheDocument();
   });
 });
+
+describe('CertificationItem · tipo de respaldo (HU-18, T18.5)', () => {
+  function abrirDetalle(item: TimelineItem) {
+    render(<Harness item={item} />);
+    fireEvent.click(screen.getByRole('button', { name: /AWS Solutions Architect/ }));
+  }
+
+  it('indica «PDF» cuando el respaldo es un documento', () => {
+    abrirDetalle({ ...withBackup, documentType: 'pdf' });
+    expect(screen.getByText('PDF')).toBeInTheDocument();
+    expect(screen.queryByText('Foto')).not.toBeInTheDocument();
+  });
+
+  it('indica «Foto» cuando el respaldo es una imagen o no tiene tipo', () => {
+    abrirDetalle({ ...withBackup, document: 'respaldo.jpg', documentType: undefined });
+    expect(screen.getByText('Foto')).toBeInTheDocument();
+  });
+});
