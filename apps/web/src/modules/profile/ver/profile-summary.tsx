@@ -33,6 +33,8 @@ export default function ProfileSummary({ showSavedNotice = false }: { showSavedN
   const timeline = recordsToTimeline(records);
 
   const experiences = records.experience.length;
+  // HU-21, T21.5: completitud de 5 secciones (formación, experiencia, certificaciones, descripción y proyectos).
+  // TODO(HU-19): al integrar T19.6 de Mayra, pasar aquí los proyectos del store según la firma final de profileCompleteness.
   const completeness = profileCompleteness(records, description);
   // Carrera y promoción solo si la API las tiene registradas
   const careerLine = [header?.career, header?.graduationYear ? `Promoción ${header.graduationYear}` : '']

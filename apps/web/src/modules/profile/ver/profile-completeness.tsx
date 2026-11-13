@@ -1,4 +1,4 @@
-import { ChevronRight, CircleCheck, Info } from 'lucide-react';
+import { ChevronRight, Circle, CircleCheck, Info } from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -8,7 +8,8 @@ import {
 
 // Indicador de completitud del resumen (HU-06): porcentaje y secciones que faltan
 export default function ProfileCompleteness({ completeness }: { completeness: Completeness }) {
-  const { percentage, missing } = completeness;
+  const { percentage, sections, missing } = completeness;
+  const completeCount = sections.length - missing.length;
   // HU-21, CA-05: si el perfil no está al 100 % la tarjeta se resalta con el aviso «Te falta completar»
   const isIncomplete = missing.length > 0;
 
@@ -36,6 +37,34 @@ export default function ProfileCompleteness({ completeness }: { completeness: Co
         className="h-2 w-full overflow-hidden rounded-full bg-oatmeal"
       >
         <span className="block h-full rounded-full bg-burning-flame transition-[width] duration-300" style={{ width: `${percentage}%` }} />
+      </div>
+
+      {/* HU-21, T21.5: estado de cada sección (5 con Proyectos, HU-19) para ver de un vistazo qué está completo */}
+      <div className="flex flex-col gap-2">
+        <p className="text-[13px] font-medium text-blue-fantastic/80">
+          {completeCount} de {sections.length} secciones completas
+        </p>
+        <ul aria-label="Secciones del perfil" className="flex flex-wrap gap-2">
+          {sections.map((section) => (
+            <li
+              key={section.id}
+              data-complete={section.complete || undefined}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                section.complete
+                  ? 'bg-palladian text-blue-fantastic'
+                  : 'border border-truffle-trouble/40 bg-white text-truffle-trouble'
+              }`}
+            >
+              {section.complete ? (
+                <CircleCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              ) : (
+                <Circle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              )}
+              {section.label}
+              <span className="sr-only">{section.complete ? ': completa' : ': falta completar'}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {missing.length === 0 ? (
