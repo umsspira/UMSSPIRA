@@ -6,8 +6,13 @@ import type {
   SurveyAdminPatch,
   SurveyAdminRecord,
 } from '../../application/contracts/survey-admin.input';
-import type { SurveyRepositoryPort } from '../../application/ports/survey-repository.port';
+import type {
+  ActiveSurvey,
+  SurveyRepositoryPort,
+} from '../../application/ports/survey-repository.port';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
+
+const ACTIVE_SURVEY_STATUSES = ['PUBLICADA'];
 
 @Injectable()
 export class PrismaSurveyRepository implements SurveyRepositoryPort {
@@ -15,18 +20,51 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
 
   async save(data: SubmitSurveyInput) {
     return this.prisma.respuestaEncuesta.create({
-        data: {
-          idEncuesta: data.idEncuesta,
-          idTitulado: data.idTitulado,
-          condicionLaboral: String(data.condicionLaboral),
-          cargo: data.cargo,
-          empresa: data.empresa,
-          area: data.area,
-          modalidad: data.modalidad,
-          salarioMensual: data.salarioMensual,
-          tiempoInsercion: data.tiempoInsercion,
-        },
-      });
+      data: {
+        idEncuesta: data.idEncuesta,
+        idTitulado: data.idTitulado,
+        condicionLaboral: String(data.condicionLaboral),
+        cargo: data.cargo,
+        empresa: data.empresa,
+        area: data.area,
+        modalidad: data.modalidad,
+        salarioMensual: data.salarioMensual,
+        tiempoInsercion: data.tiempoInsercion,
+      },
+    });
+  }
+
+  async findActiveSurveyByCareer(
+    careerId: string,
+    surveyId?: string,
+  ): Promise<ActiveSurvey | null> {
+    const hoy = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/La_Paz' }));
+    return this.prisma.encuesta.findFirst({
+      where: {
+        id_carrera: careerId,
+        ...(surveyId ? { id: surveyId } : {}),
+        estado: { in: ACTIVE_SURVEY_STATUSES },
+        fecha_inicio: { lte: hoy },
+        fecha_fin: { gte: hoy },
+      },
+      orderBy: { fecha_creacion: 'desc' },
+    });
+  }
+
+  async findActiveSurveyForGraduate(
+    graduateId: string,
+    surveyId?: string,
+  ): Promise<ActiveSurvey | null> {
+    const titulado = await this.prisma.titulado.findUnique({
+      where: { id: graduateId },
+      select: { id_carrera: true },
+    });
+
+    if (!titulado?.id_carrera) {
+      return null;
+    }
+
+    return this.findActiveSurveyByCareer(titulado.id_carrera, surveyId);
   }
 
   async listManaged(actorId: string, careerIds: readonly string[]): Promise<SurveyAdminRecord[]> {
@@ -112,9 +150,6 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
         select: { id: true },
       });
       if (published) {
-      // Integración T5.3: la pantalla debe conservar la nueva encuesta en
-      // BORRADOR y mostrar este conflicto sin cambiar el estado anterior.
-      // T5.2 puede seguir consultando la encuesta publicada existente.
         throw new BusinessRuleError(
           'conflict',
           'SURVEY_ALREADY_PUBLISHED',

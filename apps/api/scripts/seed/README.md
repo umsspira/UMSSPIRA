@@ -31,7 +31,7 @@ Este comando exige `APP_ENV=epic`, `dev` o `test` y la cuenta administradora de 
 | Épica 6      | El titulado participa como mentor activo, con especialidad, interés y disponibilidad                                          |
 | Épica 7      | Un evento publicado, un borrador del administrador y una inscripción del titulado                                             |
 | Épica 8      | Reutiliza la identidad y catálogos compartidos; los dispositivos push los registra cada navegador                             |
-| Épica 9      | Encuesta en borrador; indicadores y listados con las solicitudes y el mentor ya cargados                                      |
+| Épica 9      | Encuesta publicada; indicadores y listados con las solicitudes y el mentor ya cargados                                      |
 
 Son datos ficticios. No se generan sesiones, renovaciones, códigos de activación, correos pendientes ni suscripciones push. Los respaldos de certificación se cargan mediante el endpoint correspondiente: la certificación inicial está `sin_respaldo`. No se insertan aprobaciones sin evidencia ni archivos de reporte inexistentes.
 
