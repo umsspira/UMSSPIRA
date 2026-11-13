@@ -43,7 +43,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"id_encuesta\": \"{{surveyId}}\",\n  \"condicion_laboral\": true,\n  \"cargo\": \"Analista\",\n  \"empresa\": \"Empresa de ejemplo\",\n  \"area\": \"Sistemas\",\n  \"modalidad\": \"Remoto\",\n  \"salario_mensual\": \"3500\",\n  \"tiempo_insercion\": \"3\"\n}"
+          "raw": "{\n  \"id_encuesta\": \"{{surveyId}}\",\n  \"condicion_laboral\": true,\n  \"cargo\": \"Analista\",\n  \"empresa\": \"Empresa de ejemplo\",\n  \"area\": \"Sistemas\",\n  \"modalidad\": \"Remoto\",\n  \"salario_mensual\": \"3.000–5.000\",\n  \"tiempo_insercion\": \"3\"\n}"
         }
       }
     },
@@ -81,7 +81,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"id_encuesta\": \"{{surveyId}}\",\n  \"condicion_laboral\": true,\n  \"cargo\": \"Analista\",\n  \"empresa\": \"Empresa de ejemplo\",\n  \"area\": \"Sistemas\",\n  \"modalidad\": \"Remoto\",\n  \"salario_mensual\": \"3500\",\n  \"tiempo_insercion\": \"3\"\n}"
+          "raw": "{\n  \"id_encuesta\": \"{{surveyId}}\",\n  \"condicion_laboral\": true,\n  \"cargo\": \"Analista\",\n  \"empresa\": \"Empresa de ejemplo\",\n  \"area\": \"Sistemas\",\n  \"modalidad\": \"Remoto\",\n  \"salario_mensual\": \"3.000–5.000\",\n  \"tiempo_insercion\": \"3\"\n}"
         }
       }
     }

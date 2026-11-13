@@ -14,7 +14,7 @@ export const encuestas: Array<Prisma.EncuestaCreateManyInput & { id: string }> =
     fecha_inicio: new Date('2026-01-01T00:00:00Z'),
     fecha_fin: new Date('2026-12-31T00:00:00Z'),
     fecha_creacion: new Date(),
-    estado: 'BORRADOR',
+    estado: 'PUBLICADA',
     formato: 'WEB',
   },
 ];
