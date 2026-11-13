@@ -1,3 +1,7 @@
+  import { StatusQueryService } from '../../application/services/status-query.service';
+  import { STATUS_MAIL_DISPATCHER, STATUS_QUERY_READER } from '../../application/contracts/request-status.dto';
+  import { PrismaStatusQueryReader } from '../repositories/prisma-status-query.reader';
+  import { LoggingStatusMailDispatcher } from '../notifications/logging-status-mail-dispatcher';
 import { OBSERVED_APPLICATION_PORT } from '../../application/ports/observed-application.port';
 import { PrismaObservedApplicationRepository } from '../repositories/prisma-observed-application.repository';
 import { ObservedApplicationService } from '../../application/services/observed-application.service';
@@ -169,4 +173,8 @@ export const registrationsProviders: Provider[] = [
     inject: [MAIL_EVENTS_REPOSITORY],
     useFactory: (repository: MailEventsRepository) => new RetryMailEventsUseCase(repository),
   },
+    PrismaStatusQueryReader,
+  { provide: STATUS_QUERY_READER, useExisting: PrismaStatusQueryReader },
+  { provide: STATUS_MAIL_DISPATCHER, useClass: LoggingStatusMailDispatcher },
+  StatusQueryService,
 ];
