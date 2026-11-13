@@ -96,4 +96,68 @@ describe('POST /events/owned/:id/attendance', () => {
       .expect(404);
     expect(response.body.error.code).toBe('PASS_NOT_FOUND');
   });
+
+  it('oculta el pase cuando el administrador no gestiona el evento', async () => {
+    tx.evento.findFirst.mockResolvedValue(null);
+    const response = await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer admin')
+      .send({ qrToken: 'token' })
+      .expect(404);
+    expect(response.body.error.code).toBe('EVENT_NOT_FOUND');
+    expect(tx.paseQr.findUnique).not.toHaveBeenCalled();
+    expect(response.body.data).toBeUndefined();
+  });
+
+  it.each([
+    [
+      'otro evento',
+      { inscripcion: { id_evento: randomUUID(), id_usuario: randomUUID(), estado: 'CONFIRMADA' } },
+      409,
+      'PASS_EVENT_MISMATCH',
+    ],
+    [
+      'inscripción cancelada',
+      { inscripcion: { id_evento: eventId, id_usuario: randomUUID(), estado: 'CANCELADA' } },
+      409,
+      'ATTENDANCE_NOT_ALLOWED',
+    ],
+    ['pase invalidado', { estado: 'INVALIDADO' }, 409, 'PASS_INACTIVE'],
+    ['pase vencido', { fecha_expiracion: new Date(0) }, 410, 'PASS_EXPIRED'],
+  ])(
+    'comunica el rechazo por %s sin devolver datos del participante',
+    async (_label, changes, status, code) => {
+      const pass = await tx.paseQr.findUnique();
+      tx.paseQr.findUnique.mockResolvedValue({ ...pass, ...changes });
+      const response = await request(app.getHttpServer())
+        .post(path)
+        .set('Authorization', 'Bearer admin')
+        .send({ qrToken: 'token' })
+        .expect(status);
+      expect(response.body).toEqual({ error: { code, message: expect.any(String) } });
+    },
+  );
+
+  it.each(['CANCELADO', 'BORRADOR'])('rechaza un evento %s', async (estado) => {
+    tx.evento.findFirst.mockResolvedValue({
+      id: eventId,
+      estado,
+      fecha_fin: new Date(Date.now() + 60000),
+    });
+    const response = await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer admin')
+      .send({ qrToken: 'token' })
+      .expect(409);
+    expect(response.body.error.code).toBe('ATTENDANCE_NOT_ALLOWED');
+  });
+
+  it('rechaza el identificador de evento mal formado antes de consultar datos', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/events/owned/invalido/attendance')
+      .set('Authorization', 'Bearer admin')
+      .send({ qrToken: 'token' })
+      .expect(400);
+    expect(transaction).not.toHaveBeenCalled();
+  });
 });
