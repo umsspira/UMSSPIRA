@@ -295,7 +295,7 @@ export default function AffinityRadar({
       {!isMini && !isRadarEmpty && (
         <div className="mt-6 w-full min-h-[100px] bg-slate-50 rounded-lg p-4 flex flex-col items-center justify-center text-center border border-slate-100">
           <p className="text-xs text-slate-500 font-semibold mb-1 tracking-wider">
-            ÁREA SELECCIONADA (CLICK)
+            ÁREA SELECCIONADA
           </p>
           {selectedData ? (
             <>
@@ -311,7 +311,7 @@ export default function AffinityRadar({
             </>
           ) : (
             <p className="text-sm text-slate-400 mt-2 italic">
-              Selecciona un área en el radar para ver el detalle de afinidad del titulado.
+              Selecciona un área del radar para consultar sus coincidencias de palabras clave.
             </p>
           )}
         </div>

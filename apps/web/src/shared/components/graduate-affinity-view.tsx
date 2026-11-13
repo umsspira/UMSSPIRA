@@ -442,7 +442,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                         Completa tu perfil para<br />descubrir tu afinidad profesional
                       </h3>
                       <p className="text-xs text-slate-500 mb-5 max-w-[260px] mx-auto leading-relaxed">
-                        Aún no podemos calcular tus áreas de mayor afinidad. Necesitamos algunos datos de tu perfil para generar tu mapa de afinidad.
+                        Aún no podemos mostrar coincidencias. Completa y guarda la información de tu perfil para generar tu radar.
                       </p>
                       <button 
                         type="button"
@@ -469,7 +469,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   <div className="mt-6 bg-palladian rounded-xl border border-oatmeal/60 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
-                      <span className="text-sm font-bold text-gray-800">Áreas con mayor afinidad identificadas:</span>
+                      <span className="text-sm font-bold text-gray-800">Áreas con mayor coincidencia de palabras:</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {topAffinityAreas.map((area, index) => (
@@ -516,7 +516,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
 
               <div className="pt-6 border-t border-palladian mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p className="text-[13px] text-blue-fantastic">
-                  Áreas profesionales, porcentaje de afinidad y palabras clave relacionadas con tu perfil.
+                  Áreas profesionales y coincidencias de palabras clave encontradas en la información de tu perfil.
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
