@@ -40,6 +40,8 @@ function ApplicationsBoardView() {
   );
   const queryRef = useRef<ApplicationsUrlState>(query);
   queryRef.current = query;
+  const latestRequestedQuery = useRef<ApplicationsUrlState>(query);
+  const pendingQueries = useRef<string[]>([]);
 
   const [searchInput, setSearchInput] = useState(query.search);
   const [board, setBoard] = useState<BoardPage | null>(null);
@@ -52,18 +54,26 @@ function ApplicationsBoardView() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const requestId = useRef(0);
-  // Búsquedas que esta pantalla ya envió a la URL y que todavía no vuelven reflejadas.
-  const pendingSearches = useRef<string[]>([]);
 
-  const updateQuery = useCallback((next: ApplicationsUrlState) => {
-    const nextSearch = next.search.trim();
-    if (nextSearch !== queryRef.current.search.trim()) {
-      pendingSearches.current.push(nextSearch);
-    }
-    queryRef.current = next;
-    const params = toApplicationsParams(next).toString();
-    router.replace(params ? `${pathname}?${params}` : pathname, { scroll: false });
-  }, [pathname, router]);
+  const updateQuery = useCallback(
+    (next: ApplicationsUrlState) => {
+      const currentParams = toApplicationsParams(queryRef.current).toString();
+      const nextParams = toApplicationsParams(next).toString();
+
+      if (nextParams !== currentParams) {
+        pendingQueries.current.push(nextParams);
+      }
+
+      queryRef.current = next;
+      latestRequestedQuery.current = next;
+
+      router.replace(
+        nextParams ? `${pathname}?${nextParams}` : pathname,
+        { scroll: false },
+      );
+    },
+    [pathname, router],
+  );
 
   const loadMetrics = useCallback(async () => {
     setIsMetricsLoading(true);
@@ -111,18 +121,29 @@ function ApplicationsBoardView() {
   }, [updateQuery]);
 
   useEffect(() => {
-    // Si la URL solo refleja una búsqueda propia atrasada, se ignora para no
-    // restaurar texto que la persona ya borró o cambió mientras tanto.
-    const confirmedSearch = query.search.trim();
-    const pendingIndex = pendingSearches.current.lastIndexOf(confirmedSearch);
+  const confirmedParams = toApplicationsParams(query).toString();
+  const pendingIndex = pendingQueries.current.lastIndexOf(confirmedParams);
+
     if (pendingIndex !== -1) {
-      pendingSearches.current = pendingSearches.current.slice(pendingIndex + 1);
+      pendingQueries.current.splice(pendingIndex, 1);
+
+      const latestQuery = latestRequestedQuery.current;
+      const latestParams = toApplicationsParams(latestQuery).toString();
+
+      // Si llegó una actualización anterior después de la más reciente,
+      // vuelve a aplicar el estado solicitado por la persona.
+      if (confirmedParams !== latestParams) {
+        updateQuery(latestQuery);
+      }
+
       return;
     }
-    // Cambio externo (navegación o enlace): el campo sigue a la URL.
-    pendingSearches.current = [];
+
+    // Navegación externa, recarga o botón Atrás: la interfaz sigue a la URL.
+    pendingQueries.current = [];
+    latestRequestedQuery.current = query;
     setSearchInput(query.search);
-  }, [query.search]);
+  }, [query, updateQuery]);
 
   useEffect(() => {
     if (query.search === searchInput.trim()) return;
