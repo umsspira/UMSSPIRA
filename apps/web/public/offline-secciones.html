@@ -71,6 +71,40 @@
       border-radius: 8px;
       cursor: pointer;
     }
+
+
+    .evento-card {
+      padding: 16px;
+      margin-top: 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .evento-card h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .evento-card p {
+      margin: 7px 0;
+      line-height: 1.5;
+    }
+
+    .actualizacion {
+      margin-top: 18px;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .estado-vacio {
+      padding: 16px;
+      border-radius: 8px;
+      background: #fff3df;
+    }
+
+
+
   </style>
 </head>
 <body>
@@ -102,41 +136,224 @@
     </button>
   </main>
 
-  <script>
-    const secciones = {
-      '/portal': {
-        titulo: 'Inicio',
-        descripcion: 'Bienvenido a UMSSPIRA. Puedes navegar por las secciones disponibles sin conexión.'
-      },
-      '/portal/eventos': {
-        titulo: 'Eventos',
-        descripcion: 'Estás en la sección de eventos. Los eventos guardados estarán disponibles cuando implementemos su caché.'
-      },
-      '/portal/empleos': {
-        titulo: 'Bolsa de trabajo',
-        descripcion: 'Estás en la sección de empleos. Las ofertas que requieren conexión no están disponibles.'
-      },
-      '/portal/beneficios': {
-        titulo: 'Beneficios',
-        descripcion: 'Beneficios (próximamente).'
-      },
-      '/portal/comunidad': {
-        titulo: 'Comunidad',
-        descripcion: 'Estás en la sección de comunidad. Las funciones interactivas requieren conexión.'
+
+    <script>
+      const secciones = {
+        '/portal': {
+          titulo: 'Inicio',
+          descripcion: 'Bienvenido a UMSSPIRA. Puedes navegar por las secciones disponibles sin conexión.'
+        },
+        '/portal/eventos': {
+          titulo: 'Eventos',
+          descripcion: 'Consulta los eventos guardados mientras tenías conexión.'
+        },
+        '/portal/empleos': {
+          titulo: 'Bolsa de trabajo',
+          descripcion: 'Estás en la sección de empleos. Las ofertas que requieren conexión no están disponibles.'
+        },
+        '/portal/beneficios': {
+          titulo: 'Beneficios',
+          descripcion: 'Beneficios (próximamente).'
+        },
+        '/portal/comunidad': {
+          titulo: 'Comunidad',
+          descripcion: 'Estás en la sección de comunidad. Las funciones interactivas requieren conexión.'
+        }
+      };
+
+      const DB_NAME = 'umsspira-hu04';
+      const STORE_NAME = 'public-events';
+
+      function abrirBaseDatos() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, 1);
+
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
       }
-    };
 
-    const ruta = location.pathname.replace(/\/$/, '') || '/';
-    const seccion = secciones[ruta] || secciones['/portal'];
+      async function obtenerEventosGuardados() {
+        const db = await abrirBaseDatos();
 
-    document.getElementById('titulo').textContent = seccion.titulo;
-    document.getElementById('descripcion').textContent = seccion.descripcion;
+        try {
+          return await new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const request = transaction.objectStore(STORE_NAME).get('catalog');
 
-    document.querySelectorAll('nav a').forEach((enlace) => {
-      if (enlace.getAttribute('href') === ruta) {
-        enlace.setAttribute('aria-current', 'page');
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+          });
+        } finally {
+          db.close();
+        }
       }
-    });
-  </script>
+
+      function formatearFecha(valor) {
+        if (!valor) return 'No especificada';
+
+        const fecha = new Date(valor);
+
+        if (Number.isNaN(fecha.getTime())) {
+          return String(valor);
+        }
+
+        return fecha.toLocaleString('es-BO', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        });
+      }
+
+      function obtenerCampo(evento, nombres) {
+        for (const nombre of nombres) {
+          if (evento[nombre] !== undefined && evento[nombre] !== null) {
+            return evento[nombre];
+          }
+        }
+
+        return null;
+      }
+
+      async function mostrarEventos(contenedor) {
+        const mensaje = document.createElement('p');
+        mensaje.textContent = 'Cargando eventos guardados...';
+        contenedor.appendChild(mensaje);
+
+        try {
+          const cache = await obtenerEventosGuardados();
+
+          mensaje.remove();
+
+          if (!cache || !Array.isArray(cache.events) || cache.events.length === 0) {
+            const vacio = document.createElement('p');
+            vacio.className = 'estado-vacio';
+            vacio.textContent = 'No hay eventos guardados para consultar sin conexión.';
+            contenedor.appendChild(vacio);
+            return;
+          }
+
+          for (const evento of cache.events) {
+            const tarjeta = document.createElement('article');
+            tarjeta.className = 'evento-card';
+
+            const titulo = document.createElement('h3');
+            titulo.textContent =
+              obtenerCampo(evento, ['title', 'name', 'titulo']) || 'Evento sin título';
+
+            tarjeta.appendChild(titulo);
+
+            const inicio = obtenerCampo(evento, [
+              'startDate',
+              'startAt',
+              'startsAt',
+              'startDateTime',
+              'date'
+            ]);
+
+            const fin = obtenerCampo(evento, [
+              'endDate',
+              'endAt',
+              'endsAt',
+              'endDateTime'
+            ]);
+
+            const ubicacion = obtenerCampo(evento, [
+              'location',
+              'venue',
+              'place',
+              'ubicacion'
+            ]);
+
+            const datos = [
+              ['Inicio', formatearFecha(inicio)],
+              ['Fin', formatearFecha(fin)],
+              ['Ubicación', typeof ubicacion === 'string' ? ubicacion : 'No especificada']
+            ];
+
+            for (const [etiqueta, valor] of datos) {
+              const linea = document.createElement('p');
+
+              const fuerte = document.createElement('strong');
+              fuerte.textContent = etiqueta + ': ';
+
+              linea.appendChild(fuerte);
+              linea.appendChild(document.createTextNode(valor));
+
+              tarjeta.appendChild(linea);
+            }
+
+            contenedor.appendChild(tarjeta);
+          }
+
+          const actualizacion = document.createElement('p');
+          actualizacion.className = 'actualizacion';
+          actualizacion.textContent =
+            'Última actualización: ' + formatearFecha(cache.updatedAt);
+
+          contenedor.appendChild(actualizacion);
+        } catch (error) {
+          mensaje.remove();
+
+          const aviso = document.createElement('p');
+          aviso.className = 'estado-vacio';
+          aviso.textContent = 'No se pudieron recuperar los eventos guardados.';
+
+          contenedor.appendChild(aviso);
+          console.error('Error al leer eventos offline:', error);
+        }
+      }
+
+      function normalizarRuta(ruta) {
+        return ruta.replace(/\/$/, '') || '/';
+      }
+
+      async function mostrarSeccion(ruta) {
+        const seccion = secciones[ruta];
+        if (!seccion) return;
+
+        document.getElementById('titulo').textContent = seccion.titulo;
+
+        const descripcion = document.getElementById('descripcion');
+        descripcion.textContent = seccion.descripcion;
+
+        document.querySelectorAll('nav a').forEach((enlace) => {
+          if (enlace.getAttribute('href') === ruta) {
+            enlace.setAttribute('aria-current', 'page');
+          } else {
+            enlace.removeAttribute('aria-current');
+          }
+        });
+
+        const contenedorAnterior = document.getElementById('eventos-offline');
+        if (contenedorAnterior) contenedorAnterior.remove();
+
+        if (ruta === '/portal/eventos') {
+          const contenedor = document.createElement('div');
+          contenedor.id = 'eventos-offline';
+          descripcion.insertAdjacentElement('afterend', contenedor);
+
+          await mostrarEventos(contenedor);
+        }
+      }
+
+      document.querySelectorAll('nav a').forEach((enlace) => {
+        enlace.addEventListener('click', (event) => {
+          const ruta = enlace.getAttribute('href');
+
+          if (!secciones[ruta]) return;
+
+          event.preventDefault();
+          history.pushState({}, '', ruta);
+          mostrarSeccion(ruta);
+        });
+      });
+
+      window.addEventListener('popstate', () => {
+        mostrarSeccion(normalizarRuta(location.pathname));
+      });
+
+      mostrarSeccion(normalizarRuta(location.pathname));
+    </script>
+
 </body>
 </html>

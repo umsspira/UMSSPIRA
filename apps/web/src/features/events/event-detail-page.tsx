@@ -10,6 +10,9 @@ import { CancelRegistrationAction } from './cancel-registration-action';
 import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
 import { formatPeopleCount } from '@/shared/utils/event-copy';
 import { formatEventDateTime } from '@/shared/utils/event-date-time';
+import { useOnlineStatus } from '@/shared/hooks/use-online-status';
+
+
 
 interface EventDetailPageProps {
   params: { id: string };
@@ -37,6 +40,7 @@ export default function EventDetailPage({
   const [registrationErrorKind, setRegistrationErrorKind] = useState<'duplicate' | 'capacity' | 'unavailable' | 'generic' | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const isOnline = useOnlineStatus();
 
   const loadEvent = useCallback(async () => {
     if (!isValidId) return;
@@ -74,6 +78,13 @@ export default function EventDetailPage({
 
   async function confirmRegistration() {
     if (!event || isRegistering) return;
+
+    if (!navigator.onLine) {
+      setIsConfirmOpen(false);
+      setRegistrationError('Necesitas conexión para esta acción');
+      setRegistrationErrorKind(null);
+      return;
+    }
     setIsRegistering(true);
     setRegistrationError(null);
     setRegistrationErrorKind(null);
@@ -251,16 +262,36 @@ export default function EventDetailPage({
             ) : null}
             {registrationErrorKind === 'capacity' && registrationError ? <p className="hu3-registration-message" role="alert">{registrationError}</p> : null}
             {isTitulado && isAvailable ? (
-              <button type="button" className="hu3-register-button" onClick={() => setIsConfirmOpen(true)}>
-                Inscribirme
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="hu3-register-button"
+                  disabled={!isOnline}
+                  onClick={() => setIsConfirmOpen(true)}
+                >
+                  Inscribirme
+                </button>
+
+                {!isOnline && (
+                  <p className="hu3-registration-message" role="status">
+                    Necesitas conexión para esta acción
+                  </p>
+                )}
+              </>
             ) : isTitulado && isFull ? (
-              <button type="button" className="hu3-register-button" disabled>
+              <button
+                type="button"
+                className="hu3-register-button"
+                disabled
+              >
                 Sin cupos disponibles
               </button>
             ) : isTitulado ? (
-              <p className="hu3-registration-message">Este evento ya no acepta nuevas inscripciones.</p>
+              <p className="hu3-registration-message">
+                Este evento ya no acepta nuevas inscripciones.
+              </p>
             ) : null}
+
           </aside>
         </div>
 
