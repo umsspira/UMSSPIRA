@@ -43,6 +43,7 @@ model Usuario {
   sesiones_acceso       SesionAcceso[]
   administrador_sistema AdministradorSistema?
   auditoria_registros   Auditoria[]
+  asistencias_registradas AsistenciaEvento[] @relation("asistencia_registrada_por")
 
   administrador_de_carrera_registros  AdministradorDeCarrera[]   @relation("administrador_de_carrera_id_usuario_usuario")
   empresa_registros                   Empresa[]                  @relation("empresa_id_usuario_usuario")
@@ -799,8 +800,20 @@ model InscripcionEvento {
   evento  Evento?  @relation("inscripcion_evento_id_evento_evento", fields: [id_evento], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "inscripcion_evento_id_evento_fkey")
   usuario Usuario? @relation("inscripcion_evento_id_usuario_usuario", fields: [id_usuario], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "inscripcion_evento_id_usuario_fkey")
   pase_qr PaseQr?
+  asistencia AsistenciaEvento?
 
   @@map("inscripcion_evento")
+}
+
+model AsistenciaEvento {
+  id_inscripcion      String   @id @db.Uuid
+  id_usuario_registro String   @db.Uuid
+  fecha_asistencia    DateTime @default(now()) @db.Timestamptz(6)
+
+  inscripcion    InscripcionEvento @relation(fields: [id_inscripcion], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  registrado_por Usuario           @relation("asistencia_registrada_por", fields: [id_usuario_registro], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("asistencia_evento")
 }
 
 model DetalleSolicitud {
