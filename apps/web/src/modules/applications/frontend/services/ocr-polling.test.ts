@@ -46,4 +46,23 @@ describe("OCR polling", () => {
     stop();
     done();
   });
+  it("refreshes active results sooner and reduces polling after completion", async () => {
+    const controller = new AbortController();
+    let pending = true;
+    const load = jest.fn().mockResolvedValue(undefined);
+    const stop = pollOcr(load, controller.signal, () =>
+      pending ? 3000 : 30000,
+    );
+    await jest.advanceTimersByTimeAsync(0);
+    expect(load).toHaveBeenCalledTimes(1);
+    pending = false;
+    await jest.advanceTimersByTimeAsync(3000);
+    expect(load).toHaveBeenCalledTimes(2);
+    await jest.advanceTimersByTimeAsync(29999);
+    expect(load).toHaveBeenCalledTimes(2);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(load).toHaveBeenCalledTimes(3);
+    controller.abort();
+    stop();
+  });
 });

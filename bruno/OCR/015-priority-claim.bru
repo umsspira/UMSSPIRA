@@ -1,0 +1,41 @@
+meta {
+  name: Priorizar solicitud abierta
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/claim
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  { "applicationIds": ["{{applicationId}}"] }
+}
+
+tests {
+  test("HTTP 201", function () { expect(res.getStatus()).to.equal(201); });
+  test("Reserva o cola vacia", function () {
+    const job = res.getBody().data;
+    if (job !== null) {
+      expect(job).to.have.property("id");
+      expect(job).to.have.property("applicationId");
+      bru.setVar("ocrJobId", job.id);
+      bru.setVar("ocrToken", job.token);
+      bru.setVar("ocrApplicationId", job.applicationId);
+    }
+  });
+}
+
+docs {
+  applicationId debe corresponder a una solicitud ficticia pendiente de una carrera autorizada. Se prioriza si esta disponible; una reserva vigente o un resultado terminado no se duplican y se permite tomar otro trabajo pendiente. Liberar la reserva con 007-fail al terminar la prueba.
+}
