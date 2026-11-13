@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Download, Loader2, X } from 'lucide-react';
 
 import { enlaceDeDescarga, obtenerEnlaceRespaldo } from '@/modules/profile/services/perfil-api';
+import { BackupZoom } from './backup-zoom';
 
 type BackupViewerModalProps = {
   certificationId: string;
@@ -104,14 +105,17 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
             </p>
           )}
           {imageUrl && !hasError && (
-            // eslint-disable-next-line @next/next/no-img-element -- el enlace firmado vence, no se optimiza con next/image
-            <img
-              src={imageUrl}
-              alt={`Respaldo de ${certificationName}`}
-              onLoad={() => setIsImageLoaded(true)}
-              onError={() => setHasError(true)}
-              className={`max-h-[60dvh] w-full rounded-lg object-contain sm:max-h-[70vh] ${isImageLoaded ? '' : 'hidden'}`}
-            />
+            // HU-21, T21.7: zoom «+» y «−» sobre el respaldo ya cargado
+            <BackupZoom isReady={isImageLoaded}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- el enlace firmado vence, no se optimiza con next/image */}
+              <img
+                src={imageUrl}
+                alt={`Respaldo de ${certificationName}`}
+                onLoad={() => setIsImageLoaded(true)}
+                onError={() => setHasError(true)}
+                className={`max-h-[60dvh] w-full rounded-lg object-contain sm:max-h-[70vh] ${isImageLoaded ? '' : 'hidden'}`}
+              />
+            </BackupZoom>
           )}
         </div>
 
