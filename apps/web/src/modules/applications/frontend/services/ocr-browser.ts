@@ -25,13 +25,7 @@ export async function readOcrDocument(
   progress: (message: string) => void,
 ): Promise<OcrReading> {
   return withOcrDeadline(
-    async (bounded) => {
-      try {
-        return await readDocument(blob, bounded, progress);
-      } finally {
-        if (bounded.aborted) disposeOcrEngine();
-      }
-    },
+    (bounded) => readDocument(blob, bounded, progress),
     signal,
     120000,
   );
@@ -95,6 +89,10 @@ async function readDocument(
         wasmPaths: new URL("/ocr/runtime/", location.origin).href,
       },
       textRecognitionBatchSize: 4,
+    }).catch((error: unknown) => {
+      signal.removeEventListener("abort", terminate);
+      terminate();
+      throw error;
     }));
   if (signal.aborted) {
     terminate();
