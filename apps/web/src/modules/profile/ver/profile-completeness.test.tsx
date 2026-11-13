@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
 
-import { PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
+import { PROFILE_PROJECTS_MOCK, PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
 import { profileCompleteness } from '@/modules/profile/utils/profile-completeness';
 
 import ProfileCompleteness from './profile-completeness';
@@ -11,14 +11,15 @@ describe('ProfileCompleteness (T6.5)', () => {
     const records = { ...PROFILE_RECORDS_MOCK, certification: [] };
     render(<ProfileCompleteness completeness={profileCompleteness(records, '')} />);
 
-    expect(screen.getByText('50%')).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Completitud del perfil' })).toHaveAttribute('aria-valuenow', '50');
+    // 2 de 5 secciones (HU-19, T19.6)
+    expect(screen.getByText('40%')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Completitud del perfil' })).toHaveAttribute('aria-valuenow', '40');
     const faltantes = within(screen.getByRole('list', { name: 'Secciones faltantes' })).getAllByRole('listitem');
-    expect(faltantes.map((item) => item.textContent)).toEqual(['Certificaciones', 'Descripción']);
+    expect(faltantes.map((item) => item.textContent)).toEqual(['Certificaciones', 'Descripción', 'Proyectos']);
   });
 
   it('avisa cuando el perfil está completo', () => {
-    render(<ProfileCompleteness completeness={profileCompleteness(PROFILE_RECORDS_MOCK, 'Analista')} />);
+    render(<ProfileCompleteness completeness={profileCompleteness(PROFILE_RECORDS_MOCK, 'Analista', PROFILE_PROJECTS_MOCK)} />);
 
     expect(screen.getByText('100%')).toBeInTheDocument();
     expect(screen.getByText('Tu perfil está completo')).toBeInTheDocument();
@@ -38,6 +39,10 @@ describe('Accesos directos a las secciones faltantes (T6.6)', () => {
     expect(screen.getByRole('link', { name: 'Completar Descripción' })).toHaveAttribute(
       'href',
       '/profile/completar?seccion=descripcion-profesional&returnTo=%2Fprofile',
+    );
+    expect(screen.getByRole('link', { name: 'Completar Proyectos' })).toHaveAttribute(
+      'href',
+      '/profile/completar?seccion=proyectos-portafolio&returnTo=%2Fprofile',
     );
     expect(screen.queryByRole('link', { name: 'Completar Formación' })).not.toBeInTheDocument();
   });

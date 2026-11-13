@@ -132,8 +132,8 @@ export function AcordeonPerfil({
     [records.certification],
   );
  
-  // Mismo cálculo que el indicador del resumen: las 3 secciones de registros y la descripción
-  const secciones = profileCompleteness(records, description).sections;
+  // Mismo cálculo que el indicador del resumen: las 3 secciones de registros, la descripción y los proyectos
+  const secciones = profileCompleteness(records, description, projects).sections;
   const completas = secciones.filter((seccion) => seccion.complete).length;
  
   // Los formularios se habilitan solo con el perfil ya cargado: si se guardara antes, la respuesta
@@ -336,6 +336,7 @@ export function AcordeonPerfil({
       </SeccionAcordeon>
       <SeccionAcordeon
         numero={5}
+        abiertaInicial={seccionInicial === 'proyectos-portafolio'}
         titulo="Proyectos y portafolio"
         descripcion="Proyectos o trabajos que quieras mostrar"
         cantidad={projects.length}

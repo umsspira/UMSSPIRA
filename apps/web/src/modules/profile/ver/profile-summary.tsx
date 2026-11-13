@@ -21,7 +21,7 @@ export default function ProfileSummary() {
   const { header, records, description, projects, isLoading, loadError, retryLoad } = useProfileStore();
   const router = useRouter();
   // HU-12: solo se redirige cuando la carga terminó bien; con error se queda para mostrar «Reintentar»
-  const shouldComplete = !isLoading && !loadError && isProfileEmpty(records, description);
+  const shouldComplete = !isLoading && !loadError && isProfileEmpty(records, description, projects);
 
   useEffect(() => {
     if (shouldComplete) {
@@ -35,7 +35,7 @@ export default function ProfileSummary() {
     .flatMap((section) => section.items)
     .filter((item) => item.status === 'verified').length;
   const experiences = records.experience.length;
-  const completeness = profileCompleteness(records, description);
+  const completeness = profileCompleteness(records, description, projects);
   // Carrera y promoción solo si la API las tiene registradas
   const careerLine = [header?.career, header?.graduationYear ? `Promoción ${header.graduationYear}` : '']
     .filter(Boolean)
