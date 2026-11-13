@@ -1,4 +1,4 @@
-﻿import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { resolve } from 'node:path';
 import { validateEnvironment } from './config/environment';
@@ -18,6 +18,11 @@ import { RadarModule } from './modules/radar/radar.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { SurveysModule } from './modules/surveys/surveys.module';
 import { VacantesModule } from './modules/vacantes/vacantes.module';
+import { SupabaseModule } from './config/supabase.module';
+import { FormacionAcademicaModule } from './modules/formacion-academica/formacion-academica.module';
+import { ExperienciaLaboralModule } from './modules/experiencia-laboral/experiencia-laboral.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -27,6 +32,7 @@ import { VacantesModule } from './modules/vacantes/vacantes.module';
       validate: validateEnvironment,
     }),
     PrismaModule,
+    SupabaseModule,
     AuthModule,
     CompaniesModule,
     JobPostingsModule,
@@ -40,7 +46,10 @@ import { VacantesModule } from './modules/vacantes/vacantes.module';
     ChatModule,
     SurveysModule,
     VacantesModule,
+    FormacionAcademicaModule,
+    ExperienciaLaboralModule,
   ],
-  controllers: [RootController, HealthController],
+  controllers: [RootController, HealthController, AppController],
+  providers: [AppService],
 })
 export class AppModule {}
