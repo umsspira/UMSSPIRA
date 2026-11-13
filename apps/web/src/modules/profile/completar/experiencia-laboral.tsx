@@ -18,6 +18,10 @@ type FormularioExperienciaProps = {
   onAgregar: (experiencia: Experiencia) => void | Promise<void>;
   // Avisa cuántos errores hay a la vista, para el contador del encabezado de la sección (HU-02, AC 6)
   onErroresChange?: (errores: number) => void;
+  // Texto del botón de enviar; en Agregar registros es «Guardar en borrador» (HU-13)
+  textoBoton?: string;
+  // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
+  valoresIniciales?: Experiencia;
 };
 
 type Datos = {
@@ -41,9 +45,18 @@ function mostrarFecha(fecha: string) {
   return `${mes}/${anio}`;
 }
 
-export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange }: FormularioExperienciaProps) {
-  const [datos, setDatos] = useState<Datos>(VACIO);
-  const [trabajoActual, setTrabajoActual] = useState(false);
+export function FormularioExperiencia({
+  experiencias,
+  onAgregar,
+  onErroresChange,
+  textoBoton = 'Agregar experiencia',
+  valoresIniciales,
+}: FormularioExperienciaProps) {
+  const [datos, setDatos] = useState<Datos>(
+    valoresIniciales ? { ...valoresIniciales, fechaFin: valoresIniciales.fechaFin ?? '' } : VACIO,
+  );
+  // Sin fecha fin = trabajo actual
+  const [trabajoActual, setTrabajoActual] = useState(Boolean(valoresIniciales && !valoresIniciales.fechaFin));
   // Error de la fecha fin (anterior a la fecha inicio); una vez mostrado se recalcula mientras se corrige
   const [errorFechaFin, setErrorFechaFin] = useState<string>();
   // Mensaje del backend al guardar, tal como lo envía; se quita al cambiar cualquier campo
@@ -164,7 +177,7 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
             disabled={!completo || guardando}
             className="h-11 rounded-lg bg-[#FFB162] px-6 text-sm font-semibold text-[#1B2632] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Agregar experiencia
+            {textoBoton}
           </button>
         </div>
       </form>
