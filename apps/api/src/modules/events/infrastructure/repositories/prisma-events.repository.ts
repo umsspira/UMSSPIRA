@@ -371,6 +371,7 @@ export class PrismaEventsRepository implements EventsRepository {
       include: {
         usuario: { select: { nombre: true } },
         pase_qr: { select: { estado: true } },
+        asistencia: { select: { fecha_asistencia: true } },
       },
       orderBy: [{ fecha_inscripcion: 'asc' }, { id: 'asc' }],
     });
@@ -380,6 +381,7 @@ export class PrismaEventsRepository implements EventsRepository {
       status: row.estado === 'CANCELADA' ? ('CANCELADA' as const) : ('CONFIRMADA' as const),
       registeredAt: row.fecha_inscripcion ?? new Date(),
       passStatus: this.passStatus(row.pase_qr?.estado),
+      attendedAt: row.asistencia?.fecha_asistencia ?? null,
     }));
     const confirmed = participants.filter((item) => item.status === 'CONFIRMADA').length;
     return {

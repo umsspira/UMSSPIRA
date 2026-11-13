@@ -172,6 +172,7 @@ export default function EventParticipantsPage() {
                   <th scope="col">Fecha de inscripción</th>
                   <th scope="col">Estado</th>
                   <th scope="col">Pase QR</th>
+                  <th scope="col">Asistencia</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,6 +193,17 @@ export default function EventParticipantsPage() {
                         : undefined
                     }>
                       {PASS_LABELS[participant.passStatus]}
+                    </td>
+                    <td>
+                      {participant.attendedAt ? (
+                        <>
+                          <span>Registrada</span>
+                          <br />
+                          <time dateTime={participant.attendedAt}>
+                            {formatEventDateTime(participant.attendedAt)}
+                          </time>
+                        </>
+                      ) : participant.status === 'CANCELADA' ? 'Sin asistencia' : 'Pendiente'}
                     </td>
                   </tr>
                 ))}

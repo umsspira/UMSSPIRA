@@ -4,6 +4,8 @@ import type { PrismaService } from '../src/shared/infrastructure/database/prisma
 import type { ActorContext } from '../src/shared/security/contexts/actor-context';
 import { ValidateAttendancePassService } from '../src/modules/events/application/validate-attendance-pass.service';
 import { EventPassRules } from '../src/modules/events/domain/event-pass.rules';
+import { PrismaEventsRepository } from '../src/modules/events/infrastructure/repositories/prisma-events.repository';
+import { presentEventParticipants } from '../src/modules/events/http/presenters/event-participants.presenter';
 
 const connectionString = process.env.HU14_TEST_DATABASE_URL;
 if (!connectionString)
@@ -11,6 +13,7 @@ if (!connectionString)
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString, max: 8 }) });
 const service = new ValidateAttendancePassService(prisma as unknown as PrismaService);
+const repository = new PrismaEventsRepository(prisma as unknown as PrismaService);
 
 describe('T16: persistencia transaccional de asistencia en PostgreSQL', () => {
   jest.setTimeout(30000);
@@ -122,6 +125,37 @@ describe('T16: persistencia transaccional de asistencia en PostgreSQL', () => {
     expect(await prisma.evento.findUniqueOrThrow({ where: { id: fixture.eventId } })).toMatchObject(
       { cupo_maximo: 10 },
     );
+  });
+
+  it('expone la asistencia en participantes conservando el cálculo de ocupación', async () => {
+    const before = await repository.participants(actor.id, fixture.eventId);
+    expect(before.participants[0].attendedAt).toBeNull();
+    const attendance = await service.execute(actor, fixture.eventId, fixture.token);
+    const after = presentEventParticipants(
+      await repository.participants(actor.id, fixture.eventId),
+    );
+    expect(after.occupation).toEqual(before.occupation);
+    expect(after.participants[0]).toMatchObject({
+      registrationId: fixture.registrationId,
+      status: 'CONFIRMADA',
+      attendedAt: attendance.attendedAt,
+    });
+    await expect(
+      repository.participants(fixture.graduateId, fixture.eventId),
+    ).rejects.toMatchObject({
+      code: 'EVENT_NOT_FOUND',
+    });
+    await prisma.inscripcionEvento.update({
+      where: { id: fixture.registrationId },
+      data: { estado: 'CANCELADA' },
+    });
+    const cancelled = presentEventParticipants(
+      await repository.participants(actor.id, fixture.eventId),
+    );
+    expect(cancelled.participants[0]).toMatchObject({
+      status: 'CANCELADA',
+      attendedAt: attendance.attendedAt,
+    });
   });
 
   it.each(['inscripcion', 'evento', 'pase', 'vencimiento'])(
