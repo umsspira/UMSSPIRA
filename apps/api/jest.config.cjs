@@ -12,6 +12,6 @@ module.exports = {
   coverageReporters: ['text-summary'],
   // T1.8: mínimo de 80 % solo para el módulo de encuestas.
   coverageThreshold: {
-    './src/modules/surveys/': { statements: 99, branches: 99, functions: 99, lines: 99 },
+    './src/modules/surveys/': { statements: 80, branches: 80, functions: 80, lines: 80 },
   },
 };
