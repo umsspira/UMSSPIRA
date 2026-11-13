@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import type { EventItem } from '@umsspira/shared-types';
 import { useAuthenticatedUserId } from '@/modules/auth/frontend/components/authenticated-user-context';
 import { getAdminEvent } from '@/shared/services/events-service';
+import { EventScannerCamera } from '@/features/events/event-scanner-camera';
 
 export default function EventScannerPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,10 +43,7 @@ export default function EventScannerPage() {
         <p role="status">Cargando evento…</p>
       ) : (
         <div className="event-scanner-layout">
-          <section className="event-scanner-preview" aria-label="Vista previa del lector QR">
-            <div className="event-scanner-frame" aria-hidden="true" />
-            <p>Vista previa de la cámara</p>
-          </section>
+          <EventScannerCamera key={id} />
           <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions">
             <h2 id="scanner-instructions">Cómo escanear</h2>
             <ol>
