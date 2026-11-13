@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { requestPasswordRecovery } from "../services/password-recovery.service";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,6 +44,19 @@ export function ForgotPasswordForm() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
 
+  // --- NUEVOS ESTADOS PARA EL BUG-18 ---
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  // Efecto para el temporizador
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
   function validateEmail(): string | null {
     const value = email.trim();
     if (!value) return "Ingresa tu correo electrónico";
@@ -62,9 +75,30 @@ export function ForgotPasswordForm() {
     try {
       await requestPasswordRecovery(email.trim());
       setStatus("sent");
+      setResendSuccess(false);
+      setCountdown(30); // Inicia el temporizador de 30s al enviar por primera vez
     } catch {
       setRequestError(REQUEST_ERROR_MESSAGE);
       setStatus("idle");
+    }
+  }
+
+  // --- NUEVA FUNCIÓN PARA REENVIAR (BUG-18) ---
+  async function handleResend() {
+    if (countdown > 0 || isResending) return;
+    
+    setIsResending(true);
+    setRequestError(null);
+    try {
+      await requestPasswordRecovery(email.trim());
+      setResendSuccess(true);
+      setCountdown(30); // Reinicia el temporizador
+      // Ocultar mensaje de éxito después de 5 segundos
+      setTimeout(() => setResendSuccess(false), 5000);
+    } catch {
+      setRequestError(REQUEST_ERROR_MESSAGE);
+    } finally {
+      setIsResending(false);
     }
   }
 
@@ -72,18 +106,48 @@ export function ForgotPasswordForm() {
     return (
       <div className="space-y-5">
         <p
-           role="status"
-           className="rounded-lg border border-oatmeal border-l-4 border-l-burning-flame bg-palladian px-3 py-3 text-sm text-abyssal-blue"
+          role="status"
+          className="rounded-lg border border-oatmeal border-l-4 border-l-burning-flame bg-palladian px-3 py-3 text-sm text-abyssal-blue"
         >
-           {SENT_MESSAGE}
+          {SENT_MESSAGE}
         </p>
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-          <button type="button" onClick={() => setStatus("idle")} className={linkClass}>
-            Usar otro correo
+
+        {/* --- MENSAJES DE REENVÍO (BUG-18) --- */}
+        {resendSuccess && (
+          <p role="status" className="text-center text-sm font-bold text-green-700">
+            ¡Enlace reenviado con éxito!
+          </p>
+        )}
+        
+        {requestError && (
+          <p role="alert" className="rounded-lg bg-truffle-trouble/10 px-3 py-2 text-sm text-truffle-trouble">
+            {requestError}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-4 border-t border-oatmeal pt-4">
+          {/* Botón de reenviar con temporizador */}
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={countdown > 0 || isResending}
+            className="w-full rounded-lg border-2 border-burning-flame px-4 py-2.5 text-sm font-bold text-burning-flame transition hover:bg-burning-flame hover:text-abyssal-blue disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-burning-flame"
+          >
+            {isResending
+              ? "Reenviando..."
+              : countdown > 0
+              ? `Reenviar enlace en ${countdown}s`
+              : "Reenviar enlace"}
           </button>
-          <Link href="/login" className={linkClass}>
-            Volver a iniciar sesión
-          </Link>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+            <button type="button" onClick={() => setStatus("idle")} className={linkClass}>
+              Usar otro correo
+            </button>
+            <Link href="/login" className={linkClass}>
+              Volver a iniciar sesión
+            </Link>
+          </div>
         </div>
       </div>
     );
