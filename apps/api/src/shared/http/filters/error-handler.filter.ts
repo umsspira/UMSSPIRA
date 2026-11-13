@@ -11,13 +11,13 @@ import { HttpError } from '../errors/http-error';
 import { AccessError } from '../../security/errors/access-error';
 
 const HTTP_ERRORS: Record<number, { code: string; message: string }> = {
-  400: { code: 'BAD_REQUEST', message: 'La solicitud no es vÃ¡lida' },
-  401: { code: 'UNAUTHORIZED', message: 'Debes iniciar sesiÃ³n para continuar' },
-  403: { code: 'FORBIDDEN', message: 'No tienes permiso para realizar esta operaciÃ³n' },
-  404: { code: 'NOT_FOUND', message: 'No se encontrÃ³ el recurso solicitado' },
-  405: { code: 'METHOD_NOT_ALLOWED', message: 'El mÃ©todo HTTP no estÃ¡ permitido' },
-  409: { code: 'CONFLICT', message: 'La operaciÃ³n entra en conflicto con el estado actual' },
-  413: { code: 'PAYLOAD_TOO_LARGE', message: 'El contenido supera el tamaÃ±o permitido' },
+  400: { code: 'BAD_REQUEST', message: 'La solicitud no es válida' },
+  401: { code: 'UNAUTHORIZED', message: 'Debes iniciar sesión para continuar' },
+  403: { code: 'FORBIDDEN', message: 'No tienes permiso para realizar esta operación' },
+  404: { code: 'NOT_FOUND', message: 'No se encontró el recurso solicitado' },
+  405: { code: 'METHOD_NOT_ALLOWED', message: 'El método HTTP no está permitido' },
+  409: { code: 'CONFLICT', message: 'La operación entra en conflicto con el estado actual' },
+  413: { code: 'PAYLOAD_TOO_LARGE', message: 'El contenido supera el tamaño permitido' },
   429: { code: 'TOO_MANY_REQUESTS', message: 'Se han enviado demasiadas solicitudes' },
 };
 
@@ -97,16 +97,14 @@ export class ErrorHandlerFilter implements ExceptionFilter {
       response.status(status).json({ error: detail });
       return;
     }
-    
-    // Un error de aplicaciÃ³n sin traducciÃ³n explÃ­cita es un fallo de configuraciÃ³n.
-    // Se registra su tipo, sin volcar consultas, credenciales ni datos de la peticiÃ³n.
+
+    // Un error de aplicación sin traducción explícita es un fallo de configuración.
+    // Se registra su tipo, sin volcar consultas, credenciales ni datos de la petición.
     const name = error instanceof Error ? error.name : 'ErrorDesconocido';
     const code = error instanceof AppError ? ` (${error.code})` : '';
-    
-    // ESTA ES LA LINEA NUEVA PARA VER EL ERROR REAL EN CONSOLA
     this.logger.error(`Error inesperado: ${name}${code}`);
     response
       .status(500)
-      .json({ error: { code: 'INTERNAL_ERROR', message: 'OcurriÃ³ un error inesperado' } });
+      .json({ error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado' } });
   }
 }

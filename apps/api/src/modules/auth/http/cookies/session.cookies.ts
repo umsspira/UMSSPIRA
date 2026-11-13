@@ -41,7 +41,10 @@ export class SessionCookies {
     }
   }
 
-    private get secure(): boolean {
-    return false; // En local siempre false para que el navegador acepte las cookies
+  private get secure(): boolean {
+    return (
+      this.config.get('AUTH_COOKIE_SECURE', { infer: true }) ??
+      this.config.get('NODE_ENV', { infer: true }) === 'production'
+    );
   }
 }

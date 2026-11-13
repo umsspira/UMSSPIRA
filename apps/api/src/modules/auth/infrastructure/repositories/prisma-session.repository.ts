@@ -40,7 +40,7 @@ export class PrismaSessionRepository implements SessionRepository {
         },
       });
       return true;
-    }, { maxWait: 15000, timeout: 20000 }); // <-- TIEMPO AGREGADO AQUI
+    });
   }
 
   async find(id: string): Promise<AuthSession | null> {
@@ -102,7 +102,7 @@ export class PrismaSessionRepository implements SessionRepository {
       await tx.renovacionAcceso.create({ data: { hash: newHash, id_sesion: sessionId } });
       await tx.sesionAcceso.update({ where: { id: sessionId }, data: { renovada_en: now } });
       return 'rotated';
-    }, { maxWait: 15000, timeout: 20000 }); // <-- TIEMPO AGREGADO AQUI TAMBIEN
+    });
   }
 
   async revoke(id: string, userId: string, now: Date, reason: string): Promise<boolean> {
