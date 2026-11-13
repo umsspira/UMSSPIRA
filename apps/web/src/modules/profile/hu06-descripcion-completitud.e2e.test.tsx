@@ -83,7 +83,8 @@ describe('HU-06 de punta a punta: descripción profesional y completitud (T6.7)'
       'href',
       '/profile/completar?seccion=descripcion-profesional&returnTo=%2Fprofile',
     );
-    expect(screen.getByText('3 de 4 secciones completas')).toBeInTheDocument();
+    // El texto de Completar perfil es un span; el resumen repite el conteo en su tarjeta (T21.5)
+    expect(screen.getByText('3 de 4 secciones completas', { selector: 'span' })).toBeInTheDocument();
 
     // 2) La sección del acceso directo llega abierta; se escribe y se guarda
     const cuadro = screen.getByRole('textbox', { name: 'Descripción profesional' });
@@ -101,7 +102,8 @@ describe('HU-06 de punta a punta: descripción profesional y completitud (T6.7)'
     expect(screen.getByText('Ingeniero de sistemas con foco en datos', { selector: 'p' })).toBeInTheDocument();
     expect(within(indicador()).getByText('100%')).toBeInTheDocument();
     expect(within(indicador()).getByText('Tu perfil está completo')).toBeInTheDocument();
-    expect(screen.getByText('4 de 4 secciones completas')).toBeInTheDocument();
+    expect(screen.getByText('4 de 4 secciones completas', { selector: 'span' })).toBeInTheDocument();
+    expect(within(indicador()).getByText('4 de 4 secciones completas')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', '/profile');
   });
 

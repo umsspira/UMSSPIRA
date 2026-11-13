@@ -176,7 +176,7 @@ describe('Completar perfil · Cancelar, editar y eliminar certificaciones (bugs 
     clearPendingProfileChanges();
   });
 
-  it('Cancelar sin guardar no envía nada a la API y vuelve a Afinidad', () => {
+  it('Cancelar sin guardar no envía nada a la API, limpia, cierra la sección y sigue en la página (HU-21, CA-06)', () => {
     abrirCertificaciones('/afinidad');
     fireEvent.change(screen.getByLabelText('Nombre de certificación'), { target: { value: 'Borrador' } });
 
@@ -184,13 +184,9 @@ describe('Completar perfil · Cancelar, editar y eliminar certificaciones (bugs 
 
     expect(crearCertificacion).not.toHaveBeenCalled();
     expect(subirRespaldo).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('/afinidad');
-  });
-
-  it('Cancelar sin returnTo vuelve al resumen del perfil', () => {
-    abrirCertificaciones();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(push).toHaveBeenCalledWith('/profile');
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /certificaciones/i, expanded: false })).toBeInTheDocument();
+    expect(screen.getByLabelText('Nombre de certificación')).toHaveValue('');
   });
 
   it('si ya se creó y falló la foto, Cancelar no la borra y la muestra como registrada', async () => {
@@ -204,7 +200,7 @@ describe('Completar perfil · Cancelar, editar y eliminar certificaciones (bugs 
 
     expect(eliminar).not.toHaveBeenCalled();
     expect(screen.getByText('Certificaciones registradas')).toBeInTheDocument();
-    expect(push).toHaveBeenCalledWith('/afinidad');
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('editar abre la edición con regreso a esta sección y a Afinidad', () => {

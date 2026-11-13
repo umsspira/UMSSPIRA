@@ -33,6 +33,8 @@ type FormacionAcademicaFormProps = {
   valoresIniciales?: FormacionAcademica;
   // Avisa lo que hay escrito en cada cambio, para subirlo como borrador incompleto (HU-14)
   onDatosChange?: (datos: FormacionAcademica) => void;
+  // «Cancelar»: limpia el formulario y avisa para cerrar la sección (HU-21, CA-06)
+  onCancelar?: () => void;
 };
 
 const VACIO: FormacionAcademica = { institucion: '', titulo: '', anioEgreso: '', grado: '' };
@@ -52,6 +54,7 @@ export function FormacionAcademicaForm({
   mostrarRegistradas = true,
   valoresIniciales,
   onDatosChange,
+  onCancelar,
 }: FormacionAcademicaFormProps) {
   const [datos, setDatos] = useState<FormacionAcademica>(valoresIniciales ?? VACIO);
   useEffect(() => onDatosChange?.(datos), [datos, onDatosChange]);
@@ -65,6 +68,14 @@ export function FormacionAcademicaForm({
   const cantidadErrores = [errorAnio, errorDuplicada, errorGuardar].filter(Boolean).length;
   useEffect(() => onErroresChange?.(cantidadErrores), [cantidadErrores, onErroresChange]);
   const [guardando, setGuardando] = useState(false);
+
+  function cancelar() {
+    setDatos(VACIO);
+    setErrorAnio(undefined);
+    setErrorDuplicada(undefined);
+    setErrorGuardar(undefined);
+    onCancelar?.();
+  }
 
   function cambiar(campo: keyof FormacionAcademica, valor: string) {
     setDatos({ ...datos, [campo]: valor });
@@ -208,6 +219,11 @@ export function FormacionAcademicaForm({
           <Plus className="h-4 w-4" />
           {textoBoton}
         </button>
+        {onCancelar && (
+          <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
+            Cancelar
+          </button>
+        )}
       </form>
     </div>
   );

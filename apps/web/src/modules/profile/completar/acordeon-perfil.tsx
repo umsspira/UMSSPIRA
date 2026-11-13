@@ -2,7 +2,7 @@
 'use client';
  
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Briefcase, Check, ShieldCheck } from 'lucide-react';
+import { Briefcase, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { BarraProgreso } from './barra-progreso';
 import { SeccionAcordeon } from './seccion-acordeon';
@@ -182,19 +182,15 @@ export function AcordeonPerfil({
       </header>
  
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Tarjeta informativa (v3: "Tu Base de Datos Egresado") */}
+        {/* Tarjeta informativa (HU-21, CA-08: «Tu base de datos de titulado») */}
         <aside className="flex flex-col gap-4 rounded-2xl border border-abyssal-blue/10 bg-white p-6 lg:w-[300px] lg:shrink-0">
-          <h2 className="text-lg font-bold text-blue-fantastic">Tu Base de Datos Egresado</h2>
+          <h2 className="text-lg font-bold text-blue-fantastic">Tu base de datos de titulado</h2>
           <p className="text-[13px] leading-[1.5] text-blue-fantastic/70">
             La información registrada se consolida en un formato estructurado (JSON base) para fines de
             acreditación universitaria y bolsa de empleo oficial de la UMSS.
           </p>
           <div className="flex flex-col gap-3 border-t border-oatmeal pt-4">
             <h3 className="text-sm font-bold uppercase text-blue-fantastic">¿Por qué es importante?</h3>
-            <p className="flex gap-2 text-[13px] text-blue-fantastic/80">
-              <ShieldCheck className="h-4 w-4 shrink-0 text-truffle-trouble" aria-hidden="true" />
-              Información certificada directamente por el departamento de posgrado.
-            </p>
             <p className="flex gap-2 text-[13px] text-blue-fantastic/80">
               <Briefcase className="h-4 w-4 shrink-0 text-truffle-trouble" aria-hidden="true" />
               Acceso directo a las ofertas laborales de las empresas aliadas a Jalasoft y UMSS.
@@ -212,14 +208,17 @@ export function AcordeonPerfil({
         cantidad={formaciones.length}
         errores={erroresFormacion}
       >
+        {(cerrar) => (
         <FormacionAcademicaForm
           formaciones={formaciones}
           onErroresChange={setErroresFormacion}
+          onCancelar={cerrar}
           onAgregar={async (formacion) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addEducation(await crearFormacion(formacion));
           }}
         />
+        )}
       </SeccionAcordeon>
       <SeccionAcordeon
         numero={2}
@@ -229,14 +228,17 @@ export function AcordeonPerfil({
         cantidad={experiencias.length}
         errores={erroresExperiencia}
       >
+        {(cerrar) => (
         <FormularioExperiencia
           experiencias={experiencias}
           onErroresChange={setErroresExperiencia}
+          onCancelar={cerrar}
           onAgregar={async (experiencia) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addExperience(await crearExperiencia(experiencia));
           }}
         />
+        )}
       </SeccionAcordeon>
       <SeccionAcordeon
         numero={3}
@@ -246,6 +248,7 @@ export function AcordeonPerfil({
         cantidad={certificaciones.length}
         errores={erroresCertificaciones}
       >
+        {(cerrar) => (
         <FormularioCertificaciones
           certificaciones={certificaciones}
           onErroresChange={setErroresCertificaciones}
@@ -256,7 +259,8 @@ export function AcordeonPerfil({
             const creada = pendienteRef.current?.creada;
             if (creada) addCertification(creada);
             pendienteRef.current = null;
-            router.push(returnTo ?? '/profile');
+            // HU-21, CA-06: se limpia, se cierra la sección y se sigue en Completar perfil
+            cerrar();
           }}
           hrefEditar={(id) => {
             // Al terminar de editar se vuelve a esta sección conservando el regreso a Afinidad (returnTo)
@@ -319,6 +323,7 @@ export function AcordeonPerfil({
             });
           }}
         />
+        )}
       </SeccionAcordeon>
       {certificacionAEliminar && (
         <DeleteRecordModal
@@ -338,20 +343,24 @@ export function AcordeonPerfil({
         cantidad={description ? 1 : 0}
         textoCompleto="(Completado)"
       >
+        {(cerrar) => (
         <FormularioDescripcion
           descripcion={description}
+          onCancelar={cerrar}
           onGuardar={async (descripcion) => {
             // El resumen muestra lo que la API guardó; si falla, el estado no cambia
             setDescription(await guardarDescripcion(descripcion));
           }}
         />
+        )}
       </SeccionAcordeon>
 
           {/* Acciones finales (v3) */}
           <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <button
               type="button"
-              onClick={() => router.push(returnTo ?? '/profile')}
+              // Sin returnTo vuelve al resumen con el aviso «Se guardó correctamente» (HU-21, CA-01)
+              onClick={() => router.push(returnTo ?? '/profile?guardado=1')}
               className="h-12 flex-1 rounded-lg bg-burning-flame text-base font-bold text-abyssal-blue transition hover:brightness-95"
             >
               Guardar perfil profesional

@@ -6,6 +6,7 @@ import { Download, Loader2, X } from 'lucide-react';
 import { enlaceDeDescarga, obtenerEnlaceRespaldo } from '@/modules/profile/services/perfil-api';
 import type { BackupType } from '@/modules/profile/utils/validate-backup-file';
 import { BackupPreview } from './backup-preview';
+import { BackupZoom } from './backup-zoom';
 
 type BackupViewerModalProps = {
   certificationId: string;
@@ -108,14 +109,17 @@ export function BackupViewerModal({ certificationId, certificationName, backupTy
             </p>
           )}
           {imageUrl && !hasError && (
-            <BackupPreview
-              url={imageUrl}
-              title={certificationName}
-              type={backupType}
-              isLoaded={isImageLoaded}
-              onLoad={() => setIsImageLoaded(true)}
-              onError={() => setHasError(true)}
-            />
+            // HU-21, T21.7: zoom «+» y «−» sobre el respaldo ya cargado, foto o PDF (HU-18)
+            <BackupZoom isReady={isImageLoaded}>
+              <BackupPreview
+                url={imageUrl}
+                title={certificationName}
+                type={backupType}
+                isLoaded={isImageLoaded}
+                onLoad={() => setIsImageLoaded(true)}
+                onError={() => setHasError(true)}
+              />
+            </BackupZoom>
           )}
         </div>
 

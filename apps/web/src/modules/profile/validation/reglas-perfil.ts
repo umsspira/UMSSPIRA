@@ -95,3 +95,13 @@ export function validarCertificacion(datos: CertificacionValidable): ErroresCert
   }
   return errores;
 }
+
+// Máximo 2 trabajos actuales (experiencia sin fecha fin), HU-21 CA-09: con 2 ya guardados,
+// la casilla «Actualmente trabajo aquí» queda desactivada con este mensaje.
+export const MAXIMO_TRABAJOS_ACTUALES = 2;
+export const MENSAJE_MAXIMO_TRABAJOS_ACTUALES = 'Ya tienes dos trabajos actuales';
+
+// otrosActuales = trabajos actuales ya guardados, sin contar el que se está editando
+export function hasMaxCurrentJobs(otrosActuales: number): boolean {
+  return otrosActuales >= MAXIMO_TRABAJOS_ACTUALES;
+}

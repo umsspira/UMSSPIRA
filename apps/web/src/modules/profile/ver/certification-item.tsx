@@ -13,17 +13,6 @@ type CertificationItemProps = {
   status?: ReactNode;
 };
 
-function Field({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="space-y-1">
-      <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-blue-fantastic/60">
-        {label}
-      </dt>
-      <dd className="text-sm font-medium text-blue-fantastic">{value || '—'}</dd>
-    </div>
-  );
-}
-
 export default function CertificationItem({
   item,
   isOpen,
@@ -53,7 +42,7 @@ export default function CertificationItem({
         onKeyDown={handleKeyDown}
         className="flex w-full flex-col gap-2 rounded text-left md:flex-row md:items-start md:justify-between md:gap-6"
       >
-        {/* Información principal */}
+        {/* Información principal: entidad, año y grado se muestran solo aquí (HU-21, CA-03) */}
         <span className="min-w-0 space-y-1">
           <span className="block text-xl font-bold leading-6 text-blue-fantastic">{item.title}</span>
           <span className="block text-sm font-medium text-blue-fantastic/80">{item.subtitle}</span>
@@ -68,26 +57,6 @@ export default function CertificationItem({
           />
         </span>
       </button>
-
-      {/* Documento de respaldo, igual que en la v3 */}
-      {item.document &&
-        (item.documentUrl ? (
-          // Cada respaldo abre su propio archivo (E2.2)
-          <a
-            href={item.documentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex w-fit items-center gap-1.5 rounded-md border border-oatmeal bg-white px-2 py-1.5 text-[11px] font-semibold text-blue-fantastic transition hover:bg-palladian"
-          >
-            <DocumentIcon className="h-3.5 w-3.5 text-truffle-trouble" aria-hidden="true" />
-            {item.document}
-          </a>
-        ) : (
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-md border border-oatmeal bg-white px-2 py-1.5 text-[11px] font-semibold text-blue-fantastic">
-            <DocumentIcon className="h-3.5 w-3.5 text-truffle-trouble" aria-hidden="true" />
-            {item.document}
-          </span>
-        ))}
 
       {/* Visor de la foto real (HU-10): solo si el registro existe en la API y tiene respaldo */}
       {item.document && item.id && (
@@ -110,14 +79,9 @@ export default function CertificationItem({
         />
       )}
 
+      {/* El archivo se muestra una sola vez, en el detalle (HU-21, CA-03) */}
       {isOpen && (
         <div id={detailId} className="space-y-3 rounded-[10px] bg-palladian px-[14px] py-3">
-          <dl className="flex flex-wrap gap-x-12 gap-y-3">
-            <Field label="Entidad emisora" value={item.issuer} />
-            <Field label="Año" value={item.year} />
-            <Field label="Grado" value={item.grade} />
-          </dl>
-
           {item.document ? (
             <div className="flex items-center gap-2.5 rounded-lg border border-oatmeal bg-white px-3 py-2.5">
               <DocumentIcon className="h-4 w-4 shrink-0 text-truffle-trouble" aria-hidden="true" />

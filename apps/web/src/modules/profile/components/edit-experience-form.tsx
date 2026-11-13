@@ -14,7 +14,12 @@ import { actualizarExperiencia } from '@/modules/profile/services/perfil-api';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { ExperienceRecord } from '@/modules/profile/types/profile-record';
 import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-error';
-import { FECHA_MINIMA_EXPERIENCIA, validarRangoFechas } from '@/modules/profile/validation/reglas-perfil';
+import {
+  FECHA_MINIMA_EXPERIENCIA,
+  MENSAJE_MAXIMO_TRABAJOS_ACTUALES,
+  hasMaxCurrentJobs,
+  validarRangoFechas,
+} from '@/modules/profile/validation/reglas-perfil';
 import { ApiError } from '@/shared/services/api-client';
 
 type ExperienceFormData = {
@@ -36,7 +41,7 @@ export function EditExperienceForm() {
 
 function EditExperienceFields({ experience }: { experience: ExperienceRecord }) {
   const router = useRouter();
-  const { updateRecord } = useProfileStore();
+  const { records, updateRecord } = useProfileStore();
 
   const [formData, setFormData] = useState<ExperienceFormData>({
     company: experience.company,
@@ -52,6 +57,12 @@ function EditExperienceFields({ experience }: { experience: ExperienceRecord }) 
   // Mensaje del backend al guardar (400...), tal como lo envía
   const [saveError, setSaveError] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
+  // HU-21 CA-09: si ya hay 2 trabajos actuales (sin contar este), no se puede marcar otro.
+  // Si este ya era actual, la casilla sigue activa para poder desmarcarla.
+  const otherCurrentJobs = (records.experience as ExperienceRecord[]).filter(
+    (record) => record.id !== experience.id && !record.endDate,
+  ).length;
+  const isCurrentJobLocked = !isCurrentJob && hasMaxCurrentJobs(otherCurrentJobs);
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target;
@@ -150,10 +161,17 @@ function EditExperienceFields({ experience }: { experience: ExperienceRecord }) 
           type="checkbox"
           checked={isCurrentJob}
           onChange={handleCurrentJobChange}
-          className="h-4 w-4 accent-truffle-trouble"
+          disabled={isCurrentJobLocked}
+          aria-describedby={isCurrentJobLocked ? 'current-jobs-notice' : undefined}
+          className="h-4 w-4 accent-truffle-trouble disabled:cursor-not-allowed disabled:opacity-50"
         />
         Actualmente trabajo aquí
       </label>
+      {isCurrentJobLocked && (
+        <p id="current-jobs-notice" className="-mt-2 text-xs text-truffle-trouble">
+          {MENSAJE_MAXIMO_TRABAJOS_ACTUALES}
+        </p>
+      )}
 
       <MensajeError id="error-experience-save" mensaje={saveError} />
     </EditRecordLayout>
