@@ -157,13 +157,24 @@ useEffect(() => {
     setProjects((current) => [...current, created]);
   }, [ownerId]);
 
+  // Solo se editan o eliminan proyectos del egresado con sesión (HU-19, T19.7)
+  const isOwnProject = useCallback(
+    (project: ProjectRecord) => !ownerId || project.ownerId === ownerId,
+    [ownerId],
+  );
+
   const updateProject = useCallback((project: ProjectRecord) => {
-    setProjects((current) => current.map((item) => (item.id === project.id ? project : item)));
-  }, []);
+    setProjects((current) =>
+      current.map((item) => (item.id === project.id && isOwnProject(item) ? { ...project, ownerId: item.ownerId } : item)),
+    );
+  }, [isOwnProject]);
 
   const removeProject = useCallback((projectId: string) => {
-    setProjects((current) => current.filter((item) => item.id !== projectId));
-  }, []);
+    setProjects((current) => current.filter((item) => item.id !== projectId || !isOwnProject(item)));
+  }, [isOwnProject]);
+
+  // Cada egresado ve solo sus proyectos; sin titulado cargado (pruebas) se muestran todos
+  const ownProjects = useMemo(() => projects.filter(isOwnProject), [projects, isOwnProject]);
 
   const retryLoad = useCallback(() => {
     setLoadAttempt((current) => current + 1);
@@ -183,7 +194,7 @@ useEffect(() => {
       updateRecord,
       removeRecord,
       setDescription,
-      projects,
+      projects: ownProjects,
       addProject,
       updateProject,
       removeProject,
@@ -198,7 +209,7 @@ useEffect(() => {
       addRecord,
       updateRecord,
       removeRecord,
-      projects,
+      ownProjects,
       addProject,
       updateProject,
       removeProject,

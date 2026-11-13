@@ -98,11 +98,12 @@ export const PROFILE_RECORDS_MOCK: ProfileRecords = {
 
 export const profileTimeline: TimelineSection[] = recordsToTimeline(PROFILE_RECORDS_MOCK);
 
-// Dos proyectos de ejemplo del egresado de prueba (HU-19), del más antiguo al más reciente
+// Dos proyectos de ejemplo del egresado de prueba (HU-19), del más antiguo al más reciente.
+// Su dueño es el titulado de profileHeader, porque cada egresado ve solo sus proyectos (T19.7)
 export const PROFILE_PROJECTS_MOCK: ProjectRecord[] = [
   {
     id: 'project-1',
-    ownerId: CURRENT_GRADUATE_ID,
+    ownerId: profileHeader.id,
     name: 'Sistema de inventario',
     url: 'https://github.com/carlos-mendoza/sistema-inventario',
     description: 'Aplicación web para el control de stock de una ferretería.',
@@ -110,7 +111,7 @@ export const PROFILE_PROJECTS_MOCK: ProjectRecord[] = [
   },
   {
     id: 'project-2',
-    ownerId: CURRENT_GRADUATE_ID,
+    ownerId: profileHeader.id,
     name: 'Portafolio personal',
     url: 'https://carlos-mendoza.dev',
     createdAt: '2025-08-02T18:30:00.000Z',

@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import { PROFILE_PROJECTS_MOCK, PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
+import { EMPTY_PROFILE_RECORDS } from '@/modules/profile/data/profile-records-data';
+import { PROFILE_PROJECTS_MOCK, PROFILE_RECORDS_MOCK, profileHeader } from '@/modules/profile/testing/profile-fixtures';
 
 import { ProfileStoreProvider, useProfileStore } from './profile-store';
 
@@ -89,5 +90,37 @@ describe('ProfileStoreProvider · proyectos (T19.1)', () => {
 
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(screen.queryByText(/Sistema de inventario/)).not.toBeInTheDocument();
+  });
+});
+
+describe('aislamiento de proyectos por egresado (T19.7)', () => {
+  const ajeno = { ...PROFILE_PROJECTS_MOCK[0], id: 'project-ajeno', ownerId: 'otro-titulado' };
+
+  it('no muestra, edita ni elimina proyectos de otro egresado', () => {
+    let store: ReturnType<typeof useProfileStore> | undefined;
+    function Espia() {
+      store = useProfileStore();
+      return null;
+    }
+    render(
+      <ProfileStoreProvider
+        initialRecords={EMPTY_PROFILE_RECORDS}
+        initialHeader={profileHeader}
+        initialProjects={[...PROFILE_PROJECTS_MOCK, ajeno]}
+      >
+        <Espia />
+      </ProfileStoreProvider>,
+    );
+
+    expect(store?.projects.map((proyecto) => proyecto.id)).toEqual(['project-1', 'project-2']);
+
+    act(() => {
+      store?.updateProject({ ...ajeno, name: 'Cambiado', ownerId: profileHeader.id });
+      store?.removeProject('project-ajeno');
+    });
+    expect(store?.projects.map((proyecto) => proyecto.id)).toEqual(['project-1', 'project-2']);
+
+    act(() => store?.addProject({ name: 'Nuevo', url: 'https://nuevo.dev' }));
+    expect(store?.projects.at(-1)?.ownerId).toBe(profileHeader.id);
   });
 });
