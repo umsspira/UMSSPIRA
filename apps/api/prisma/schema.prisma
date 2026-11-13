@@ -32,6 +32,7 @@ enum DepartamentoExpedicion {
 }
 
 model Usuario {
+  ocr_reservas OcrTrabajo[]
   portadas_evento       PortadaEvento[]
   revisiones            Dictamen[]            @relation("dictamen_revisor")
   nombre                String?               @db.VarChar
@@ -830,6 +831,7 @@ model DetalleSolicitud {
 }
 
 model DocumentoRespaldo {
+  ocr_trabajos OcrTrabajo[]
   id_tipo_archivo String?   @db.Uuid
   tamanio_mb      Int?      @db.Integer
   ruta_storage    String?   @db.Text
@@ -846,6 +848,7 @@ model DocumentoRespaldo {
 }
 
 model Solicitud {
+  ocr_trabajos OcrTrabajo[]
   id_titulado           String?           @db.Uuid
   codigo_tit            String?           @unique @db.VarChar
   observaciones_count   Int               @default(0) @db.SmallInt
@@ -1445,3 +1448,26 @@ model ConsultaEstadoSolicitud {
   @@index([origen_hash, creado_en(sort: Desc)], map: "idx_ces_origen_ventana")
   @@map("consulta_estado_solicitud")
 }
+
+model OcrTrabajo {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_solicitud String @db.Uuid
+  revision Int
+  id_documento String @db.Uuid
+  declarado Json @db.JsonB
+  estado String @default("PENDIENTE") @db.VarChar(20)
+  intentos Int @default(0)
+  reserva_token String? @db.Uuid
+  reservado_por String? @db.Uuid
+  reserva_hasta DateTime? @db.Timestamptz
+  creado_en DateTime @default(now()) @db.Timestamptz
+  finalizado_en DateTime? @db.Timestamptz
+  error String? @db.VarChar(300)
+  solicitud Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  documento DocumentoRespaldo @relation(fields: [id_documento], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  propietario Usuario? @relation(fields: [reservado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  @@unique([id_solicitud, revision])
+  @@index([estado, creado_en], map: "ocr_trabajo_cola")
+  @@map("ocr_trabajo")
+}
+
