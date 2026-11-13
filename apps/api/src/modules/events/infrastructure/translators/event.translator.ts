@@ -45,6 +45,7 @@ export function toEvent(row: EventRow): Event {
     scheduledAt: row.fecha_publicacion_programada,
     schedulingStatus: row.estado_programacion === 'PENDIENTE'
       ? 'PENDIENTE'
-      : row.estado_programacion === 'FALLIDA' ? 'FALLIDA' : null,
+      : row.estado_programacion === 'FALLIDA' ? 'FALLIDA'
+        : row.estado_programacion === 'EJECUTADA' ? 'EJECUTADA' : null,
   };
 }

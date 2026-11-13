@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { EventScheduleDialog } from '@/shared/components/event-schedule-dialog';
 import {
   EVENT_STATUS,
   type EventItem,
@@ -19,6 +20,9 @@ import {
 } from 'lucide-react';
 import {
   getAdminEvents,
+  scheduleDraftEvent,
+  cancelDraftSchedule,
+  type ScheduledEventItem,
   getInactiveEvents,
   cancelPublishedEvent,
   publishDraftEvent,
@@ -96,6 +100,12 @@ export function EventManagementContent({
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [openActionEventId, setOpenActionEventId] = useState<string | null>(null);
   const [publishedEventId, setPublishedEventId] = useState<string | null>(null);
+  const [scheduleResult, setScheduleResult] = useState<ScheduledEventItem | null>(null);
+  const [scheduleToEdit, setScheduleToEdit] = useState<EventItem | null>(null);
+  const [scheduleToCancel, setScheduleToCancel] = useState<EventItem | null>(null);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleCancelled, setScheduleCancelled] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('all');
@@ -134,6 +144,40 @@ export function EventManagementContent({
     ),
     [events],
   );
+
+  const scheduledCount = events.filter(
+    (event) => (event as ScheduledEventItem).schedulingStatus === 'PENDIENTE',
+  ).length;
+
+  const updateSchedule = async (scheduledAt: string) => {
+    if (!scheduleToEdit || !userId) {
+      throw new Error('No se pudo identificar el evento o la sesión.');
+    }
+    setIsScheduling(true);
+    try {
+      const updated = await scheduleDraftEvent(scheduleToEdit.id, scheduledAt, userId);
+      setEvents((current) => current.map((event) => event.id === updated.id ? updated : event));
+      setScheduleToEdit(null);
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const cancelSchedule = async () => {
+    if (!scheduleToCancel || !userId) return;
+    setIsScheduling(true);
+    setScheduleError(null);
+    try {
+      const updated = await cancelDraftSchedule(scheduleToCancel.id, userId);
+      setEvents((current) => current.map((event) => event.id === updated.id ? updated : event));
+      setScheduleToCancel(null);
+      setScheduleCancelled(true);
+    } catch (error) {
+      setScheduleError(getRequestErrorMessage(error));
+    } finally {
+      setIsScheduling(false);
+    }
+  };
 
   const confirmPublication = async () => {
     if (!pendingPublication || !userId) return;
@@ -177,6 +221,70 @@ export function EventManagementContent({
     }
   };
 
+  if (scheduleResult) {
+    const failed = scheduleResult.schedulingStatus === 'FALLIDA';
+
+    return (
+      <main className="events-page hu15-result-page">
+        <header className="event-create-heading">
+          <h1>{failed ? 'No se pudo publicar' : 'Evento publicado'}</h1>
+          <p>
+            {failed
+              ? 'La publicación automática no se completó.'
+              : 'La publicación programada se ejecutó correctamente.'}
+          </p>
+        </header>
+
+        <div className="hu15-result-layout">
+          <section className="hu15-result-card">
+            <span className={failed ? 'hu15-status-failed' : 'hu15-status-published'}>
+              {failed ? 'PUBLICACIÓN FALLIDA' : 'PUBLICADO'}
+            </span>
+            <h2>{scheduleResult.title}</h2>
+            <p>Evento universitario · Administrador</p>
+            <hr />
+            <small>INICIO DEL EVENTO</small>
+            <p><strong>{formatEventSchedule(scheduleResult.startDate, scheduleResult.endDate)}</strong></p>
+            <small>PUBLICACIÓN PREVISTA</small>
+            <p><strong>{scheduleResult.scheduledAt ? formatEventDateTime(scheduleResult.scheduledAt) : '—'}</strong></p>
+            <div className="hu15-result-notice">
+              <strong>{failed ? 'No visible en catálogo' : 'Visible en el catálogo'}</strong>
+              <p>
+                {failed
+                  ? 'Los datos del evento se conservan; es necesario revisar la causa del error.'
+                  : 'El evento se publicó sin crear una segunda copia.'}
+              </p>
+            </div>
+          </section>
+
+          <aside className="hu15-result-card hu15-result-aside">
+            <h2>{failed ? 'Qué puedes hacer' : 'Publicación realizada'}</h2>
+            <ol>
+              <li>{failed ? 'La publicación no se completó.' : 'La programación se ejecutó.'}</li>
+              <li>{failed ? 'El evento sigue guardado y oculto.' : 'El estado cambió a PUBLICADO.'}</li>
+              <li>{failed ? 'Abre el borrador desde Gestión para corregirlo.' : 'Los Titulados ya pueden consultar el evento.'}</li>
+            </ol>
+            <strong>Acciones disponibles</strong>
+            <div className="hu15-result-actions">
+              <button type="button" className="event-button event-button-secondary"
+                onClick={() => setScheduleResult(null)}>
+                Volver a gestión
+              </button>
+              <button type="button" className="event-button event-button-primary"
+                onClick={() => router.push(
+                  failed
+                    ? `/events/drafts/${scheduleResult.id}`
+                    : `/events/${scheduleResult.id}`,
+                )}>
+                {failed ? 'Ver borrador' : 'Ver evento publicado'}
+              </button>
+            </div>
+          </aside>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className={`events-page events-management ${compact ? 'is-compact' : ''}`}>
       <div className="events-title-row">
@@ -199,7 +307,8 @@ export function EventManagementContent({
       <div className="event-metrics" aria-label="Resumen de eventos">
         <Metric value={events.length} label="Total de eventos" mobileLabel="Total" tone="orange" />
         <Metric value={publishedCount} label="Publicados" tone="blue" />
-        <Metric value={draftCount} label="Borradores" tone="red" />
+        <Metric value={draftCount - scheduledCount} label="Borradores" tone="red" />
+        <Metric value={scheduledCount} label="Programados" tone="orange" />
       </div>
 
       <section className="events-list-panel">
@@ -270,11 +379,29 @@ export function EventManagementContent({
                   </small>
                 </span>
               </div>
-              <span className="event-date"><strong>{formatEventSchedule(event.startDate, event.endDate)}</strong></span>
+              <span className="event-date">
+                <strong>{formatEventSchedule(event.startDate, event.endDate)}</strong>
+                {(event as ScheduledEventItem).schedulingStatus === 'PENDIENTE'
+                  && (event as ScheduledEventItem).scheduledAt ? (
+                    <small>Se publicará {formatEventDateTime((event as ScheduledEventItem).scheduledAt!)}</small>
+                  ) : null}
+              </span>
               <span className="event-location">{event.location ?? 'Sin ubicación'}</span>
               <span className="event-capacity">{event.maxCapacity}</span>
-              <StatusChip status={event.status} />
+              {(event as ScheduledEventItem).schedulingStatus === 'PENDIENTE' ? (
+                <span className="hu15-status-programmed">PROGRAMADO</span>
+              ) : (event as ScheduledEventItem).schedulingStatus === 'FALLIDA' ? (
+                <span className="hu15-status-failed">PUBLICACIÓN FALLIDA</span>
+              ) : (
+                <StatusChip status={event.status} />
+              )}
               <div className={`event-row-actions ${event.status === EVENT_STATUS.PUBLICADO ? 'is-published' : 'is-draft'}`}>
+                {['EJECUTADA', 'FALLIDA'].includes((event as ScheduledEventItem).schedulingStatus ?? '') ? (
+                  <button type="button" className="event-button event-button-secondary"
+                    onClick={() => setScheduleResult(event as ScheduledEventItem)}>
+                    Ver resultado
+                  </button>
+                ) : null}
                 {event.status === EVENT_STATUS.PUBLICADO ? (
                   <>
                     <button
@@ -304,6 +431,18 @@ export function EventManagementContent({
                       ) : null}
                     </div>
                   </>
+                ) : event.status === EVENT_STATUS.BORRADOR
+                  && (event as ScheduledEventItem).schedulingStatus === 'PENDIENTE' ? (
+                  <>
+                    <button type="button" className="event-button event-button-secondary"
+                      onClick={() => setScheduleToEdit(event)}>
+                      Cambiar fecha
+                    </button>
+                    <button type="button" className="event-button event-button-secondary"
+                      onClick={() => { setScheduleError(null); setScheduleToCancel(event); }}>
+                      Cancelar programación
+                    </button>
+                  </>
                 ) : event.status === EVENT_STATUS.BORRADOR ? (
                   <>
                     <button type="button" className="event-button event-button-secondary event-action-edit" onClick={() => router.push(`/events/drafts/${event.id}`)}>Editar</button>
@@ -327,6 +466,46 @@ export function EventManagementContent({
           </p>
         ) : null}
       </section>
+
+      {scheduleCancelled ? (
+        <div className="event-feedback hu15-cancelled-notice" role="status">
+          <strong>Programación cancelada</strong>
+          <p>El evento sigue guardado como borrador. Ya no se publicará automáticamente.</p>
+          <Link href="/events/drafts">Ver borradores</Link>
+        </div>
+      ) : null}
+
+      {scheduleToEdit ? (
+        <EventScheduleDialog
+          event={toEventSummary(scheduleToEdit)}
+          previousScheduledAt={(scheduleToEdit as ScheduledEventItem).scheduledAt}
+          isSubmitting={isScheduling}
+          onCancel={() => setScheduleToEdit(null)}
+          onConfirm={updateSchedule}
+        />
+      ) : null}
+
+      {scheduleToCancel ? (
+        <div className="hu15-dialog-backdrop">
+          <section className="hu15-dialog" role="dialog" aria-modal="true"
+            aria-labelledby="hu15-cancel-title">
+            <h2 id="hu15-cancel-title">¿Cancelar programación?</h2>
+            <p>El evento no se publicará en la fecha programada. Podrás conservarlo como borrador y editarlo después.</p>
+            <p>Esta acción no cancela el evento ni elimina su información.</p>
+            {scheduleError ? <p className="hu15-date-error" role="alert">{scheduleError}</p> : null}
+            <div className="hu15-dialog-actions">
+              <button type="button" className="event-button event-button-secondary"
+                disabled={isScheduling} onClick={() => setScheduleToCancel(null)}>
+                Mantener programación
+              </button>
+              <button type="button" className="event-button event-button-primary"
+                disabled={isScheduling} onClick={() => void cancelSchedule()}>
+                {isScheduling ? 'Cancelando…' : 'Cancelar programación'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {pendingPublication ? (
         <EventConfirmDialog

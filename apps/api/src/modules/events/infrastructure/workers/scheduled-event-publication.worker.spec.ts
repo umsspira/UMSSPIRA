@@ -43,8 +43,7 @@ describe('publicación automática de eventos', () => {
       where: { id: validRow.id },
       data: {
         estado: 'PUBLICADO',
-        fecha_publicacion_programada: null,
-        estado_programacion: null,
+        estado_programacion: 'EJECUTADA',
       },
     });
   });

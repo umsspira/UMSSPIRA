@@ -85,8 +85,7 @@ export class ScheduledEventPublicationWorker implements OnModuleInit, OnModuleDe
         data: valid
           ? {
               estado: 'PUBLICADO',
-              fecha_publicacion_programada: null,
-              estado_programacion: null,
+              estado_programacion: 'EJECUTADA',
             }
           : { estado_programacion: 'FALLIDA' },
       });

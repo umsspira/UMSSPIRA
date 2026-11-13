@@ -15,7 +15,7 @@ export interface Event {
   creatorName: string | null;
   createdAt: Date;
   scheduledAt?: Date | null;
-  schedulingStatus?: 'PENDIENTE' | 'FALLIDA' | null;
+  schedulingStatus?: 'PENDIENTE' | 'FALLIDA' | 'EJECUTADA' | null;
 }
 
 export type InactiveEventStatus = 'CANCELADO' | 'FINALIZADO';
