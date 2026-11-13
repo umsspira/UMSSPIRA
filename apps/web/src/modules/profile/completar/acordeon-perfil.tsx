@@ -2,8 +2,7 @@
 'use client';
  
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Briefcase, Check, ShieldCheck } from 'lucide-react';
-import Link from 'next/link';
+import { Briefcase, Check, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { BarraProgreso } from './barra-progreso';
 import { SeccionAcordeon } from './seccion-acordeon';
@@ -19,8 +18,10 @@ import {
   subirRespaldo,
 } from '@/modules/profile/services/perfil-api';
 import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
+import { BackButton } from '@/shared/components/back-button';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
 import { backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
@@ -172,18 +173,12 @@ export function AcordeonPerfil({
             <span className="text-sm font-semibold text-truffle-trouble">
               {completas} de {secciones.length} secciones completas
             </span>
-            {returnTo && (
-              <Link
-                href={returnTo}
-                className="inline-flex items-center gap-2 rounded-lg border border-blue-fantastic px-3 py-1.5 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Volver
-              </Link>
-            )}
+            {/* Sin returnTo se vuelve a Mi perfil (HU-11) */}
+            <BackButton href="/profile" returnTo={returnTo} ariaLabel={returnTo ? 'Volver' : 'Volver a Mi perfil'} />
           </div>
         </div>
         <BarraProgreso completas={completas} total={secciones.length} />
+        <ProfileQuickLinks />
       </header>
  
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">

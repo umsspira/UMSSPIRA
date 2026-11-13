@@ -41,6 +41,32 @@ describe('ProfileRecordsManager', () => {
     });
   });
 
+  it('«Volver» es el botón compartido y lleva a Mi perfil (HU-11)', () => {
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
+
+    const back = screen.getByRole('link', { name: 'Volver a Mi perfil' });
+    expect(back).toHaveAttribute('href', '/profile');
+    expect(back).toHaveClass('min-h-[44px]');
+    expect(screen.queryByText('Volver al resumen')).not.toBeInTheDocument();
+  });
+
+  it('al volver de guardar una edición abre su pestaña con «Registro actualizado» y limpia la URL (HU-11)', () => {
+    window.history.replaceState(null, '', '/profile/records?seccion=certification&actualizado=1');
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} initialSection="certification" wasUpdated />);
+
+    expect(screen.getByRole('tab', { name: 'Certificaciones' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent('Registro actualizado');
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get('actualizado')).toBeNull();
+    expect(params.get('seccion')).toBe('certification');
+  });
+
+  it('sin volver de guardar no muestra «Registro actualizado» (HU-11)', () => {
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
+
+    expect(screen.queryByText('Registro actualizado')).not.toBeInTheDocument();
+  });
+
   it('abre la pestaña indicada al volver de editar (BUG-HU04-003)', () => {
     render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} initialSection="experience" />);
 
