@@ -56,8 +56,28 @@ describe('T2.2/T2.3: adaptación del contrato HTTP de Diego', () => {
     ]))).toThrow(/CA-06/);
   });
 
-  it('no inventa la fecha que la rama de Diego todavía no entrega (CA-07)', () => {
+  it('rechaza la ausencia del campo updatedAt (CA-07)', () => {
     expect(() => adaptDiegoCompetencyHeatmap(response([], { updatedAt: undefined })))
+      .toThrow(/CA-07/);
+  });
+
+  it('acepta los tres estados del contrato real de T2.1: ok, insufficient y no-data', () => {
+    const result = adaptDiegoCompetencyHeatmap(response([
+      { cohort: '2021', areaId: software, status: 'ok', graduateCount: 5, percentage: 70 },
+      { cohort: '2021', areaId: quality, status: 'no-data' },
+      { cohort: '2023', areaId: software, status: 'insufficient' },
+    ]));
+    expect(result.cohorts[0].areas['software-development']).toEqual({
+      status: 'calculated', percentage: 70, graduateCount: 5,
+    });
+    expect(result.cohorts[0].areas['quality-assurance']).toEqual({ status: 'no-data' });
+    expect(result.cohorts[1].areas['software-development']).toEqual({ status: 'insufficient' });
+  });
+
+  it('admite fecha nula exclusivamente cuando no hay cálculos', () => {
+    const empty = adaptDiegoCompetencyHeatmap(response([], { cohorts: [], updatedAt: null }));
+    expect(empty).toEqual({ updatedAt: null, cohorts: [] });
+    expect(() => adaptDiegoCompetencyHeatmap(response([], { updatedAt: null })))
       .toThrow(/CA-07/);
   });
 

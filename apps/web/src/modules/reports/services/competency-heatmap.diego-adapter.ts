@@ -9,14 +9,10 @@ import { createHeatmapHttpLoader } from './competency-heatmap.service';
 /**
  * Adaptador de la respuesta observada en la rama de Diego (T2.1).
  *
- * ESTADO: integración preparada, NO habilitar en producción todavía.
- * Bloqueos detectados en T2.1 el 13/11/2026:
- *   - `graduateCount` revela tamaños de 1 a 4, incluso con percentage:null.
- *   - `data.updatedAt` aún no existe.
- *
- * Se exige que el backend corrija ambos antes de usar este adaptador.
- * Las celdas protegidas deben llegar con `status: 'insufficient'`,
- * sin `percentage` calculado ni conteo en el JSON.
+ * Contrato revisado en la rama T2.1 de Diego: status `ok`, `insufficient`
+ * o `no-data`, y `updatedAt` ISO-8601 (null cuando no hay cálculos).
+ * El servidor debe omitir percentage y graduateCount en muestras N=1..4.
+ * La carga HTTP se activará al montar el mapa en la ruta administrativa real.
  */
 
 const areaById = new Map<string, AffinityArea>(
@@ -37,7 +33,7 @@ function array(value: unknown, description: string): unknown[] {
 
 function readCell(raw: Record<string, unknown>): HeatmapCell {
   const { status, percentage, graduateCount } = raw;
-  if (status !== undefined && !['calculated', 'no-data', 'insufficient'].includes(status as string)) {
+  if (status !== undefined && !['ok', 'calculated', 'no-data', 'insufficient'].includes(status as string)) {
     throw new Error('Estado de celda desconocido en T2.1.');
   }
 
@@ -80,15 +76,19 @@ export function adaptDiegoCompetencyHeatmap(payload: unknown): HeatmapData {
   const data = object(envelope.data, 'data');
 
   const updatedAt = data.updatedAt;
-  if (typeof updatedAt !== 'string' ||
+  if (updatedAt !== null &&
+      (typeof updatedAt !== 'string' ||
       !/(?:Z|[+-]\d{2}:\d{2})$/.test(updatedAt) ||
-      Number.isNaN(new Date(updatedAt).getTime())) {
-    throw new Error('T2.1 todavía no proporciona data.updatedAt válido (CA-07).');
+      Number.isNaN(new Date(updatedAt).getTime()))) {
+    throw new Error('T2.1 no proporciona data.updatedAt válido (CA-07).');
   }
 
   array(data.areas, 'Áreas');
   const cohorts = array(data.cohorts, 'Cohortes');
   const cells = array(data.cells, 'Celdas');
+  if (updatedAt === null && (cohorts.length !== 0 || cells.length !== 0)) {
+    throw new Error('T2.1 proporcionó cohortes sin fecha de cálculo (CA-07).');
+  }
   const byYear = new Map<number, HeatmapCohort>();
 
   for (const item of cohorts) {
@@ -130,8 +130,8 @@ export function adaptDiegoCompetencyHeatmap(payload: unknown): HeatmapData {
 }
 
 /**
- * Export listo para la futura vista de /reports/acreditacion (HU-001).
- * No invocarlo hasta que Diego complete CA-06 y CA-07 en el backend.
+ * Loader preparado para /reports/acreditacion. No modifica el backend ni
+ * monta la ruta; la pantalla institucional debe importarlo explícitamente.
  */
 export const loadCompetencyHeatmapFromDiego = createHeatmapHttpLoader({
   endpoint: '/api/v1/reports/accreditation/heatmap',

@@ -36,12 +36,16 @@ export function createHeatmapHttpLoader(options: {
 export function assertHeatmapData(value: unknown): asserts value is HeatmapData {
   if (!value || typeof value !== 'object') throw new Error('Mapa de calor inválido.');
   const data = value as Partial<HeatmapData>;
-  if (typeof data.updatedAt !== 'string' ||
+  if (data.updatedAt !== null &&
+      (typeof data.updatedAt !== 'string' ||
       !/(?:Z|[+-]\d{2}:\d{2})$/.test(data.updatedAt) ||
-      Number.isNaN(new Date(data.updatedAt).getTime())) {
+      Number.isNaN(new Date(data.updatedAt).getTime()))) {
     throw new Error('Fecha de actualización inválida.');
   }
   if (!Array.isArray(data.cohorts)) throw new Error('Cohortes inválidas.');
+  if (data.updatedAt === null && data.cohorts.length > 0) {
+    throw new Error('Cohortes sin fecha de cálculo válida.');
+  }
   const seenYears = new Set<number>();
   for (const cohort of data.cohorts) {
     if (!Number.isInteger(cohort?.year) || cohort.year < 1900 || cohort.year > 2200 || seenYears.has(cohort.year)) {

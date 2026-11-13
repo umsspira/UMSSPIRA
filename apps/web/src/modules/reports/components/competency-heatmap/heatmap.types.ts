@@ -17,7 +17,8 @@ export interface HeatmapCohort {
 
 export interface HeatmapData {
   /** Instante real del último cálculo/actualización, ISO-8601 con zona horaria. */
-  updatedAt: string;
+  /** Null cuando todavía no existe un cálculo para esta carrera. */
+  updatedAt: string | null;
   cohorts: HeatmapCohort[];
 }
 

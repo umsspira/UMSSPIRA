@@ -1,6 +1,7 @@
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { assertHeatmapData, createHeatmapHttpLoader } from './competency-heatmap.service';
 import { heatmapMockupFixture } from '../components/competency-heatmap/__fixtures__/competency-heatmap.fixture';
+import { adaptDiegoCompetencyHeatmap } from './competency-heatmap.diego-adapter';
 
 jest.mock('@/shared/services/auth-session', () => {
   const actual = jest.requireActual('@/shared/services/auth-session');
@@ -35,6 +36,39 @@ describe('Integración futura de T2.1: servicio aislado', () => {
       status: 'insufficient', percentage: 70, graduateCount: 3,
     } as unknown as typeof fixture.cohorts[number]['areas']['software-development'];
     expect(() => assertHeatmapData(fixture)).toThrow(/no puede exponer/);
+  });
+
+  it('consume el JSON de Diego con status ok mediante authenticatedFetch', async () => {
+    const software = '60000000-0000-4000-8000-000000000003';
+    http.mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ data: {
+        areas: [{ id: software, name: 'Desarrollo de Software' }],
+        cohorts: ['2025'],
+        cells: [{ cohort: '2025', areaId: software, areaName: 'Desarrollo de Software',
+          status: 'ok', percentage: 70, graduateCount: 5 }],
+        updatedAt: '2026-11-13T16:00:00.000Z',
+      } }),
+    } as Response);
+    const signal = new AbortController().signal;
+    const load = createHeatmapHttpLoader({
+      endpoint: '/api/v1/reports/accreditation/heatmap',
+      adapt: adaptDiegoCompetencyHeatmap,
+    });
+    const result = await load(signal);
+    expect(result.cohorts[0].areas['software-development']).toEqual({
+      status: 'calculated', percentage: 70, graduateCount: 5,
+    });
+    expect(http).toHaveBeenCalledWith('/api/v1/reports/accreditation/heatmap', {
+      method: 'GET', cache: 'no-store', signal,
+    });
+  });
+
+  it('acepta el mapa sin cálculos y fecha nula (no inventa fecha)', () => {
+    expect(() => assertHeatmapData({ updatedAt: null, cohorts: [] })).not.toThrow();
+    const withCohorts = heatmapMockupFixture();
+    withCohorts.updatedAt = null;
+    expect(() => assertHeatmapData(withCohorts)).toThrow(/fecha de cálculo/);
   });
 
   it('reconoce un HTTP 401 y conserva la clase SessionError', async () => {
