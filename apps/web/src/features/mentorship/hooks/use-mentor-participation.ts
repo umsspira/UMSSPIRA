@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MentorState } from '@umsspira/shared-types';
 import { getActivationEligibility } from '../model/activation-conditions';
+import { notifyMentorParticipationChanged } from '../model/participation-events';
 import { getMentorProfile, updateMentorParticipation } from '../services/mentorship-api';
 
 function errorMessage(error: unknown) {
@@ -49,6 +50,7 @@ export function useMentorParticipation() {
       const updated = await updateMentorParticipation(active, controller.signal);
       if (!mounted.current || controller.signal.aborted) return false;
       setProfile(updated);
+      notifyMentorParticipationChanged();
       return true;
     } catch (reason) {
       if (mounted.current && !controller.signal.aborted) setError(errorMessage(reason));
