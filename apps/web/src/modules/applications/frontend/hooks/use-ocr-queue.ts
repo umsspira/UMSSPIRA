@@ -26,6 +26,7 @@ export function useOcrQueue() {
             "Lectura pausada al ocultar la bandeja; se retomará automáticamente.",
           ),
         );
+        disposeOcrEngine();
         return;
       }
       if (!running && !lifetime.signal.aborted) {

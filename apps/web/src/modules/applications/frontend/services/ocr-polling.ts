@@ -1,5 +1,9 @@
 // One request at a time; network failures back off instead of flooding the shared API.
-export function pollOcr(load: () => Promise<unknown>, signal: AbortSignal) {
+export function pollOcr(
+  load: () => Promise<unknown>,
+  signal: AbortSignal,
+  interval = () => 15000,
+) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let running = false;
   let delay = 15000;
@@ -13,7 +17,7 @@ export function pollOcr(load: () => Promise<unknown>, signal: AbortSignal) {
     running = true;
     try {
       await load();
-      delay = 15000;
+      delay = interval();
     } catch {
       delay = Math.min(delay * 2, 120000);
     } finally {
@@ -25,9 +29,11 @@ export function pollOcr(load: () => Promise<unknown>, signal: AbortSignal) {
     void run();
   };
   window.addEventListener("umsspira:ocr-updated", refresh);
+  document.addEventListener("visibilitychange", refresh);
   void run();
   return () => {
     clearTimeout(timer);
     window.removeEventListener("umsspira:ocr-updated", refresh);
+    document.removeEventListener("visibilitychange", refresh);
   };
 }

@@ -36,6 +36,7 @@ export function OcrPanel({
     setAnalyses([]);
     setError("");
     prioritizeOcr(applicationId);
+    let pending = true;
     const load = async () => {
       return ocrRequest<OcrAnalysis[]>(
         `${applicationId}/ocr`,
@@ -46,6 +47,8 @@ export function OcrPanel({
           if (!controller.signal.aborted) {
             setAnalyses(data);
             setError("");
+            const current = data.find(item => item.current);
+            pending = !current || ["PENDIENTE", "EN_CURSO"].includes(current.status);
           }
         })
         .catch((error: unknown) => {
@@ -56,7 +59,7 @@ export function OcrPanel({
           throw error;
         });
     };
-    const stop = pollOcr(load, controller.signal);
+    const stop = pollOcr(load, controller.signal, () => pending ? 3000 : 30000);
     return () => {
       controller.abort();
       stop();
