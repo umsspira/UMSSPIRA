@@ -133,7 +133,6 @@ export function RegistrationEditForm({
               label="Correo electrónico"
               required
               type="email"
-              maxLength={30}
               error={errors.correo?.message}
               {...register('correo')}
             />
