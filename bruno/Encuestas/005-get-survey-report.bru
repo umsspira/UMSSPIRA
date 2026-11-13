@@ -1,0 +1,36 @@
+meta {
+  name: Reporte de encuestas
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reports/surveys?page=1&limit=10
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 1
+  limit: 10
+}
+
+auth:bearer {
+  token: {{adminAccessToken}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("devuelve el total de respuestas", function () {
+    const body = res.getBody();
+    expect(body?.data?.total).to.be.a("number");
+  });
+}
+
+docs {
+  Usa el token de un Administrador de Carrera. Permiso: reportes:read.
+  page y limit paginan el detalle (T1.6); el total es de la carrera del administrador.
+}
