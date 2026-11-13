@@ -172,17 +172,25 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
       }
     }
 
-    const respuestas = rawRespuestas.map((item) => ({
-      id: item.id,
-      condicionLaboral: item.condicionLaboral,
-      cargo: item.cargo,
-      empresa: item.empresa,
-      area: item.area,
-      modalidad: item.modalidad,
-      salarioMensual: item.salarioMensual,
-      tiempoInsercion: item.tiempoInsercion,
-      fechaEnvio: item.fechaEnvio.toISOString(),
-    }));
+    const respuestas = rawRespuestas.map((item) => {
+      const normalized = item.condicionLaboral.trim().toLowerCase();
+      const condicionLaboral =
+        normalized === 'trabaja' || normalized === 'true'
+          ? 'Trabaja'
+          : 'No trabaja';
+
+      return {
+        id: item.id,
+        condicionLaboral,
+        cargo: item.cargo,
+        empresa: item.empresa,
+        area: item.area,
+        modalidad: item.modalidad,
+        salarioMensual: item.salarioMensual,
+        tiempoInsercion: item.tiempoInsercion,
+        fechaEnvio: item.fechaEnvio.toISOString(),
+      };
+    });
 
     return {
       total,
