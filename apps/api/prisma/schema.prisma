@@ -1466,8 +1466,18 @@ model OcrTrabajo {
   solicitud Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: NoAction, onUpdate: NoAction)
   documento DocumentoRespaldo @relation(fields: [id_documento], references: [id], onDelete: NoAction, onUpdate: NoAction)
   propietario Usuario? @relation(fields: [reservado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  resultado OcrResultado?
   @@unique([id_solicitud, revision])
   @@index([estado, creado_en], map: "ocr_trabajo_cola")
   @@map("ocr_trabajo")
 }
 
+
+model OcrResultado {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_trabajo String @unique @db.Uuid
+  resultado Json @db.JsonB
+  creado_en DateTime @default(now()) @db.Timestamptz
+  trabajo OcrTrabajo @relation(fields: [id_trabajo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  @@map("ocr_resultado")
+}

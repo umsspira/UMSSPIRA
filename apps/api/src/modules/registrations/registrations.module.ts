@@ -1,3 +1,5 @@
+import { OcrResultsController } from './http/controllers/ocr-results.controller';
+import { OcrResultsService } from './application/services/ocr-results.service';
 import { OcrController } from './http/controllers/ocr.controller';
 import { OcrService } from './application/services/ocr.service';
 import { StatusQueryController } from './http/controllers/status-query.controller';
@@ -41,6 +43,7 @@ import { MailEventsController } from './http/controllers/mail-events.controller'
   imports: [PrismaModule, AuthModule],
   controllers: [
     OcrController,
+    OcrResultsController,
     ActivationAccessController,
     UpdateRegistrationController,
     StatusQueryController,
@@ -68,6 +71,7 @@ import { MailEventsController } from './http/controllers/mail-events.controller'
   ],
   providers: [
     OcrService,
+    OcrResultsService,
     ActivationAccessService,
     ...registrationsProviders,
     SmtpOutboxWorker,
