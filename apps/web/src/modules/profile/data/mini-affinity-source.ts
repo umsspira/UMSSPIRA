@@ -13,5 +13,5 @@ const SAMPLE_DELAY_MS = 600;
 
 export async function fetchMiniAffinity(): Promise<MiniAffinityResult> {
   await new Promise((resolve) => setTimeout(resolve, SAMPLE_DELAY_MS));
-  return { status: 'ok', values: SAMPLE_VALUES };
+    return {  status: 'ok', values: SAMPLE_VALUES  };
 }

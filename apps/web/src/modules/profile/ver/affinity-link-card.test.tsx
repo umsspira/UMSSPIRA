@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { AFFINITY_ROUTE } from '@/modules/profile/data/affinity-route';
 import { fetchMiniAffinity } from '@/modules/profile/data/mini-affinity-source';
@@ -31,7 +31,7 @@ describe('AffinityLinkCard', () => {
     await screen.findByTestId('mini-radar');
   });
 
-  
+  // HU-17 CA-01
   it('muestra el mini radar con los valores del último cálculo', async () => {
     mockCalculation();
     render(<AffinityLinkCard />);
@@ -41,7 +41,7 @@ describe('AffinityLinkCard', () => {
     expect(radar).toHaveAccessibleName(expect.stringContaining('Gestión TI 30%'));
   });
 
-  
+  // HU-17 CA-02: toda la tarjeta abre Mi afinidad (el enlace se estira sobre la tarjeta)
   it('toda la tarjeta lleva a /afinidad', async () => {
     mockCalculation();
     render(<AffinityLinkCard />);
@@ -57,12 +57,41 @@ describe('AffinityLinkCard', () => {
     await screen.findByTestId('mini-radar');
   });
 
-  
+  // HU-17 CA-03
   it('dice «Actualizando tu afinidad…» mientras el cálculo no llega', () => {
     fetchMiniAffinityMock.mockReturnValue(new Promise(() => {}));
     render(<AffinityLinkCard />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Actualizando tu afinidad…');
     expect(screen.queryByTestId('mini-radar')).not.toBeInTheDocument();
+  });
+
+  // HU-17 CA-04
+  it('dice «Sin datos suficientes» y ofrece «Completar perfil» si el cálculo viene vacío', async () => {
+    fetchMiniAffinityMock.mockResolvedValue({ status: 'empty', values: [0, 0, 0, 0, 0, 0] });
+    render(<AffinityLinkCard />);
+
+    expect(await screen.findByText('Sin datos suficientes')).toBeInTheDocument();
+    const completeLink = screen.getByRole('link', { name: 'Completar perfil' });
+    expect(completeLink).toHaveAttribute('href', '/profile/completar');
+    expect(completeLink).toHaveClass('relative', 'z-10');
+    expect(screen.queryByTestId('mini-radar')).not.toBeInTheDocument();
+  });
+
+  // HU-17 CA-05
+  it('dice «No se pudo calcular tu afinidad» y «Reintentar» vuelve a pedir el cálculo', async () => {
+    fetchMiniAffinityMock.mockRejectedValueOnce(new Error('falló'));
+    render(<AffinityLinkCard />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo calcular tu afinidad');
+    const retryButton = screen.getByRole('button', { name: 'Reintentar' });
+    expect(retryButton).toHaveClass('relative', 'z-10');
+
+    mockCalculation();
+    fireEvent.click(retryButton);
+
+    expect(await screen.findByTestId('mini-radar')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(fetchMiniAffinityMock).toHaveBeenCalledTimes(2);
   });
 });
