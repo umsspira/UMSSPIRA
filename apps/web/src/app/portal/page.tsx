@@ -202,7 +202,6 @@ export default function Home() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 w-full space-y-8 font-sans text-slate-900">
       
-      {/* Alerta Superior Roja */}
       {!isOnline && (
         <div className="bg-[#B44735] text-white p-4 rounded-xl flex items-center gap-3 shadow-md animate-in slide-in-from-top-2 fade-in duration-300">
           <AlertTriangle className="w-5 h-5 shrink-0" />
@@ -212,7 +211,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Banner principal */}
+      {/* Banner principal con etiqueta de estado */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
         <div className="absolute inset-0 z-0 overflow-hidden">
           <Image
@@ -226,7 +225,15 @@ export default function Home() {
           <div className="absolute inset-0 bg-[#0F172A]/60"></div>
         </div>
 
-        <div className="relative z-10 max-w-2xl space-y-4">
+        {/* Etiqueta de estado */}
+        <div className={`absolute top-6 right-6 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${
+          isOnline ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+        }`}>
+          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
+          {isOnline ? 'En línea' : 'Sin conexión'}
+        </div>
+
+        <div className="relative z-10 max-w-2xl space-y-4 pt-8 sm:pt-0">
           <h3 className="text-sm font-medium text-slate-300">Bienvenido a</h3>
           <h1 className="text-3xl md:text-5xl font-serif font-bold text-white tracking-tight">
             UMSS<span className="text-amber-500">PIRA</span>
