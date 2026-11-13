@@ -197,3 +197,66 @@ export async function resubmitObservedApplication(
     return { status: 'error', message: CONNECTION_ERROR };
   }
 }
+
+export type PreviousDocumentResult =
+  | { status: 'success'; file: Blob }
+  | { status: 'invalid-link' }
+  | { status: 'error'; message: string };
+
+export async function getPreviousDocument(
+  token: string,
+): Promise<PreviousDocumentResult> {
+  try {
+    const response = await fetch(
+      `${OBSERVED_URL}/document/content`,
+      {
+        method: 'GET',
+        headers: authHeaders(token),
+        cache: 'no-store',
+      },
+    );
+
+    if (response.status === 404 || response.status === 410) {
+      return { status: 'invalid-link' };
+    }
+
+    if (!response.ok) {
+      return {
+        status: 'error',
+        message: 'No se pudo obtener el documento anterior.',
+      };
+    }
+
+    const file = await response.blob();
+
+    if (file.size === 0) {
+      return {
+        status: 'error',
+        message: 'El documento no está disponible.',
+      };
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+    ];
+
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      return {
+        status: 'error',
+        message: 'No se puede visualizar este formato de archivo.',
+      };
+    }
+
+    return {
+      status: 'success',
+      file,
+    };
+  } catch {
+    return {
+      status: 'error',
+      message: 'No fue posible conectar con el servidor.',
+    };
+  }
+}
