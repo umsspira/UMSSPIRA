@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OptionalAuthenticationGuard } from '../../shared/http/auth/guards/optional-authentication.guard';
 import { eventsProviders } from './infrastructure/providers/events.providers';
 import { GetEventCatalogController } from './http/controllers/get-event-catalog.controller';
@@ -27,7 +28,7 @@ import { CancelPublishedEventController } from './http/controllers/cancel-publis
 import { CancelEventRegistrationController } from './http/controllers/cancel-event-registration.controller';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [
     GetEventCatalogController,
     ListMyEventRegistrationsController,

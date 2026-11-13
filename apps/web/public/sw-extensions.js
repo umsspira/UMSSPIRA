@@ -11,6 +11,65 @@
  *   self.addEventListener('push', (event) => { ... });
  */
 
+const PUSH_DEFAULT_TITLE = 'UMSSPIRA';
+const PUSH_DEFAULT_ICON = '/icons/icon-192.png';
+
+function toInternalPushUrl(value) {
+  if (typeof value !== 'string' || value.length === 0) return '/portal';
+
+  try {
+    const destination = new URL(value, self.location.origin);
+    return destination.origin === self.location.origin ? destination.href : '/portal';
+  } catch {
+    return '/portal';
+  }
+}
+
+function parsePushPayload(event) {
+  try {
+    const payload = event.data ? event.data.json() : {};
+    return payload && typeof payload === 'object' ? payload : {};
+  } catch {
+    return {};
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const payload = parsePushPayload(event);
+  const title = typeof payload.title === 'string' && payload.title.trim()
+    ? payload.title.trim()
+    : PUSH_DEFAULT_TITLE;
+  const body = typeof payload.body === 'string' ? payload.body : '';
+  const icon = typeof payload.icon === 'string' && payload.icon.startsWith('/')
+    ? payload.icon
+    : PUSH_DEFAULT_ICON;
+  const url = toInternalPushUrl(payload.url);
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      badge: PUSH_DEFAULT_ICON,
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = toInternalPushUrl(event.notification.data && event.notification.data.url);
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((client) => new URL(client.url).origin === self.location.origin);
+      if (existing) {
+        return existing.navigate(url).then(() => existing.focus());
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});
+
 
 // HU12: acceso al detalle del pase sin conexión
 const HU12_SHELL_CACHE = 'hu12-offline-shell-v1';

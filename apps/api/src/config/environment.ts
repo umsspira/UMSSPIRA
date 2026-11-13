@@ -83,6 +83,14 @@ export const environmentSchema = z
       .optional(),
     CORRECTION_LINK_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
     WEB_BASE_URL: z.string().url().default('http://localhost:3001'),
+    VAPID_PUBLIC_KEY: z.string().min(1, 'La clave pública VAPID es obligatoria'),
+    VAPID_PRIVATE_KEY: z.string().min(1, 'La clave privada VAPID es obligatoria'),
+    VAPID_SUBJECT: z
+      .string()
+      .refine(
+        (value) => value.startsWith('mailto:') || value.startsWith('https://'),
+        'El asunto VAPID debe usar mailto: o https://',
+      ),
   })
   .superRefine((env, context) => {
     const store = env.AUTH_RATE_LIMIT_STORE ?? (env.NODE_ENV === 'production' ? 'redis' : 'memory');
