@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { EventPassScanner } from './event-pass-scanner';
 import { validateScannedPass } from './validate-scanned-pass';
 import type { EventAttendanceResult } from '@umsspira/shared-types';
+import { ApiClientError } from '@/shared/services/api-client';
+import { SessionError } from '@/shared/services/auth-session';
 
 const attendance: EventAttendanceResult = {
   code: 'ATTENDANCE_RECORDED', attendanceRecorded: true,
@@ -42,7 +44,7 @@ describe('Validación desde el escáner', () => {
   });
 
   it('muestra el rechazo del servidor y permite escanear otra vez', async () => {
-    jest.mocked(validateScannedPass).mockRejectedValue(new Error('El pase corresponde a otro evento'));
+    jest.mocked(validateScannedPass).mockRejectedValue(new ApiClientError('El pase corresponde a otro evento', 409, 'PASS_EVENT_MISMATCH'));
     render(<EventPassScanner eventId="evento" />);
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('El pase corresponde a otro evento');
@@ -87,5 +89,24 @@ describe('Validación desde el escáner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
     expect(await screen.findByRole('heading', { name: 'Asistencia ya registrada' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Evento de prueba');
+  });
+
+  it.each([
+    new TypeError('Failed to fetch'),
+    new ApiClientError('Detalle interno del servidor', 500, 'INTERNAL_ERROR'),
+  ])('informa el resultado incierto ante un fallo de conexión o servidor (%#)', async (error) => {
+    jest.mocked(validateScannedPass).mockRejectedValue(error);
+    render(<EventPassScanner eventId="evento" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('vuelve a escanear el pase para verificar su estado');
+    expect(screen.queryByText(error.message)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Escanear otro pase' })).toBeEnabled();
+  });
+
+  it('conserva el mensaje de sesión expirada del cliente de autenticación', async () => {
+    jest.mocked(validateScannedPass).mockRejectedValue(new SessionError(401, 'Inicia sesión para continuar'));
+    render(<EventPassScanner eventId="evento" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Inicia sesión para continuar');
   });
 });

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { EventAttendanceResult } from '@umsspira/shared-types';
 import { formatEventDateTime } from '@/shared/utils/event-date-time';
+import { ApiClientError } from '@/shared/services/api-client';
+import { SessionError } from '@/shared/services/auth-session';
 import { EventScannerCamera } from './event-scanner-camera';
 import { validateScannedPass } from './validate-scanned-pass';
 
@@ -31,9 +33,14 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
       })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
+          const knownRejection =
+            (reason instanceof ApiClientError && reason.status < 500) ||
+            reason instanceof SessionError;
           setState({
             status: 'error',
-            message: reason instanceof Error ? reason.message : 'No fue posible conectar con el servidor. Vuelve a intentarlo.',
+            message: knownRejection
+              ? reason.message
+              : 'No se pudo confirmar la asistencia. Comprueba la conexión y vuelve a escanear el pase para verificar su estado.',
           });
         }
       })
