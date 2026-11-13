@@ -1,3 +1,4 @@
+// apps/web/src/app/portal/page.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -13,7 +14,12 @@ import {
   Bookmark,
   MapPin,
   Clock3,
-  Settings, //  NUEVO IMPORT
+  Settings,
+  WifiOff,
+  Wifi,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
 } from 'lucide-react';
 
 import umssBg from '@/shared/assets/images/14sept.webp';
@@ -114,6 +120,47 @@ export default function Home() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [eventsError, setEventsError] = useState(false);
 
+  const [isOnline, setIsOnline] = useState(true);
+  const [showReconnectedToast, setShowReconnectedToast] = useState(false);
+  const [showTemporaryConnected, setShowTemporaryConnected] = useState(false);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setShowReconnectedToast(true);
+      setShowTemporaryConnected(true);
+
+      const toastTimer = setTimeout(() => {
+        setShowReconnectedToast(false);
+      }, 3000);
+
+      const cardTimer = setTimeout(() => {
+        setShowTemporaryConnected(false);
+      }, 3000);
+
+      return () => {
+        clearTimeout(toastTimer);
+        clearTimeout(cardTimer);
+      };
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setShowReconnectedToast(false);
+      setShowTemporaryConnected(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     let isActive = true;
 
@@ -153,10 +200,22 @@ export default function Home() {
   }, [query, events]);
 
   const term = query.trim();
+  const shouldShowStatusCard = !isOnline || (isOnline && showTemporaryConnected);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 w-full space-y-8 font-sans text-slate-900">
+      
+      {!isOnline && (
+        <div className="bg-[#B44735] text-white p-4 rounded-xl flex items-center gap-3 shadow-md animate-in slide-in-from-top-2 fade-in duration-300">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <p className="text-sm font-medium">
+            Estás navegando sin conexión. Algunos contenidos pueden no estar actualizados.
+          </p>
+        </div>
+      )}
+
       {/* Banner principal */}
+      {/* Añadimos relative al section para posicionar la etiqueta */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
         <div className="absolute inset-0 z-0 overflow-hidden">
           <Image
@@ -170,8 +229,16 @@ export default function Home() {
           <div className="absolute inset-0 bg-[#0F172A]/60"></div>
         </div>
 
-        <div className="relative z-10 max-w-2xl space-y-4">
-          <h3 className="text-sm font-medium text-slate-300">Bienvenido a</h3>
+        {/* 👇 ETIQUETA MOVIDA A LA ESQUINA SUPERIOR DERECHA 👇 */}
+        <div className={`absolute top-6 right-6 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${
+          isOnline ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+        }`}>
+          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
+          {isOnline ? 'En línea' : 'Sin conexión'}
+        </div>
+
+        <div className="relative z-10 max-w-2xl space-y-4 pt-8 sm:pt-0">
+          <h3 className="text-sm font-medium text-slate-300">Estado de conexión</h3>
           <h1 className="text-3xl md:text-5xl font-serif font-bold text-white tracking-tight">
             UMSS<span className="text-amber-500">PIRA</span>
           </h1>
@@ -188,12 +255,51 @@ export default function Home() {
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Buscar eventos, beneficios y empleos"
                 placeholder="Busque eventos, beneficios, empleos..."
-                className="w-full min-h-[44px] pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm placeholder:text-slate-400"
+                disabled={!isOnline}
+                className={`w-full min-h-[44px] pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm placeholder:text-slate-400 ${!isOnline && 'opacity-50 cursor-not-allowed'}`}
               />
             </form>
           </div>
         </div>
       </section>
+
+      {/* 👇 TARJETA DE ESTADO AGRANDADA 👇 */}
+      {shouldShowStatusCard && (
+        <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
+          {isOnline ? (
+            <>
+              {/* Icono más grande */}
+              <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6 text-green-600">
+                <Wifi className="w-12 h-12" />
+              </div>
+              {/* Textos más grandes */}
+              <h2 className="text-3xl font-bold text-slate-900 mb-3">Conectado a Internet</h2>
+              <p className="text-slate-500 text-base">Todas las funcionalidades están disponibles.</p>
+              
+              {/* Cuadro azul más ancho y grande */}
+              <div className="mt-10 w-full max-w-3xl bg-blue-50/50 border border-blue-100 rounded-xl p-5 flex items-start gap-4 text-left">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <Info className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-slate-800">Información</h4>
+                  <p className="text-sm text-slate-600">Tu conexión se mantiene estable.</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center mb-6 text-red-600">
+                <WifiOff className="w-12 h-12" />
+              </div>
+              <h2 className="text-3xl font-bold text-slate-900 mb-3">Sin conexión a Internet</h2>
+              <p className="text-slate-500 text-base max-w-md">
+                Puedes seguir navegando por las secciones guardadas. La barra se oculta sola cuando vuelva la red.
+              </p>
+            </>
+          )}
+        </section>
+      )}
 
       {term && filteredQuickLinks.length === 0 && filteredEvents.length === 0 && (
         <p role="status" className="text-center text-sm text-slate-500">
@@ -201,7 +307,6 @@ export default function Home() {
         </p>
       )}
 
-      {/* Accesos rápidos */}
       {filteredQuickLinks.length > 0 && (
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
           {filteredQuickLinks.map(({ href, title, text, Icon, iconStyle }) => (
@@ -225,7 +330,6 @@ export default function Home() {
         </section>
       )}
 
-      {/* Próximos eventos publicados */}
       <section className="space-y-4 pt-2">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-serif font-bold text-slate-900">Próximos eventos</h2>
@@ -257,9 +361,7 @@ export default function Home() {
                     aria-hidden="true"
                     className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow"
                   >
-                    <Bookmark
-                      size={19}
-                    />
+                    <Bookmark size={19} />
                   </span>
                 </div>
                 <Link
@@ -288,7 +390,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* BOTÓN FLOTANTE PARA IR A CONFIGURACIÓN (HU01) */}
       <Link
         href="/portal/configuracion"
         className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-[#1B2632] text-white rounded-full shadow-lg hover:bg-slate-800 transition-colors z-50 font-medium"
@@ -297,6 +398,19 @@ export default function Home() {
         <Settings className="w-5 h-5" />
         <span>Configuración</span>
       </Link>
+
+      {showReconnectedToast && (
+        <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-[#E6F4EA] border border-[#B7E1CD] text-[#137333] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5" />
+            <div>
+              <h4 className="font-bold text-sm">Conexión restablecida</h4>
+              <p className="text-xs opacity-90">Este aviso desaparece en unos segundos.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
