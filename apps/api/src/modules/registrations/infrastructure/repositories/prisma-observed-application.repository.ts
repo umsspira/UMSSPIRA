@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import { validateDocument } from '../../domain/policies/document.policy';
+import { toObservationContent } from '../../domain/policies/observation-content';
 import type {
   ObservedApplicationDetail,
   ReplaceObservedDocumentResponse,
@@ -33,6 +34,9 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
         dictamen_registros: {
           orderBy: { fecha_creacion: 'desc' },
           take: 1,
+          include: {
+            motivos: { include: { motivo: true }, orderBy: { id_motivo: 'asc' } },
+          },
         },
         version_registros: true,
       },
@@ -71,10 +75,17 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
     }
 
     const latestReview = row.dictamen_registros[0];
+    const content = toObservationContent({
+      reasons: (latestReview?.motivos ?? []).map((link) => link.motivo.etiqueta),
+      category: latestReview?.categoria,
+      explanation: latestReview?.justificacion,
+    });
     const observacion = {
       categoria: latestReview?.categoria ?? null,
       justificacion: latestReview?.justificacion ?? null,
       fecha: latestReview?.fecha_creacion?.toISOString() ?? null,
+      // Observaciones nuevas: etiquetas de los motivos. Antiguas: la categoría única.
+      motivos: content.reasons,
     };
 
     const d = row.detalle_solicitud;

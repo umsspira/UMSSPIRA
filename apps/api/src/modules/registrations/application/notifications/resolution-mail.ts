@@ -1,6 +1,6 @@
 import type { ReviewInput } from '../contracts/registration-inputs';
 import { renderApprovalHtml } from './html-mail';
-
+import { toObservationContent } from '../../domain/policies/observation-content';
 export type ResolutionMailType = 'aprobacion' | 'observacion' | 'rechazo';
 
 export interface ResolutionMailInput {
@@ -9,6 +9,7 @@ export interface ResolutionMailInput {
   fullName: string;
   code?: string | null;
   category?: string;
+  reasons?: readonly string[];
   note?: string;
   correctionUrl?: string;
   activationUrl?: string;
@@ -76,6 +77,11 @@ export function buildResolutionMail(input: ResolutionMailInput): ResolutionMail 
     };
   }
   if (input.decision === 'OBSERVADA') {
+    const content = toObservationContent({
+      reasons: input.reasons,
+      category: input.category,
+      explanation: input.note,
+    });
     return {
       type: 'observacion',
       subject: 'Tu solicitud en UMSSPIRA fue observada',
@@ -84,8 +90,10 @@ export function buildResolutionMail(input: ResolutionMailInput): ResolutionMail 
         '',
         'Tu solicitud tiene observaciones que debes corregir.',
         '',
-        'Categoría: ' + (input.category ?? ''),
-        'Explicación: ' + (input.note ?? ''),
+        ...(content.reasons.length > 1
+          ? ['Motivos:', ...content.reasons.map((reason) => '- ' + reason)]
+          : ['Categoría: ' + (content.reasons[0] ?? '')]),
+        'Explicación: ' + content.explanation,
         ...(input.correctionUrl
           ? ['', 'Corrige tu solicitud en este enlace: ' + input.correctionUrl]
           : []),
