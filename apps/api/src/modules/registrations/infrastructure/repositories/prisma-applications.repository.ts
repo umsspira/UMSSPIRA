@@ -322,6 +322,7 @@ async find(actor: ActorContext, id: string) {
     }
     const rows = await this.prisma.motivoObservacion.findMany({
       where: { codigo: { in: codes }, activo: true },
+      orderBy: { id: 'asc' },
       select: { codigo: true, etiqueta: true },
     });
     return rows.map((row) => ({ code: row.codigo, label: row.etiqueta }));

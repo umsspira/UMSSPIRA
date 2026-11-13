@@ -81,15 +81,14 @@ export class ReviewApplicationUseCase {
     }
   }
 
-  // Etiquetas de los motivos elegidos, en el mismo orden. Si un código no está disponible,
-  // la transacción del dictamen lo rechaza antes de enviar nada.
+  // La tabla dictamen_motivo no guarda el orden de selección. El correo y la pantalla de
+  // corrección usan el orden del catálogo para mostrar exactamente lo mismo.
   private async observationReasons(input: ReviewInput): Promise<string[]> {
     if (input.decision !== 'OBSERVADA' || !input.motivos?.length) {
       return [];
     }
     const found = await this.repository.findObservationReasons(input.motivos);
-    const labels = new Map(found.map((reason) => [reason.code, reason.label]));
-    return input.motivos.flatMap((code) => labels.get(code) ?? []);
+    return found.map((reason) => reason.label);
   }
 
   private async issueCorrectionLink(id: string, input: ReviewInput): Promise<string | null> {

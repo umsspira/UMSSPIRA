@@ -7,8 +7,8 @@ function setup() {
   const repository = {
     find: jest.fn().mockResolvedValue({ fullName: 'Ana Perez', email: 'ana@example.com' }),
     findObservationReasons: jest.fn().mockResolvedValue([
-      { code: 'datos_no_coinciden', label: 'Datos declarados no coinciden' },
       { code: 'documento_ilegible', label: 'Documento ilegible o borroso' },
+      { code: 'datos_no_coinciden', label: 'Datos declarados no coinciden' },
     ]),
     review: jest.fn().mockResolvedValue({ id: 'dictamen-1' }),
     countRejections: jest.fn().mockResolvedValue(0),
@@ -33,11 +33,11 @@ const sealedText = (security: { seal: jest.Mock }) =>
   (security.seal.mock.calls[0][0] as { text: string }).text;
 
 describe('ReviewApplicationUseCase con varios motivos', () => {
-  it('muestra las etiquetas en el orden elegido y una sola explicacion', async () => {
+    it('muestra las etiquetas en el orden del catalogo y una sola explicacion', async () => {
     const { useCase, security } = setup();
     await useCase.execute(actor, 'app-1', {
       decision: 'OBSERVADA',
-      motivos: ['documento_ilegible', 'datos_no_coinciden'],
+      motivos: ['datos_no_coinciden', 'documento_ilegible'],
       note: 'Sube un PDF nitido',
     });
     const text = sealedText(security);
