@@ -41,12 +41,19 @@ describe('AffinityLinkCard', () => {
     expect(radar).toHaveAccessibleName(expect.stringContaining('Gestión TI 30%'));
   });
 
-  it('el botón lleva a la pantalla de afinidad de la Épica 3', async () => {
+  // HU-17 CA-02: toda la tarjeta abre Mi afinidad (el enlace se estira sobre la tarjeta)
+  it('toda la tarjeta lleva a /afinidad', async () => {
     mockCalculation();
     render(<AffinityLinkCard />);
 
+    const card = screen.getByRole('region', { name: 'Mi afinidad' });
+    const link = screen.getByRole('link', { name: 'Ver mi afinidad' });
     expect(AFFINITY_ROUTE).toBe('/afinidad');
-    expect(screen.getByRole('link', { name: 'Ver mi afinidad' })).toHaveAttribute('href', '/afinidad');
+    expect(link).toHaveAttribute('href', '/afinidad');
+    expect(card).toHaveClass('relative');
+    expect(link).toHaveClass('after:absolute', 'after:inset-0');
+    // Un filtro (brightness) en el enlace encogería su "after:" al pasar el mouse
+    expect(link.className).not.toMatch(/brightness|filter/);
     await screen.findByTestId('mini-radar');
   });
 });
