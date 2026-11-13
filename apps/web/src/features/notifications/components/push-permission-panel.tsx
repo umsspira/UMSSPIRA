@@ -14,7 +14,7 @@ import { usePushSubscription } from '../hooks/usePushSubscription';
  */
 export function PushPermissionPanel() {
   const { permission, support, requesting, request } = usePushPermission();
-  const { status, error, subscribe, unsubscribe } = usePushSubscription();
+  const { status, error, subscribe, unsubscribe } = usePushSubscription(permission);
 
   if (!support.supported) {
     return (

@@ -23,6 +23,10 @@ import { GetEventParticipantsUseCase } from '../../application/use-cases/get-eve
 import { ListInactiveEventsUseCase } from '../../application/use-cases/list-inactive-events.use-case';
 import { RetireEventUseCase } from '../../application/use-cases/retire-event.use-case';
 import { ListMyEventRegistrationsUseCase } from '../../application/use-cases/list-my-event-registrations.use-case';
+import {
+  PUSH_NOTIFICATIONS,
+  type PushNotifications,
+} from '../../../notifications/application/ports/push-notifications.port';
 
 // 1. IMPORTACIÓN DEL SERVICIO QR
 import { GenerateEventPassService } from '../../application/generate-event-pass.service';
@@ -67,8 +71,9 @@ export const eventsProviders: Provider[] = [
   },
   {
     provide: UpdatePublishedEventUseCase,
-    inject: [EVENTS_REPOSITORY],
-    useFactory: (repository: EventsRepository) => new UpdatePublishedEventUseCase(repository),
+    inject: [EVENTS_REPOSITORY, PUSH_NOTIFICATIONS],
+    useFactory: (repository: EventsRepository, notifications: PushNotifications) =>
+      new UpdatePublishedEventUseCase(repository, notifications),
   },
   {
     provide: PublishEventDraftUseCase,
@@ -93,8 +98,9 @@ export const eventsProviders: Provider[] = [
   },
   {
     provide: CancelPublishedEventUseCase,
-    inject: [EVENTS_REPOSITORY],
-    useFactory: (repository: EventsRepository) => new CancelPublishedEventUseCase(repository),
+    inject: [EVENTS_REPOSITORY, PUSH_NOTIFICATIONS],
+    useFactory: (repository: EventsRepository, notifications: PushNotifications) =>
+      new CancelPublishedEventUseCase(repository, notifications),
   },
   {
     provide: DeleteEventCoverUseCase,

@@ -19,6 +19,8 @@ function buildRepository(): jest.Mocked<PushSubscriptionsRepository> {
     upsert: jest.fn(),
     removeByEndpoint: jest.fn(),
     listByUser: jest.fn(),
+    listForUsers: jest.fn(),
+    removeInvalidEndpoint: jest.fn(),
   };
 }
 

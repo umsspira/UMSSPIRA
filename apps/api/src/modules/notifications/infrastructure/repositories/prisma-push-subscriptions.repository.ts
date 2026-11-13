@@ -5,6 +5,7 @@ import type {
 } from '../../application/ports/push-subscriptions-repository.port';
 import type {
   RegisterPushSubscriptionInput,
+  PushDeliverySubscription,
   StoredPushSubscription,
 } from '../../domain/entities/push-subscription';
 
@@ -118,5 +119,36 @@ export class PrismaPushSubscriptionsRepository
     });
 
     return rows.map((row) => this.toModel(row));
+  }
+
+  async listForUsers(userIds: string[]): Promise<PushDeliverySubscription[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.dispositivo.findMany({
+      where: {
+        usuario_id: { in: userIds },
+        url_push: { not: null },
+        llave_publica: { not: null },
+        llave_secreta: { not: null },
+      },
+      select: {
+        url_push: true,
+        llave_publica: true,
+        llave_secreta: true,
+      },
+    });
+
+    return rows.flatMap((row) => {
+      if (!row.url_push || !row.llave_publica || !row.llave_secreta) {
+        return [];
+      }
+      return [{ endpoint: row.url_push, p256dh: row.llave_publica, auth: row.llave_secreta }];
+    });
+  }
+
+  async removeInvalidEndpoint(endpoint: string): Promise<void> {
+    await this.prisma.dispositivo.deleteMany({ where: { url_push: endpoint } });
   }
 }

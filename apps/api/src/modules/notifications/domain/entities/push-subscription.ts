@@ -20,6 +20,13 @@ export interface RegisterPushSubscriptionInput {
   plataforma?: string | null;
 }
 
+/** Suscripción interna que contiene las claves necesarias para entregar un Push. */
+export interface PushDeliverySubscription {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
 /** Presenta una suscripción almacenada como DTO público. */
 export function presentPushSubscription(
   subscription: StoredPushSubscription,

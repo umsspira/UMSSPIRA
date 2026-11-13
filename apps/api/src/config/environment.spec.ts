@@ -3,6 +3,9 @@ import { validateEnvironment } from './environment';
 const database = {
   DATABASE_URL: 'postgresql://usuario:clave@localhost:5432/umsspira',
   AUTH_JWT_SECRET: 'clave-exclusiva-de-pruebas-'.repeat(4),
+  VAPID_PUBLIC_KEY: 'clave-publica-de-pruebas',
+  VAPID_PRIVATE_KEY: 'clave-privada-de-pruebas',
+  VAPID_SUBJECT: 'mailto:push@umsspira.test',
 };
 
 describe('Configuración del entorno', () => {

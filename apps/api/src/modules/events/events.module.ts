@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OptionalAuthenticationGuard } from '../../shared/http/auth/guards/optional-authentication.guard';
 import { eventsProviders } from './infrastructure/providers/events.providers';
 import { GetEventCatalogController } from './http/controllers/get-event-catalog.controller';
@@ -21,7 +22,7 @@ import { UploadEventCoverController } from './http/controllers/upload-event-cove
 import { RegisterEventController } from './http/controllers/register-event.controller';
 import { GetEventParticipantsController } from './http/controllers/get-event-participants.controller';
 import { GenerateEventPassService } from './application/generate-event-pass.service';
-import { ListUserPassesService } from './application/list-user-passes.service'; // <-- 1. AÑADIDO AQUÍ
+import { ListUserPassesService } from './application/list-user-passes.service';
 import { EventPassesController } from './http/event-passes.controller';
 import { CancelPublishedEventController } from './http/controllers/cancel-published-event.controller';
 import { CancelEventRegistrationController } from './http/controllers/cancel-event-registration.controller';
@@ -29,7 +30,7 @@ import { ValidateAttendancePassController } from './http/controllers/validate-at
 import { ValidateAttendancePassService } from './application/validate-attendance-pass.service';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [
     GetEventCatalogController,
     ListMyEventRegistrationsController,

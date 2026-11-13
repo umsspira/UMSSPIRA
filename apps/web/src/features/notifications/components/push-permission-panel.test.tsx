@@ -9,6 +9,7 @@ jest.mock('@/shared/services/push-subscription', () => ({
     endpoint: s.endpoint,
     keys: { p256dh: 'p', auth: 'a' },
   }),
+  listPushSubscriptions: jest.fn().mockResolvedValue([]),
   savePushSubscription: jest.fn().mockResolvedValue({ id: 'sub-1' }),
   removePushSubscription: jest.fn().mockResolvedValue(undefined),
 }));
@@ -39,13 +40,18 @@ describe('PushPermissionPanel (HU13 - T7 y T8)', () => {
     if (supported) {
       (window as unknown as { PushManager: unknown }).PushManager = function () {};
       const registration = {
+        scope: 'http://localhost/',
+        active: {},
         pushManager: {
           getSubscription: jest.fn().mockResolvedValue(existingSubscription),
           subscribe: jest.fn().mockResolvedValue(fakeSubscription),
         },
       };
       Object.defineProperty(navigator, 'serviceWorker', {
-        value: { ready: Promise.resolve(registration) },
+        value: {
+          ready: Promise.resolve(registration),
+          getRegistrations: jest.fn().mockResolvedValue([registration]),
+        },
         configurable: true,
       });
     }

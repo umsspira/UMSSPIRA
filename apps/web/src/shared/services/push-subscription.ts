@@ -74,6 +74,15 @@ export async function savePushSubscription(
   return result.data;
 }
 
+/** Lista las suscripciones públicas registradas para el usuario actual. */
+export async function listPushSubscriptions(): Promise<PushSubscriptionDto[]> {
+  const result = await apiClient<{ data: PushSubscriptionDto[] }>(
+    PUSH_SUBSCRIPTIONS_PATH,
+    { authenticated: true },
+  );
+  return result.data;
+}
+
 /** Elimina la suscripción de la API por su endpoint. */
 export async function removePushSubscription(
   endpoint: string,

@@ -396,6 +396,14 @@ export class PrismaEventsRepository implements EventsRepository {
     };
   }
 
+  async confirmedRegistrantUserIds(eventId: string): Promise<string[]> {
+    const rows = await this.prisma.inscripcionEvento.findMany({
+      where: { id_evento: eventId, estado: 'CONFIRMADA', id_usuario: { not: null } },
+      select: { id_usuario: true },
+    });
+    return [...new Set(rows.flatMap((row) => (row.id_usuario ? [row.id_usuario] : [])))];
+  }
+
   async inactive(ownerId: string, now: Date): Promise<InactiveEvent[]> {
     const rows = await this.prisma.evento.findMany({
       where: {
