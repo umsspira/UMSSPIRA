@@ -35,16 +35,34 @@ export interface SurveySubmitInput {
   tiempo_insercion?: string;
 }
 
-export async function getSurveySubmissionStatus(): Promise<boolean> {
+export interface SurveyStatusInfo {
+  submitted: boolean;
+  hasActiveSurvey: boolean;
+  surveyId: string | null;
+}
+
+export async function getSurveyStatusInfo(): Promise<SurveyStatusInfo> {
   // apiFetch ya desenvuelve la propiedad data de la respuesta HTTP.
-  const response = await apiFetch<{ submitted: boolean }>(
-    SURVEY_SUBMISSION_STATUS_PATH,
-    { method: 'GET', cache: 'no-store' },
-  );
+  const response = await apiFetch<{
+    submitted: boolean;
+    hasActiveSurvey?: boolean;
+    surveyId?: string | null;
+  }>(SURVEY_SUBMISSION_STATUS_PATH, { method: 'GET', cache: 'no-store' });
+
   if (typeof response?.submitted !== 'boolean') {
     throw new Error('No se pudo verificar el estado de la encuesta');
   }
-  return response.submitted;
+
+  return {
+    submitted: response.submitted,
+    hasActiveSurvey: response.hasActiveSurvey ?? true,
+    surveyId: response.surveyId ?? null,
+  };
+}
+
+export async function getSurveySubmissionStatus(): Promise<boolean> {
+  const info = await getSurveyStatusInfo();
+  return info.submitted;
 }
 
 export async function getMySurveyResponse(): Promise<SurveyPersistedAnswer | null> {

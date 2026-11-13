@@ -94,6 +94,13 @@ describe('T3.4: integración visual del formulario y confirmación', () => {
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
     fireEvent(window, new Event('offline'));
     expect(screen.getAllByText('Sin conexión a Internet').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Confirmar y enviar' })).toBeDisabled();
+
+    // Al recuperar la conexión se reactiva el envío
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+    fireEvent(window, new Event('online'));
+    expect(screen.getByRole('button', { name: 'Confirmar y enviar' })).not.toBeDisabled();
+
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar y enviar' }));
     expect(await screen.findByText('No se pudo enviar la encuesta. Intente nuevamente')).toBeInTheDocument();
     expect(screen.getByText(/No fue posible conectar con el servidor/)).toBeInTheDocument();
