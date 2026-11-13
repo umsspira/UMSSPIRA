@@ -40,14 +40,21 @@ const FONT = "Inter,'Segoe UI',Helvetica,Arial,sans-serif";
 function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
+
 function reasonsTextLines(reasons: readonly string[]): string[] {
-  if (reasons.length === 0) {return [];}
-  if (reasons.length === 1) {return [`Categoría de observación: ${reasons[0]}`];}
+  if (reasons.length === 0) {
+    return [];
+  }
+  if (reasons.length === 1) {
+    return [`Categoría de observación: ${reasons[0]}`];
+  }
   return ['Motivos de la observación:', ...reasons.map((reason) => `- ${reason}`)];
 }
 
 function reasonsHtml(reasons: readonly string[]): string {
-  if (reasons.length === 0) {return '';}
+  if (reasons.length === 0) {
+    return '';
+  }
   const several = reasons.length > 1;
   const label = several ? 'Motivos de la observación:' : 'Categoría de observación:';
   const items = reasons
@@ -58,6 +65,7 @@ function reasonsHtml(reasons: readonly string[]): string {
     .join('');
   return `<div style="font-family:${FONT};font-size:12px;line-height:18px;color:${COLOR.muted};padding-top:12px;">${label}</div>${items}`;
 }
+
 export function buildObservedMail(input: ObservedMailInput): ObservedMail {
   const greeting = input.fullName?.trim() ? `Hola ${input.fullName.trim()},` : 'Hola,';
   const content = toObservationContent(input);
@@ -100,7 +108,6 @@ export function renderObservedHtml(input: ObservedMailInput): string {
   const reasons = reasonsHtml(content.reasons);
   const note = escapeHtml(content.explanation).replace(/\r?\n/g, '<br>');
   const url = escapeHtml(input.correctionUrl);
-  
 
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(OBSERVED_MAIL_SUBJECT)}</title></head>
@@ -121,8 +128,7 @@ export function renderObservedHtml(input: ObservedMailInput): string {
 <tr><td style="padding:20px 32px 8px 32px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${COLOR.panel};border:1px solid ${COLOR.line};border-radius:12px;"><tr><td style="padding:20px;">
 <div style="font-family:${FONT};font-size:11px;line-height:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${COLOR.ink};padding-bottom:8px;border-bottom:1px solid ${COLOR.line};">Detalle de la observación documental</div>
-<div style="font-family:${FONT};font-size:12px;line-height:18px;color:${COLOR.muted};padding-top:12px;">Categoría de observación:
-style="font-family:${FONT};font-size:15px;line-height:22px;font-weight:700;color:${COLOR.ink};padding:2px 0 12px 0;">${reasons}</div>
+${reasons}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${COLOR.card};border:1px solid ${COLOR.cardLine};border-radius:8px;"><tr><td style="padding:12px 14px;">
 <div style="font-family:${FONT};font-size:12px;line-height:18px;color:${COLOR.muted};">Justificación del auditor:</div>
 <div style="font-family:${FONT};font-size:13px;line-height:20px;font-style:italic;color:${COLOR.ink};padding-top:4px;">&ldquo;${note}&rdquo;</div>
