@@ -529,3 +529,20 @@ describe('FormularioCertificaciones · respaldo PDF y cambiar respaldo (HU-18)',
     expect(screen.queryByText('Respaldo actualizado')).not.toBeInTheDocument();
   });
 });
+
+describe('FormularioCertificaciones · celular (HU-18, T18.6)', () => {
+  it('«Cambiar respaldo» ocupa todo el ancho en celular y vuelve a su tamaño en escritorio', async () => {
+    render(
+      <FormularioCertificaciones
+        certificaciones={[]}
+        onAgregar={jest.fn().mockResolvedValue(undefined)}
+        onCambiarRespaldo={jest.fn()}
+      />,
+    );
+    llenarFormulario();
+    fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
+
+    const boton = await screen.findByRole('button', { name: 'Cambiar respaldo' });
+    expect(boton).toHaveClass('w-full', 'md:w-auto');
+  });
+});

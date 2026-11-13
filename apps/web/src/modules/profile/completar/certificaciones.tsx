@@ -402,7 +402,8 @@ export function FormularioCertificaciones({
               type="button"
               onClick={() => cambioRef.current?.click()}
               disabled={cambiandoRespaldo}
-              className={`${botonRespaldoClase} disabled:cursor-not-allowed disabled:opacity-50`}
+              // En celular ocupa todo el ancho, igual que «Agregar certificación» y «Cancelar»
+              className={`${botonRespaldoClase} w-full justify-center disabled:cursor-not-allowed disabled:opacity-50 md:w-auto`}
             >
               <FileText className="h-4 w-4" aria-hidden="true" />
               {cambiandoRespaldo ? 'Cambiando…' : 'Cambiar respaldo'}
