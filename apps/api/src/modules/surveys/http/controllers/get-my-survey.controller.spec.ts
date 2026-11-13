@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { NotFoundException } from '@nestjs/common';
 import { GetMySurveyController } from './get-my-survey.controller';
 import type { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';

@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { PrismaSurveyRepository } from './prisma-survey.repository';
 import type { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 
