@@ -4,22 +4,10 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:3000"
-    },
-    {
-      "key": "accessToken",
-      "value": ""
-    },
-    {
-      "key": "adminAccessToken",
-      "value": ""
-    },
-    {
-      "key": "surveyId",
-      "value": ""
-    }
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "surveyId", "value": "" }
   ],
   "item": [
     {
@@ -43,31 +31,16 @@
       "request": {
         "method": "POST",
         "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
+          { "key": "Content-Type", "value": "application/json" }
         ],
         "auth": {
           "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/surveys",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "surveys"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "surveys"]
         },
         "body": {
           "mode": "raw",
@@ -96,31 +69,16 @@
       "request": {
         "method": "POST",
         "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
+          { "key": "Content-Type", "value": "application/json" }
         ],
         "auth": {
           "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/surveys",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "surveys"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "surveys"]
         },
         "body": {
           "mode": "raw",
@@ -150,25 +108,12 @@
         "header": [],
         "auth": {
           "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/surveys/status",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "surveys",
-            "status"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "surveys", "status"]
         }
       }
     },
@@ -200,25 +145,12 @@
         "header": [],
         "auth": {
           "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/surveys/me",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "surveys",
-            "me"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "surveys", "me"]
         }
       }
     },
@@ -244,34 +176,82 @@
         "header": [],
         "auth": {
           "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{adminAccessToken}}",
-              "type": "string"
-            }
-          ]
+          "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }]
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/reports/surveys?page=1&limit=10",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "reports",
-            "surveys"
-          ],
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reports", "surveys"],
           "query": [
-            {
-              "key": "page",
-              "value": "1"
-            },
-            {
-              "key": "limit",
-              "value": "10"
-            }
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Reporte de encuestas con token de titulado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+              "const body = pm.response.json();",
+              "pm.test(\"acceso prohibido\", () => {",
+              "  pm.expect(body.error.code).to.eql(\"FORBIDDEN\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reports/surveys?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reports", "surveys"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Reporte de encuestas sin token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+              "const body = pm.response.json();",
+              "pm.test(\"requiere iniciar sesión\", () => {",
+              "  pm.expect(body.error.code).to.eql(\"UNAUTHORIZED\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": { "type": "noauth" },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reports/surveys?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reports", "surveys"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" }
           ]
         }
       }
