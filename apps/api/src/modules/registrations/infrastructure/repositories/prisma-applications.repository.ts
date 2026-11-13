@@ -15,6 +15,7 @@ import type {
   ApplicationsRepository,
   ResolutionMailRecord,
   ActivationResult,
+  ObservationReason,
 } from '../../application/ports/applications-repository.port';
 
 import type {
@@ -315,6 +316,17 @@ async find(actor: ActorContext, id: string) {
     return rows[0]?.total ?? 0;
   }
   
+  async findObservationReasons(codes: string[]): Promise<ObservationReason[]> {
+    if (codes.length === 0) {
+      return [];
+    }
+    const rows = await this.prisma.motivoObservacion.findMany({
+      where: { codigo: { in: codes }, activo: true },
+      select: { codigo: true, etiqueta: true },
+    });
+    return rows.map((row) => ({ code: row.codigo, label: row.etiqueta }));
+  }
+
   async document(actor: ActorContext, id: string) {
     const application = await this.prisma.solicitud.findFirst({
       where: scopedApplication(actor, id),

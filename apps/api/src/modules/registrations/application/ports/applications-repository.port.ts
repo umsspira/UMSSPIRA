@@ -28,8 +28,14 @@ export interface ResolutionMailRecord {
   subject: string;
 }
 
+export interface ObservationReason {
+  code: string;
+  label: string;
+}
+
 export interface ApplicationsRepository {
   countRejections(id: string): Promise<number>;
+  findObservationReasons(codes: string[]): Promise<ObservationReason[]>;
   renewActivation(
     actor: ActorContext,
     id: string,
