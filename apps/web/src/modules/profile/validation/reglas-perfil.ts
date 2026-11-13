@@ -105,3 +105,18 @@ export const MENSAJE_MAXIMO_TRABAJOS_ACTUALES = 'Ya tienes dos trabajos actuales
 export function hasMaxCurrentJobs(otrosActuales: number): boolean {
   return otrosActuales >= MAXIMO_TRABAJOS_ACTUALES;
 }
+
+// HU-19 (T19.2): el enlace del proyecto tiene que ser una dirección https válida; la API aplica la misma regla
+export const MENSAJE_ENLACE_PROYECTO = 'Ingresa un enlace válido que empiece con https://';
+export const LARGO_MAXIMO_NOMBRE_PROYECTO = 150;
+export const LARGO_MAXIMO_ENLACE_PROYECTO = 500;
+export const LARGO_MAXIMO_DESCRIPCION_PROYECTO = 500;
+export const LARGO_MAXIMO_TECNOLOGIAS_PROYECTO = 300;
+
+export function validarEnlaceProyecto(enlace: string): string | undefined {
+  try {
+    return new URL(enlace.trim()).protocol === 'https:' ? undefined : MENSAJE_ENLACE_PROYECTO;
+  } catch {
+    return MENSAJE_ENLACE_PROYECTO;
+  }
+}

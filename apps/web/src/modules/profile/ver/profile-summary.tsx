@@ -9,8 +9,10 @@ import DownloadProfileButton from '@/modules/profile/components/download-profile
 import AffinityLinkCard from '@/modules/profile/ver/affinity-link-card';
 import ProfessionalDescription from '@/modules/profile/ver/professional-description';
 import ProfileCompleteness from '@/modules/profile/ver/profile-completeness';
+import ProjectsSection from '@/modules/profile/ver/projects-section';
 import SavedNotice from '@/modules/profile/ver/saved-notice';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
+import type { ProjectRecord } from '@/modules/profile/types/profile-record';
 import { isProfileEmpty, profileCompleteness } from '@/modules/profile/utils/profile-completeness';
 import { recordsToTimeline } from '@/modules/profile/utils/records-to-timeline';
 import { sortSectionsByRecency } from '@/modules/profile/utils/sort-by-recency';
@@ -33,8 +35,8 @@ export default function ProfileSummary({ showSavedNotice = false }: { showSavedN
   const timeline = recordsToTimeline(records);
 
   const experiences = records.experience.length;
-  // HU-21, T21.5: completitud de 5 secciones (formación, experiencia, certificaciones, descripción y proyectos).
-  // TODO(HU-19): al integrar T19.6 de Mayra, pasar aquí los proyectos del store según la firma final de profileCompleteness.
+  // HU-21 (T21.5) y HU-19 (T19.6): completitud de 5 secciones (formación, experiencia, certificaciones,
+  // descripción y proyectos); los proyectos vienen en records.project
   const completeness = profileCompleteness(records, description);
   // Carrera y promoción solo si la API las tiene registradas
   const careerLine = [header?.career, header?.graduationYear ? `Promoción ${header.graduationYear}` : '']
@@ -122,7 +124,7 @@ if (loadError) {
         <section className="min-w-0 flex-1 rounded-2xl border border-abyssal-blue/10 bg-white px-4 py-5 md:px-7 md:py-6">
           <ProfessionalDescription description={description} />
           <Timeline sections={sortSectionsByRecency(timeline)} />
-          {/* TODO(HU-19): en la sección «Proyectos», cada proyecto lleva <ViewProjectButton project={{ name, url, description, technologies }} /> (HU-20) */}
+          <ProjectsSection projects={records.project as ProjectRecord[]} />
         </section>
       </div>
     </div>

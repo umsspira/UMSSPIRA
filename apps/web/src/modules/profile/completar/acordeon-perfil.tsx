@@ -10,10 +10,12 @@ import { FormularioExperiencia, type Experiencia } from './experiencia-laboral';
 import { FormacionAcademicaForm, type FormacionAcademica } from './formacion-academica';
 import { FormularioCertificaciones, type Certificacion } from './certificaciones';
 import { FormularioDescripcion } from './descripcion-profesional';
+import { FormularioProyectos, type Proyecto } from './proyectos';
 import {
   crearCertificacion,
   crearExperiencia,
   crearFormacion,
+  crearProyecto,
   guardarDescripcion,
   subirRespaldo,
 } from '@/modules/profile/services/perfil-api';
@@ -34,6 +36,7 @@ import type {
   EducationRecord,
   DeleteRecordErrorCode,
   ExperienceRecord,
+  ProjectRecord,
 } from '@/modules/profile/types/profile-record';
  
 // returnTo: ruta interna desde la que se llegó (por ejemplo /afinidad); al terminar se vuelve ahí (E2.3).
@@ -55,6 +58,7 @@ export function AcordeonPerfil({
     addEducation,
     addExperience,
     addCertification,
+    addProject,
     setDescription,
     removeRecord,
     updateRecord,
@@ -65,6 +69,7 @@ export function AcordeonPerfil({
   const [erroresFormacion, setErroresFormacion] = useState(0);
   const [erroresExperiencia, setErroresExperiencia] = useState(0);
   const [erroresCertificaciones, setErroresCertificaciones] = useState(0);
+  const [erroresProyectos, setErroresProyectos] = useState(0);
   // Avance (0 a 100) de la subida del respaldo mientras se guarda una certificación
   const [progresoSubida, setProgresoSubida] = useState<number>();
   // Certificación que se va a eliminar desde Completar perfil (BUG HU8-02), con el mismo modal que Mis registros
@@ -133,7 +138,19 @@ export function AcordeonPerfil({
     [records.certification],
   );
  
-  // Mismo cálculo que el indicador del resumen: las 3 secciones de registros y la descripción
+  // HU-19: proyectos ya guardados, para listarlos en la sección 5
+  const proyectos = useMemo<Proyecto[]>(
+    () =>
+      (records.project as ProjectRecord[]).map((registro) => ({
+        nombre: registro.name,
+        enlace: registro.url,
+        descripcion: registro.description,
+        tecnologias: registro.technologies ?? '',
+      })),
+    [records.project],
+  );
+
+  // Mismo cálculo que el indicador del resumen: las 4 secciones de registros y la descripción
   const secciones = profileCompleteness(records, description).sections;
   const completas = secciones.filter((seccion) => seccion.complete).length;
  
@@ -350,6 +367,27 @@ export function AcordeonPerfil({
           onGuardar={async (descripcion) => {
             // El resumen muestra lo que la API guardó; si falla, el estado no cambia
             setDescription(await guardarDescripcion(descripcion));
+          }}
+        />
+        )}
+      </SeccionAcordeon>
+      {/* HU-19 (T19.1): sección 5 «Proyectos y portafolio» */}
+      <SeccionAcordeon
+        numero={5}
+        abiertaInicial={seccionInicial === 'proyectos'}
+        titulo="Proyectos y portafolio"
+        descripcion="Tus proyectos y trabajos publicados"
+        cantidad={proyectos.length}
+        errores={erroresProyectos}
+      >
+        {(cerrar) => (
+        <FormularioProyectos
+          proyectos={proyectos}
+          onErroresChange={setErroresProyectos}
+          onCancelar={cerrar}
+          onAgregar={async (proyecto) => {
+            // Solo se agrega al estado lo que la API guardó (201), con su id real
+            addProject(await crearProyecto(proyecto));
           }}
         />
         )}

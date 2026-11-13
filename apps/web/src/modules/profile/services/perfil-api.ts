@@ -1,12 +1,14 @@
 import type { Certificacion } from '@/modules/profile/completar/certificaciones';
 import type { Experiencia } from '@/modules/profile/completar/experiencia-laboral';
 import type { FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
+import type { Proyecto } from '@/modules/profile/completar/proyectos';
 import type { ProfileHeader } from '@/modules/profile/data/profile-data';
 import type {
   CertificationRecord,
   EducationRecord,
   ExperienceRecord,
   ProfileRecords,
+  ProjectRecord,
 } from '@/modules/profile/types/profile-record';
 import { ApiError, apiFetch } from '@/shared/services/api-client';
 import { apiUrl, readApiError } from '@/shared/services/api-contract';
@@ -60,6 +62,16 @@ export type CertificacionApi = RegistroApi & Required<CertificacionCuerpo> & {
   respaldo?: { tieneRespaldo: boolean | null; tipo?: 'FOTO' | 'QR' | 'DOCUMENTO' | null };
 };
 
+// Cuerpo de POST/PUT de proyectos (projectSchema del backend, HU-19)
+type ProyectoCuerpo = {
+  nombre: string;
+  enlace: string;
+  descripcion: string;
+  tecnologias: string | null;
+};
+
+export type ProyectoApi = RegistroApi & ProyectoCuerpo;
+
 // GET /api/v1/perfil (profile.presenter.ts del backend)
 export type PerfilApi = {
   // nombre y carrera null = no registrados; promocion todavía llega null
@@ -67,6 +79,8 @@ export type PerfilApi = {
   formacionAcademica: { registros: FormacionApi[] };
   experienciaLaboral: { registros: ExperienciaApi[] };
   certificaciones: { registros: CertificacionApi[] };
+  // HU-19: una API anterior a los proyectos no envía la sección
+  proyectos?: { registros: ProyectoApi[] };
   // Descripción profesional guardada en perfil_area (T6.4); vacía = sin registrar
   descripcionProfesional: string;
 };
@@ -121,6 +135,18 @@ export function aCertificationRecord(certificacion: CertificacionApi): Certifica
     backupVerified: false,
     // HU-18: el backend guarda el PDF como DOCUMENTO y la foto como FOTO
     backupType: certificacion.respaldo?.tieneRespaldo ? (esPdf ? 'pdf' : 'image') : undefined,
+  };
+}
+
+export function aProjectRecord(proyecto: ProyectoApi): ProjectRecord {
+  return {
+    id: proyecto.id,
+    ownerId: proyecto.idTitulado,
+    name: proyecto.nombre,
+    url: proyecto.enlace,
+    description: proyecto.descripcion,
+    technologies: proyecto.tecnologias ?? undefined,
+    createdAt: proyecto.fechaCreacion ?? undefined,
   };
 }
 
@@ -198,9 +224,42 @@ export async function obtenerResumenPerfil(): Promise<ResumenPerfil> {
       education: perfil.formacionAcademica.registros.map(aEducationRecord),
       experience: perfil.experienciaLaboral.registros.map(aExperienceRecord),
       certification: perfil.certificaciones.registros.map(aCertificationRecord),
+      project: (perfil.proyectos?.registros ?? []).map(aProjectRecord),
     },
     description: perfil.descripcionProfesional?.trim() ?? '',
   };
+}
+
+function cuerpoProyecto(proyecto: Proyecto): ProyectoCuerpo {
+  return {
+    nombre: proyecto.nombre.trim(),
+    enlace: proyecto.enlace.trim(),
+    descripcion: proyecto.descripcion.trim(),
+    tecnologias: proyecto.tecnologias.trim() || null,
+  };
+}
+
+// POST /api/v1/perfil/proyectos -> 201 con el proyecto creado o 400 si el enlace no es https (HU-19)
+export async function crearProyecto(proyecto: Proyecto): Promise<ProjectRecord> {
+  const creado = await apiFetch<ProyectoApi>(`${PERFIL_URL}/proyectos`, {
+    method: 'POST',
+    body: JSON.stringify(cuerpoProyecto(proyecto)),
+  });
+  return aProjectRecord(creado);
+}
+
+// PUT /api/v1/perfil/proyectos/:id -> el mismo proyecto actualizado, 403 si es de otro egresado (HU-19)
+export async function actualizarProyecto(id: string, proyecto: Proyecto): Promise<ProjectRecord> {
+  const actualizado = await apiFetch<ProyectoApi>(`${PERFIL_URL}/proyectos/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(cuerpoProyecto(proyecto)),
+  });
+  return aProjectRecord(actualizado);
+}
+
+// GET /api/v1/perfil/proyectos/:id -> el proyecto, 404 si no existe o 403 si es de otro egresado
+export async function obtenerProyecto(id: string): Promise<ProjectRecord> {
+  return aProjectRecord(await apiFetch<ProyectoApi>(`${PERFIL_URL}/proyectos/${id}`));
 }
 
 // GET /api/v1/perfil/certificaciones/:id -> la certificación guardada, 404 si no existe o 403 si es de otro egresado

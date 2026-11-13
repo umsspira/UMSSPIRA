@@ -1,4 +1,4 @@
-export type RecordSection = 'education' | 'experience' | 'certification';
+export type RecordSection = 'education' | 'experience' | 'certification' | 'project';
 
 type OwnedRecord = {
   id: string;
@@ -39,7 +39,19 @@ export type CertificationRecord = OwnedRecord & {
   backupType?: 'pdf' | 'image';
 };
 
-export type ProfileRecord = EducationRecord | ExperienceRecord | CertificationRecord;
+// Proyecto o portafolio del egresado (HU-19)
+export type ProjectRecord = OwnedRecord & {
+  name: string;
+  // Siempre https (T19.2)
+  url: string;
+  description: string;
+  // Opcional; texto libre, por ejemplo «React, NestJS»
+  technologies?: string;
+  // Fecha de registro, para ordenar del más reciente al más antiguo (T19.5)
+  createdAt?: string;
+};
+
+export type ProfileRecord = EducationRecord | ExperienceRecord | CertificationRecord | ProjectRecord;
 
 export type ProfileRecords = Record<RecordSection, ProfileRecord[]>;
 

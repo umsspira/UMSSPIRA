@@ -2,17 +2,24 @@ import {
   crearCertificacion,
   crearExperiencia,
   crearFormacion,
+  crearProyecto,
   subirRespaldo,
 } from '@/modules/profile/services/perfil-api';
 import type { DraftRecord } from '@/modules/profile/state/drafts-store';
-import type { CertificationRecord, EducationRecord, ExperienceRecord } from '@/modules/profile/types/profile-record';
+import type {
+  CertificationRecord,
+  EducationRecord,
+  ExperienceRecord,
+  ProjectRecord,
+} from '@/modules/profile/types/profile-record';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 
 export type SavedDraft =
   | { section: 'education'; record: EducationRecord }
   | { section: 'experience'; record: ExperienceRecord }
-  | { section: 'certification'; record: CertificationRecord };
+  | { section: 'certification'; record: CertificationRecord }
+  | { section: 'project'; record: ProjectRecord };
 
 // Intento de guardar una certificación: conserva idOperacion y la ya creada para que «Reintentar»
 // no la duplique si solo falló la subida del respaldo (igual que Completar perfil, T8.6)
@@ -49,5 +56,7 @@ export async function persistDraft(
         },
       };
     }
+    case 'project':
+      return { section: 'project', record: await crearProyecto(draft.data) };
   }
 }

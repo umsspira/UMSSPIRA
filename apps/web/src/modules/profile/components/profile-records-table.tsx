@@ -22,6 +22,7 @@ const EDIT_ROUTES: Record<RecordSection, string> = {
   education: '/profile/education',
   experience: '/profile/experience',
   certification: '/profile/certifications',
+  project: '/profile/projects',
 };
 
 // Íconos sin borde, como en la v3 del Figma
@@ -75,6 +76,12 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
           title: 'Aún no tienes certificaciones registradas',
           description: 'Agrega tus certificaciones para completar esta sección de tu perfil.',
           button: 'Agregar certificación',
+    },
+         project: {
+          id: 'proyectos',
+          title: 'Aún no tienes proyectos registrados',
+          description: 'Agrega tus proyectos o tu portafolio para completar esta sección de tu perfil.',
+          button: 'Agregar proyecto',
     },
   } as const
 )[section];

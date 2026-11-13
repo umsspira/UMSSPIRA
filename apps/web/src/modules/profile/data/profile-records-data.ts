@@ -5,6 +5,7 @@ export const EMPTY_PROFILE_RECORDS: ProfileRecords = {
   education: [],
   experience: [],
   certification: [],
+  project: [],
 };
 
 // "Mis registros" abierto en una pestaña (para volver a la sección desde la que se editó)
@@ -18,11 +19,12 @@ export function updatedRecordHref(section: RecordSection): string {
 }
 
 export function toRecordSection(value: string | undefined): RecordSection {
-  return value === 'experience' || value === 'certification' ? value : 'education';
+  return value === 'experience' || value === 'certification' || value === 'project' ? value : 'education';
 }
 
 export const SECTION_LABELS: Record<RecordSection, string> = {
   education: 'Formación académica',
   experience: 'Experiencia',
   certification: 'Certificaciones',
+  project: 'Proyectos',
 };

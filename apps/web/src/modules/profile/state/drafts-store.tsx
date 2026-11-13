@@ -5,13 +5,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { Certificacion } from '@/modules/profile/completar/certificaciones';
 import type { Experiencia } from '@/modules/profile/completar/experiencia-laboral';
 import type { FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
+import type { Proyecto } from '@/modules/profile/completar/proyectos';
 import type { RecordSection } from '@/modules/profile/types/profile-record';
 import { loadDrafts, saveDrafts } from '@/modules/profile/utils/drafts-storage';
 
 /**
  * Borradores de «Agregar registros» (HU-13). Forma de los datos:
  * - id: temporal, solo vive en el navegador (por ejemplo «borrador-3»); la API da el id real al guardar
- * - section: apartado del borrador (education | experience | certification)
+ * - section: apartado del borrador (education | experience | certification | project)
  * - data: lo que devuelve el formulario de ese apartado, tal cual (los mismos tipos de Completar perfil)
  * HU-14 extiende este estado (borrador incompleto y conservación en el navegador).
  */
@@ -19,6 +20,8 @@ export type DraftDataBySection = {
   education: FormacionAcademica;
   experience: Experiencia;
   certification: Certificacion;
+  // HU-19: proyectos y portafolio
+  project: Proyecto;
 };
 
 export type DraftSection = RecordSection;

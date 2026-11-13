@@ -5,16 +5,18 @@ export type CompletenessSectionId =
   | 'formacion-academica'
   | 'experiencia-laboral'
   | 'certificaciones'
-  | 'descripcion-profesional';
+  | 'descripcion-profesional'
+  | 'proyectos';
 
 const SECTION_IDS: readonly CompletenessSectionId[] = [
   'formacion-academica',
   'experiencia-laboral',
   'certificaciones',
   'descripcion-profesional',
+  'proyectos',
 ];
 
-// ?seccion= llega por URL: solo se acepta una de las 4 secciones
+// ?seccion= llega por URL: solo se acepta una de las 5 secciones (HU-19 suma Proyectos)
 export function seccionDeUrl(valor: string | undefined): CompletenessSectionId | undefined {
   return SECTION_IDS.find((id) => id === valor);
 }
@@ -31,30 +33,32 @@ export type CompletenessSection = {
 };
 
 export type ProfileCompleteness = {
-  // 0 a 100; cada una de las 4 secciones vale lo mismo
+  // 0 a 100; cada una de las 5 secciones vale lo mismo (20 %)
   percentage: number;
   sections: CompletenessSection[];
   missing: CompletenessSection[];
 };
 
-// Perfil vacío (HU-12): sin formación, experiencia ni certificaciones y sin descripción profesional
+// Perfil vacío (HU-12): sin formación, experiencia, certificaciones ni proyectos y sin descripción profesional
 export function isProfileEmpty(records: ProfileRecords, description: string): boolean {
   return (
     records.education.length === 0 &&
     records.experience.length === 0 &&
     records.certification.length === 0 &&
+    records.project.length === 0 &&
     description.trim().length === 0
   );
 }
 
 // Completitud del perfil (HU-06): Formación, Experiencia y Certificaciones cuentan con al menos un
-// registro; la descripción, si tiene texto
+// registro; la descripción, si tiene texto. HU-19 (T19.6) suma Proyectos como quinta sección
 export function profileCompleteness(records: ProfileRecords, description: string): ProfileCompleteness {
   const sections: CompletenessSection[] = [
     { id: 'formacion-academica', label: 'Formación', complete: records.education.length > 0 },
     { id: 'experiencia-laboral', label: 'Experiencia', complete: records.experience.length > 0 },
     { id: 'certificaciones', label: 'Certificaciones', complete: records.certification.length > 0 },
     { id: 'descripcion-profesional', label: 'Descripción', complete: description.trim().length > 0 },
+    { id: 'proyectos', label: 'Proyectos', complete: records.project.length > 0 },
   ];
   const completas = sections.filter((section) => section.complete).length;
   return {

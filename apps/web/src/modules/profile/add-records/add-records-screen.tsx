@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { FormularioCertificaciones } from '@/modules/profile/completar/certificaciones';
 import { FormularioExperiencia } from '@/modules/profile/completar/experiencia-laboral';
 import { FormacionAcademicaForm, type FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
+import { FormularioProyectos } from '@/modules/profile/completar/proyectos';
 import {
   type DraftDataBySection,
   type DraftRecord,
@@ -29,7 +30,7 @@ const CARD_CLASS = 'rounded-xl border border-oatmeal bg-white';
 
 type SaveStatus = { status: 'idle' | 'saving' | 'error' } | { status: 'saved'; count: number };
 
-const SECTION_NUMBERS: Record<DraftSection, number> = { education: 1, experience: 2, certification: 3 };
+const SECTION_NUMBERS: Record<DraftSection, number> = { education: 1, experience: 2, certification: 3, project: 4 };
 
 // Algún campo escrito o un respaldo elegido
 function hasData(data: DraftDataBySection[DraftSection]): boolean {
@@ -62,7 +63,8 @@ function DraftSectionCard({ number, title, children }: { number: number; title: 
 }
 
 function AddRecordsContent() {
-  const { records, isLoading, loadError, retryLoad, addEducation, addExperience, addCertification } = useProfileStore();
+  const { records, isLoading, loadError, retryLoad, addEducation, addExperience, addCertification, addProject } =
+    useProfileStore();
   const { drafts, addDraft, updateDraft, removeDraft, saveIncompleteDraft } = useDraftsStore();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ status: 'idle' });
   const certificationAttempts = useRef(new Map<string, CertificationAttempt>());
@@ -82,6 +84,9 @@ function AddRecordsContent() {
       },
       certification: (data: DraftDataBySection['certification']) => {
         formData.current.certification = data;
+      },
+      project: (data: DraftDataBySection['project']) => {
+        formData.current.project = data;
       },
     }),
     [],
@@ -151,6 +156,7 @@ function AddRecordsContent() {
   function addToRecords(saved: SavedDraft) {
     if (saved.section === 'education') addEducation(saved.record);
     else if (saved.section === 'experience') addExperience(saved.record);
+    else if (saved.section === 'project') addProject(saved.record);
     else addCertification(saved.record);
   }
 
@@ -278,7 +284,17 @@ function AddRecordsContent() {
                 onDatosChange={trackForm.certification}
               />
             </DraftSectionCard>
-            {/* El apartado 4 «Proyectos y portafolio» lo suma HU-19 en la integración */}
+            <DraftSectionCard number={4} title="Proyectos y portafolio">
+              <FormularioProyectos
+                key={formKey('project')}
+                valoresIniciales={editingDraft?.section === 'project' ? editingDraft.data : formStart.project}
+                proyectos={[]}
+                mostrarRegistrados={false}
+                textoBoton={DRAFT_BUTTON_TEXT}
+                onAgregar={(proyecto) => saveDraft('project', proyecto)}
+                onDatosChange={trackForm.project}
+              />
+            </DraftSectionCard>
           </div>
 
           {/* Bloque «Borradores» (CA-03): solo borradores, cada uno con «Editar» y «Quitar». En celular va debajo

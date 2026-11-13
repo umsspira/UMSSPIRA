@@ -4,6 +4,7 @@ const SECTION_LABELS: Record<DraftRecord['section'], string> = {
   education: 'Formación guardada en borrador',
   experience: 'Experiencia guardada en borrador',
   certification: 'Certificación guardada en borrador',
+  project: 'Proyecto guardado en borrador',
 };
 
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -38,6 +39,11 @@ export function describeDraft(draft: DraftRecord): { title: string; detail: stri
         detail: [draft.data.entidadEmisora, draft.data.anioEmision, backup].filter(Boolean).join(' · '),
       };
     }
+    case 'project':
+      return {
+        title: draft.data.nombre,
+        detail: [draft.data.enlace, draft.data.tecnologias].filter(Boolean).join(' · '),
+      };
   }
 }
 

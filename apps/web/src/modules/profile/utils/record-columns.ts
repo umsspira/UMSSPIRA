@@ -36,6 +36,15 @@ export function getRecordColumns(section: RecordSection): RecordColumn[] {
       { label: 'Fecha de fin', getValue: (record) => formatMonthYear(readField('endDate')(record)) },
     ];
   }
+  if (section === 'project') {
+    // HU-19 (T19.4): pestaña Proyectos
+    return [
+      { label: 'Proyecto', getValue: readField('name') },
+      { label: 'Enlace', getValue: readField('url') },
+      { label: 'Descripción', getValue: readField('description') },
+      { label: 'Tecnologías', getValue: (record) => readField('technologies')(record) || '—' },
+    ];
+  }
   return [
     { label: 'Certificación', getValue: readField('name') },
     { label: 'Entidad emisora', getValue: readField('issuer') },

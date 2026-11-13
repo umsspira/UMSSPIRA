@@ -22,7 +22,8 @@ import { BackButton } from '@/shared/components/back-button';
 import { cn } from '@/shared/utils/cn';
 
 // Mismo orden de pestañas que la v3 del Figma
-const SECTIONS: RecordSection[] = ['education', 'certification', 'experience'];
+// HU-15 dejó el lugar de la pestaña Proyectos; HU-19 (T19.4) la llena
+const SECTIONS: RecordSection[] = ['education', 'certification', 'experience', 'project'];
 const TOAST_DURATION_MS = 3000;
 
 type ProfileRecordsManagerProps = {
@@ -139,7 +140,7 @@ export function ProfileRecordsManager({
       <div
         role="tablist"
         aria-label="Secciones del perfil"
-        className="grid grid-cols-3 gap-2 border-b border-oatmeal sm:flex sm:gap-6"
+        className="grid grid-cols-2 gap-2 border-b border-oatmeal sm:flex sm:gap-6"
       >
         {SECTIONS.map((section) => {
           const isActive = section === activeSection;
