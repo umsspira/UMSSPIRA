@@ -2,6 +2,19 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { ObservedNoticeView } from "./observed-notice-view";
 import * as applicationService from "../services/application.service";
 
+const mockPush = jest.fn();
+const mockBack = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+    back: mockBack,
+    replace: jest.fn(),
+    refresh: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+}));
+
 jest.mock("../services/application.service", () => ({
   ...jest.requireActual("../services/application.service"),
   getObservedApplication: jest.fn(),
