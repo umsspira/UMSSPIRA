@@ -31,7 +31,7 @@ export default function EventScannerPage() {
   }, [id, userId]);
 
   return (
-    <main className="events-page hu8-page">
+    <main className="events-page hu8-page hu14-scanner-page">
       <header className="hu8-heading">
         <div>
           <h1>Validación de pases QR</h1>
