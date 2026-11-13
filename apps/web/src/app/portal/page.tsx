@@ -198,6 +198,7 @@ export default function Home() {
   }, [query, events]);
 
   const term = query.trim();
+  const shouldShowStatusCard = !isOnline || (isOnline && showTemporaryConnected);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 w-full space-y-8 font-sans text-slate-900">
@@ -211,7 +212,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Banner principal con etiqueta de estado */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
         <div className="absolute inset-0 z-0 overflow-hidden">
           <Image
@@ -225,7 +225,6 @@ export default function Home() {
           <div className="absolute inset-0 bg-[#0F172A]/60"></div>
         </div>
 
-        {/* Etiqueta de estado */}
         <div className={`absolute top-6 right-6 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${
           isOnline ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
         }`}>
@@ -251,12 +250,48 @@ export default function Home() {
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Buscar eventos, beneficios y empleos"
                 placeholder="Busque eventos, beneficios, empleos..."
-                className="w-full min-h-[44px] pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm placeholder:text-slate-400"
+                disabled={!isOnline}
+                className={`w-full min-h-[44px] pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm placeholder:text-slate-400 ${!isOnline && 'opacity-50 cursor-not-allowed'}`}
               />
             </form>
           </div>
         </div>
       </section>
+
+      {/* Tarjeta de Estado Dinámica */}
+      {shouldShowStatusCard && (
+        <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
+          {isOnline ? (
+            <>
+              <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6 text-green-600">
+                <Wifi className="w-12 h-12" />
+              </div>
+              <h2 className="text-3xl font-bold text-slate-900 mb-3">Conectado a Internet</h2>
+              <p className="text-slate-500 text-base">Todas las funcionalidades están disponibles.</p>
+              
+              <div className="mt-10 w-full max-w-3xl bg-blue-50/50 border border-blue-100 rounded-xl p-5 flex items-start gap-4 text-left">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <Info className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-slate-800">Información</h4>
+                  <p className="text-sm text-slate-600">Tu conexión se mantiene estable.</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center mb-6 text-red-600">
+                <WifiOff className="w-12 h-12" />
+              </div>
+              <h2 className="text-3xl font-bold text-slate-900 mb-3">Sin conexión a Internet</h2>
+              <p className="text-slate-500 text-base max-w-md">
+                Puedes seguir navegando por las secciones guardadas. La barra se oculta sola cuando vuelva la red.
+              </p>
+            </>
+          )}
+        </section>
+      )}
 
       {term && filteredQuickLinks.length === 0 && filteredEvents.length === 0 && (
         <p role="status" className="text-center text-sm text-slate-500">
@@ -264,7 +299,6 @@ export default function Home() {
         </p>
       )}
 
-      {/* Accesos rápidos */}
       {filteredQuickLinks.length > 0 && (
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
           {filteredQuickLinks.map(({ href, title, text, Icon, iconStyle }) => (
@@ -288,7 +322,6 @@ export default function Home() {
         </section>
       )}
 
-      {/* Próximos eventos publicados */}
       <section className="space-y-4 pt-2">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-serif font-bold text-slate-900">Próximos eventos</h2>
