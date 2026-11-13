@@ -14,10 +14,15 @@ export function disposeOcrEngine() {
   cachedEngine = undefined;
 }
 
+export function getOcrRuntime() {
+  return cachedEngine?.getInitializationSummary() ?? null;
+}
+
 export async function readOcrDocument(
   blob: Blob,
   signal: AbortSignal,
   progress: (message: string) => void,
+  cpuOnly = false,
 ): Promise<OcrReading> {
   if (blob.size > 5 * 1024 * 1024) throw new Error("El respaldo supera 5 MB.");
   if (!["application/pdf", "image/jpeg", "image/png"].includes(blob.type))
@@ -31,6 +36,7 @@ export async function readOcrDocument(
   )) as typeof import("@paddleocr/paddleocr-js");
   // Keep a reference to terminate the actual Worker on route changes, loss of lease or timeout.
   signal.throwIfAborted();
+  if (cpuOnly) disposeOcrEngine();
   let worker: Worker | undefined = cachedWorker;
   const terminate = () => {
     worker?.terminate();
@@ -62,11 +68,14 @@ export async function readOcrDocument(
           .href,
       },
       ortOptions: {
-        backend: "wasm",
-        numThreads: 1,
+        backend: cpuOnly ? "wasm" : "auto",
+        numThreads: globalThis.crossOriginIsolated
+          ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
+          : 1,
+        simd: true,
         wasmPaths: new URL("/ocr/runtime/", location.origin).href,
       },
-      textRecognitionBatchSize: 1,
+      textRecognitionBatchSize: 4,
     }));
   if (signal.aborted) {
     terminate();
@@ -75,6 +84,7 @@ export async function readOcrDocument(
   cachedEngine = ocr;
   cachedWorker = worker;
   let healthy = false;
+  let inferencing = false;
   let pdf: import("pdfjs-dist").PDFDocumentProxy | undefined;
   let loading: import("pdfjs-dist").PDFDocumentLoadingTask | undefined;
   // Terminating a worker does not settle pending SDK promises. Race every operation against abort.
@@ -141,7 +151,9 @@ export async function readOcrDocument(
           context.fillRect(0, 0, canvas.width, canvas.height);
           context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
         }
+        inferencing = true;
         const [result] = await abortable(ocr.predict(canvas));
+        inferencing = false;
         for (const item of result.items) {
           if (lines.length >= 1500) {
             truncated = true;
@@ -187,6 +199,23 @@ export async function readOcrDocument(
       readMs: performance.now() - readStart,
       ...(memory ? { memoryBytes: memory } : {}),
     };
+  } catch (error) {
+    const runtime = ocr.getInitializationSummary();
+    if (
+      !cpuOnly &&
+      !signal.aborted &&
+      inferencing &&
+      (runtime?.detProvider === "webgpu" || runtime?.recProvider === "webgpu")
+    ) {
+      terminate();
+      if (pdf) {
+        await pdf.destroy();
+        pdf = undefined;
+      } else if (loading) await loading.destroy();
+      loading = undefined;
+      return await readOcrDocument(blob, signal, progress, true);
+    }
+    throw error;
   } finally {
     signal.removeEventListener("abort", terminate);
     // Keep one initialized engine for this board; discard it on error, abort or navigation.
