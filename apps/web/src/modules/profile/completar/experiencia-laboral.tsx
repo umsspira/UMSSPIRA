@@ -22,6 +22,8 @@ type FormularioExperienciaProps = {
   textoBoton?: string;
   // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
   valoresIniciales?: Experiencia;
+  // Avisa lo que hay escrito en cada cambio, para subirlo como borrador incompleto (HU-14)
+  onDatosChange?: (datos: Experiencia) => void;
 };
 
 type Datos = {
@@ -51,12 +53,17 @@ export function FormularioExperiencia({
   onErroresChange,
   textoBoton = 'Agregar experiencia',
   valoresIniciales,
+  onDatosChange,
 }: FormularioExperienciaProps) {
   const [datos, setDatos] = useState<Datos>(
     valoresIniciales ? { ...valoresIniciales, fechaFin: valoresIniciales.fechaFin ?? '' } : VACIO,
   );
-  // Sin fecha fin = trabajo actual
-  const [trabajoActual, setTrabajoActual] = useState(Boolean(valoresIniciales && !valoresIniciales.fechaFin));
+  // Sin fecha fin = trabajo actual; un borrador incompleto puede traer la fecha fin vacía ('') sin serlo (HU-14)
+  const [trabajoActual, setTrabajoActual] = useState(Boolean(valoresIniciales && valoresIniciales.fechaFin === undefined));
+  useEffect(
+    () => onDatosChange?.({ ...datos, fechaFin: trabajoActual ? undefined : datos.fechaFin }),
+    [datos, trabajoActual, onDatosChange],
+  );
   // Error de la fecha fin (anterior a la fecha inicio); una vez mostrado se recalcula mientras se corrige
   const [errorFechaFin, setErrorFechaFin] = useState<string>();
   // Mensaje del backend al guardar, tal como lo envía; se quita al cambiar cualquier campo

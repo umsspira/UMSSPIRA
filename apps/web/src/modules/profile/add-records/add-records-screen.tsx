@@ -31,6 +31,11 @@ type SaveStatus = { status: 'idle' | 'saving' | 'error' } | { status: 'saved'; c
 
 const SECTION_NUMBERS: Record<DraftSection, number> = { education: 1, experience: 2, certification: 3 };
 
+// Algún campo escrito o un respaldo elegido
+function hasData(data: DraftDataBySection[DraftSection]): boolean {
+  return Object.values(data).some((value) => (typeof value === 'string' ? value.trim() !== '' : value != null));
+}
+
 /** Pantalla «Agregar registros» (HU-13): los registros se preparan como borradores y se guardan juntos. */
 export function AddRecordsScreen({ initialDrafts }: { initialDrafts?: DraftRecord[] }) {
   return (
@@ -58,13 +63,33 @@ function DraftSectionCard({ number, title, children }: { number: number; title: 
 
 function AddRecordsContent() {
   const { records, isLoading, loadError, retryLoad, addEducation, addExperience, addCertification } = useProfileStore();
-  const { drafts, addDraft, updateDraft, removeDraft } = useDraftsStore();
+  const { drafts, addDraft, updateDraft, removeDraft, saveIncompleteDraft } = useDraftsStore();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ status: 'idle' });
   const certificationAttempts = useRef(new Map<string, CertificationAttempt>());
   const isSaving = saveStatus.status === 'saving';
   // Borrador cargado en su formulario con «Editar»; al guardarlo se reemplaza en vez de agregar otro
   const [editingId, setEditingId] = useState<string | null>(null);
   const editingDraft = drafts.find((draft) => draft.id === editingId) ?? null;
+  // T14.1: lo que hay escrito en el formulario de cada apartado, para subirlo como borrador incompleto
+  const formData = useRef<Partial<DraftDataBySection>>({});
+  const trackForm = useMemo(
+    () => ({
+      education: (data: DraftDataBySection['education']) => {
+        formData.current.education = data;
+      },
+      experience: (data: DraftDataBySection['experience']) => {
+        formData.current.experience = data;
+      },
+      certification: (data: DraftDataBySection['certification']) => {
+        formData.current.certification = data;
+      },
+    }),
+    [],
+  );
+  // T14.5: con un borrador incompleto no se puede guardar el perfil (sus datos no pasarían la API)
+  const hasIncomplete = drafts.some((draft) => draft.isIncomplete);
+  // T14.2: datos con los que arranca el formulario nuevo de cada apartado (el borrador incompleto devuelto)
+  const [formStart, setFormStart] = useState<Partial<DraftDataBySection>>({});
 
   // Formaciones ya guardadas y en borrador (menos la que se edita): con ellas la regla existente avisa de duplicadas
   const existingEducation = useMemo<FormacionAcademica[]>(
@@ -90,13 +115,28 @@ function AddRecordsContent() {
       updateDraft(editingDraft.id, section, data);
       // Con otros datos ya no vale el intento anterior de esa certificación
       certificationAttempts.current.delete(editingDraft.id);
-      setEditingId(null);
+      finishEditing(editingDraft);
       return;
     }
     addDraft(section, data);
   }
 
+  // T14.2: al terminar de editar, el borrador incompleto de ese apartado vuelve a sus casillas y sale de la lista
+  function finishEditing(edited: DraftRecord) {
+    const incomplete = drafts.find(
+      (draft) => draft.section === edited.section && draft.isIncomplete && draft.id !== edited.id,
+    );
+    if (incomplete) removeDraft(incomplete.id);
+    setFormStart((current) => ({ ...current, [edited.section]: incomplete?.data }));
+    setEditingId(null);
+  }
+
   function editDraft(draft: DraftRecord) {
+    // T14.1: si el formulario nuevo de ese apartado tiene datos a medias, no se pierden al cargar el borrador
+    const pending = formData.current[draft.section];
+    if (editingDraft?.section !== draft.section && pending && hasData(pending)) {
+      saveIncompleteDraft(draft.section, pending);
+    }
     setEditingId(draft.id);
     // jsdom no implementa scrollIntoView, por eso la llamada es opcional
     document.getElementById(`seccion-${SECTION_NUMBERS[draft.section]}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
@@ -105,7 +145,7 @@ function AddRecordsContent() {
   function removeDraftById(id: string) {
     removeDraft(id);
     certificationAttempts.current.delete(id);
-    if (editingId === id) setEditingId(null);
+    if (editingDraft?.id === id) finishEditing(editingDraft);
   }
 
   function addToRecords(saved: SavedDraft) {
@@ -117,7 +157,7 @@ function AddRecordsContent() {
   // «Guardar perfil profesional» (CA-04): guarda los borradores uno por uno; cada uno guardado pasa a Mis
   // registros y sale de la lista. Si uno falla, se detiene y los que faltan siguen como borradores
   async function saveProfile() {
-    if (drafts.length === 0 || isSaving) return;
+    if (drafts.length === 0 || isSaving || hasIncomplete) return;
     setEditingId(null);
     setSaveStatus({ status: 'saving' });
     let savedCount = 0;
@@ -209,37 +249,40 @@ function AddRecordsContent() {
             <DraftSectionCard number={1} title="Formación académica">
               <FormacionAcademicaForm
                 key={formKey('education')}
-                valoresIniciales={editingDraft?.section === 'education' ? editingDraft.data : undefined}
+                valoresIniciales={editingDraft?.section === 'education' ? editingDraft.data : formStart.education}
                 formaciones={existingEducation}
                 mostrarRegistradas={false}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 onAgregar={(formacion) => saveDraft('education', formacion)}
+                onDatosChange={trackForm.education}
               />
             </DraftSectionCard>
             <DraftSectionCard number={2} title="Experiencia laboral">
               <FormularioExperiencia
                 key={formKey('experience')}
-                valoresIniciales={editingDraft?.section === 'experience' ? editingDraft.data : undefined}
+                valoresIniciales={editingDraft?.section === 'experience' ? editingDraft.data : formStart.experience}
                 experiencias={[]}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 onAgregar={(experiencia) => saveDraft('experience', experiencia)}
+                onDatosChange={trackForm.experience}
               />
             </DraftSectionCard>
             <DraftSectionCard number={3} title="Certificaciones">
               <FormularioCertificaciones
                 key={formKey('certification')}
-                valoresIniciales={editingDraft?.section === 'certification' ? editingDraft.data : undefined}
+                valoresIniciales={editingDraft?.section === 'certification' ? editingDraft.data : formStart.certification}
                 certificaciones={[]}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 textoGuardada="Certificación guardada en borrador"
                 onAgregar={(certificacion) => saveDraft('certification', certificacion)}
+                onDatosChange={trackForm.certification}
               />
             </DraftSectionCard>
             {/* El apartado 4 «Proyectos y portafolio» lo suma HU-19 en la integración */}
           </div>
 
           {/* Bloque «Borradores» (CA-03): solo borradores, cada uno con «Editar» y «Quitar». En celular va debajo
-              de los apartados. El aviso «Los borradores son provisionales…» es de HU-14 */}
+              de los apartados. Con el aviso de que los borradores son provisionales (HU-14, T14.4) */}
           <aside aria-label="Borradores" className={`${CARD_CLASS} flex flex-col gap-3.5 p-5 md:p-6 lg:w-[380px] lg:shrink-0`}>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-blue-fantastic">
               Borradores
@@ -247,6 +290,9 @@ function AddRecordsContent() {
                 {drafts.length}
               </span>
             </h2>
+            <p role="note" className="rounded-lg border border-umss-orange/40 bg-umss-cream px-3.5 py-2.5 text-xs text-umss-dark">
+              Tus borradores son provisionales y solo se guardan en este navegador
+            </p>
             {drafts.length === 0 ? (
               <p className="text-xs text-blue-fantastic/55">
                 Aún no hay borradores. Llena un apartado y presiona «Guardar en borrador».
@@ -274,8 +320,10 @@ function AddRecordsContent() {
             <button
               type="button"
               onClick={() => void saveProfile()}
-              disabled={drafts.length === 0 || isSaving}
-              aria-describedby={drafts.length === 0 ? 'ayuda-guardar-perfil' : undefined}
+              disabled={drafts.length === 0 || isSaving || hasIncomplete}
+              aria-describedby={
+                drafts.length === 0 ? 'ayuda-guardar-perfil' : hasIncomplete ? 'motivo-borrador-incompleto' : undefined
+              }
               className="flex-1 rounded-lg bg-burning-flame px-6 py-3.5 text-[15px] font-bold text-abyssal-blue transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving ? 'Guardando…' : 'Guardar perfil profesional'}
@@ -290,6 +338,11 @@ function AddRecordsContent() {
           {drafts.length === 0 && (
             <p id="ayuda-guardar-perfil" className="text-xs text-blue-fantastic/55">
               Agrega al menos un borrador para poder guardar.
+            </p>
+          )}
+          {hasIncomplete && (
+            <p id="motivo-borrador-incompleto" className="text-xs font-semibold text-truffle-trouble">
+              Termina o quita el borrador incompleto para guardar tu perfil.
             </p>
           )}
         </div>

@@ -1,11 +1,12 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import type { Certificacion } from '@/modules/profile/completar/certificaciones';
 import type { Experiencia } from '@/modules/profile/completar/experiencia-laboral';
 import type { FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
 import type { RecordSection } from '@/modules/profile/types/profile-record';
+import { loadDrafts, saveDrafts } from '@/modules/profile/utils/drafts-storage';
 
 /**
  * Borradores de «Agregar registros» (HU-13). Forma de los datos:
@@ -23,7 +24,13 @@ export type DraftDataBySection = {
 export type DraftSection = RecordSection;
 
 export type DraftRecord = {
-  [S in DraftSection]: { id: string; section: S; data: DraftDataBySection[S] };
+  [S in DraftSection]: {
+    id: string;
+    section: S;
+    data: DraftDataBySection[S];
+    // HU-14 (T14.1): datos a medias subidos al pulsar «Editar» en otro borrador; uno por sección como máximo
+    isIncomplete?: boolean;
+  };
 }[DraftSection];
 
 type DraftsStore = {
@@ -34,6 +41,8 @@ type DraftsStore = {
   updateDraft: <S extends DraftSection>(id: string, section: S, data: DraftDataBySection[S]) => void;
   removeDraft: (id: string) => void;
   clearDrafts: () => void;
+  // Sube los datos a medias de un apartado como «borrador incompleto»; si ya hay uno en ese apartado, lo reemplaza
+  saveIncompleteDraft: <S extends DraftSection>(section: S, data: DraftDataBySection[S]) => void;
 };
 
 const DraftsStoreContext = createContext<DraftsStore | null>(null);
@@ -44,15 +53,40 @@ function createDraftId(): string {
   return `borrador-${nextDraftId}`;
 }
 
+// Los ids restaurados del navegador no deben repetirse con los nuevos
+function skipRestoredIds(drafts: DraftRecord[]) {
+  for (const draft of drafts) {
+    const number = Number(draft.id.replace('borrador-', ''));
+    if (Number.isInteger(number) && number > nextDraftId) nextDraftId = number;
+  }
+}
+
 export function DraftsStoreProvider({
   children,
-  initialDrafts = [],
+  initialDrafts,
 }: {
   children: React.ReactNode;
-  // Solo para pruebas
+  // Solo para pruebas; con ellos no se restaura lo guardado en el navegador
   initialDrafts?: DraftRecord[];
 }) {
-  const [drafts, setDrafts] = useState<DraftRecord[]>(initialDrafts);
+  const [drafts, setDrafts] = useState<DraftRecord[]>(initialDrafts ?? []);
+  // T14.3: hasta restaurar no se guarda, para no pisar lo conservado con la lista vacía del inicio
+  const [isRestored, setIsRestored] = useState(false);
+
+  useEffect(() => {
+    if (!initialDrafts) {
+      const saved = loadDrafts();
+      skipRestoredIds(saved);
+      if (saved.length > 0) setDrafts(saved);
+    }
+    setIsRestored(true);
+    // Solo al montar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (isRestored) void saveDrafts(drafts);
+  }, [drafts, isRestored]);
 
   const addDraft = useCallback(<S extends DraftSection>(section: S, data: DraftDataBySection[S]) => {
     const id = createDraftId();
@@ -72,9 +106,19 @@ export function DraftsStoreProvider({
 
   const clearDrafts = useCallback(() => setDrafts([]), []);
 
+  const saveIncompleteDraft = useCallback(<S extends DraftSection>(section: S, data: DraftDataBySection[S]) => {
+    setDrafts((current) => {
+      const previous = current.find((draft) => draft.section === section && draft.isIncomplete);
+      if (!previous) return [...current, { id: createDraftId(), section, data, isIncomplete: true } as DraftRecord];
+      return current.map((draft) =>
+        draft.id === previous.id ? ({ id: previous.id, section, data, isIncomplete: true } as DraftRecord) : draft,
+      );
+    });
+  }, []);
+
   const value = useMemo<DraftsStore>(
-    () => ({ drafts, addDraft, updateDraft, removeDraft, clearDrafts }),
-    [drafts, addDraft, updateDraft, removeDraft, clearDrafts],
+    () => ({ drafts, addDraft, updateDraft, removeDraft, clearDrafts, saveIncompleteDraft }),
+    [drafts, addDraft, updateDraft, removeDraft, clearDrafts, saveIncompleteDraft],
   );
 
   return <DraftsStoreContext.Provider value={value}>{children}</DraftsStoreContext.Provider>;
