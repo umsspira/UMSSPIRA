@@ -73,9 +73,16 @@ export default function EventParticipantsPage() {
                 : 'Consulta de inscripciones y ocupación.'}
           </p>
         </div>
+        <div className="event-scanner-actions">
+          {data && !errorMessage ? (
+            <Link href={`/events/${id}/scanner`} className="event-button event-button-primary">
+              Escanear QR
+            </Link>
+          ) : null}
         <Link href="/events" className="event-button hu8-back">
           Volver a gestión
         </Link>
+        </div>
       </header>
 
       {!isLoading && !errorMessage && occupation ? (
