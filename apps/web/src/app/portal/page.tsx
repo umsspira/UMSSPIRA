@@ -118,10 +118,47 @@ export default function Home() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [eventsError, setEventsError] = useState(false);
 
-  // Nuevos estados para manejo de red
   const [isOnline, setIsOnline] = useState(true);
   const [showReconnectedToast, setShowReconnectedToast] = useState(false);
   const [showTemporaryConnected, setShowTemporaryConnected] = useState(false);
+
+  // Efecto para detectar cambios de conexión
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setShowReconnectedToast(true);
+      setShowTemporaryConnected(true);
+
+      const toastTimer = setTimeout(() => {
+        setShowReconnectedToast(false);
+      }, 3000);
+
+      const cardTimer = setTimeout(() => {
+        setShowTemporaryConnected(false);
+      }, 3000);
+
+      return () => {
+        clearTimeout(toastTimer);
+        clearTimeout(cardTimer);
+      };
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setShowReconnectedToast(false);
+      setShowTemporaryConnected(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     let isActive = true;
