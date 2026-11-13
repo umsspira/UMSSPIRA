@@ -31,33 +31,6 @@ export function MentorDetailPage({ mentorId }: { mentorId: string }) {
         <MentorDetailError onRetry={retry} />
       ) : (
         <>
-          {/* Breadcrumbs de navegación */}
-          <nav className="mentorship-breadcrumb" aria-label="Ruta de navegación">
-            <ol className="breadcrumb-list">
-              <li>
-                <Link href="/portal" className="breadcrumb-link">
-                  Inicio
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li>
-                <Link href="/mentorship" className="breadcrumb-link">
-                  Mentorías
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li>
-                <Link href="/mentorship/directory" className="breadcrumb-link">
-                  Directorio de mentores
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li className="breadcrumb-current" aria-current="page">
-                Perfil del mentor
-              </li>
-            </ol>
-          </nav>
-
           {/* Barra superior con título y botón para regresar al directorio */}
           <header className="mentor-detail-page-header">
             <h1 className="mentor-detail-page-heading">Perfil del mentor</h1>

@@ -8,7 +8,7 @@ export interface Crumb {
 }
 
 interface PageLayoutProps {
-  breadcrumb: Crumb[];
+  breadcrumb?: Crumb[];
   eyebrow?: string;
   title: string;
   description?: string;
@@ -19,35 +19,37 @@ export function PageLayout({ breadcrumb, eyebrow, title, description, children }
   return (
     <>
       <header>
-        <nav aria-label="Ruta de navegación">
-          <ol className="breadcrumb-list">
-            {breadcrumb.map((item, index) => {
-              const isLast = index === breadcrumb.length - 1;
-              return (
-                <li key={item.label} className="breadcrumb-item">
-                  {isLast || !item.href ? (
-                    <span aria-current={isLast ? 'page' : undefined} className={isLast ? 'breadcrumb-current' : 'breadcrumb-muted'}>
-                      {item.label}
-                    </span>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      className="breadcrumb-link"
-                    >
-                      {index === 0 && <HomeIcon className="icon-small" aria-hidden="true" />}
-                      {item.label}
-                    </Link>
-                  )}
-                  {!isLast && (
-                    <span aria-hidden="true" className="breadcrumb-separator">
-                      /
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
+        {breadcrumb && breadcrumb.length > 0 && (
+          <nav aria-label="Ruta de navegación">
+            <ol className="breadcrumb-list">
+              {breadcrumb.map((item, index) => {
+                const isLast = index === breadcrumb.length - 1;
+                return (
+                  <li key={item.label} className="breadcrumb-item">
+                    {isLast || !item.href ? (
+                      <span aria-current={isLast ? 'page' : undefined} className={isLast ? 'breadcrumb-current' : 'breadcrumb-muted'}>
+                        {item.label}
+                      </span>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className="breadcrumb-link"
+                      >
+                        {index === 0 && <HomeIcon className="icon-small" aria-hidden="true" />}
+                        {item.label}
+                      </Link>
+                    )}
+                    {!isLast && (
+                      <span aria-hidden="true" className="breadcrumb-separator">
+                        /
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        )}
         {eyebrow && (
           <p className="page-eyebrow">
             {eyebrow}
