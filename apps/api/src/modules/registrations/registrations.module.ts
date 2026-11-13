@@ -26,6 +26,7 @@ import { SubmitRegistrationController } from './http/controllers/submit-registra
 import { ActivateRegistrationController } from './http/controllers/activate-registration.controller';
 import { VerifyActivationCodeController } from './http/controllers/verify-activation-code.controller';
 import { UploadRegistrationDocumentController } from './http/controllers/upload-registration-document.controller';
+import { UpdateApplicationStageController } from './http/controllers/update-application-stage.controller';
 import { ListApplicationsController } from './http/controllers/list-applications.controller';
 import { GetApplicationController } from './http/controllers/get-application.controller';
 import { ReviewApplicationController } from './http/controllers/review-application.controller';
@@ -51,6 +52,7 @@ import { MailEventsController } from './http/controllers/mail-events.controller'
     VerifyActivationCodeController,
     UploadRegistrationDocumentController,
     ListApplicationsController,
+    UpdateApplicationStageController,
     GetApplicationMetricsController,
     GetApplicationController,
     ReviewApplicationController,
