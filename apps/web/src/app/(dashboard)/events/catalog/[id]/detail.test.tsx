@@ -22,9 +22,10 @@ const publishedEvent: EventItem = {
   id: EVENT_ID,
   title: 'Encuentro de titulados',
   description: 'Información real del evento',
-  startDate: '2026-11-06T03:59:00.000Z',
-  endDate: '2026-11-07T14:30:00.000Z',
+  startDate: '2099-11-06T03:59:00.000Z',
+  endDate: '2099-11-07T14:30:00.000Z',
   maxCapacity: 1,
+  currentCapacity: 0,
   location: 'Campus Central',
   status: EVENT_STATUS.PUBLICADO,
   createdBy: 'admin-1',
@@ -34,6 +35,8 @@ const publishedEvent: EventItem = {
 describe('detalle público de eventos', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+   
+    jest.mocked(getCurrentUser).mockResolvedValue({ id: 'user-1', role: 'titulado' } as never);
   });
 
   it('rechaza un identificador malformado sin consultar la API', () => {
@@ -123,7 +126,6 @@ describe('detalle público de eventos', () => {
       maxCapacity: 40,
       currentCapacity: 40,
     });
-    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
 
     render(<EventDetailPage params={{ id: EVENT_ID }} />);
 
@@ -138,7 +140,6 @@ describe('detalle público de eventos', () => {
 
   it('recupera el rol Titulado aunque no exista un token previo en memoria', async () => {
     jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
-    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
 
     render(<EventDetailPage params={{ id: EVENT_ID }} />);
 
@@ -148,7 +149,6 @@ describe('detalle público de eventos', () => {
 
   it('cierra la confirmación con Volver sin enviar la inscripción', async () => {
     jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
-    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
 
     render(<EventDetailPage params={{ id: EVENT_ID }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Inscribirme' }));
@@ -162,7 +162,6 @@ describe('detalle público de eventos', () => {
 
   it('muestra el estado visual de inscripción confirmada', async () => {
     jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
-    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent).mockResolvedValueOnce({
       id: 'registration-1', eventId: EVENT_ID, status: 'CONFIRMADA',
       registeredAt: '2026-11-01T10:00:00.000Z', currentCapacity: 1,
@@ -182,7 +181,6 @@ describe('detalle público de eventos', () => {
 
   it('muestra la variante visual de inscripción duplicada', async () => {
     jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
-    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent).mockRejectedValueOnce(
       new ApiClientError('duplicada', 409, 'EVENT_REGISTRATION_ALREADY_CONFIRMED'),
     );
@@ -201,7 +199,6 @@ describe('detalle público de eventos', () => {
 
   it('muestra un error seguro y permite reintentar sin dejar dos modales abiertos', async () => {
     jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
-    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent)
       .mockRejectedValueOnce(new ApiClientError('interno', 500))
       .mockResolvedValueOnce({
@@ -226,7 +223,6 @@ describe('detalle público de eventos', () => {
 
   it('muestra Evento no disponible con retorno al catálogo', async () => {
     jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
-    jest.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'user-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent).mockRejectedValueOnce(
       new ApiClientError('no disponible', 409, 'EVENT_NOT_AVAILABLE'),
     );
@@ -245,7 +241,6 @@ describe('detalle público de eventos', () => {
     jest.mocked(getPublishedEvent)
       .mockResolvedValueOnce({ ...publishedEvent, maxCapacity: 40, currentCapacity: 39 })
       .mockResolvedValueOnce({ ...publishedEvent, maxCapacity: 40, currentCapacity: 40 });
-    jest.mocked(getCurrentUser).mockResolvedValue({ id: 'user-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent).mockRejectedValueOnce(
       new ApiClientError('sin cupos', 409, 'EVENT_CAPACITY_REACHED'),
     );
@@ -280,7 +275,7 @@ describe('Cancelación desde la inscripción confirmada', () => {
     jest.mocked(getPublishedEvent).mockResolvedValue({ ...publishedEvent, startDate: '2099-11-06T14:00:00Z', endDate: '2099-11-06T18:00:00Z' });
     jest.mocked(getCurrentUser).mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent).mockResolvedValue({
-      id: 'inscripcion-1', eventId: EVENT_ID, status: 'CONFIRMADA',
+      id: 'registration-1', eventId: EVENT_ID, status: 'CONFIRMADA',
       registeredAt: '2026-11-01T10:00:00Z', currentCapacity: 1,
     });
     jest.mocked(cancelEventRegistration).mockReset().mockResolvedValue(undefined);
@@ -304,7 +299,8 @@ describe('Cancelación desde la inscripción confirmada', () => {
     await registeredPage();
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar inscripción' }));
     expect(await screen.findByRole('heading', { name: 'Inscripción cancelada' })).toBeInTheDocument();
-    expect(cancelEventRegistration).toHaveBeenCalledWith('inscripcion-1');
+   
+    expect(cancelEventRegistration).toHaveBeenCalledWith('registration-1');
     expect(screen.getByText('CANCELADA')).toBeInTheDocument();
     expect(screen.queryByText('CONFIRMADA')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/portal/eventos');
