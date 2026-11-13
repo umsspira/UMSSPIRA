@@ -122,7 +122,6 @@ export default function Home() {
   const [showReconnectedToast, setShowReconnectedToast] = useState(false);
   const [showTemporaryConnected, setShowTemporaryConnected] = useState(false);
 
-  // Efecto para detectar cambios de conexión
   useEffect(() => {
     setIsOnline(navigator.onLine);
 
@@ -202,6 +201,17 @@ export default function Home() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 w-full space-y-8 font-sans text-slate-900">
+      
+      {/* Alerta Superior Roja */}
+      {!isOnline && (
+        <div className="bg-[#B44735] text-white p-4 rounded-xl flex items-center gap-3 shadow-md animate-in slide-in-from-top-2 fade-in duration-300">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <p className="text-sm font-medium">
+            Estás navegando sin conexión. Algunos contenidos pueden no estar actualizados.
+          </p>
+        </div>
+      )}
+
       {/* Banner principal */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
         <div className="absolute inset-0 z-0 overflow-hidden">
