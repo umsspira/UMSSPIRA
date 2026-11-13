@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // CAMBIO 1
 import type { ObservedApplicationDetail } from "@umsspira/shared-types";
 import { ObservedEditForm } from "./observed-edit-form";
 import { ObservedReviewSubmit } from "./observed-review-submit";
 import { RequestCorrectionLinkForm } from "./request-correction-link-form";
 import type { CorrectionResult, CorrectionValues } from "../hooks/use-observed-correction";
 import { getObservedApplication } from "../services/application.service";
+import { leaveCorrection } from "../lib/cancel-destination"; // CAMBIO 2
 
 type ViewState =
   | { status: "loading" }
@@ -111,6 +113,17 @@ export function ObservedNoticeView({ token }: { token: string }) {
 function ValidView({ data, token }: { data: ObservedApplicationDetail; token: string }) {
   const [pending, setPending] = useState<CorrectionResult | null>(null);
 
+  // CAMBIO 3
+  const router = useRouter();
+
+  function handleCancel() {
+    leaveCorrection(router, {
+      historyLength: window.history.length,
+      referrer: globalThis.document.referrer,
+      origin: window.location.origin,
+    });
+  }
+
   const form: CorrectionValues = {
     firstName: data.nombres,
     lastName: data.apellidos,
@@ -194,7 +207,7 @@ function ValidView({ data, token }: { data: ObservedApplicationDetail; token: st
           hasPreviousDocument={Boolean(data.documento)}
           initial={form}
           currentDocument={document}
-          onCancel={() => window.history.back()}
+          onCancel={handleCancel} // CAMBIO 4
           onReview={(result) => setPending(result)}
           onRequireEmailVerification={() => {
             // Se procesará en el flujo de correo
