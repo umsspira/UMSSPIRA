@@ -6,12 +6,15 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
+    "dev": "node scripts/prepare-ocr.mjs && next dev -p 3001",
+    "build": "node scripts/prepare-ocr.mjs && next build",
     "start": "next start -p 3001",
     "lint": "next lint",
     "test": "jest --passWithNoTests",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "ocr:prepare": "node scripts/prepare-ocr.mjs",
+    "ocr:models": "node scripts/download-ocr-models.mjs",
+    "test:ocr-browser": "node scripts/verify-ocr-browser.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -30,7 +33,9 @@
     "socket.io-client": "^4.8.4",
     "tailwind-merge": "^2.3.0",
     "zod": "^4.6.5",
-    "zustand": "^5.0.15"
+    "zustand": "^5.0.15",
+    "@paddleocr/paddleocr-js": "0.4.2",
+    "pdfjs-dist": "4.8.69"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
@@ -47,6 +52,7 @@
     "postcss": "^8",
     "serwist": "^9.5.13",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "esbuild": "0.28.2"
   }
 }

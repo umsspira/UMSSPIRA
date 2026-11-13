@@ -1,5 +1,6 @@
 'use client';
 
+import { useOcrQueue } from '@/modules/applications/frontend/hooks/use-ocr-queue';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -30,6 +31,7 @@ const SEARCH_DELAY_MS = 400;
 
 // Bandeja de solicitudes del backoffice (HU-04): lista, filtros, expediente y dictamen.
 function ApplicationsBoardView() {
+  const ocrMessage = useOcrQueue();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -277,6 +279,7 @@ function ApplicationsBoardView() {
         )
       )}
 
+      <p role="status" className="my-3 rounded-lg border border-[#C9C1B1] bg-white p-3 text-sm text-[#2C3B4D]">{ocrMessage}</p>
       <ApplicationDrawer
         open={selectedId !== null}
         applicationId={selectedId}
