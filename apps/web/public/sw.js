@@ -29,3 +29,12 @@ function isSafeOfflineRoute(request) {
   if (url.origin !== self.location.origin || isPrivateRoute(url.pathname) || request.headers.get('Authorization') || url.search) return false;
   return OFFLINE_ALLOWED_ROUTES.includes(url.pathname.replace(/\/$/, '') || '/');
 }
+
+function isCacheable(response) { return response && response.ok && (response.type === 'basic' || response.type === 'default'); }
+function canStoreNavigationResponse(response) {
+  if (!isCacheable(response) || response.redirected) return false;
+  if (!(response.headers.get('content-type') || '').includes('text/html')) return false;
+  if (/no-store|private/i.test(response.headers.get('cache-control') || '')) return false;
+  if (response.headers.has('set-cookie')) return false;
+  return true;
+}
