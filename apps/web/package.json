@@ -11,7 +11,9 @@
     "start": "next start -p 3001",
     "lint": "next lint",
     "test": "jest --passWithNoTests",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -32,6 +34,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/jest": "^30.0.0",
@@ -41,6 +44,7 @@
     "autoprefixer": "^10.6.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
+    "fake-indexeddb": "^6.2.8",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
     "postcss": "^8",
@@ -49,3 +53,7 @@
     "typescript": "^5"
   }
 }
+
+
+
+
