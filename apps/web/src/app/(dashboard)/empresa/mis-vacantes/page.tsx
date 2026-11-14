@@ -417,7 +417,7 @@ export default function MisVacantesPage() {
                     <div style={{ display: 'flex', justifyContent: isMobile ? 'flex-end' : 'center', gap: '0.4rem', position: 'relative', ...(isMobile ? { gridColumn: '1 / -1' } : {}) }}>
                       
                       <button 
-                        onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}`)}
+                        onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}/candidatos`)}
                         style={{ border: '1px solid var(--oatmeal)', background: '#fff', padding: '0.4rem', borderRadius: '0.4rem', cursor: 'pointer', color: '#374151', transition: 'all 0.15s' }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--flame)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--flame)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = 'var(--oatmeal)'; }}>
