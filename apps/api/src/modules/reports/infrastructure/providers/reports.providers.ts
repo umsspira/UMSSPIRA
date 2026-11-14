@@ -25,9 +25,12 @@ import {
   type AccreditationReportReader,
   type AccreditationReportWriter,
 } from '../../application/ports/accreditation-report.port';
+import {
+  ACCREDITATION_CACHE,
+  type AccreditationCachePort,
+} from '../../application/ports/accreditation-cache.port';
 import { AccreditationReportDataReader } from '../repositories/accreditation-report.reader';
 import { AccreditationPdfWriter } from '../exporters/accreditation-pdf.writer';
-import { RedisService } from '../../../../shared/infrastructure/redis/redis.service';
 
 export const reportsProviders: Provider[] = [
   PrismaReportRepository,
@@ -68,9 +71,9 @@ export const reportsProviders: Provider[] = [
   },
   {
     provide: GetAccreditationDashboardUseCase,
-    inject: [REPORT_REPOSITORY, RedisService],
-    useFactory: (repository: ReportRepository, redis?: RedisService) =>
-      new GetAccreditationDashboardUseCase(repository, redis),
+    inject: [REPORT_REPOSITORY, ACCREDITATION_CACHE],
+    useFactory: (repository: ReportRepository, cache: AccreditationCachePort) =>
+      new GetAccreditationDashboardUseCase(repository, cache),
   },
   { provide: ACCREDITATION_REPORT_READER, useClass: AccreditationReportDataReader },
   { provide: ACCREDITATION_PDF_WRITER, useClass: AccreditationPdfWriter },

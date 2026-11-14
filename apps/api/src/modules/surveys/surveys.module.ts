@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
-import { RedisModule } from '../../shared/infrastructure/redis/redis.module';
 import { AuthModule } from '../auth/auth.module';
+import { AccreditationCacheModule } from '../reports/infrastructure/cache/accreditation-cache.module';
 
 import { SubmitSurveyController } from './http/controllers/submit-survey.controller';
 import { GetSurveyReportController } from './http/controllers/get-survey-report.controller';
@@ -10,7 +10,7 @@ import { ManageSurveysController } from './http/controllers/manage-surveys.contr
 import { surveysProviders } from './infrastructure/providers/surveys.providers';
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule],
+  imports: [PrismaModule, AccreditationCacheModule, AuthModule],
   controllers: [
     SubmitSurveyController,
     GetSurveyReportController,

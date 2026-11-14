@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
-import { RedisService } from '../../../../shared/infrastructure/redis/redis.service';
+import { AccreditationCache } from '../../../reports/infrastructure/cache/accreditation-cache';
 import type { SubmitSurveyInput } from '../../application/contracts/submit-survey.input';
 import type {
   SurveyAdminInput,
@@ -20,7 +20,7 @@ const ACTIVE_SURVEY_STATUSES = ['PUBLICADA'];
 export class PrismaSurveyRepository implements SurveyRepositoryPort {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redis?: RedisService,
+    private readonly accreditationCache?: AccreditationCache,
   ) {}
 
   async save(data: SubmitSurveyInput) {
@@ -38,14 +38,14 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
       },
     });
 
-    if (this.redis) {
+    if (this.accreditationCache) {
       const graduate = await this.prisma.titulado.findUnique({
         where: { id: data.idTitulado },
         select: { id_carrera: true },
       });
 
       if (graduate?.id_carrera) {
-        await this.redis.invalidateAccreditationDashboardCache(graduate.id_carrera);
+        await this.accreditationCache.invalidateAccreditationDashboardCache(graduate.id_carrera);
       }
     }
 
