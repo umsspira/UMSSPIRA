@@ -1,0 +1,24 @@
+meta {
+  name: Consultar analisis compartido
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/applications/{{ocrApplicationId}}/ocr
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("HTTP 200", function () { expect(res.getStatus()).to.equal(200); });
+  test("Resultados por version", function () { expect(res.getBody().data).to.be.an("array"); });
+}
+
+docs {
+  Consultar con otro administrador autorizado debe devolver el mismo id y completedAt para la misma revision. No modifica datos.
+}

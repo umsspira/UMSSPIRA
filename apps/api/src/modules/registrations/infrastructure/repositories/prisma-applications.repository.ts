@@ -15,6 +15,7 @@ import type {
   ApplicationsRepository,
   ResolutionMailRecord,
   ActivationResult,
+  ObservationReason,
 } from '../../application/ports/applications-repository.port';
 
 import type {
@@ -315,6 +316,18 @@ async find(actor: ActorContext, id: string) {
     return rows[0]?.total ?? 0;
   }
   
+  async findObservationReasons(codes: string[]): Promise<ObservationReason[]> {
+    if (codes.length === 0) {
+      return [];
+    }
+    const rows = await this.prisma.motivoObservacion.findMany({
+      where: { codigo: { in: codes }, activo: true },
+      orderBy: { id: 'asc' },
+      select: { codigo: true, etiqueta: true },
+    });
+    return rows.map((row) => ({ code: row.codigo, label: row.etiqueta }));
+  }
+
   async document(actor: ActorContext, id: string) {
     const application = await this.prisma.solicitud.findFirst({
       where: scopedApplication(actor, id),
@@ -372,8 +385,56 @@ async find(actor: ActorContext, id: string) {
         if (input.decision === 'OBSERVADA') {
           await assertObservationLimit(tx, id);
         }
+        const requestedMotivos =
+          input.decision === 'OBSERVADA'
+            ? input.motivos ?? []
+            : [];
+
+        const uniqueMotivos = [...new Set(requestedMotivos)];
+
+        if (uniqueMotivos.length !== requestedMotivos.length) {
+          throw new BusinessRuleError(
+            'conflict',
+            'DUPLICATE_OBSERVATION_REASON',
+            'No se puede seleccionar el mismo motivo más de una vez',
+          );
+        }
+
+        const catalogMotivos = uniqueMotivos.length
+          ? await tx.motivoObservacion.findMany({
+              where: {
+                codigo: { in: uniqueMotivos },
+                activo: true,
+              },
+              select: {
+                id: true,
+                codigo: true,
+                etiqueta: true,
+              },
+            })
+          : [];
+
+        if (catalogMotivos.length !== uniqueMotivos.length) {
+          throw new BusinessRuleError(
+            'conflict',
+            'INVALID_OBSERVATION_REASON',
+            'Uno o más motivos de observación no están disponibles',
+          );
+        }
+
+        const motivosByCode = new Map(
+          catalogMotivos.map((motivo) => [motivo.codigo, motivo]),
+        );
+
+        const validatedMotivos = uniqueMotivos.map(
+          (codigo) => motivosByCode.get(codigo)!,
+        );
         const now = new Date();
-        const category = approved ? null : input.category!;
+        const category = approved
+          ? null
+          : input.category ??
+            validatedMotivos[0]?.etiqueta ??
+            null;
         const note = approved ? null : input.note!;
         const review = await tx.dictamen.create({
           data: {
@@ -386,7 +447,14 @@ async find(actor: ActorContext, id: string) {
             subsanada: false,
           },
         });
-        
+        if (validatedMotivos.length > 0) {
+          await tx.dictamenMotivo.createMany({
+            data: validatedMotivos.map((motivo) => ({
+              id_dictamen: review.id,
+              id_motivo: motivo.id,
+            })),
+          });
+        }
         await tx.auditoriaDictamen.create({
           data: {
           id_solicitud: id,

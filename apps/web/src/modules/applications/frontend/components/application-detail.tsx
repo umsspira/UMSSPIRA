@@ -1,3 +1,4 @@
+import { OcrPanel } from './ocr-panel';
 import type { ReactNode } from "react";
 
 export type ApplicationStatus =
@@ -214,6 +215,7 @@ export function ApplicationDetail({ application }: Props) {
             ))}
           </ul>
         </div>
+        <OcrPanel applicationId={application.id} documentUrl={application.documentUrl} />
       </section>
 
       {/* Columna derecha: documento adjunto */}

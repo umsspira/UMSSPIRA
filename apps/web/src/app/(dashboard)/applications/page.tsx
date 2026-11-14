@@ -1,5 +1,6 @@
 'use client';
 
+import { useOcrQueue } from '@/modules/applications/frontend/hooks/use-ocr-queue';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -30,6 +31,7 @@ const SEARCH_DELAY_MS = 400;
 
 // Bandeja de solicitudes del backoffice (HU-04): lista, filtros, expediente y dictamen.
 function ApplicationsBoardView() {
+  const ocrMessage = useOcrQueue();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -40,6 +42,8 @@ function ApplicationsBoardView() {
   );
   const queryRef = useRef<ApplicationsUrlState>(query);
   queryRef.current = query;
+  const latestRequestedQuery = useRef<ApplicationsUrlState>(query);
+  const pendingQueries = useRef<string[]>([]);
 
   const [searchInput, setSearchInput] = useState(query.search);
   const [board, setBoard] = useState<BoardPage | null>(null);
@@ -53,11 +57,25 @@ function ApplicationsBoardView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const requestId = useRef(0);
 
-  const updateQuery = useCallback((next: ApplicationsUrlState) => {
-    queryRef.current = next;
-    const params = toApplicationsParams(next).toString();
-    router.replace(params ? `${pathname}?${params}` : pathname, { scroll: false });
-  }, [pathname, router]);
+  const updateQuery = useCallback(
+    (next: ApplicationsUrlState) => {
+      const currentParams = toApplicationsParams(queryRef.current).toString();
+      const nextParams = toApplicationsParams(next).toString();
+
+      if (nextParams !== currentParams) {
+        pendingQueries.current.push(nextParams);
+      }
+
+      queryRef.current = next;
+      latestRequestedQuery.current = next;
+
+      router.replace(
+        nextParams ? `${pathname}?${nextParams}` : pathname,
+        { scroll: false },
+      );
+    },
+    [pathname, router],
+  );
 
   const loadMetrics = useCallback(async () => {
     setIsMetricsLoading(true);
@@ -105,8 +123,29 @@ function ApplicationsBoardView() {
   }, [updateQuery]);
 
   useEffect(() => {
+  const confirmedParams = toApplicationsParams(query).toString();
+  const pendingIndex = pendingQueries.current.lastIndexOf(confirmedParams);
+
+    if (pendingIndex !== -1) {
+      pendingQueries.current.splice(pendingIndex, 1);
+
+      const latestQuery = latestRequestedQuery.current;
+      const latestParams = toApplicationsParams(latestQuery).toString();
+
+      // Si llegó una actualización anterior después de la más reciente,
+      // vuelve a aplicar el estado solicitado por la persona.
+      if (confirmedParams !== latestParams) {
+        updateQuery(latestQuery);
+      }
+
+      return;
+    }
+
+    // Navegación externa, recarga o botón Atrás: la interfaz sigue a la URL.
+    pendingQueries.current = [];
+    latestRequestedQuery.current = query;
     setSearchInput(query.search);
-  }, [query.search]);
+  }, [query, updateQuery]);
 
   useEffect(() => {
     if (query.search === searchInput.trim()) return;
@@ -240,6 +279,7 @@ function ApplicationsBoardView() {
         )
       )}
 
+      <p role="status" className="my-3 rounded-lg border border-[#C9C1B1] bg-white p-3 text-sm text-[#2C3B4D]">{ocrMessage}</p>
       <ApplicationDrawer
         open={selectedId !== null}
         applicationId={selectedId}

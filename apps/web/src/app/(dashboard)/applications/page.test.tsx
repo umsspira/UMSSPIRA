@@ -1,11 +1,19 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ApplicationsPage from './page';
 import {
   fetchApplicationsBoard,
   fetchApplicationsMetrics,
 } from '@/modules/applications/frontend/services/applications-board.service';
 import { authenticatedFetch } from '@/shared/services/auth-session';
+
+jest.mock('@/modules/applications/frontend/hooks/use-ocr-queue', () => ({
+  useOcrQueue: () => 'Análisis automático en espera',
+}));
+
+jest.mock('@/modules/applications/frontend/components/ocr-panel', () => ({
+  OcrPanel: () => null,
+}));
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -109,12 +117,27 @@ function mockPendingApplicationDetail() {
 
 describe('ApplicationsPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockedAuthenticatedFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ data: [] }),
-    });
+  jest.clearAllMocks();
+  mockedAuthenticatedFetch.mockReset();
+
+  mockedAuthenticatedFetch.mockImplementation(
+    async (url: string) => {
+      if (url === '/api/v1/applications/s-1/ocr') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [] }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: null }),
+      };
+    },
+  );
+
     window.history.replaceState({}, '', '/applications');
     mockedFetchMetrics.mockResolvedValue({
       ok: true,
@@ -127,9 +150,9 @@ describe('ApplicationsPage', () => {
         timeZone: 'America/La_Paz',
       },
     });
-    // Reemplazar la línea 56 por:
-(globalThis as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
-  });
+
+    (globalThis as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    });
 
   it('muestra la bandeja con el total y la alerta de +48 horas (CA-04.1)', async () => {
     mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
@@ -442,11 +465,31 @@ describe('ApplicationsPage', () => {
 
     mockPendingApplicationDetail();
 
-    mockedAuthenticatedFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: async () => null,
-    });
+    mockedAuthenticatedFetch.mockImplementation(
+      async (url: string) => {
+        if (url === '/api/v1/applications/s-1/review') {
+          return {
+            ok: false,
+            status: 500,
+            json: async () => null,
+          };
+        }
+
+        if (url === '/api/v1/applications/s-1/ocr') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [] }),
+          };
+        }
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: null }),
+        };
+      },
+    );
 
     render(<ApplicationsPage />);
 
@@ -469,7 +512,7 @@ describe('ApplicationsPage', () => {
     expect(mockedFetchBoard).toHaveBeenCalledTimes(1);
     expect(mockedFetchMetrics).toHaveBeenCalledTimes(1);
   });
-    it('envía correctamente el dictamen de observación', async () => {
+        it('envía correctamente el dictamen de observación', async () => {
     mockedFetchBoard.mockResolvedValue({
       ok: true,
       data: boardPage,
@@ -483,14 +526,10 @@ describe('ApplicationsPage', () => {
     expect(observeButton).toBeEnabled();
     fireEvent.click(observeButton);
 
-    fireEvent.change(
-      screen.getByLabelText(/Categoría de la observación/),
-      {
-        target: { value: 'Documento ilegible' },
-      },
-    );
+    fireEvent.click(screen.getByLabelText('Documento ilegible o borroso'));
+    fireEvent.click(screen.getByLabelText('Datos declarados no coinciden con el respaldo'));
 
-    fireEvent.change(screen.getByLabelText(/Nota de observación/), {
+    fireEvent.change(screen.getByLabelText(/Qué debe corregir el Titulado/), {
       target: { value: 'El documento presentado no se puede leer.' },
     });
 
@@ -505,7 +544,7 @@ describe('ApplicationsPage', () => {
           method: 'POST',
           body: JSON.stringify({
             decision: 'OBSERVADA',
-            category: 'Documento ilegible',
+            motivos: ['documento_ilegible', 'datos_no_coinciden'],
             note: 'El documento presentado no se puede leer.',
           }),
         }),
@@ -557,4 +596,115 @@ describe('ApplicationsPage', () => {
       );
     });
   });
+  it('limpia todos los filtros y no permite que una búsqueda atrasada los restaure (BUG-06)', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/applications?page=3&size=25&career=Sistemas&status=PENDIENTE&period=custom&from=2026-10-01&to=2026-10-24',
+    );
+
+    mockedFetchBoard.mockImplementation(async (query: {
+      page: number;
+      pageSize: number;
+    }) => ({
+      ok: true,
+      data: {
+        ...boardPage,
+        total: 100,
+        page: query.page,
+        pageSize: query.pageSize,
+      },
+    }));
+
+    const originalReplace = mockRouter.replace;
+
+    mockRouter.replace = (url: string) => {
+      const delay = url.includes('q=ana') ? 700 : 0;
+      setTimeout(() => originalReplace(url), delay);
+    };
+
+    try {
+      render(<ApplicationsPage />);
+      await screen.findByText('Bandeja de Solicitudes');
+
+      const searchBox = screen.getByLabelText('Buscar');
+
+      fireEvent.change(searchBox, {
+        target: { value: 'ana' },
+      });
+
+      // Permite que la búsqueda se envíe, pero retrasa su llegada a la URL.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      });
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Limpiar filtros' }),
+      );
+
+      await waitFor(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        expect(params.get('page')).toBeNull();
+        expect(params.get('size')).toBe('25');
+        expect(params.get('q')).toBeNull();
+        expect(params.get('career')).toBeNull();
+        expect(params.get('status')).toBeNull();
+        expect(params.get('period')).toBeNull();
+        expect(params.get('from')).toBeNull();
+        expect(params.get('to')).toBeNull();
+        expect(searchBox).toHaveValue('');
+      });
+
+      // La actualización atrasada no debe recuperar los filtros eliminados.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      });
+
+      await waitFor(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        expect(params.get('q')).toBeNull();
+        expect(params.get('career')).toBeNull();
+        expect(params.get('status')).toBeNull();
+        expect(params.get('period')).toBeNull();
+        expect(params.get('from')).toBeNull();
+        expect(params.get('to')).toBeNull();
+        expect(searchBox).toHaveValue('');
+      });
+    } finally {
+      mockRouter.replace = originalReplace;
+    }
+  }, 10000);
+  it('no restaura el texto borrado cuando la URL responde con retraso', async () => {
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
+    const originalReplace = mockRouter.replace;
+    mockRouter.replace = (url: string) => {
+      setTimeout(() => originalReplace(url), 700);
+    };
+
+    try {
+      render(<ApplicationsPage />);
+      await screen.findByText('Bandeja de Solicitudes');
+      const searchBox = screen.getByLabelText('Buscar');
+
+      fireEvent.change(searchBox, { target: { value: 'ana' } });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      fireEvent.change(searchBox, { target: { value: 'an' } });
+
+      await waitFor(
+        () => expect(new URLSearchParams(window.location.search).get('q')).toBe('ana'),
+        { timeout: 3000 },
+      );
+      expect(searchBox).toHaveValue('an');
+
+      await waitFor(
+        () => expect(new URLSearchParams(window.location.search).get('q')).toBe('an'),
+        { timeout: 4000 },
+      );
+      expect(searchBox).toHaveValue('an');
+    } finally {
+      mockRouter.replace = originalReplace;
+    }
+  }, 10000);
 });

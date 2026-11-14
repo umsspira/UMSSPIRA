@@ -61,7 +61,9 @@ describe('ActivateOtpStep', () => {
     );
 
     expect(screen.getByText(/¡solicitud aprobada!/i)).toBeTruthy();
-    expect(screen.getByText(/activa tu cuenta de titulado/i)).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /activa tu cuenta de titulado/i }),
+    ).toHaveClass('font-sans');
     expect(await screen.findByText(/ti\*\*\*\*s@umss\.edu\.bo/i)).toBeTruthy();
 
     await esperarEstadoCargado();

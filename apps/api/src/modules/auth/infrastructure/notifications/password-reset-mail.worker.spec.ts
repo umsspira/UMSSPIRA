@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { PasswordResetMailWorker } from './password-reset-mail.worker';
 
 // El worker solo usa PrismaService como tipo del constructor; se evita cargar el cliente generado.
@@ -67,6 +68,7 @@ describe('PasswordResetMailWorker', () => {
       sender: { name: 'UMSSPIRA', email: 'verificado@example.com' },
       to: [{ email: 'cuenta.prueba@gmail.com' }], subject: 'Asunto',
       textContent: row().cuerpo,
+      htmlContent: expect.stringContaining('Crear nueva contraseña'),
     });
     expect(lastUpdate(prisma)).toMatchObject({ estado: 'enviada', cuerpo: null,
       smtp_message_id: 'brevo-message-id', ultimo_error: null });
@@ -110,6 +112,7 @@ describe('PasswordResetMailWorker', () => {
         to: 'admin@umss.edu.bo',
         subject: 'Asunto',
         text: expect.stringContaining('reset-password?token=abc'),
+        html: expect.stringContaining('href="http://localhost:3001/reset-password?token=abc"'),
       }),
     );
     expect(lastUpdate(prisma)).toMatchObject({ estado: 'enviada', cuerpo: null, ultimo_error: null });
@@ -173,5 +176,30 @@ describe('PasswordResetMailWorker', () => {
     await worker.drain();
 
     expect(prisma.passwordResetCorreo.findMany).not.toHaveBeenCalled();
+  });
+
+  it('registra el motivo del fallo sin incluir el enlace ni la dirección', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const { sendMail, worker } = setup([row()]);
+    sendMail.mockRejectedValue(
+      Object.assign(new Error('rechazado para admin@umss.edu.bo'), { code: 'EENVELOPE' }),
+    );
+
+    await worker.drain();
+
+    const logged = warn.mock.calls.flat().join(' ');
+    expect(logged).toContain('EENVELOPE');
+    expect(logged).not.toContain('token=');
+    expect(logged).not.toContain('admin@umss.edu.bo');
+  });
+
+  it('registra un error al agotar los intentos', async () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const { sendMail, worker } = setup([row({ intentos: 2, max_intentos: 3 })]);
+    sendMail.mockRejectedValue(Object.assign(new Error('caído'), { code: 'ECONNREFUSED' }));
+
+    await worker.drain();
+
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('ECONNREFUSED'));
   });
 });

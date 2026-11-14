@@ -1,0 +1,28 @@
+meta {
+  name: Consultar estado con formato inválido
+  type: http
+  seq: 24
+}
+
+post {
+  url: {{baseUrl}}/api/v1/registrations/status-query
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "no-es-correo"
+  }
+}
+
+docs {
+  Debe responder 202 con el mismo mensaje general y no enviar ningún correo.
+}
+
+tests {
+  test("Responde 400 con error de validación", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody().error.code).to.equal("VALIDATION_ERROR");
+  });
+}

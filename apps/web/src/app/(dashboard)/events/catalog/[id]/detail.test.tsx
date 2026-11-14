@@ -34,7 +34,7 @@ const publishedEvent: EventItem = {
 
 describe('detalle público de eventos', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
   });
 
@@ -345,7 +345,7 @@ describe('detalle público de eventos', () => {
 
 describe('Cancelación desde la inscripción confirmada', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
     jest.mocked(getPublishedEvent).mockResolvedValue({ ...publishedEvent, startDate: '2099-11-06T14:00:00Z', endDate: '2099-11-06T18:00:00Z' });
     jest.mocked(getCurrentUser).mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);

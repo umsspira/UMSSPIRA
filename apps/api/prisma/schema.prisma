@@ -32,6 +32,7 @@ enum DepartamentoExpedicion {
 }
 
 model Usuario {
+  ocr_reservas OcrTrabajo[]
   portadas_evento       PortadaEvento[]
   revisiones            Dictamen[]            @relation("dictamen_revisor")
   nombre                String?               @db.VarChar
@@ -830,12 +831,14 @@ model DetalleSolicitud {
 }
 
 model DocumentoRespaldo {
+  ocr_trabajos OcrTrabajo[]
   id_tipo_archivo String?   @db.Uuid
   tamanio_mb      Int?      @db.Integer
   ruta_storage    String?   @db.Text
   fecha_creacion  DateTime? @db.Timestamp(6)
   es_valido       Boolean?
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  es_vigente            Boolean  @default(true)
 
   tipo_archivo                TipoArchivo?       @relation("documento_respaldo_id_tipo_archivo_tipo_archivo", fields: [id_tipo_archivo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "documento_respaldo_id_tipo_archivo_fkey")
   solicitud_registros         Solicitud[]        @relation("solicitud_id_documento_respaldo_documento_respaldo")
@@ -845,6 +848,7 @@ model DocumentoRespaldo {
 }
 
 model Solicitud {
+  ocr_trabajos OcrTrabajo[]
   id_titulado           String?           @db.Uuid
   codigo_tit            String?           @unique @db.VarChar
   observaciones_count   Int               @default(0) @db.SmallInt
@@ -860,6 +864,7 @@ model Solicitud {
   estado                String?           @db.VarChar
   fecha_creacion        DateTime?         @db.Timestamp(6)
   id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version_vigente       Int      @default(1) @db.SmallInt
 
   detalle_solicitud            DetalleSolicitud?   @relation("solicitud_id_detalle_solicitud_detalle_solicitud", fields: [id_detalle_solicitud], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solicitud_id_detalle_solicitud_fkey")
   documento_respaldo           DocumentoRespaldo?  @relation("solicitud_id_documento_respaldo_documento_respaldo", fields: [id_documento_respaldo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solicitud_id_documento_respaldo_fkey")
@@ -872,7 +877,8 @@ model Solicitud {
   correo_tramite_registros     CorreoTramite[]
   auditoria_dictamen_registros AuditoriaDictamen[]
   control_reenvio_otp          ControlReenvioOtp?
-
+  consultas_estado             ConsultaEstadoSolicitud[]
+  historial_eventos            HistorialEvento[] 
   @@map("solicitud")
 }
 
@@ -901,12 +907,13 @@ model Dictamen {
   fecha_actualizacion      DateTime? @db.Date
   subsanada                Boolean?
   id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version_dictaminada      Int?      @db.SmallInt
 
   administrador_sistema    AdministradorSistema? @relation("dictamen_id_administrador_sistema_administrador_sistema", fields: [id_administrador_sistema], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dictamen_id_administrador_sistema_fkey")
   solicitud                Solicitud?            @relation("dictamen_id_solicitud_solicitud", fields: [id_solicitud], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "dictamen_id_solicitud_fkey")
   correo_tramite_registros CorreoTramite[]
   auditoria_registros      AuditoriaDictamen[]
-
+  motivos                  DictamenMotivo[]  
   @@map("dictamen")
 }
 
@@ -1410,4 +1417,83 @@ model CertificacionCreacion {
 
   @@id([id_titulado, id_operacion])
   @@map("certificacion_creacion")
+}
+
+model MotivoObservacion {
+  id       Int      @id @default(autoincrement())
+  codigo   String   @unique @db.VarChar(50)
+  etiqueta String   @db.VarChar(255)
+  activo   Boolean  @default(true)
+  dictamenes DictamenMotivo[]
+  @@map("motivo_observacion")
+}
+
+model DictamenMotivo {
+  id_dictamen String @db.Uuid
+  id_motivo   Int
+  dictamen    Dictamen          @relation(fields: [id_dictamen], references: [id], onDelete: Cascade)
+  motivo      MotivoObservacion @relation(fields: [id_motivo], references: [id]) // <--- AGREGAR
+  @@id([id_dictamen, id_motivo])
+  @@map("dictamen_motivo")
+}
+
+model ConsultaEstadoSolicitud {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  correo_normalizado String   @db.VarChar(255)
+  origen_hash        String   @db.VarChar(64)
+  id_solicitud       String?  @db.Uuid
+  resultado          String   @db.VarChar(30)
+  creado_en          DateTime @default(now()) @db.Timestamptz(6)
+  solicitud Solicitud? @relation(fields: [id_solicitud], references: [id], onDelete: SetNull) // <--- AGREGAR
+  @@index([correo_normalizado, creado_en(sort: Desc)], map: "idx_ces_correo_ventana")
+  @@index([origen_hash, creado_en(sort: Desc)], map: "idx_ces_origen_ventana")
+  @@map("consulta_estado_solicitud")
+}
+
+model OcrTrabajo {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_solicitud String @db.Uuid
+  revision Int
+  id_documento String @db.Uuid
+  declarado Json @db.JsonB
+  estado String @default("PENDIENTE") @db.VarChar(20)
+  intentos Int @default(0)
+  reserva_token String? @db.Uuid
+  reservado_por String? @db.Uuid
+  reserva_hasta DateTime? @db.Timestamptz
+  creado_en DateTime @default(now()) @db.Timestamptz
+  finalizado_en DateTime? @db.Timestamptz
+  error String? @db.VarChar(300)
+  solicitud Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  documento DocumentoRespaldo @relation(fields: [id_documento], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  propietario Usuario? @relation(fields: [reservado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  resultado OcrResultado?
+  @@unique([id_solicitud, revision])
+  @@index([estado, creado_en], map: "ocr_trabajo_cola")
+  @@map("ocr_trabajo")
+}
+
+
+model OcrResultado {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_trabajo String @unique @db.Uuid
+  resultado Json @db.JsonB
+  creado_en DateTime @default(now()) @db.Timestamptz
+  trabajo OcrTrabajo @relation(fields: [id_trabajo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  @@map("ocr_resultado")
+}
+model HistorialEvento {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_solicitud String   @db.Uuid
+  version      Int      @db.SmallInt
+  tipo_actor   String   @db.VarChar(20) // 'TITULADO', 'SISTEMA', 'ADMINISTRADOR'
+  actor_id     String?  @db.Uuid       // ID del usuario o admin (nullable para sistema)
+  accion       String   @db.VarChar(50) // 'ENVIO', 'OCR_ANALISIS', 'DICTAMEN'
+  detalle      String?  @db.Text       // Texto corto generado (ej: "OCR sugirió observar")
+  creado_en    DateTime @default(now()) @db.Timestamptz(6)
+
+  solicitud    Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: Cascade)
+
+  @@index([id_solicitud, creado_en(sort: Desc)])
+  @@map("historial_evento")
 }

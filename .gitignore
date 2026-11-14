@@ -30,3 +30,6 @@ apps/api/.claude/
 apps/api/.windsurf/
 apps/api/skills-lock.json
 holaaa
+
+apps/web/public/ocr/runtime/
+apps/web/public/ocr/models/*.tar

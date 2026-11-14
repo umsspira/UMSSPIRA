@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { authStore } from "../store";
 import { LoginForm } from "./login-form";
+import LoginPage from "../../../../app/(public)/login/page";
 
 const mockPush = jest.fn();
 const mockSaveSession = jest.fn();
@@ -59,6 +60,13 @@ describe("LoginForm", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
+  it("permite consultar el estado fuera del formulario (18.3)", () => {
+    render(<LoginPage />);
+    expect(
+      screen.getByRole("link", { name: "Consulta su estado aquí." }),
+    ).toHaveAttribute("href", "/status");
+  });
+
   it("rechaza un correo con formato inválido", () => {
     render(<LoginForm />);
 
@@ -100,6 +108,23 @@ describe("LoginForm", () => {
 
     expect(checkbox.type).toBe("checkbox");
     expect(checkbox.checked).toBe(false);
+  });
+
+  it("permite volver al inicio institucional desde el login (BUG-08)", () => {
+    render(<LoginPage />);
+
+    expect(screen.getByRole("link", { name: "Volver al inicio" })).toHaveAttribute(
+      "href",
+      "/portal/institucional",
+    );
+  });
+
+    it("aplica el estilo institucional al autocompletado del navegador (BUG-09)", () => {
+    render(<LoginForm />);
+
+    for (const label of [/^correo electrónico/i, /^contraseña/i]) {
+      expect(screen.getByLabelText(label).className).toContain("-webkit-autofill");
+    }
   });
 
   it("permite marcar y desmarcar la casilla (BUG4)", () => {

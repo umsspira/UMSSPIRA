@@ -51,7 +51,7 @@ export function FieldLabel({
 // Mensaje de error: 11px Medium, #A35139
 export function FieldError({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-1 text-[11px] font-medium leading-4 text-truffle-trouble">
+    <p role="alert" className="mt-1 text-[11px] font-medium leading-4 text-truffle-trouble">
       {children}
     </p>
   );

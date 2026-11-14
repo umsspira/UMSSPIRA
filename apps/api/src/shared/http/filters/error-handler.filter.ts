@@ -1,3 +1,4 @@
+import { databaseErrorSummary } from '../../errors/database-error-summary';
 import { DependencyUnavailableError } from '../../errors/dependency-unavailable-error';
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 import type { Response } from 'express';
@@ -101,8 +102,10 @@ export class ErrorHandlerFilter implements ExceptionFilter {
     // Un error de aplicación sin traducción explícita es un fallo de configuración.
     // Se registra su tipo, sin volcar consultas, credenciales ni datos de la petición.
     const name = error instanceof Error ? error.name : 'ErrorDesconocido';
-    const code = error instanceof AppError ? ` (${error.code})` : '';
-    this.logger.error(`Error inesperado: ${name}${code}`);
+    const rawCode =
+      error instanceof AppError ? error.code : (error as { code?: unknown } | null)?.code;
+    const code = typeof rawCode === 'string' ? ` (${rawCode})` : '';
+    this.logger.error(`Error inesperado: ${name}${code}${databaseErrorSummary(error)}`);
     response
       .status(500)
       .json({ error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado' } });

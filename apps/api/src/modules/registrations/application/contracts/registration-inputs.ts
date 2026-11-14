@@ -38,6 +38,7 @@ export interface UploadedDocument {
 
 export interface ReviewInput {
   decision: 'APROBADA' | 'OBSERVADA' | 'RECHAZADA';
+  motivos?: string[];
   category?: string;
   note?: string;
 }

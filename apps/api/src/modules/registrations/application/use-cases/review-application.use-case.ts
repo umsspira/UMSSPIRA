@@ -31,13 +31,14 @@ export class ReviewApplicationUseCase {
     const correctionUrl = await this.issueCorrectionLink(id, input);
     const remainingAttempts =
       input.decision === 'RECHAZADA' ? await this.remainingAttempts(id) : null;
-
+    const reasons = await this.observationReasons(input);    
     const mail =
       input.decision === 'OBSERVADA' && correctionUrl
         ? buildObservedMail({
             fullName: detail.fullName,
-            category: input.category ?? '',
-            note: input.note ?? '',
+            reasons,
+            category: input.category,
+            explanation: input.note ?? '',
             correctionUrl,
           })
         : input.decision === 'RECHAZADA'
@@ -53,6 +54,7 @@ export class ReviewApplicationUseCase {
               fullName: detail.fullName,
               code,
               category: input.category,
+              reasons,
               note: input.note,
               correctionUrl: correctionUrl ?? undefined,
             });
@@ -77,6 +79,16 @@ export class ReviewApplicationUseCase {
       }
       throw error;
     }
+  }
+
+  // La tabla dictamen_motivo no guarda el orden de selección. El correo y la pantalla de
+  // corrección usan el orden del catálogo para mostrar exactamente lo mismo.
+  private async observationReasons(input: ReviewInput): Promise<string[]> {
+    if (input.decision !== 'OBSERVADA' || !input.motivos?.length) {
+      return [];
+    }
+    const found = await this.repository.findObservationReasons(input.motivos);
+    return found.map((reason) => reason.label);
   }
 
   private async issueCorrectionLink(id: string, input: ReviewInput): Promise<string | null> {
