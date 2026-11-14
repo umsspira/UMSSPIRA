@@ -2,6 +2,8 @@ import { createRequire } from "node:module";
 import { realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { mkdir, readdir, copyFile } from "node:fs/promises";
+// dev and build both run this preparation before starting Next.
+await import("./download-ocr-models.mjs");
 const require = createRequire(import.meta.url);
 const sdk = resolve("node_modules/@paddleocr/paddleocr-js/dist");
 const sdkRequire = createRequire(realpathSync(resolve(sdk, "../package.json")));
