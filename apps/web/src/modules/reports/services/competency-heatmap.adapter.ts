@@ -137,3 +137,13 @@ export const loadCompetencyHeatmap = createHeatmapHttpLoader({
   endpoint: '/api/v1/reports/accreditation/heatmap',
   adapt: adaptCompetencyHeatmap,
 });
+
+/** Mapa de calor de una cohorte (HU-003 CA-03); el semestre no aplica al mapa (CA-05). */
+export function loadCompetencyHeatmapForCohort(cohort: string) {
+  return /^\d{4}$/.test(cohort)
+    ? createHeatmapHttpLoader({
+        endpoint: `/api/v1/reports/accreditation/heatmap?cohorte=${cohort}`,
+        adapt: adaptCompetencyHeatmap,
+      })
+    : loadCompetencyHeatmap;
+}
