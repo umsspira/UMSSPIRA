@@ -237,24 +237,6 @@ export function LoginForm({ reportsReason }: { reportsReason?: string } = {}) {
         </Link>
       </p>
 
-            <p className="text-center text-xs text-gray-500">
-        ¿Ya enviaste una solicitud?{" "}
-        <Link
-          href="/status"
-          className="font-bold text-abyssal-blue underline underline-offset-4 hover:text-truffle-trouble"
-        >
-          Consulta su estado aquí.
-        </Link>
-      </p>
-
-      <p className="text-center text-xs">
-        <Link
-          href="/portal/institucional"
-          className="font-bold text-abyssal-blue underline underline-offset-4 hover:text-truffle-trouble"
-        >
-          Volver al inicio
-        </Link>
-      </p>
     </form>
   );
 }
