@@ -1,0 +1,142 @@
+import {
+  certificationSchema,
+  createCertificationSchema,
+  educationSchema,
+  experienceSchema,
+  professionalDescriptionSchema,
+} from './profile.schemas';
+
+const base = { empresa: 'Jalasoft', cargo: 'Desarrollador Backend' };
+
+function messages(data: object): string[] {
+  const result = experienceSchema.safeParse({ ...base, ...data });
+  return result.success ? [] : result.error.issues.map((issue) => issue.message);
+}
+
+describe('Fecha mínima de experiencia laboral (BUG-HU2-008)', () => {
+  it('rechaza fechas de inicio y fin anteriores a 1950', () => {
+    expect(messages({ fechaInicio: '1780-12-21', fechaFin: '1789-11-21' })).toEqual([
+      'La fecha no puede ser anterior a 1950',
+      'La fecha no puede ser anterior a 1950',
+    ]);
+  });
+
+  it('acepta fechas desde el 01/01/1950', () => {
+    expect(messages({ fechaInicio: '1950-01-01', fechaFin: '2023-06-30' })).toEqual([]);
+  });
+
+  it('acepta un trabajo actual sin fecha de fin', () => {
+    expect(messages({ fechaInicio: '2020-03-01', fechaFin: null })).toEqual([]);
+  });
+});
+
+describe('Grado por defecto al crear una certificación (T8.7)', () => {
+  const datos = {
+    nombre: 'AWS Solutions Architect',
+    entidadEmisora: 'Amazon Web Services',
+    anioEmision: 2022,
+  };
+
+  it('usa Profesional si no llega el grado', () => {
+    expect(createCertificationSchema.parse(datos).grado).toBe('Profesional');
+  });
+
+  it('conserva el grado cuando se envía', () => {
+    expect(createCertificationSchema.parse({ ...datos, grado: 'Asociado' }).grado).toBe('Asociado');
+  });
+
+  it('rechaza un grado vacío', () => {
+    expect(createCertificationSchema.safeParse({ ...datos, grado: '' }).success).toBe(false);
+  });
+});
+
+describe('Año de emisión de una certificación (T8.3)', () => {
+  const datos = {
+    nombre: 'AWS Solutions Architect',
+    entidadEmisora: 'Amazon Web Services',
+    grado: 'Profesional',
+  };
+  const anioActual = new Date().getFullYear();
+  const mensajeRango = `El año debe estar entre 1980 y ${anioActual}`;
+
+  function mensajes(schema: typeof certificationSchema, anioEmision: number): string[] {
+    const result = schema.safeParse({ ...datos, anioEmision });
+    return result.success ? [] : result.error.issues.map((issue) => issue.message);
+  }
+
+  it.each([
+    ['PUT', certificationSchema],
+    ['POST', createCertificationSchema],
+  ])('%s: rechaza 1979 y años anteriores', (_metodo, schema) => {
+    expect(mensajes(schema as typeof certificationSchema, 1979)).toEqual([mensajeRango]);
+    expect(mensajes(schema as typeof certificationSchema, 1000)).toEqual([mensajeRango]);
+  });
+
+  it.each([
+    ['PUT', certificationSchema],
+    ['POST', createCertificationSchema],
+  ])('%s: acepta 1980 y el año actual', (_metodo, schema) => {
+    expect(mensajes(schema as typeof certificationSchema, 1980)).toEqual([]);
+    expect(mensajes(schema as typeof certificationSchema, anioActual)).toEqual([]);
+  });
+
+  it('rechaza un año futuro con el mismo mensaje', () => {
+    expect(mensajes(certificationSchema, anioActual + 1)).toEqual([mensajeRango]);
+  });
+
+  it('la formación académica conserva su regla propia (no cambia con la de certificaciones)', () => {
+    const result = educationSchema.safeParse({
+      institucion: 'UMSS',
+      titulo: 'Ingeniería',
+      grado: 'Licenciatura',
+      anioEgreso: 1979,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('Descripción profesional (T6.4)', () => {
+  it('recorta espacios y acepta hasta 5000 caracteres', () => {
+    expect(professionalDescriptionSchema.parse({ descripcionProfesional: '  Hola  ' })).toEqual({
+      descripcionProfesional: 'Hola',
+    });
+    expect(
+      professionalDescriptionSchema.safeParse({ descripcionProfesional: 'a'.repeat(5000) }).success,
+    ).toBe(true);
+  });
+
+  it('rechaza más de 5000 caracteres con un mensaje claro', () => {
+    const result = professionalDescriptionSchema.safeParse({
+      descripcionProfesional: 'a'.repeat(5001),
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0].message).toBe('La descripción no puede superar 5000 caracteres');
+  });
+
+  it('rechaza una descripción vacía o solo con espacios con un mensaje claro', () => {
+    for (const texto of ['', '   ', '\n\t ']) {
+      const result = professionalDescriptionSchema.safeParse({ descripcionProfesional: texto });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0].message).toBe('La descripción no puede estar vacía');
+    }
+  });
+
+  it('rechaza campos de más', () => {
+    expect(
+      professionalDescriptionSchema.safeParse({ descripcionProfesional: 'x', idTitulado: 't2' })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe('Identificador opcional de creación de certificación', () => {
+  const input = { nombre: 'AWS', entidadEmisora: 'Amazon', anioEmision: 2026 };
+  it('mantiene el cliente antiguo y admite UUID en la creación nueva', () => {
+    expect(createCertificationSchema.safeParse(input).success).toBe(true);
+    expect(createCertificationSchema.safeParse({ ...input, idOperacion: '12345678-1234-4234-8234-123456789abc' }).success).toBe(true);
+  });
+  it('rechaza identificadores vacíos o arbitrarios', () => {
+    expect(createCertificationSchema.safeParse({ ...input, idOperacion: '' }).success).toBe(false);
+    expect(createCertificationSchema.safeParse({ ...input, idOperacion: 'otro' }).success).toBe(false);
+  });
+});
