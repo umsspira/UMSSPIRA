@@ -409,6 +409,7 @@ model Titulado {
   solicitud_registros                Solicitud[]             @relation("solicitud_titulado")
   calculo_radar_registros            CalculoRadar[]
   palabra_clave_no_mapeada_registros PalabraClaveNoMapeada[]
+  proyecto_registros                 Proyecto[]              @relation("proyecto_id_titulado_titulado")
 
   certificacion_creacion_registros CertificacionCreacion[]
 
@@ -763,6 +764,22 @@ model Evento {
   inscripcion_evento_registros InscripcionEvento[] @relation("inscripcion_evento_id_evento_evento")
 
   @@map("evento")
+}
+
+// Proyectos y portafolio del titulado (HU-19)
+model Proyecto {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_titulado    String    @db.Uuid
+  nombre         String    @db.VarChar(150)
+  enlace         String    @db.VarChar(500)
+  descripcion    String    @db.VarChar(500)
+  tecnologias    String?   @db.VarChar(300)
+  fecha_creacion DateTime? @default(now()) @db.Timestamp(6)
+
+  titulado Titulado @relation("proyecto_id_titulado_titulado", fields: [id_titulado], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "proyecto_id_titulado_fkey")
+
+  @@index([id_titulado])
+  @@map("proyecto")
 }
 
 model ArchivoPerfil {

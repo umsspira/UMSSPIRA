@@ -26,7 +26,7 @@ export class GetRadarUseCase {
   ) {}
 
   async execute(tituladoId: string): Promise<RadarVector> {
-    // 1. Leer los textos actuales de las 4 fuentes del titulado.
+    // 1. Leer los textos actuales de las 5 fuentes del titulado.
     const profileTexts = await this.profileTextReader.getProfileTexts(tituladoId);
 
     // 2. Hash de entrada con la misma fórmula que el recálculo.
