@@ -1,5 +1,6 @@
 import type {
   RegisterPushSubscriptionInput,
+  PushDeliverySubscription,
   StoredPushSubscription,
 } from '../../domain/entities/push-subscription';
 
@@ -21,4 +22,10 @@ export interface PushSubscriptionsRepository {
 
   /** Lista las suscripciones activas del usuario (para HU16 y diagnóstico). */
   listByUser(userId: string): Promise<StoredPushSubscription[]>;
+
+  /** Obtiene las suscripciones con claves, únicamente para el envío interno. */
+  listForUsers(userIds: string[]): Promise<PushDeliverySubscription[]>;
+
+  /** Limpia un endpoint inválido sin requerir un actor autenticado. */
+  removeInvalidEndpoint(endpoint: string): Promise<void>;
 }

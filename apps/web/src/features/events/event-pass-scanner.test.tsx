@@ -39,9 +39,11 @@ describe('Validación desde el escáner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Leer QR' }));
     expect(screen.getByRole('button', { name: 'Leer QR' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Comprobando pase');
+    expect(screen.getByText('Estamos comprobando el pase y la inscripción. Revisa el resultado antes de escanear otro.')).toBeInTheDocument();
     expect(validateScannedPass).toHaveBeenCalledWith('evento', 'token-leido', expect.any(AbortSignal));
     await act(async () => { resolve(attendance); });
     expect(screen.getByRole('heading', { name: 'Asistencia registrada' })).toBeInTheDocument();
+    expect(screen.getByText('La asistencia se registró correctamente. Puedes escanear otro pase o volver a participantes.')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Ana Pérez');
     expect(screen.getByRole('button', { name: 'Escanear otro pase' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Escanear otro pase' }));

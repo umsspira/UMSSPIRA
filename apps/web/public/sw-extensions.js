@@ -11,6 +11,111 @@
  *   self.addEventListener('push', (event) => { ... });
  */
 
+const PUSH_DEFAULT_TITLE = 'UMSSPIRA';
+const PUSH_DEFAULT_ICON = '/icons/icon-192.png';
+
+const PUSH_HOME = '/portal';
+
+// Normaliza una ruta a una URL absoluta del mismo origen.
+// Si el destino es externo o inválido, cae a la portada del portal.
+function toInternalPushUrl(value) {
+  try {
+    const destination = new URL(value, self.location.origin);
+    if (destination.origin !== self.location.origin) {
+      return new URL(PUSH_HOME, self.location.origin).href;
+    }
+    return destination.href;
+  } catch {
+    return new URL(PUSH_HOME, self.location.origin).href;
+  }
+}
+
+// HU13 - T11: resuelve la ruta a abrir al tocar la notificación.
+// Acepta una `url` interna provista por el servidor o un `eventId` para
+// armar el detalle del evento. Siempre devuelve una URL del mismo origen.
+function resolveNotificationTarget(data) {
+  if (!data || typeof data !== 'object') return toInternalPushUrl('/portal');
+
+  if (typeof data.url === 'string' && data.url.length > 0) {
+    return toInternalPushUrl(data.url);
+  }
+
+  if (typeof data.eventId === 'string' && data.eventId.trim() !== '') {
+    return toInternalPushUrl(`/portal/eventos/${encodeURIComponent(data.eventId.trim())}`);
+  }
+
+  return toInternalPushUrl('/portal');
+}
+
+function parsePushPayload(event) {
+  try {
+    const payload = event.data ? event.data.json() : {};
+    return payload && typeof payload === 'object' ? payload : {};
+  } catch {
+    return {};
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const payload = parsePushPayload(event);
+  const title = typeof payload.title === 'string' && payload.title.trim()
+    ? payload.title.trim()
+    : PUSH_DEFAULT_TITLE;
+  const body = typeof payload.body === 'string' ? payload.body : '';
+  const icon = typeof payload.icon === 'string' && payload.icon.startsWith('/')
+    ? payload.icon
+    : PUSH_DEFAULT_ICON;
+  const url = resolveNotificationTarget(payload);
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      badge: PUSH_DEFAULT_ICON,
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = resolveNotificationTarget(event.notification.data);
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      // Reutiliza una ventana de la app si ya está abierta.
+      const existing = clients.find((client) => {
+        try {
+          return new URL(client.url).origin === self.location.origin;
+        } catch {
+          return false;
+        }
+      });
+
+      if (existing) {
+        try {
+          // Navega la ventana existente al destino y la enfoca.
+          if (typeof existing.navigate === 'function') {
+            const navigated = await existing.navigate(url);
+            const target = navigated || existing;
+            if (typeof target.focus === 'function') await target.focus();
+            return;
+          }
+          if (typeof existing.focus === 'function') await existing.focus();
+          return;
+        } catch {
+          // Si la ventana existente no se puede navegar, se abre una nueva.
+        }
+      }
+
+      // Sin ventana reutilizable (o si falló), abre una nueva en el destino.
+      if (typeof self.clients.openWindow === 'function') {
+        await self.clients.openWindow(url);
+      }
+    }),
+  );
+});
+
 
 // HU12: acceso al detalle del pase sin conexión
 const HU12_SHELL_CACHE = 'hu12-offline-shell-v1';
@@ -77,3 +182,4 @@ self.UMSSPIRA_SW.routes.push({
     }
   },
 });
+

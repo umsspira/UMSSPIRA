@@ -24,6 +24,7 @@ describe('Cámara del escáner', () => {
     expect(getUserMedia).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Activar cámara' }));
     await screen.findByText('Ubica el QR dentro del marco');
+    expect(screen.queryByRole('button', { name: 'Detener cámara' })).not.toBeInTheDocument();
     expect(getUserMedia).toHaveBeenCalledWith({ audio: false, video: { facingMode: { ideal: 'environment' } } });
     view.unmount();
     expect(stop).toHaveBeenCalled();

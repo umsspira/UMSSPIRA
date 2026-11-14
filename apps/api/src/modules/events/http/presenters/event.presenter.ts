@@ -15,6 +15,8 @@ export function presentEvent(event: Event) {
     createdBy: event.ownerId,
     creatorName: event.creatorName,
     createdAt: event.createdAt.toISOString(),
+    scheduledAt: event.scheduledAt?.toISOString() ?? null,
+    schedulingStatus: event.schedulingStatus ?? null,
   };
 }
 

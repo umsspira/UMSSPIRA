@@ -16,11 +16,14 @@ export interface EventsRepository {
   updateDraft(ownerId: string, id: string, input: EventInput): Promise<Event>;
   updatePublished(ownerId: string, id: string, input: EventInput): Promise<Event>;
   publishDraft(ownerId: string, id: string): Promise<Event>;
+  cancelDraftSchedule(ownerId: string, id: string): Promise<Event>;
+  scheduleDraftPublication(ownerId: string, id: string, scheduledAt: Date): Promise<Event>;
   register(userId: string, eventId: string): Promise<EventRegistration>;
   assertCancellable(userId: string, registrationId: string, now: Date): Promise<void>;
   cancelRegistration(userId: string, registrationId: string, now: Date): Promise<void>;
   mine(userId: string): Promise<MyEventRegistration[]>;
   participants(ownerId: string, eventId: string): Promise<EventParticipants>;
+  confirmedRegistrantUserIds(eventId: string): Promise<string[]>;
   inactive(ownerId: string, now: Date): Promise<InactiveEvent[]>;
   retire(ownerId: string, id: string, now: Date): Promise<RetiredEvent>;
   cancelPublished(ownerId: string, id: string): Promise<{

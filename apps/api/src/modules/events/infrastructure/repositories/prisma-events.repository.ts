@@ -14,6 +14,8 @@ import {
 } from '../../domain/policies/event.policy';
 import type { InactiveEvent, RetiredEvent } from '../../domain/entities/event';
 import { eventInclude, toEvent } from '../translators/event.translator';
+import { updateEventSchema } from '../../http/schemas/events.schemas';
+import { validateScheduledPublicationDate } from '../../domain/policies/scheduled-publication.policy';
 import { assertRegistrationCancellable } from '../../domain/policies/event-registration.policy';
 import type {
   EventParticipants,
@@ -150,6 +152,80 @@ export class PrismaEventsRepository implements EventsRepository {
     }, { timeout: 15000 });
   }
 
+  async scheduleDraftPublication(ownerId: string, id: string, scheduledAt: Date) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const row = await this.lockOwned(tx, ownerId, id);
+        const event = toEvent(row);
+
+        assertDraft(event);
+        validateScheduledPublicationDate(scheduledAt, new Date());
+        validateEventDates(event.startDate, event.endDate);
+
+        const validation = updateEventSchema.safeParse({
+          title: event.title,
+          description: event.description ?? undefined,
+          startDate: event.startDate.toISOString(),
+          endDate: event.endDate.toISOString(),
+          maxCapacity: event.maxCapacity,
+          location: event.location ?? undefined,
+          imageUrl: event.coverId
+            ? '/api/v1/events/covers/' + event.coverId
+            : null,
+        });
+
+        if (!validation.success) {
+          throw new BusinessRuleError(
+            'invalid',
+            'INVALID_EVENT_FOR_SCHEDULING',
+            'Completa los datos válidos del evento antes de programarlo',
+          );
+        }
+
+        if (event.maxCapacity < 1 || event.maxCapacity > 10000) {
+          throw new BusinessRuleError(
+            'invalid',
+            'INVALID_EVENT_CAPACITY',
+            'El cupo debe estar entre 1 y 10000',
+          );
+        }
+
+        const updated = await tx.evento.update({
+          where: { id, id_usuario: ownerId, estado: 'BORRADOR', archivado: false },
+          data: {
+            fecha_publicacion_programada: scheduledAt,
+            estado_programacion: 'PENDIENTE',
+          },
+          include: eventInclude,
+        });
+
+        return toEvent(updated);
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  async cancelDraftSchedule(ownerId: string, id: string) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const row = await this.lockOwned(tx, ownerId, id);
+        assertDraft(toEvent(row));
+
+        const updated = await tx.evento.update({
+          where: { id, id_usuario: ownerId, estado: 'BORRADOR', archivado: false },
+          data: {
+            fecha_publicacion_programada: null,
+            estado_programacion: null,
+          },
+          include: eventInclude,
+        });
+
+        return toEvent(updated);
+      },
+      { timeout: 15000 },
+    );
+  }
+
   async publishDraft(ownerId: string, id: string) {
     return this.prisma.$transaction(
       async (tx) => {
@@ -167,7 +243,11 @@ export class PrismaEventsRepository implements EventsRepository {
         return toEvent(
           await tx.evento.update({
             where: { id, id_usuario: ownerId, estado: 'BORRADOR', archivado: false },
-            data: { estado: 'PUBLICADO' },
+            data: {
+              estado: 'PUBLICADO',
+              fecha_publicacion_programada: null,
+              estado_programacion: null,
+            },
             include: eventInclude,
           }),
         );
@@ -394,6 +474,14 @@ export class PrismaEventsRepository implements EventsRepository {
       ),
       participants,
     };
+  }
+
+  async confirmedRegistrantUserIds(eventId: string): Promise<string[]> {
+    const rows = await this.prisma.inscripcionEvento.findMany({
+      where: { id_evento: eventId, estado: 'CONFIRMADA', id_usuario: { not: null } },
+      select: { id_usuario: true },
+    });
+    return [...new Set(rows.flatMap((row) => (row.id_usuario ? [row.id_usuario] : [])))];
   }
 
   async inactive(ownerId: string, now: Date): Promise<InactiveEvent[]> {

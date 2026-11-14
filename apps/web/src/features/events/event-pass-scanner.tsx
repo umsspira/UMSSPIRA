@@ -30,7 +30,22 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
   const cameraFailed = state.status === 'camera-error';
   const cameraDenied = cameraFailed && state.failure.kind === 'permission-denied';
   const requestFailed = state.status === 'request-error';
-  const showSideAction = duplicate || rejectedPass || cameraFailed || requestFailed;
+  const showFeedback = state.status !== 'idle';
+  const feedbackDescription = pending
+    ? 'Estamos comprobando el pase y la inscripción. Revisa el resultado antes de escanear otro.'
+    : requestFailed
+      ? 'Comprueba la conexión y vuelve a escanear el pase. El registro de asistencia está sin confirmar.'
+      : cameraFailed
+        ? cameraDenied
+          ? 'Permite usar la cámara desde tu navegador. Después, selecciona «Reintentar cámara».'
+          : 'Comprueba que la cámara esté disponible y selecciona «Reintentar cámara».'
+        : duplicate
+          ? 'Este pase ya se usó para registrar asistencia. No necesitas volver a registrarlo.'
+          : rejectedPass
+            ? 'Comprueba que el código sea válido y pertenezca al evento que estás revisando.'
+            : state.status === 'valid'
+              ? 'La asistencia se registró correctamente. Puedes escanear otro pase o volver a participantes.'
+              : null;
   const [cameraActions, setCameraActions] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => () => { request.current?.abort(); }, []);
@@ -68,15 +83,15 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
   }, [eventId]);
 
   return (
-    <div className={`event-scanner-layout${showSideAction ? ' event-scanner-feedback' : ''}`}>
+    <div className={`event-scanner-layout${showFeedback ? ' event-scanner-feedback' : ''}`}>
       <EventScannerCamera
         onRead={onRead}
         disabled={pending}
         startLabel={requestFailed ? 'Reintentar' : cameraFailed ? 'Reintentar cámara' : state.status === 'valid' || state.status === 'error' ? 'Escanear otro pase' : 'Activar cámara'}
         onStart={() => setState({ status: 'idle' })}
         onError={onCameraError}
-        actionContainer={showSideAction ? cameraActions : null}
-        inactiveMessage={requestFailed ? 'Error de conexión' : cameraDenied ? 'Cámara sin permiso' : cameraFailed ? 'Cámara no disponible' : showSideAction ? 'Lectura completada' : undefined}
+        actionContainer={cameraActions}
+        inactiveMessage={pending ? 'Validando pase…' : requestFailed ? 'Error de conexión' : cameraDenied ? 'Cámara sin permiso' : cameraFailed ? 'Cámara no disponible' : showFeedback ? 'Lectura completada' : undefined}
       />
       <aside className="event-scanner-instructions" aria-labelledby="scanner-instructions" aria-busy={pending}>
         <h2 id="scanner-instructions">
@@ -84,17 +99,9 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             ? state.attendance.code === 'ATTENDANCE_RECORDED' ? 'Asistencia registrada' : 'Asistencia ya registrada'
             : state.status === 'error' ? 'No se pudo validar el pase' : 'Cómo escanear'}
         </h2>
-        {showSideAction ? (
+        {feedbackDescription ? (
           <p className="event-scanner-description" id="scanner-result-description">
-            {requestFailed
-              ? 'Comprueba la conexión y vuelve a escanear el pase. El registro de asistencia está sin confirmar.'
-              : cameraFailed
-              ? cameraDenied
-                ? 'Permite usar la cámara desde tu navegador. Después, selecciona «Reintentar cámara».'
-                : 'Comprueba que la cámara esté disponible y selecciona «Reintentar cámara».'
-              : duplicate
-                ? 'Este pase ya se usó para registrar asistencia. No necesitas volver a registrarlo.'
-              : 'Comprueba que el código sea válido y pertenezca al evento que estás revisando.'}
+            {feedbackDescription}
           </p>
         ) : null}
         {pending ? (
@@ -111,7 +118,8 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
               </>
             ) : (
               <>
-                <strong>{state.attendance.participantName}</strong>
+                <strong>Asistencia registrada</strong>
+                <p>{state.attendance.participantName}</p>
                 <p>{state.attendance.eventTitle}</p>
                 <p>Ingreso registrado el {formatEventDateTime(state.attendance.attendedAt)}</p>
               </>
@@ -139,25 +147,24 @@ export function EventPassScanner({ eventId }: { eventId: string }) {
             <li>Espera el resultado en pantalla.</li>
           </ol>
         )}
-        {pending ? (
-          <button
-            type="button"
-            className="event-button"
-            onClick={() => {
-              request.current?.abort();
-              request.current = null;
-              setState({
-                status: 'error',
-                message: 'Se canceló la espera. La asistencia puede haberse registrado. Vuelve a escanear el pase para comprobarlo.',
-              });
-            }}
-          >
-            Cancelar validación
-          </button>
-        ) : null}
-        <div className={`event-scanner-panel-actions${showSideAction ? ' has-camera-action' : ''}`}>
+        <div className="event-scanner-panel-actions has-camera-action">
           <Link href={`/events/${eventId}/participants`} className="event-button event-button-secondary">Participantes</Link>
-          {showSideAction ? <div ref={setCameraActions} /> : null}
+          {pending ? (
+            <button
+              type="button"
+              className="event-button event-button-primary"
+              onClick={() => {
+                request.current?.abort();
+                request.current = null;
+                setState({
+                  status: 'error',
+                  message: 'Se canceló la espera. La asistencia puede haberse registrado. Vuelve a escanear el pase para comprobarlo.',
+                });
+              }}
+            >
+              Cancelar validación
+            </button>
+          ) : <div ref={setCameraActions} />}
         </div>
       </aside>
     </div>
