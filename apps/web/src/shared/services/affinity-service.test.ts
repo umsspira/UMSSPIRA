@@ -1,4 +1,4 @@
-﻿
+
 /// <reference types="jest" />
 
 import snapshotsMock from '../mocks/affinity-snapshots-mock.json';
@@ -480,5 +480,28 @@ describe('convivencia con la Ã©pica', () => {
     expect(typeof service.getAffinityConfig).toBe('function');
     expect(typeof service.saveAffinityConfig).toBe('function');
     expect(typeof service.recalculateAffinity).toBe('function');
+  });
+});
+
+describe('getAreaCertifications', () => {
+  beforeEach(async () => {
+    jest.resetModules();
+    await setTestAccessToken();
+  });
+  afterEach(async () => {
+    await resetTestSession();
+    global.fetch = originalFetch;
+  });
+  it('consulta el endpoint de certificaciones y conserva una lista vacía válida', async () => {
+    const payload = { area: 'cloud-devops', source: 'current-profile', certifications: [] };
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: payload }) });
+    const { getAreaCertifications } = await import('./affinity-service');
+    await expect(getAreaCertifications('cloud-devops')).resolves.toEqual(payload);
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/v1/radar/certifications/cloud-devops'), expect.any(Object));
+  });
+  it('rechaza una respuesta de otra área en vez de mostrarla como vacía', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: { area: 'data-ai', source: 'current-profile', certifications: [] } }) });
+    const { getAreaCertifications } = await import('./affinity-service');
+    await expect(getAreaCertifications('cloud-devops')).rejects.toThrow('Respuesta de certificaciones no válida');
   });
 });
