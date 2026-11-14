@@ -17,10 +17,9 @@ const secondaryButtonClassName =
 const primaryButtonClassName =
   'inline-flex items-center justify-center gap-2 rounded-lg bg-truffle-trouble px-5 py-2.5 text-sm font-bold text-white transition hover:brightness-95';
 
-// Visor de respaldos reales. El navegador interpreta el Content-Type servido por la API
-// para mostrar imágenes JPG o documentos PDF. Cada apertura pide un enlace firmado nuevo.
+// Visor de la foto JPG real del respaldo (HU-10). Se monta al abrirse, así cada apertura pide un enlace nuevo
 export function BackupViewerModal({ certificationId, certificationName, onClose }: BackupViewerModalProps) {
-  const [backupUrl, setBackupUrl] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   // Cada reintento vuelve a pedir un enlace nuevo
   const [attempt, setAttempt] = useState(0);
@@ -30,7 +29,7 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
     let active = true;
     obtenerEnlaceRespaldo(certificationId)
       .then((enlace) => {
-        if (active) setBackupUrl(enlace.url);
+        if (active) setImageUrl(enlace.url);
       })
       .catch(() => {
         if (active) setHasError(true);
@@ -41,7 +40,7 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
   }, [certificationId, attempt]);
 
   function handleRetry() {
-    setBackupUrl(null);
+    setImageUrl(null);
     setHasError(false);
     setAttempt((current) => current + 1);
   }
@@ -83,8 +82,8 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
           </button>
         </div>
 
-        {/* El navegador abre el archivo según el Content-Type real: imagen JPG o documento PDF. */}
-        <div className="mt-4 flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg bg-palladian p-6 text-center">
+        {/* La foto ocupa el espacio que sobra y se encoge para que los botones sigan a la vista */}
+        <div className="mt-4 flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg bg-palladian">
           {hasError && (
             <div role="alert" className="flex flex-col items-center gap-3 px-4 py-12 text-center">
               <p className="text-sm font-medium text-blue-fantastic">
@@ -95,16 +94,15 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
               </button>
             </div>
           )}
-          {!backupUrl && !hasError && (
+          {!imageUrl && !hasError && (
             <p role="status" className="flex items-center gap-2 px-4 py-16 text-sm font-medium text-blue-fantastic">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               Cargando respaldo…
             </p>
           )}
-          {backupUrl && !hasError && (
-            <p className="text-sm text-blue-fantastic">
-              Respaldo listo. Puedes abrirlo o descargar el archivo original.
-            </p>
+          {imageUrl && !hasError && (
+            // eslint-disable-next-line @next/next/no-img-element -- el enlace firmado vence, no se optimiza con next/image
+            <img src={imageUrl} alt={`Respaldo de ${certificationName}`} onError={() => setHasError(true)} className="max-h-[60dvh] w-full rounded-lg object-contain sm:max-h-[70vh]" />
           )}
         </div>
 
@@ -113,17 +111,12 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
           <button type="button" onClick={onClose} className={secondaryButtonClassName}>
             Cerrar
           </button>
-          {/* El endpoint sirve el archivo original como adjunto al solicitar descargar=1. */}
-          {backupUrl && !hasError && (
-            <>
-              <a href={backupUrl} target="_blank" rel="noopener noreferrer" className={secondaryButtonClassName}>
-                Abrir respaldo
-              </a>
-              <a href={enlaceDeDescarga(backupUrl)} download className={primaryButtonClassName}>
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Descargar
-              </a>
-            </>
+          {/* La API responde el JPG original como adjunto con descargar=1 */}
+          {imageUrl && !hasError && (
+            <a href={enlaceDeDescarga(imageUrl)} download className={primaryButtonClassName}>
+              <Download className="h-4 w-4" aria-hidden="true" />
+              Descargar
+            </a>
           )}
         </div>
       </div>
