@@ -34,3 +34,11 @@ export const mentorInterestsSchema = z.strictObject({
 export const availabilitySchema = z.strictObject({
   availabilityStatus: z.enum(['DISPONIBLE', 'EN_PAUSA', 'NO_DISPONIBLE']),
 });
+export const createCustomInterestSchema = z.strictObject({
+  areaId: mentorIdSchema,
+  texto: z.string(),
+});
+export const updateCustomInterestSchema = z.strictObject({
+  texto: z.string(),
+});
+

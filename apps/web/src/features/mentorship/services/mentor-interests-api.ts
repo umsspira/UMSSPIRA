@@ -44,7 +44,7 @@ async function request(path: string, options: RequestInit): Promise<unknown> {
 }
 
 interface ApiArea { id: string; nombre: string }
-interface ApiInterest { id: string; nombre: string; area: ApiArea }
+interface ApiInterest { id: string; nombre: string; area: ApiArea; es_personalizado?: boolean }
 
 function isArea(value: unknown): value is ApiArea {
   return !!value && typeof value === 'object' && 'id' in value && typeof value.id === 'string'
@@ -72,7 +72,16 @@ export async function getMentorInterests(signal?: AbortSignal): Promise<MentorIn
     if (!group.intereses.every((item: unknown) => isInterest(item) && item.area.id === area.id)) {
       throw new Error('El backend devolvió tópicos que no corresponden a su área.');
     }
-    return { id: area.id, name: area.nombre, description: '', topics: group.intereses.map(item => ({ id: item.id, name: item.nombre })) };
+    return {
+      id: area.id,
+      name: area.nombre,
+      description: '',
+      topics: group.intereses.map(item => ({
+        id: item.id,
+        name: item.nombre,
+        ...(item.es_personalizado ? { isCustom: true } : {}),
+      })),
+    };
   });
   return {
     catalog,
@@ -109,3 +118,35 @@ export async function saveMentorInterests(configuration: InterestConfiguration):
   }
   return confirmed;
 }
+
+export interface CustomInterestApiResult {
+  id: string;
+  nombre: string;
+  area: ApiArea;
+  es_personalizado?: boolean;
+  coincidencia_sugerido?: boolean;
+  mensaje?: string;
+}
+
+export async function createCustomInterestApi(areaId: string, texto: string): Promise<CustomInterestApiResult> {
+  return request(`${BASE}/custom`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ areaId, texto }),
+  }) as Promise<CustomInterestApiResult>;
+}
+
+export async function updateCustomInterestApi(id: string, texto: string): Promise<{ id: string; nombre: string; area: ApiArea; es_personalizado?: boolean }> {
+  return request(`${BASE}/custom/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texto }),
+  }) as Promise<{ id: string; nombre: string; area: ApiArea; es_personalizado?: boolean }>;
+}
+
+export async function deleteCustomInterestApi(id: string): Promise<{ id: string; eliminado: boolean; mensaje?: string }> {
+  return request(`${BASE}/custom/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  }) as Promise<{ id: string; eliminado: boolean; mensaje?: string }>;
+}
+

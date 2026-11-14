@@ -92,6 +92,7 @@ export function presentInterest(interest: MentorInterest) {
     id: interest.id,
     nombre: interest.name,
     area: { id: interest.area.id, nombre: interest.area.name },
+    es_personalizado: interest.esPersonalizado ?? false,
   };
 }
 
