@@ -1,7 +1,9 @@
-
 import {
   OFFLINE_SESSION_MAX_AGE_DAYS,
+  clearPrivateOfflineData,
+  clearPendingLogout,
   getOfflineSessionUserId,
+  hasPendingLogout,
   markPendingLogout,
   registerValidatedSession,
 } from './offline-session';
@@ -14,7 +16,10 @@ function fakeToken(sub: string): string {
 }
 
 describe('offline-session', () => {
-  beforeEach(() => window.localStorage.clear());
+  beforeEach(() => {
+    window.localStorage.clear();
+    jest.restoreAllMocks();
+  });
 
   it('permite ver los datos guardados con menos de 7 días', async () => {
     const start = Date.now();
@@ -33,5 +38,26 @@ describe('offline-session', () => {
     markPendingLogout();
     expect(getOfflineSessionUserId()).toBeNull();
   });
-});
 
+  it('HU08 CA-04: tras clearPrivateOfflineData + markPendingLogout no hay sesión offline', async () => {
+    await registerValidatedSession(fakeToken('u1'));
+    markPendingLogout();
+    await clearPrivateOfflineData();
+    expect(getOfflineSessionUserId()).toBeNull();
+    expect(hasPendingLogout()).toBe(true);
+  });
+
+  it('HU07 CA-03: otra cuenta en el mismo dispositivo invalida la anterior', async () => {
+    await registerValidatedSession(fakeToken('u1'));
+    await registerValidatedSession(fakeToken('u2'));
+    expect(getOfflineSessionUserId()).toBe('u2');
+  });
+
+  it('clearPendingLogout permite revalidar tras un logout', async () => {
+    await registerValidatedSession(fakeToken('u1'));
+    markPendingLogout();
+    expect(getOfflineSessionUserId()).toBeNull();
+    clearPendingLogout();
+    expect(getOfflineSessionUserId()).toBe('u1');
+  });
+});
