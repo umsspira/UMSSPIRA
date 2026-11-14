@@ -8,6 +8,7 @@ import { GetRadarUseCase } from '../../src/modules/radar/application/use-cases/g
 import { RecalculateRadarUseCase } from '../../src/modules/radar/application/use-cases/recalculate-radar.use-case';
 import { calculateInputHash } from '../../src/modules/radar/domain/policies/input-hash';
 import { RADAR_AREA_IDS } from '../../src/modules/radar/domain/entities/radar-area';
+import { PrismaAreaWeightReaderAdapter } from '../../src/modules/radar/infrastructure/adapters/prisma-area-weight-reader.adapter';
 import { PrismaProfileTextReaderAdapter } from '../../src/modules/radar/infrastructure/adapters/prisma-profile-text-reader.adapter';
 import { PrismaRadarRepository } from '../../src/modules/radar/infrastructure/repositories/prisma-radar.repository';
 import { PrismaProfileRepository } from '../../src/modules/profile/infrastructure/repositories/prisma-profile.repository';
@@ -41,7 +42,11 @@ describe('Radar y descripción vigente de perfil_area', () => {
     textReader = new PrismaProfileTextReaderAdapter(prisma as unknown as PrismaService);
     radarRepository = new PrismaRadarRepository(prisma as unknown as PrismaService);
     extractor = new StubKeywordExtractor();
-    recalculate = new RecalculateRadarUseCase(extractor, radarRepository);
+    recalculate = new RecalculateRadarUseCase(
+      extractor,
+      radarRepository,
+      new PrismaAreaWeightReaderAdapter(prisma as unknown as PrismaService),
+    );
 
     for (const [slug, id] of Object.entries(RADAR_AREA_IDS)) {
       await pool.query(
