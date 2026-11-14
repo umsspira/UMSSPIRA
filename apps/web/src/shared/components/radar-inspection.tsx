@@ -196,7 +196,7 @@ export default function RadarInspection({
               affinity={selectedArea.affinity}
               previousAffinity={selectedArea.previousAffinity ?? null}
               explanation={selectedArea.explanation}
-              currentContributions={selectedArea.previousAffinity == null ? selectedArea.topKeywords?.map(({ keyword, percentage }) => ({ keyword, percentagePoints: percentage })) : undefined}
+              currentContributions={selectedArea.previousAffinity == null && selectedArea.topKeywords?.length ? [] : undefined}
               isLoading={isExplanationLoading}
               hasError={hasExplanationError}
               onRetry={onRetryExplanation}
@@ -234,7 +234,7 @@ export default function RadarInspection({
               </div>
             )}
             </>}
-            {(selectedArea.previousAffinity != null || isExplanationLoading || hasExplanationError) && <InfluentialKeywords keywords={selectedArea.topKeywords} />}
+            <InfluentialKeywords keywords={selectedArea.topKeywords} />
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">

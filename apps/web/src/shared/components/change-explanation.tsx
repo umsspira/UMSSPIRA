@@ -35,7 +35,7 @@ export const ChangeExplanation: React.FC<ChangeExplanationProps> = ({
       percentagePoints: change.deltaPercentagePoints,
     })) ?? [];
 
-  if (!isLoading && !hasError && !explanation && !currentContributions?.length) {
+  if (!isLoading && !hasError && !explanation && currentContributions === undefined) {
     return null;
   }
 
