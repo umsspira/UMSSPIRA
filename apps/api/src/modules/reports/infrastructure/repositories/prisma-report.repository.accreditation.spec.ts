@@ -274,28 +274,33 @@ describe('GetAccreditationDashboardUseCase (CA-10)', () => {
 });
 
 describe('Filtros de cohorte y semestre en los indicadores (HU-003 / HU-004 CA-04)', () => {
-  it('con una cohorte elegida solo cuenta a los titulados de esa cohorte', async () => {
-    const { repository, prisma } = repositoryWith({});
-    await repository.accreditationDashboard(['career-1'], { cohort: 2021 });
+  // 6 titulados de 2021 y 5 de 2023. Los de 2023 respondieron en el semestre 1/2026.
+  const people = [...graduates(2021, 6, 'a'), ...graduates(2023, 5, 'b')];
+  const answers = [
+    ...graduates(2021, 6, 'a').map((g) => answer(g.id, true)),
+    ...graduates(2023, 5, 'b').map((g) => ({
+      ...answer(g.id, false),
+      fechaEnvio: new Date('2026-03-10T12:00:00Z'),
+    })),
+  ];
 
-    expect(prisma.titulado.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id_carrera: { in: ['career-1'] }, anio_egreso: 2021 } }),
-    );
+  it('con una cohorte elegida solo cuenta esa cohorte y conserva todas las opciones', async () => {
+    const { repository } = repositoryWith({ graduates: people, responses: answers });
+    const result = await repository.accreditationDashboard(['career-1'], { cohort: 2021 });
+
+    expect(result.totalResponses).toBe(6);
+    expect(result.employedPercentage).toBe(100);
+    // HU-003 CA-01: el selector sigue mostrando todas las cohortes con datos.
+    expect(result.availableCohorts).toEqual([2021, 2023]);
   });
 
   it('con un semestre elegido solo cuenta las encuestas enviadas en ese semestre', async () => {
-    const { repository, prisma } = repositoryWith({ graduates: graduates(2021, 1, 'g') });
-    await repository.accreditationDashboard(['career-1'], { semester: '2/2026' });
+    const { repository } = repositoryWith({ graduates: people, responses: answers });
+    const result = await repository.accreditationDashboard(['career-1'], { semester: '1/2026' });
 
-    expect(prisma.respuestaEncuesta.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          fechaEnvio: {
-            gte: new Date('2026-07-01T04:00:00Z'),
-            lt: new Date('2027-01-01T04:00:00Z'),
-          },
-        }),
-      }),
-    );
+    expect(result.totalResponses).toBe(5);
+    expect(result.employedPercentage).toBe(0);
+    // HU-003 CA-02: el selector sigue mostrando todos los semestres con envíos.
+    expect(result.availableSemesters).toEqual(['2/2026', '1/2026']);
   });
 });

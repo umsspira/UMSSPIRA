@@ -1,5 +1,3 @@
-/// <reference types="jest" />
-
 import { GetCompetencyHeatmapController } from './get-competency-heatmap.controller';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 

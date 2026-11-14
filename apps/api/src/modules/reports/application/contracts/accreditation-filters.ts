@@ -1,4 +1,3 @@
-import { BOLIVIA_TIME_ZONE } from '../../../registrations/domain/policies/application-period.policy';
 
 /** Filtros del tablero de acreditación (HU-003). Los comparten el tablero, el mapa y las exportaciones. */
 export interface AccreditationFilter {
@@ -7,6 +6,9 @@ export interface AccreditationFilter {
   /** Semestre con el formato 2/2026. */
   semester?: string;
 }
+
+/** Zona horaria de las fechas de envío (Bolivia, UTC-4). */
+const BOLIVIA_TIME_ZONE = 'America/La_Paz';
 
 export type AccreditationFilters = AccreditationFilter;
 

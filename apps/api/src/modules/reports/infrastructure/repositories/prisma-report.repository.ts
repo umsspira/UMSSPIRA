@@ -19,7 +19,6 @@ import {
   type AccreditationFilter,
   getSemesterFromDate,
 } from '../../application/contracts/accreditation-filters';
-import { semesterRange } from '../../domain/policies/accreditation-format.policy';
 
 export const MAX_EXPORT_ROWS = 10000;
 
@@ -88,11 +87,11 @@ export class PrismaReportRepository implements ReportRepository {
       return empty();
     }
 
-    // Titulados exclusivamente de las carreras autorizadas y, si se eligió, de esa cohorte (HU-003 CA-03).
+    // Titulados de las carreras autorizadas. La cohorte y el semestre se aplican más abajo,
+    // después de armar las opciones disponibles, para que los selectores no se achiquen (HU-003 CA-01 y CA-02).
     const graduates = await this.prisma.titulado.findMany({
       where: {
         id_carrera: { in: [...careerIds] },
-        ...(filter.cohort !== undefined ? { anio_egreso: filter.cohort } : {}),
       },
       select: {
         id: true,
@@ -115,8 +114,6 @@ export class PrismaReportRepository implements ReportRepository {
         idTitulado: {
           in: [...graduateById.keys()],
         },
-        // Semestre elegido: por la fecha de envío de la encuesta (HU-003 CA-04).
-        ...(filter.semester ? { fechaEnvio: semesterRange(filter.semester) } : {}),
       },
       select: {
         id: true,

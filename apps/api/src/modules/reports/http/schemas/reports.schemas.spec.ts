@@ -1,5 +1,3 @@
-/// <reference types="jest" />
-
 import { accreditationFilterSchema } from './reports.schemas';
 
 describe('reports.schemas (T3.1)', () => {

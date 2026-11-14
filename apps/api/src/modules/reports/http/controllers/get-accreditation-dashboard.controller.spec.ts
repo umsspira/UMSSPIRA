@@ -1,5 +1,3 @@
-/// <reference types="jest" />
-
 import { GetAccreditationDashboardController } from './get-accreditation-dashboard.controller';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 
