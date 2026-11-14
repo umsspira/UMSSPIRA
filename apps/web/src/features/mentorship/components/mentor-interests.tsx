@@ -45,6 +45,12 @@ export function MentorInterests({ catalog, initialConfiguration, onSave, areasHr
   }, [dirty]);
 
   useEffect(() => {
+    if (window.location.hash === '#first-incomplete' && !draft.topicIds.length) {
+      document.getElementById('first-incomplete')?.focus();
+    }
+  }, [catalog, draft.topicIds.length]);
+
+  useEffect(() => {
     if (!dirty) return;
     function protectBreadcrumb(event: MouseEvent) {
       if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
@@ -106,7 +112,7 @@ export function MentorInterests({ catalog, initialConfiguration, onSave, areasHr
           {selected.length === 0 && <p>Aún no seleccionaste intereses en esta área.</p>}
           <div className="interest-topics">{selected.map(topic => <button key={topic.id} type="button" aria-pressed="true" disabled={saving} onClick={() => change({ ...draft, topicIds: draft.topicIds.filter(id => id !== topic.id) })}>{topic.name}<XIcon size={14} aria-hidden="true" /></button>)}</div>
           <h4>Sugeridos</h4>
-          <div className="interest-topics">{area.topics.filter(topic => !draft.topicIds.includes(topic.id)).map(topic => <button key={topic.id} type="button" aria-pressed="false" disabled={saving} onClick={() => change({ ...draft, topicIds: [...draft.topicIds, topic.id] })}><PlusIcon size={14} aria-hidden="true" />{topic.name}</button>)}</div>
+          <div className="interest-topics">{area.topics.filter(topic => !draft.topicIds.includes(topic.id)).map(topic => <button id={!draft.topicIds.length && area.topics.find(item => !draft.topicIds.includes(item.id))?.id === topic.id ? 'first-incomplete' : undefined} key={topic.id} type="button" aria-pressed="false" disabled={saving} onClick={() => change({ ...draft, topicIds: [...draft.topicIds, topic.id] })}><PlusIcon size={14} aria-hidden="true" />{topic.name}</button>)}</div>
           <div className="interest-area-footer"><span>{selected.length} de {area.topics.length} seleccionados</span><button type="button" disabled={saving || draft.areaIds.length <= minimumAreas} title={draft.areaIds.length <= minimumAreas ? 'Debes conservar al menos un área técnica.' : undefined} onClick={() => setDialog(`area:${area.id}`)}><Trash2Icon size={14} aria-hidden="true" />Quitar área</button></div>
         </> : <>
           <p>Área no incluida en tu selección técnica. Para seleccionar estos tópicos, primero debes agregar esta área en Áreas técnicas.</p>

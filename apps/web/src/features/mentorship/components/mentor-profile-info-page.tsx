@@ -87,12 +87,15 @@ export function MentorProfileInfoPage() {
   const [fieldErrors, setFieldErrors] = useState<{ descripcion?: string; experiencia?: string }>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const focusPendingRef = useRef(false);
 
   async function loadProfile() {
     setLoading(true);
     setError('');
     try {
       const state = await getMentorProfileInformation();
+      const editFromChecklist = new URLSearchParams(window.location.search).get('edit') === '1';
+      focusPendingRef.current = editFromChecklist && window.location.hash === '#first-incomplete';
       const hasData = state.exists && state.profile && Boolean(state.profile.descripcion || state.profile.experiencia);
       if (hasData && state.profile) {
         setExists(true);
@@ -101,7 +104,7 @@ export function MentorProfileInfoPage() {
         setExperiencia(state.profile.experiencia || '');
         setInformacionRelevante(state.profile.informacion_relevante || '');
         setFotoPerfil(state.profile.foto_perfil || null);
-        setIsEditing(false);
+        setIsEditing(editFromChecklist);
       } else {
         setExists(false);
         setSavedData(null);
@@ -109,7 +112,7 @@ export function MentorProfileInfoPage() {
         setExperiencia('');
         setInformacionRelevante('');
         setFotoPerfil(null);
-        setIsEditing(false);
+        setIsEditing(editFromChecklist);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cargar la información del perfil.');
@@ -121,6 +124,14 @@ export function MentorProfileInfoPage() {
   useEffect(() => {
     void loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (!focusPendingRef.current || loading || !isEditing) return;
+    const firstIncomplete = !descripcion.trim() ? 'field-descripcion' : !experiencia.trim() ? 'field-experiencia' : null;
+    if (!firstIncomplete) return;
+    document.getElementById(firstIncomplete)?.focus();
+    focusPendingRef.current = false;
+  }, [descripcion, experiencia, isEditing, loading]);
 
   // Dirty check
   const isDirty = exists

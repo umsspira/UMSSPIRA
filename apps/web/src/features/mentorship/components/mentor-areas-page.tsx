@@ -91,6 +91,12 @@ export function MentorAreasPage() {
   }, []);
 
   useEffect(() => {
+    if (!loading && window.location.hash === '#first-incomplete') {
+      document.getElementById('first-incomplete')?.focus();
+    }
+  }, [loading, areas.length, selectedIds.length]);
+
+  useEffect(() => {
     if (!forbidden) return;
     const timeout = window.setTimeout(() => router.replace('/'), 2000);
     return () => window.clearTimeout(timeout);
@@ -213,7 +219,7 @@ export function MentorAreasPage() {
                   <label
                     className={`mentor-area-option${selected ? ' is-selected' : ''}`}
                   >
-                    <input type="checkbox" aria-label={area.nombre} checked={selected} onChange={() => toggleArea(area.id)} disabled={saving} />
+                    <input id={!selectedIds.length && areas[0]?.id === area.id ? 'first-incomplete' : undefined} type="checkbox" aria-label={area.nombre} checked={selected} onChange={() => toggleArea(area.id)} disabled={saving} />
                     <span className="areas-category-icon" aria-hidden="true"><AreaIcon size={20} /></span>
                     <span className="mentor-area-option-copy">
                       <span className="mentor-area-name">{area.nombre}</span>

@@ -115,6 +115,12 @@ export function MentorAvailabilityPage() {
   }, [loadAvailability]);
 
   useEffect(() => {
+    if (!loading && window.location.hash === '#first-incomplete' && !savedStatus) {
+      document.getElementById('first-incomplete')?.focus();
+    }
+  }, [loading, savedStatus]);
+
+  useEffect(() => {
     if (!forbidden) return;
     const timeout = window.setTimeout(() => router.replace('/'), 2500);
     return () => window.clearTimeout(timeout);
@@ -237,7 +243,7 @@ export function MentorAvailabilityPage() {
             return <article key={status} className={`mentor-availability-option${selected ? ` is-selected is-${status.toLowerCase()}` : ''}`}>
               <div className="mentor-availability-option-top">
                 <span className="mentor-availability-option-icon"><Icon aria-hidden="true" /></span>
-                <button type="button" className={selected ? 'mentor-availability-selected' : 'mentor-availability-choose'} onClick={() => choose(status)} disabled={saving || loadFailed} aria-pressed={selected}>
+                <button id={!savedStatus && status === options[0].status ? 'first-incomplete' : undefined} type="button" className={selected ? 'mentor-availability-selected' : 'mentor-availability-choose'} onClick={() => choose(status)} disabled={saving || loadFailed} aria-pressed={selected}>
                   {selected ? <><CheckCircle2Icon aria-hidden="true" /> Seleccionado</> : 'Elegir'}
                 </button>
               </div>

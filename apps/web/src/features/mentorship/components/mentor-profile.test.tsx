@@ -3,22 +3,45 @@ import { fireEvent, render, screen, within, waitFor } from '@testing-library/rea
 import { MentorProfile } from './mentor-profile';
 import { InactivePanel } from './inactive-panel';
 import { getMentorProfile, updateMentorParticipation } from '../services/mentorship-api';
+import { getMentorAreas } from '../services/mentor-areas-api';
+import { getMentorInterests } from '../services/mentor-interests-api';
+import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 
 jest.mock('../services/mentorship-api');
+jest.mock('../services/mentor-areas-api', () => ({ getMentorAreas: jest.fn().mockResolvedValue({ areas: [], selectedIds: [] }) }));
+jest.mock('../services/mentor-interests-api', () => ({ getMentorInterests: jest.fn().mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } }) }));
+jest.mock('../services/mentor-availability-api', () => ({ getMentorAvailability: jest.fn().mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null }) }));
+jest.mock('../services/mentor-profile-info-api', () => ({ getMentorProfileInformation: jest.fn().mockResolvedValue({ exists: false, profile: null }) }));
 const getProfile = jest.mocked(getMentorProfile);
 const updateParticipation = jest.mocked(updateMentorParticipation);
+const getAreas = jest.mocked(getMentorAreas);
+const getInterests = jest.mocked(getMentorInterests);
+const getAvailability = jest.mocked(getMentorAvailability);
+const getInformation = jest.mocked(getMentorProfileInformation);
 const inactive = { isActive: false, requirements: { egresado: true } };
 
 beforeEach(() => {
   jest.resetAllMocks();
   getProfile.mockResolvedValue(inactive);
+  getAreas.mockResolvedValue({ areas: [], selectedIds: [] });
+  getInterests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } });
+  getAvailability.mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null });
+  getInformation.mockResolvedValue({ exists: false, profile: null });
 });
 
 it('activa y desactiva con los estados confirmados por la API', async () => {
   updateParticipation.mockResolvedValueOnce({ ...inactive, isActive: true }).mockResolvedValueOnce(inactive);
   render(<MentorProfile />);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Activar como mentor' })).toBeEnabled());
+  expect(screen.getByRole('button', { name: 'Activar como mentor' })).toHaveAttribute('id', 'first-incomplete');
+  expect(await screen.findByRole('heading', { name: 'Completa tu perfil de mentor' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Activar como mentor' }));
+  expect(await screen.findByRole('link', { name: /Comenzar mi configuración/ })).toHaveAttribute('href', '/mentorship/profile/areas');
+  expect(screen.getAllByText('Pendiente de configurar')).toHaveLength(4);
+  expect(screen.getByRole('link', { name: /Configurar intereses/ })).toHaveAttribute('href', '/mentorship/profile/interests');
+  expect(screen.getByRole('link', { name: /Configurar disponibilidad/ })).toHaveAttribute('href', '/mentorship/profile/availability');
+  expect(screen.getByRole('link', { name: /Agregar información/ })).toHaveAttribute('href', '/mentorship/profile/information');
   await screen.findByText('Tu participación como mentor está activa');
   fireEvent.click(screen.getByRole('button', { name: 'Desactivar participación' }));
   fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
