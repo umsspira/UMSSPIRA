@@ -1,3 +1,4 @@
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ObservedNoticeView } from "./observed-notice-view";
 import * as applicationService from "../services/application.service";
@@ -56,69 +57,272 @@ describe("ObservedNoticeView", () => {
   });
 
   it("muestra el estado de carga inicialmente", () => {
-    (applicationService.getObservedApplication as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (applicationService.getObservedApplication as jest.Mock).mockReturnValue(
+      new Promise(() => {}),
+    );
+
     render(<ObservedNoticeView token="abc123" />);
-    expect(screen.getByRole("status")).toHaveTextContent("Cargando tu solicitud");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Cargando tu solicitud",
+    );
   });
 
-  it("muestra categoría, justificación, datos precargados y documento con un enlace válido", async () => {
+  it("muestra motivos y explicación de una observación nueva", async () => {
+    (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
+      status: "success",
+      data: {
+        ...mockDetail,
+        observacion: {
+          ...mockDetail.observacion,
+          categoria: null,
+          motivos: [
+            "documento_ilegible",
+            "datos_no_coinciden",
+          ],
+          justificacion:
+            "Adjunta un documento legible y verifica los datos declarados.",
+        },
+      },
+    });
+
+    render(<ObservedNoticeView token="abc123" />);
+
+    expect(
+      await screen.findByText("Corrige tu solicitud"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText("Motivos de la observación"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText("Documento ilegible o borroso"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        "Datos declarados no coinciden con el respaldo",
+      ),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        "Adjunta un documento legible y verifica los datos declarados.",
+      ),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByText(/Categoría:/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("no repite motivos duplicados", async () => {
+    (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
+      status: "success",
+      data: {
+        ...mockDetail,
+        observacion: {
+          ...mockDetail.observacion,
+          motivos: [
+            "documento_ilegible",
+            "documento_ilegible",
+            "otro_motivo",
+          ],
+        },
+      },
+    });
+
+    render(<ObservedNoticeView token="abc123" />);
+
+    expect(
+      await screen.findByText("Documento ilegible o borroso"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getAllByText("Documento ilegible o borroso"),
+    ).toHaveLength(1);
+
+    expect(screen.getByText("Otro motivo")).toBeInTheDocument();
+  });
+
+  it("muestra el texto original en una observación antigua", async () => {
     (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
       status: "success",
       data: mockDetail,
     });
+
     render(<ObservedNoticeView token="abc123" />);
 
-    expect(await screen.findByText("Corrige tu solicitud")).toBeInTheDocument();
-    expect(screen.getByText("Categoría: Datos personales y contacto")).toBeInTheDocument();
-    expect(screen.getByText(/no es completamente legible/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Corrige tu solicitud"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText("Categoría: Datos personales y contacto"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(/no es completamente legible/i),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByText("Motivos de la observación"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("maneja una lista vacía de motivos sin romper la pantalla", async () => {
+    (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
+      status: "success",
+      data: {
+        ...mockDetail,
+        observacion: {
+          ...mockDetail.observacion,
+          motivos: [],
+        },
+      },
+    });
+
+    render(<ObservedNoticeView token="abc123" />);
+
+    expect(
+      await screen.findByText("Corrige tu solicitud"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText("Categoría: Datos personales y contacto"),
+    ).toBeInTheDocument();
+  });
+
+  it("muestra un mensaje si no hay justificación registrada", async () => {
+    (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
+      status: "success",
+      data: {
+        ...mockDetail,
+        observacion: {
+          ...mockDetail.observacion,
+          justificacion: null,
+        },
+      },
+    });
+
+    render(<ObservedNoticeView token="abc123" />);
+
+    expect(
+      await screen.findByText("Sin justificación registrada."),
+    ).toBeInTheDocument();
+  });
+
+  it("mantiene los datos precargados y el documento anterior", async () => {
+    (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
+      status: "success",
+      data: mockDetail,
+    });
+
+    render(<ObservedNoticeView token="abc123" />);
+
+    expect(
+      await screen.findByText("Corrige tu solicitud"),
+    ).toBeInTheDocument();
+
     expect(screen.getByLabelText(/Nombres/)).toHaveValue("Juan Carlos");
-    expect(screen.getByLabelText(/Correo electrónico/)).toHaveValue("carlos.perez.m@correo.com");
+
+    expect(screen.getByLabelText(/Correo electrónico/)).toHaveValue(
+      "carlos.perez.m@correo.com",
+    );
+
     expect(
       screen.getByText("Certificado_Conclusion_Estudios_JuanPerez.pdf"),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Revisar cambios/ })).toBeDisabled();
+
+    expect(
+      screen.getByRole("button", { name: /Revisar cambios/ }),
+    ).toBeDisabled();
   });
 
-  it("pasa al resumen de entrega y conserva lo escrito al volver a editar", async () => {
+  it("pasa al resumen y conserva los cambios al volver a editar", async () => {
     (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
       status: "success",
       data: mockDetail,
     });
+
     render(<ObservedNoticeView token="abc123" />);
+
     await screen.findByText("Corrige tu solicitud");
 
-    fireEvent.change(screen.getByLabelText(/Apellidos/), { target: { value: "Quispe" } });
-    fireEvent.click(screen.getByRole("button", { name: /Revisar cambios/ }));
+    fireEvent.change(screen.getByLabelText(/Apellidos/), {
+      target: { value: "Quispe" },
+    });
 
-    expect(await screen.findByText("Revisión de solicitud")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Entregar solicitud/ })).toBeDisabled();
-    fireEvent.click(screen.getByRole('checkbox', { name: /Declaración de veracidad/ }));
-    expect(screen.getByRole("button", { name: /Entregar solicitud/ })).toBeEnabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Revisar cambios/ }),
+    );
+
+    expect(
+      await screen.findByText("Revisión de solicitud"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: /Entregar solicitud/ }),
+    ).toBeDisabled();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Declaración de veracidad/ }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Entregar solicitud/ }),
+    ).toBeEnabled();
+
     expect(screen.getAllByText("Modificado")).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole("button", { name: /Volver a editar/ }));
-    expect(screen.queryByText("Revisión de solicitud")).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Volver a editar/ }),
+    );
+
+    expect(
+      screen.queryByText("Revisión de solicitud"),
+    ).not.toBeInTheDocument();
+
     expect(screen.getByLabelText(/Apellidos/)).toHaveValue("Quispe");
   });
 
-  it("muestra mensaje claro con un enlace inválido y no permite editar", async () => {
+  it("muestra mensaje con un enlace inválido y no permite editar", async () => {
     (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
       status: "invalid-link",
     });
+
     render(<ObservedNoticeView token="invalido" />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Enlace no válido o vencido");
-    expect(screen.queryByText("Corrige tu solicitud")).not.toBeInTheDocument();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Enlace no válido o vencido",
+    );
+
+    expect(
+      screen.queryByText("Corrige tu solicitud"),
+    ).not.toBeInTheDocument();
+
     expect(screen.queryByLabelText(/Nombres/)).not.toBeInTheDocument();
   });
 
-  it("muestra mensaje de error de conexión con botón para reintentar", async () => {
+  it("muestra error de conexión y permite reintentar", async () => {
     (applicationService.getObservedApplication as jest.Mock).mockResolvedValue({
       status: "error",
       message: "Fallo de red simulado",
     });
+
     render(<ObservedNoticeView token="error-token" />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Error de conexión");
-    expect(screen.getByText("Fallo de red simulado")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Reintentar/ })).toBeInTheDocument();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Error de conexión",
+    );
+
+    expect(
+      screen.getByText("Fallo de red simulado"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: /Reintentar/ }),
+    ).toBeInTheDocument();
   });
 });
