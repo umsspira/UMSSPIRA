@@ -52,10 +52,24 @@ export class UpdatePublishedEventUseCase {
 
 function importantChanges(original: Event, updated: Event): string[] {
   const changes: string[] = [];
-  if (original.title !== updated.title) {changes.push('el nombre');}
-  if (original.startDate.getTime() !== updated.startDate.getTime()) {changes.push('la fecha u horario de inicio');}
-  if (original.endDate.getTime() !== updated.endDate.getTime()) {changes.push('la fecha u horario de finalización');}
-  if (original.location !== updated.location) {changes.push('la ubicación');}
-  if (original.description !== updated.description) {changes.push('la descripción');}
+  if (original.title.trim() !== updated.title.trim()) {
+    changes.push('el nombre');
+  }
+  if (original.startDate.getTime() !== updated.startDate.getTime()) {
+    changes.push('la fecha u horario de inicio');
+  }
+  if (original.endDate.getTime() !== updated.endDate.getTime()) {
+    changes.push('la fecha u horario de finalización');
+  }
+  const origLoc = (original.location ?? '').trim();
+  const updLoc = (updated.location ?? '').trim();
+  if (origLoc !== updLoc) {
+    changes.push('la ubicación');
+  }
+  const origDesc = (original.description ?? '').trim();
+  const updDesc = (updated.description ?? '').trim();
+  if (origDesc !== updDesc) {
+    changes.push('la descripción');
+  }
   return changes;
 }

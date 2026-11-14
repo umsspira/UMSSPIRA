@@ -27,8 +27,10 @@ function event(overrides: Partial<Event> = {}): Event {
 
 function repository(): jest.Mocked<EventsRepository> {
   return {
-    findOwned: jest.fn(), updatePublished: jest.fn(), confirmedRegistrantUserIds: jest.fn(),
+    findOwned: jest.fn(),
+    updatePublished: jest.fn(),
     cancelPublished: jest.fn(),
+    confirmedRegistrantUserIds: jest.fn(),
   } as unknown as jest.Mocked<EventsRepository>;
 }
 

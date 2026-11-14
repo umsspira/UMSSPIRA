@@ -24,28 +24,63 @@ export interface PushSubscriptionController {
 }
 
 function registrationCoversCurrentPage(registration: ServiceWorkerRegistration): boolean {
-  const scope = new URL(registration.scope).pathname;
-  return window.location.pathname.startsWith(scope);
+  try {
+    const scope = new URL(registration.scope, window.location.origin).pathname;
+    const normalizedScope = scope.endsWith('/') && scope.length > 1 ? scope.slice(0, -1) : scope;
+    const path = window.location.pathname;
+    return path === normalizedScope || path.startsWith(`${normalizedScope}/`);
+  } catch {
+    return false;
+  }
 }
 
 async function getRegistration(): Promise<ServiceWorkerRegistration> {
-  if (!('serviceWorker' in navigator)) {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
     throw new Error('Este navegador no tiene un Service Worker disponible.');
   }
 
   const registrations = await navigator.serviceWorker.getRegistrations();
-  const registration = registrations.find(registrationCoversCurrentPage);
+  let registration =
+    registrations.find(registrationCoversCurrentPage) ??
+    registrations.find((item) => 'pushManager' in item);
+
+  if (!registration) {
+    try {
+      registration =
+        (await navigator.serviceWorker.getRegistration('/portal')) ??
+        (await navigator.serviceWorker.register('/sw.js', { scope: '/portal' }));
+    } catch {
+      // Ignorar fallback si falla el registro en entornos restringidos
+    }
+  }
+
   if (!registration) {
     throw new Error('El Service Worker no está registrado para esta página.');
   }
 
-  const active = registration.active ?? (await navigator.serviceWorker.ready).active;
-  if (!active) {
-    throw new Error('El Service Worker todavía no está activo. Inténtalo de nuevo en unos segundos.');
-  }
   if (!('pushManager' in registration)) {
     throw new Error('Este navegador no permite recibir notificaciones Push.');
   }
+
+  let active = registration.active;
+  if (!active && 'ready' in navigator.serviceWorker) {
+    try {
+      const readyReg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
+      ]);
+      if (readyReg?.active) {
+        active = readyReg.active;
+      }
+    } catch {
+      // Continuar con la comprobación de estado de instalación
+    }
+  }
+
+  if (!active && !registration.waiting && !registration.installing) {
+    throw new Error('El Service Worker todavía no está activo. Inténtalo de nuevo en unos segundos.');
+  }
+
   return registration;
 }
 
@@ -71,7 +106,7 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
           // No se elimina información de otros dispositivos cuando no se puede identificar este endpoint.
         }
       }
-      setStatus('idle');
+      setStatus((current) => (current === 'idle' ? current : 'idle'));
       return;
     }
 
@@ -81,19 +116,19 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
       const registered = await listPushSubscriptions();
 
       if (!local) {
-        setStatus('idle');
+        setStatus((current) => (current === 'idle' ? current : 'idle'));
         return;
       }
 
       if (registered.some((subscription) => subscription.endpoint === local.endpoint)) {
-        setStatus('subscribed');
+        setStatus((current) => (current === 'subscribed' ? current : 'subscribed'));
         return;
       }
 
       await savePushSubscription(toSubscriptionInput(local));
-      setStatus('subscribed');
+      setStatus((current) => (current === 'subscribed' ? current : 'subscribed'));
     } catch (cause) {
-      setStatus('error');
+      setStatus((current) => (current === 'error' ? current : 'error'));
       setError(
         cause instanceof Error
           ? cause.message

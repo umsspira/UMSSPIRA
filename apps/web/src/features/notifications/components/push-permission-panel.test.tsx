@@ -63,10 +63,10 @@ describe('PushPermissionPanel (HU13 - T7 y T8)', () => {
     jest.clearAllMocks();
   });
 
-  it('muestra el botón para activar cuando el permiso está pendiente', () => {
+  it('muestra el botón para activar cuando el permiso está pendiente', async () => {
     setupBrowser('default');
     render(<PushPermissionPanel />);
-    expect(screen.getByRole('button', { name: /activar notificaciones/i })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /activar notificaciones/i })).toBeTruthy();
   });
 
   it('solicita permiso y registra la suscripción al activar', async () => {
@@ -94,10 +94,10 @@ describe('PushPermissionPanel (HU13 - T7 y T8)', () => {
     await screen.findByRole('button', { name: /activar notificaciones/i });
   });
 
-  it('informa cuando el permiso fue bloqueado', () => {
+  it('informa cuando el permiso fue bloqueado', async () => {
     setupBrowser('denied');
     render(<PushPermissionPanel />);
-    expect(screen.getByText(/bloqueaste las notificaciones/i)).toBeTruthy();
+    expect(await screen.findByText(/bloqueaste las notificaciones/i)).toBeTruthy();
   });
 
   it('avisa cuando el navegador no soporta notificaciones', () => {

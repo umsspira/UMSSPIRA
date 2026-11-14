@@ -50,11 +50,12 @@ export class PrismaPushSubscriptionsRepository
   ): Promise<StoredPushSubscription> {
     const now = new Date();
     const existing = await this.prisma.dispositivo.findFirst({
-      where: { usuario_id: userId, url_push: input.endpoint },
+      where: { url_push: input.endpoint },
       select: { id: true },
     });
 
     const data = {
+      usuario_id: userId,
       url_push: input.endpoint,
       llave_publica: input.p256dh,
       llave_secreta: input.auth,
@@ -80,7 +81,6 @@ export class PrismaPushSubscriptionsRepository
       : await this.prisma.dispositivo.create({
           data: {
             ...data,
-            usuario_id: userId,
             fecha_creacion: now,
           },
           select: {
@@ -93,6 +93,12 @@ export class PrismaPushSubscriptionsRepository
             fecha_actualizacion: true,
           },
         });
+
+    if (existing) {
+      await this.prisma.dispositivo.deleteMany({
+        where: { url_push: input.endpoint, id: { not: existing.id } },
+      });
+    }
 
     return this.toModel(row);
   }
