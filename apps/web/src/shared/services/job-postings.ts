@@ -1,7 +1,9 @@
 import { apiFetch } from "./api-client";
 import { getCurrentCompanyId } from "./companies";
+import type { JobPosting as CreatedJobPosting } from "@umsspira/shared-types";
 
 export interface JobPostingRequirement {
+  areaId?: string | null;
   name: string;
   level: string | null;
 }
@@ -98,8 +100,8 @@ export async function getJobPosting(
 
 export async function createJobPosting(
   input: CreateJobPostingInput,
-): Promise<unknown> {
-  return apiFetch("/api/v1/job-postings", {
+): Promise<CreatedJobPosting> {
+  return apiFetch<CreatedJobPosting>("/api/v1/job-postings", {
     method: "POST",
     body: JSON.stringify({ ...input, empresaId: await getCurrentCompanyId() }),
   });

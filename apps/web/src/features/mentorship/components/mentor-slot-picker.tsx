@@ -82,12 +82,6 @@ export function MentorSlotPicker({ days, selectedDate, selectedSlot, invalid, on
           </div>
         </div>
       )}
-
-      <ul className="mentor-slot-legend" aria-label="Guía de colores de horarios">
-        <li><span aria-hidden="true" className="mentor-slot-legend-box is-available" />Disponible</li>
-        <li><span aria-hidden="true" className="mentor-slot-legend-box is-selected" />Seleccionado</li>
-        <li><span aria-hidden="true" className="mentor-slot-legend-box is-busy" />Ocupado</li>
-      </ul>
     </div>
   );
 }
