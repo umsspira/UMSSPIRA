@@ -421,12 +421,19 @@ export function EventManagementContent({
                         <MoreVertical size={17} aria-hidden="true" />
                       </button>
                       {openActionEventId === event.id ? (
-                        <div className="event-actions-popover">
-                          <strong>{event.title}</strong>
-                          <small>Acciones del evento</small>
+                        <div className="event-actions-popover" role="group" aria-label={`Opciones de ${event.title}`}>
+                          <strong>Opciones del evento</strong>
+                          <small>{event.title}</small>
                           <button type="button" onClick={() => router.push(`/events/${event.id}/edit`)}>Editar evento</button>
-                          <Link href={`/events/${encodeURIComponent(event.id)}/participants`} className="event-actions-item">Ver participantes</Link>
+                          <Link
+                            href={`/events/${encodeURIComponent(event.id)}/participants`}
+                            className="event-actions-item hu14-participants-link"
+                            onClick={() => setOpenActionEventId(null)}
+                          >
+                            Ver participantes
+                          </Link>
                           <button type="button" className="is-danger" disabled={isCancelling} onClick={() => { setOpenActionEventId(null); setCancelError(null); setPendingCancellation(event); }}>Cancelar evento</button>
+                          <button type="button" onClick={() => setOpenActionEventId(null)}>Cerrar menú</button>
                         </div>
                       ) : null}
                     </div>
