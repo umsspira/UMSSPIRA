@@ -18,6 +18,8 @@ import { ConversationList } from '@/features/chat/components/ConversationList';
 import { ConversationPanel } from '@/features/chat/components/ConversationPanel';
 import { startDirectChat } from '@/shared/services/chat-conversation.service';
 
+import { MessagesOfflineGuard } from '@/features/chat/components/MessagesOfflineGuard';
+
 type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'unauthorized';
 
 function StatusBadge({ status }: { status: ConnectionStatus }) {
@@ -383,8 +385,10 @@ function MensajesPageContent() {
 // useSearchParams exige un Suspense en Next.js
 export default function MensajesPage() {
   return (
-    <Suspense fallback={null}>
-      <MensajesPageContent />
-    </Suspense>
+    <MessagesOfflineGuard>
+      <Suspense fallback={null}>
+        <MensajesPageContent />
+      </Suspense>
+    </MessagesOfflineGuard>
   );
 }
