@@ -1,14 +1,31 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { clearAccessToken, setAccessToken } from '../../shared/services/auth-session.ts';
-import { TechnicalRequirementsClient } from './technical-requirements-client.ts';
+
 import type { RequisitoTecnico } from './contracts.ts';
+
+// Keep the session and clients in the same CommonJS module graph on Node 22 and 24.
+const require = createRequire(import.meta.url);
+const { clearAccessToken, setAccessToken } =
+  require('../../shared/services/auth-session.ts') as typeof import('../../shared/services/auth-session.ts');
+const { TechnicalRequirementsClient } =
+  require('./technical-requirements-client.ts') as typeof import('./technical-requirements-client.ts');
+
+let accessToken: string;
+
+function assertAuthenticated(init?: RequestInit) {
+  assert.equal(
+    new Headers(init?.headers).get('Authorization'),
+    'Bearer ' + accessToken,
+  );
+}
 
 beforeEach(() => {
   const payload = Buffer.from(
     JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),
   ).toString('base64url');
-  setAccessToken(`e30.${payload}.signature`);
+  accessToken = `e30.${payload}.signature`;
+  setAccessToken(accessToken);
 });
 
 afterEach(() => clearAccessToken());
@@ -33,7 +50,8 @@ describe('TechnicalRequirementsClient (HU2)', () => {
         fechaCreacion: '2026-10-30T12:00:00.000Z',
       };
       const originalFetch = globalThis.fetch;
-      globalThis.fetch = async (input) => {
+      globalThis.fetch = async (input, init) => {
+        assertAuthenticated(init);
         assert.match(String(input), /\/api\/v1\/vacantes\/vac-1\/requisitos$/);
         return Response.json([requirement]);
       };
@@ -65,14 +83,14 @@ describe('TechnicalRequirementsClient (HU2)', () => {
         tipo: 'Obligatorio',
         fechaCreacion: '2026-10-30T12:00:00.000Z',
       };
-      const requests: Array<{ url: string; method: string; body?: unknown }> = [];
+      const requests: Array<{ url: string; method: string; body?: unknown }> =
+        [];
       const originalFetch = globalThis.fetch;
       globalThis.fetch = async (input, init) => {
+        assertAuthenticated(init);
         const method = init?.method ?? 'GET';
         const url = String(input);
-        const body = init?.body
-          ? JSON.parse(String(init.body))
-          : undefined;
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
         requests.push({ url, method, body });
 
         if (method === 'PATCH') return Response.json(updatedRequirement);
@@ -111,11 +129,13 @@ describe('TechnicalRequirementsClient (HU2)', () => {
 
     it('propagates errors instead of reporting failed remote updates as saved', async () => {
       const originalFetch = globalThis.fetch;
-      globalThis.fetch = async () =>
-        Response.json(
+      globalThis.fetch = async (_input, init) => {
+        assertAuthenticated(init);
+        return Response.json(
           { message: 'El requisito no se pudo actualizar.' },
           { status: 503 },
         );
+      };
 
       try {
         const client = new TechnicalRequirementsClient('http://test-api');
@@ -139,10 +159,13 @@ describe('TechnicalRequirementsClient (HU2)', () => {
     // Simulate fetch
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (url, init) => {
+      assertAuthenticated(init);
       const urlStr = String(url);
       if (init?.method === 'POST') {
         const body = JSON.parse(String(init.body)) as {
-          requisitos: Array<Omit<RequisitoTecnico, 'id' | 'idVacante' | 'fechaCreacion'>>;
+          requisitos: Array<
+            Omit<RequisitoTecnico, 'id' | 'idVacante' | 'fechaCreacion'>
+          >;
         };
         const match = urlStr.match(/\/api\/v1\/vacantes\/([^/]+)\/requisitos/);
         const vacId = match?.[1] ?? '';
@@ -159,7 +182,6 @@ describe('TechnicalRequirementsClient (HU2)', () => {
       }
       return Response.json([]);
     };
-
 
     try {
       const result = await client.asociarRequisitos('VAC-001', [
@@ -179,9 +201,13 @@ describe('TechnicalRequirementsClient (HU2)', () => {
   it('propaga error al recibir duplicado del backend', async () => {
     const client = new TechnicalRequirementsClient('http://test-api');
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => {
+    globalThis.fetch = async (_input, init) => {
+      assertAuthenticated(init);
       return Response.json(
-        { message: "El requisito técnico 'SQL' ya está asociado a esta vacante." },
+        {
+          message:
+            "El requisito técnico 'SQL' ya está asociado a esta vacante.",
+        },
         { status: 400 },
       );
     };
