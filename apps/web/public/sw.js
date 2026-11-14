@@ -51,3 +51,51 @@ async function precacheShellAssets(staticCache) {
     }));
   } catch (e) { /* silencioso */ }
 }
+
+// --- INSTALL: aquí aseguramos que /offline se guarde SÍ o SÍ ---
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    const staticCache = await caches.open(STATIC_CACHE);
+    
+    // 1. Precachear /offline (CRÍTICO para que el modo avión muestre la página)
+    try {
+      await staticCache.add('/offline');
+      console.log('[SW] /offline precacheado correctamente');
+    } catch (e) {
+      console.error('[SW] No se pudo precachear /offline', e);
+    }
+
+    // 2. Precachear el resto de URLs
+    await Promise.allSettled(PRECACHE_URLS.map(async (url) => {
+      try {
+        const response = await fetch(url);
+        if (isCacheable(response)) await staticCache.put(url, response);
+      } catch (e) {}
+    }));
+
+    // 3. Precachear iconos
+    const assetsCache = await caches.open(ASSETS_CACHE);
+    await Promise.allSettled(PRECACHE_ICONS.map(async (url) => {
+      try {
+        const response = await fetch(url);
+        if (isCacheable(response)) await assetsCache.put(url, response);
+      } catch (e) {}
+    }));
+
+    // 4. Precachear assets del shell (/portal)
+    await precacheShellAssets(staticCache);
+
+    // 5. Precachear /portal en la caché principal
+    const coreCache = await caches.open(CACHE_NAME);
+    await Promise.allSettled(CORE_ASSETS.map(async (url) => {
+      try {
+        const request = new Request(url, { credentials: 'omit', cache: 'no-store' });
+        const response = await fetch(request);
+        const pathname = new URL(url, self.location.origin).pathname;
+        if (OFFLINE_ALLOWED_ROUTES.includes(pathname) && !isPrivateRoute(pathname) && canStoreNavigationResponse(response)) {
+          await coreCache.put(url, response.clone());
+        }
+      } catch (e) {}
+    }));
+  })());
+});
