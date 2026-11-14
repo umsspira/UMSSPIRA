@@ -32,6 +32,7 @@ interface InvitacionRow {
   correo: string;
   rol: string;
   estado: string;
+  expira_en: Date;
 }
 
 interface UsuarioEmpresaResponse {
@@ -40,13 +41,14 @@ interface UsuarioEmpresaResponse {
   nombre: string;
   correo: string;
   rol: 'Administrador' | 'Reclutador';
-  estado: 'Pendiente' | 'Activo' | 'Inactivo';
+  estado: 'Pendiente' | 'Vencida' | 'Activo' | 'Inactivo';
+  expira_en?: Date;
   esTitular: boolean;
 }
 
 @Injectable()
 export class CompanyUsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private convertirRol(rol: string): RolBD {
     if (rol?.toLowerCase() === 'administrador') {
@@ -169,22 +171,31 @@ export class CompanyUsersService {
 
     // Leer el nombre real de cada invitación.
     const invitaciones = await this.prisma.$queryRaw<InvitacionRow[]>`
-      SELECT id, nombre, correo, rol, estado
-      FROM empresa_invitacion
-      WHERE id_empresa = ${companyId}::uuid
-        AND estado = 'pendiente'
-        AND expira_en > NOW()
-      ORDER BY creado_en DESC
-    `;
-
+  SELECT
+    id,
+    nombre,
+    correo,
+    rol,
+    estado,
+    expira_en
+  FROM empresa_invitacion
+  WHERE id_empresa = ${companyId}::uuid
+    AND estado IN ('pendiente', 'vencida')
+  ORDER BY creado_en DESC
+`;
     for (const invitacion of invitaciones) {
+      const vencida =
+        invitacion.estado === 'vencida' ||
+        new Date(invitacion.expira_en).getTime() <= Date.now();
+
       usuarios.push({
         id: invitacion.id,
         id_usuario: null,
         nombre: invitacion.nombre?.trim() || invitacion.correo.split('@')[0],
         correo: invitacion.correo,
         rol: this.mostrarRol(invitacion.rol),
-        estado: 'Pendiente',
+        estado: vencida ? 'Vencida' : 'Pendiente',
+        expira_en: invitacion.expira_en,
         esTitular: false,
       });
     }
