@@ -5,9 +5,12 @@ import { useState } from 'react';
 import type { EventPassDto } from '@umsspira/shared-types';
 import { saveOfflineQrPass } from './offline/offline-qr-storage';
 import { EventPassCard } from '@/modules/events/components/EventPassCard';
+import { OFFLINE_PASS_INVALID_MESSAGE } from './offline/offline-sync';
 
 interface EventPassQrCardProps {
   pass: EventPassDto;
+  /** true cuando el pase viene del dispositivo (sin conexión): no se ofrece guardarlo de nuevo. */
+  fromOfflineStorage?: boolean;
 }
 
 function formatEventDate(value?: string): string {
@@ -26,7 +29,10 @@ function formatEventDate(value?: string): string {
   }).format(date);
 }
 
-export function EventPassQrCard({ pass }: EventPassQrCardProps) {
+export function EventPassQrCard({
+  pass,
+  fromOfflineStorage = false,
+}: EventPassQrCardProps) {
   const isValid =
     pass.status === 'ACTIVO' && pass.isValidForAccess;
 
@@ -96,7 +102,7 @@ const handleSaveOffline = async () => {
     pass.status === 'VENCIDO'
       ? 'Este pase ha vencido y ya no permite el acceso al evento.'
       : pass.status === 'INVALIDADO'
-        ? 'Este pase ha sido invalidado y ya no permite el acceso al evento.'
+        ? `${OFFLINE_PASS_INVALID_MESSAGE}. Fue invalidado y ya no permite el acceso al evento.`
         : 'Este pase no está habilitado para acceder al evento.';
 
   return (
@@ -111,7 +117,7 @@ const handleSaveOffline = async () => {
       location={details?.location || 'Ubicación no disponible'}
       passId={pass.id}
       qrToken={isValid ? pass.qrToken : undefined}
-onSaveOffline={isValid ? handleSaveOffline : undefined}
+onSaveOffline={isValid && !fromOfflineStorage ? handleSaveOffline : undefined}
 isSavedOffline={isSavedOffline}
 isSavingOffline={isSavingOffline}
 saveOfflineMessage={saveOfflineMessage}
