@@ -1,3 +1,4 @@
+
 const VERSION = 'v1.0.0';
 
 const CACHE_NAME = `umsspira-core-portal-${VERSION}`;
