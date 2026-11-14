@@ -92,9 +92,9 @@ describe('MentorDetailPage', () => {
       `/mentorship/request/${MENTOR_ID}`,
     );
 
-    // Navegación: la barra de Mentorías la aporta el layout; Inicio lleva al portal
+    // Navegación: la barra de Mentorías la aporta el layout; esta vista no repite migas
     expect(screen.queryByRole('navigation', { name: 'Navegación de mentorías' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Inicio' })).toHaveAttribute('href', '/portal');
+    expect(screen.queryByLabelText('Ruta de navegación')).not.toBeInTheDocument();
 
     // Tarjetas izquierda
     expect(screen.getByText(sampleMentorAvailable.about!)).toBeInTheDocument();

@@ -2,6 +2,12 @@ import { render, screen } from "@testing-library/react";
 
 import { TituladoHeader } from "./titulado-header";
 
+let mockPathname = "/profile";
+
+jest.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+}));
+
 jest.mock("./logout-button", () => ({
   LogoutButton: () => <button type="button">Cerrar sesión</button>,
 }));
@@ -18,5 +24,23 @@ describe("TituladoHeader", () => {
 
     expect(screen.queryByRole("link", { name: /solicitudes/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
+  });
+
+  it("marca Mentorías con subrayado naranja dentro del módulo", () => {
+    mockPathname = "/mentorship/directory";
+    render(<TituladoHeader />);
+
+    const link = screen.getByRole("link", { name: "Mentorías" });
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link.querySelector("[data-active-indicator]")).not.toBeNull();
+  });
+
+  it("no marca Mentorías fuera del módulo", () => {
+    mockPathname = "/profile";
+    render(<TituladoHeader />);
+
+    const link = screen.getByRole("link", { name: "Mentorías" });
+    expect(link).not.toHaveAttribute("aria-current", "page");
+    expect(link.querySelector("[data-active-indicator]")).toBeNull();
   });
 });

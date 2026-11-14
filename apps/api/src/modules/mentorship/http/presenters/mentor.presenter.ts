@@ -8,6 +8,7 @@ import type {
   MentorAvailability,
   MentorProfile,
   MentorInterest,
+  MentorWeeklySchedule,
 } from '../../domain/entities/mentor';
 import type { MentorFilterOptions } from '../../application/contracts/mentor-directory-filters';
 
@@ -123,6 +124,13 @@ export function presentInterestCatalog(groups: InterestCatalogGroup[]) {
 
 export function presentAvailability(state: MentorAvailability) {
   return { availabilityStatus: state.status, fecha_actualizacion: day(state.updatedAt) };
+}
+
+export function presentWeeklySchedule(state: MentorWeeklySchedule) {
+  return {
+    schedule: state.schedule.map(({ weekday, start, end }) => ({ weekday, start, end })),
+    fecha_actualizacion: day(state.updatedAt),
+  };
 }
 
 const WEEKDAYS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];

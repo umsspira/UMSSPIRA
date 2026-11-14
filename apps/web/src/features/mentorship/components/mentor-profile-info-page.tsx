@@ -240,7 +240,6 @@ export function MentorProfileInfoPage() {
     }
   }
 
-  // Titles and breadcrumb
   const currentTitle = isEditing
     ? exists
       ? 'Editar información del perfil'
@@ -255,17 +254,9 @@ export function MentorProfileInfoPage() {
       ? 'Presenta tu experiencia y conocimientos a quienes buscan orientación en la red de mentorías.'
       : 'Actualiza tu descripción, experiencia e información relevante para presentar tu trayectoria como mentor.';
 
-  const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
-    { label: 'Mentorías', href: '/mentorship' },
-    { label: 'Mi perfil de mentor', href: '/mentorship/profile' },
-    { label: currentTitle },
-  ];
-
   return (
     <main className="mentorship-shell">
       <PageLayout
-        breadcrumb={breadcrumbs}
         eyebrow="Red universitaria de desarrollo"
         title={currentTitle}
         description={currentDescription}
