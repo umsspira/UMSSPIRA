@@ -12,6 +12,7 @@ import {
   Users,
   UserX,
   UserCheck,
+  Send,
 } from "lucide-react";
 
 import {
@@ -19,41 +20,123 @@ import {
   invitarUsuarioEmpresa,
   actualizarUsuarioEmpresa,
   cancelarInvitacionEmpresa,
+  reenviarInvitacionEmpresa,
   type UsuarioEmpresa,
   type RolEmpresa,
+  type EstadoUsuarioEmpresa,
 } from "@/shared/services/company-users";
 import { Cargando, EstadoError, EstadoVacio } from "../_components/estado-pantalla";
+
+// Formatear la fecha de vencimiento.
+function formatearFecha(fecha?: string | null): string {
+  if (!fecha) return "Fecha no disponible";
+
+  const valor = new Date(fecha);
+
+  if (Number.isNaN(valor.getTime())) {
+    return "Fecha no disponible";
+  }
+
+  return new Intl.DateTimeFormat("es-BO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "America/La_Paz",
+  }).format(valor);
+}
+
+// Mostrar el tiempo restante real, sin mostrar "0 días".
+function obtenerTextoVencimiento(fecha?: string | null): string {
+  if (!fecha) return "Fecha de vencimiento no disponible";
+
+  const vencimiento = new Date(fecha).getTime();
+
+  if (Number.isNaN(vencimiento)) {
+    return "Fecha de vencimiento no disponible";
+  }
+
+  const restante = vencimiento - Date.now();
+
+  if (restante <= 0) {
+    return "Invitación vencida";
+  }
+
+  const unDia = 24 * 60 * 60 * 1000;
+
+  if (restante < unDia) {
+    return "Vence en menos de 1 día";
+  }
+
+  const dias = Math.ceil(restante / unDia);
+
+  return `Vence en ${dias} ${dias === 1 ? "día" : "días"}`;
+}
+
+function estaVencida(u: UsuarioEmpresa): boolean {
+  if (u.estado === "Vencida") return true;
+
+  if (u.estado !== "Pendiente" || !u.expira_en) {
+    return false;
+  }
+
+  const fecha = new Date(u.expira_en).getTime();
+
+  return Number.isFinite(fecha) && fecha <= Date.now();
+}
 
 export default function GestionUsuariosPage() {
   const [usuarios, setUsuarios] = useState<UsuarioEmpresa[]>([]);
   const [cargando, setCargando] = useState(true);
+  // HU-03 CA-21: error de carga con "Reintentar"
+  const [errorCarga, setErrorCarga] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [procesando, setProcesando] = useState(false);
+
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] =
+    useState<"Todos" | EstadoUsuarioEmpresa>("Todos");
+
+  const [confirmarReenvio, setConfirmarReenvio] =
+    useState<UsuarioEmpresa | null>(null);
 
   const [mostrarInvitar, setMostrarInvitar] = useState(false);
+
   const [confirmarEstado, setConfirmarEstado] =
     useState<UsuarioEmpresa | null>(null);
+
   const [confirmarCancelar, setConfirmarCancelar] =
     useState<UsuarioEmpresa | null>(null);
+
   const [invitacionCreada, setInvitacionCreada] =
     useState<string | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
   const [rol, setRol] = useState<RolEmpresa>("Reclutador");
+
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
-  const [errorCarga, setErrorCarga] = useState("");
-  const [reloadKey, setReloadKey] = useState(0);
 
-  // BUG-03: Validación del nombre completo.
+  // Permite actualizar la visualización cuando vence una invitación.
+  const [ahora, setAhora] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setAhora(Date.now());
+    }, 60_000);
+
+    return () => clearInterval(intervalo);
+  }, []);
+
   const nombreValido = (valor: string) => {
     const limpio = valor.trim();
 
     return (
       limpio.length >= 2 &&
       limpio.length <= 80 &&
-      /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:[ '-][A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$/.test(limpio)
+      /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:[ '-][A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$/.test(
+        limpio
+      )
     );
   };
 
@@ -68,7 +151,7 @@ export default function GestionUsuariosPage() {
         if (activo) setUsuarios(datos);
       })
       .catch((e: unknown) => {
-        // CA-21: mensaje de error con "Reintentar"
+        // HU-03 CA-21: mensaje de error con "Reintentar"
         if (activo) {
           setErrorCarga(
             e instanceof Error
@@ -86,15 +169,31 @@ export default function GestionUsuariosPage() {
     };
   }, [reloadKey]);
 
+  const estadoVisible = (u: UsuarioEmpresa): EstadoUsuarioEmpresa =>
+    estaVencida(u) ? "Vencida" : u.estado;
+
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
 
-    return usuarios.filter((u) =>
-      [u.nombre, u.correo, u.rol, u.estado].some((v) =>
-        v.toLowerCase().includes(q)
-      )
-    );
-  }, [usuarios, busqueda]);
+    return usuarios.filter((u) => {
+      const estado = estaVencida(u) ? "Vencida" : u.estado;
+
+      const coincideBusqueda = [
+        u.nombre,
+        u.correo,
+        u.rol,
+        estado,
+      ].some((valor) =>
+        valor.toLowerCase().includes(q)
+      );
+
+      const coincideEstado =
+        filtroEstado === "Todos" || estado === filtroEstado;
+
+      return coincideBusqueda && coincideEstado;
+    });
+    // ahora permite recalcular el estado al transcurrir el tiempo.
+  }, [usuarios, busqueda, filtroEstado, ahora]);
 
   const limpiarMensajes = () => {
     setError("");
@@ -111,7 +210,6 @@ export default function GestionUsuariosPage() {
     const n = nombre.trim();
     const c = correo.trim().toLowerCase();
 
-    // BUG-03: Rechazar nombres inválidos.
     if (!nombreValido(n)) {
       setError(
         "El nombre debe tener entre 2 y 80 caracteres y contener solo letras."
@@ -124,7 +222,11 @@ export default function GestionUsuariosPage() {
       return;
     }
 
-    if (usuarios.some((u) => u.correo.toLowerCase() === c)) {
+    if (
+      usuarios.some(
+        (u) => u.correo.toLowerCase() === c
+      )
+    ) {
       setError(
         "Este correo ya está registrado o tiene una invitación pendiente."
       );
@@ -140,7 +242,6 @@ export default function GestionUsuariosPage() {
         rol,
       });
 
-      // Actualiza la tabla local sin recargar la página.
       setUsuarios((prev) => [
         ...prev,
         { ...creada, nombre: n },
@@ -173,7 +274,6 @@ export default function GestionUsuariosPage() {
     try {
       await cancelarInvitacionEmpresa(seleccionado.id);
 
-      // Elimina solamente la fila cancelada.
       setUsuarios((prev) =>
         prev.filter((u) => u.id !== seleccionado.id)
       );
@@ -191,15 +291,78 @@ export default function GestionUsuariosPage() {
     }
   }
 
+  async function reenviarInvitacion() {
+    const seleccionada = confirmarReenvio;
+
+    if (!seleccionada || procesando) return;
+
+    limpiarMensajes();
+    setProcesando(true);
+
+    try {
+      const resultado = await reenviarInvitacionEmpresa(
+        seleccionada.id
+      );
+
+      const actualizados = await obtenerUsuariosEmpresa();
+
+      setUsuarios(actualizados);
+      setConfirmarReenvio(null);
+
+      setMensaje(
+        `Invitación reenviada a ${resultado.correo}`
+      );
+    } catch (e) {
+      setConfirmarReenvio(null);
+
+      setError(
+        e instanceof Error
+          ? e.message
+          : "No se pudo reenviar la invitación."
+      );
+
+      try {
+        const actualizados = await obtenerUsuariosEmpresa();
+        setUsuarios(actualizados);
+      } catch {
+        // Mantener la lista si falla la actualización.
+      }
+    } finally {
+      setProcesando(false);
+    }
+  }
+
   async function cambiarEstado() {
     const seleccionado = confirmarEstado;
 
     if (!seleccionado || procesando) return;
 
+    // El titular de la empresa nunca puede desactivarse.
+    if (seleccionado.esTitular) {
+      setConfirmarEstado(null);
+      setError(
+        "No se puede modificar el estado del administrador principal."
+      );
+      return;
+    }
+
+    if (
+      seleccionado.estado === "Pendiente" ||
+      seleccionado.estado === "Vencida"
+    ) {
+      setConfirmarEstado(null);
+      setError(
+        "No se puede activar o desactivar una invitación."
+      );
+      return;
+    }
+
     limpiarMensajes();
 
     const estado =
-      seleccionado.estado === "Activo" ? "Inactivo" : "Activo";
+      seleccionado.estado === "Activo"
+        ? "Inactivo"
+        : "Activo";
 
     setProcesando(true);
 
@@ -220,7 +383,8 @@ export default function GestionUsuariosPage() {
       setConfirmarEstado(null);
 
       setMensaje(
-        `Usuario ${estado === "Activo" ? "activado" : "desactivado"}.`
+        `Usuario ${estado === "Activo" ? "activado" : "desactivado"
+        }.`
       );
     } catch (e) {
       setError(
@@ -240,7 +404,8 @@ export default function GestionUsuariosPage() {
     if (
       procesando ||
       u.esTitular ||
-      u.estado === "Pendiente"
+      u.estado === "Pendiente" ||
+      u.estado === "Vencida"
     ) {
       return;
     }
@@ -284,13 +449,12 @@ export default function GestionUsuariosPage() {
   };
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#F6F3ED] px-4 py-6 text-slate-800 sm:px-8 sm:py-8">
+    <main className="min-h-screen bg-[#F6F3ED] px-4 py-8 text-slate-800 sm:px-8">
       <div className="mx-auto max-w-6xl">
-
         {/* ENCABEZADO */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-blue-900 sm:text-3xl">
+          <div>
+            <h1 className="text-3xl font-bold text-blue-900">
               Gestión de usuarios
             </h1>
 
@@ -306,29 +470,28 @@ export default function GestionUsuariosPage() {
               limpiarMensajes();
               setMostrarInvitar(true);
             }}
-            className="flex min-h-11 md:min-h-0 w-full items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600 sm:w-auto"
+            className="flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600"
           >
             <Plus size={20} />
             Invitar usuario
           </button>
         </div>
 
-        {/* MENSAJE DE ÉXITO */}
+        {/* MENSAJES */}
         {mensaje && (
           <div
             role="status"
-            className="sticky top-2 z-30 mb-4 flex gap-2 rounded-lg bg-green-50 p-3 text-green-700 shadow-sm break-words"
+            className="mb-4 flex gap-2 rounded-lg bg-green-50 p-3 text-green-700"
           >
             <CheckCircle2 size={20} />
             {mensaje}
           </div>
         )}
 
-        {/* BUG-02: Error general oculto al abrir el modal */}
         {error && !mostrarInvitar && (
           <div
             role="alert"
-            className="sticky top-2 z-30 mb-4 flex gap-2 rounded-lg bg-red-50 p-3 text-red-700 shadow-sm break-words"
+            className="mb-4 flex gap-2 rounded-lg bg-red-50 p-3 text-red-700"
           >
             <AlertCircle size={20} />
             {error}
@@ -337,17 +500,35 @@ export default function GestionUsuariosPage() {
 
         {/* TABLA DE USUARIOS */}
         <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
-
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-5">
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <Users size={21} />
               Usuarios de la empresa
             </h2>
 
-            <div className="relative w-full sm:w-auto">
+            <select
+              aria-label="Filtrar por estado"
+              value={filtroEstado}
+              onChange={(e) =>
+                setFiltroEstado(
+                  e.target.value as
+                  | "Todos"
+                  | EstadoUsuarioEmpresa
+                )
+              }
+              className="rounded-lg border bg-white px-3 py-2 text-sm"
+            >
+              <option value="Todos">Estado: Todos</option>
+              <option value="Activo">Activo</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Vencida">Vencida</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+
+            <div className="relative">
               <Search
                 size={17}
-                className="absolute left-3 top-3.5 text-gray-400 md:top-3"
+                className="absolute left-3 top-3 text-gray-400"
               />
 
               <input
@@ -355,109 +536,12 @@ export default function GestionUsuariosPage() {
                 placeholder="Buscar usuario..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="min-h-11 md:min-h-0 w-full rounded-lg border py-2 pl-10 pr-3 outline-none focus:border-orange-400 sm:w-auto"
+                className="rounded-lg border py-2 pl-10 pr-3 outline-none focus:border-orange-400"
               />
             </div>
           </div>
 
-          {/* CA-03 / CA-14: en móvil cada usuario es una tarjeta */}
-          <div className="md:hidden">
-            {cargando ? (
-              <Cargando texto="Cargando usuarios..." />
-            ) : errorCarga ? (
-              <EstadoError
-                mensaje={errorCarga}
-                onReintentar={() => setReloadKey((k) => k + 1)}
-              />
-            ) : filtrados.length === 0 ? (
-              <EstadoVacio mensaje="No se encontraron usuarios." />
-            ) : (
-              <ul className="space-y-3 px-4 pb-4">
-                {filtrados.map((u) => (
-                  <li
-                    key={u.id}
-                    className="space-y-3 rounded-xl border bg-white p-4 shadow-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-semibold break-words [overflow-wrap:anywhere]">
-                        {u.nombre}
-                      </p>
-                      <p className="text-sm text-gray-600 break-all">
-                        {u.correo}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span
-                        className={`rounded-md px-3 py-1 text-xs font-semibold ${
-                          u.estado === "Activo"
-                            ? "bg-green-100 text-green-700"
-                            : u.estado === "Pendiente"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {u.estado}
-                      </span>
-
-                      {u.esTitular || u.estado === "Pendiente" ? (
-                        <span className="text-sm">{u.rol}</span>
-                      ) : (
-                        <select
-                          aria-label={`Rol de ${u.nombre}`}
-                          value={u.rol}
-                          disabled={procesando}
-                          onChange={(e) =>
-                            void cambiarRol(u, e.target.value as RolEmpresa)
-                          }
-                          className="min-h-11 md:min-h-0 flex-1 rounded-md border bg-white px-2 py-2 text-sm disabled:opacity-50"
-                        >
-                          <option value="Administrador">Administrador</option>
-                          <option value="Reclutador">Reclutador</option>
-                        </select>
-                      )}
-                    </div>
-
-                    {u.estado === "Pendiente" ? (
-                      <button
-                        disabled={procesando}
-                        onClick={() => setConfirmarCancelar(u)}
-                        className="min-h-11 md:min-h-0 w-full rounded-lg border border-red-200 px-3 py-2 font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        Cancelar invitación
-                      </button>
-                    ) : u.esTitular ? (
-                      <p className="text-sm text-gray-400">Sin acciones</p>
-                    ) : (
-                      <button
-                        disabled={procesando}
-                        onClick={() => setConfirmarEstado(u)}
-                        className={`flex min-h-11 md:min-h-0 w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 font-medium disabled:opacity-50 ${
-                          u.estado === "Activo"
-                            ? "border-red-200 text-red-600 hover:bg-red-50"
-                            : "border-green-200 text-green-700 hover:bg-green-50"
-                        }`}
-                      >
-                        {u.estado === "Activo" ? (
-                          <>
-                            <UserX size={16} />
-                            Desactivar
-                          </>
-                        ) : (
-                          <>
-                            <UserCheck size={16} />
-                            Activar
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Escritorio: tabla original sin cambios */}
+          {/* VISTA PARA COMPUTADORA */}
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-gray-50 text-blue-900">
@@ -485,7 +569,7 @@ export default function GestionUsuariosPage() {
                   </tr>
                 ) : errorCarga ? (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={5} className="p-6">
                       <EstadoError
                         mensaje={errorCarga}
                         onReintentar={() => setReloadKey((k) => k + 1)}
@@ -502,25 +586,253 @@ export default function GestionUsuariosPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtrados.map((u) => (
-                    <tr
-                      key={u.id}
-                      className="border-t hover:bg-gray-50"
-                    >
-                      <td className="px-5 py-4 font-medium">
-                        {u.nombre}
-                      </td>
+                  filtrados.map((u) => {
+                    const estado = estadoVisible(u);
 
-                      <td className="px-5 py-4 text-gray-600">
-                        {u.correo}
-                      </td>
+                    return (
+                      <tr
+                        key={u.id}
+                        className={`border-t ${estado === "Vencida"
+                          ? "bg-orange-50 hover:bg-orange-100"
+                          : "hover:bg-gray-50"
+                          }`}
+                      >
+                        <td className="px-5 py-4 font-medium">
+                          {u.nombre}
+                        </td>
 
-                      <td className="px-5 py-4">
-                        {u.esTitular ||
-                        u.estado === "Pendiente" ? (
-                          <span>{u.rol}</span>
-                        ) : (
+                        <td className="px-5 py-4 text-gray-600">
+                          {u.correo}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {u.esTitular ||
+                            estado === "Pendiente" ||
+                            estado === "Vencida" ? (
+                            <span>{u.rol}</span>
+                          ) : (
+                            <select
+                              value={u.rol}
+                              disabled={procesando}
+                              onChange={(e) =>
+                                void cambiarRol(
+                                  u,
+                                  e.target.value as RolEmpresa
+                                )
+                              }
+                              className="rounded-md border bg-white px-2 py-2 disabled:opacity-50"
+                            >
+                              <option value="Administrador">
+                                Administrador
+                              </option>
+                              <option value="Reclutador">
+                                Reclutador
+                              </option>
+                            </select>
+                          )}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="flex flex-col items-start gap-1">
+                            <span
+                              className={`rounded-md px-3 py-1 text-xs font-semibold ${estado === "Activo"
+                                ? "bg-green-100 text-green-700"
+                                : estado === "Pendiente"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : estado === "Vencida"
+                                    ? "bg-red-100 text-red-700"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                            >
+                              {estado}
+                            </span>
+
+                            {estado === "Pendiente" && (
+                              <span className="text-xs text-gray-500">
+                                {obtenerTextoVencimiento(
+                                  u.expira_en
+                                )}
+                              </span>
+                            )}
+
+                            {estado === "Vencida" && (
+                              <span className="text-xs text-red-600">
+                                Venció el{" "}
+                                {formatearFecha(u.expira_en)}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {estado === "Vencida" ? (
+                            <button
+                              type="button"
+                              disabled={procesando}
+                              onClick={() => {
+                                limpiarMensajes();
+                                setConfirmarReenvio(u);
+                              }}
+                              className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                            >
+                              <Send size={16} />
+                              Reenviar
+                            </button>
+                          ) : estado === "Pendiente" ? (
+                            <button
+                              type="button"
+                              disabled={procesando}
+                              onClick={() => {
+                                limpiarMensajes();
+                                setConfirmarCancelar(u);
+                              }}
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              <X size={16} />
+                              Cancelar invitación
+                            </button>
+                          ) : u.esTitular ? (
+                            <span className="text-xs font-medium text-gray-400">
+                              Administrador principal
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={procesando}
+                              onClick={() => {
+                                limpiarMensajes();
+                                setConfirmarEstado(u);
+                              }}
+                              className={`flex items-center gap-2 rounded-md px-3 py-2 disabled:opacity-50 ${estado === "Activo"
+                                ? "text-red-600 hover:bg-red-50"
+                                : "text-green-700 hover:bg-green-50"
+                                }`}
+                            >
+                              {estado === "Activo" ? (
+                                <>
+                                  <UserX size={16} />
+                                  Desactivar
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck size={16} />
+                                  Activar
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* TARJETAS PARA CELULAR */}
+          <div className="space-y-4 p-4 md:hidden">
+            {cargando ? (
+              <Cargando texto="Cargando usuarios..." />
+            ) : errorCarga ? (
+              <EstadoError
+                mensaje={errorCarga}
+                onReintentar={() => setReloadKey((k) => k + 1)}
+              />
+            ) : filtrados.length === 0 ? (
+              <EstadoVacio mensaje="No se encontraron usuarios." />
+            ) : (
+              filtrados.map((u) => {
+                const estado = estadoVisible(u);
+
+                return (
+                  <article
+                    key={u.id}
+                    className={`min-w-0 overflow-hidden rounded-xl border p-4 shadow-sm ${estado === "Vencida"
+                      ? "border-orange-200 bg-orange-50"
+                      : "bg-white"
+                      }`}
+                  >
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="break-words font-semibold text-blue-900">
+                          {u.nombre}
+                        </h3>
+
+                        <p className="mt-1 break-all text-xs text-gray-600">
+                          {u.correo}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-md px-2 py-1 text-xs font-semibold ${estado === "Activo"
+                          ? "bg-green-100 text-green-700"
+                          : estado === "Pendiente"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : estado === "Vencida"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                      >
+                        {estado}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 border-t pt-3">
+                      <p className="text-sm text-gray-600">
+                        Rol: <strong>{u.rol}</strong>
+                      </p>
+
+                      {estado === "Pendiente" && (
+                        <p className="mt-2 text-xs text-yellow-700">
+                          {obtenerTextoVencimiento(
+                            u.expira_en
+                          )}
+                        </p>
+                      )}
+
+                      {estado === "Vencida" && (
+                        <p className="mt-2 text-xs text-red-600">
+                          Venció el{" "}
+                          {formatearFecha(u.expira_en)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4">
+                      {estado === "Vencida" ? (
+                        <button
+                          type="button"
+                          disabled={procesando}
+                          onClick={() => {
+                            limpiarMensajes();
+                            setConfirmarReenvio(u);
+                          }}
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white disabled:opacity-50"
+                        >
+                          <Send size={17} />
+                          Reenviar
+                        </button>
+                      ) : estado === "Pendiente" ? (
+                        <button
+                          type="button"
+                          disabled={procesando}
+                          onClick={() => {
+                            limpiarMensajes();
+                            setConfirmarCancelar(u);
+                          }}
+                          className="w-full rounded-lg border border-red-200 px-4 py-3 text-sm font-medium text-red-600 disabled:opacity-50"
+                        >
+                          Cancelar invitación
+                        </button>
+                      ) : u.esTitular ? (
+                        <p className="text-center text-xs font-medium text-gray-400">
+                          Administrador principal
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
                           <select
+                            aria-label={`Rol de ${u.nombre}`}
                             value={u.rol}
                             disabled={procesando}
                             onChange={(e) =>
@@ -529,7 +841,7 @@ export default function GestionUsuariosPage() {
                                 e.target.value as RolEmpresa
                               )
                             }
-                            className="rounded-md border bg-white px-2 py-2 disabled:opacity-50"
+                            className="w-full rounded-lg border bg-white p-3 text-sm"
                           >
                             <option value="Administrador">
                               Administrador
@@ -538,69 +850,30 @@ export default function GestionUsuariosPage() {
                               Reclutador
                             </option>
                           </select>
-                        )}
-                      </td>
 
-                      <td className="px-5 py-4">
-                        <span
-                          className={`rounded-md px-3 py-1 text-xs font-semibold ${
-                            u.estado === "Activo"
-                              ? "bg-green-100 text-green-700"
-                              : u.estado === "Pendiente"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {u.estado}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        {u.estado === "Pendiente" ? (
                           <button
+                            type="button"
                             disabled={procesando}
-                            onClick={() =>
-                              setConfirmarCancelar(u)
-                            }
-                            className="rounded-md px-3 py-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            onClick={() => {
+                              limpiarMensajes();
+                              setConfirmarEstado(u);
+                            }}
+                            className={`w-full rounded-lg border px-4 py-3 text-sm font-semibold disabled:opacity-50 ${estado === "Activo"
+                              ? "border-red-200 text-red-600"
+                              : "border-green-200 text-green-700"
+                              }`}
                           >
-                            Cancelar invitación
+                            {estado === "Activo"
+                              ? "Desactivar"
+                              : "Activar"}
                           </button>
-                        ) : u.esTitular ? (
-                          <span className="text-gray-400">
-                            Sin acciones
-                          </span>
-                        ) : (
-                          <button
-                            disabled={procesando}
-                            onClick={() =>
-                              setConfirmarEstado(u)
-                            }
-                            className={`flex items-center gap-2 rounded-md px-3 py-2 disabled:opacity-50 ${
-                              u.estado === "Activo"
-                                ? "text-red-600 hover:bg-red-50"
-                                : "text-green-700 hover:bg-green-50"
-                            }`}
-                          >
-                            {u.estado === "Activo" ? (
-                              <>
-                                <UserX size={16} />
-                                Desactivar
-                              </>
-                            ) : (
-                              <>
-                                <UserCheck size={16} />
-                                Activar
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })
+            )}
           </div>
 
           <div className="border-t px-5 py-4 text-sm text-gray-500">
@@ -611,12 +884,12 @@ export default function GestionUsuariosPage() {
 
       {/* MODAL INVITAR */}
       {mostrarInvitar && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-invitar"
-            className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:max-h-[90dvh] sm:rounded-xl sm:p-6"
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
           >
             <div className="mb-6 flex items-center justify-between">
               <h2
@@ -631,7 +904,6 @@ export default function GestionUsuariosPage() {
                 disabled={procesando}
                 onClick={cerrarInvitar}
                 aria-label="Cerrar"
-                className="flex h-11 w-11 items-center justify-center"
               >
                 <X size={22} />
               </button>
@@ -641,7 +913,6 @@ export default function GestionUsuariosPage() {
               onSubmit={(e) => void invitar(e)}
               className="space-y-4"
             >
-              {/* BUG-03: NOMBRE COMPLETO */}
               <div>
                 <label
                   htmlFor="hu3-nombre"
@@ -658,9 +929,11 @@ export default function GestionUsuariosPage() {
                   maxLength={80}
                   value={nombre}
                   onChange={(e) => {
-                    // Solo letras, espacios, guiones y apóstrofos.
                     const valor = e.target.value
-                      .replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s'-]/g, "")
+                      .replace(
+                        /[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s'-]/g,
+                        ""
+                      )
                       .slice(0, 80);
 
                     setNombre(valor);
@@ -674,7 +947,6 @@ export default function GestionUsuariosPage() {
                 </p>
               </div>
 
-              {/* CORREO ELECTRÓNICO */}
               <div>
                 <label
                   htmlFor="hu3-correo"
@@ -696,7 +968,6 @@ export default function GestionUsuariosPage() {
                 />
               </div>
 
-              {/* ROL */}
               <div>
                 <label
                   htmlFor="hu3-rol"
@@ -722,7 +993,6 @@ export default function GestionUsuariosPage() {
                 </select>
               </div>
 
-              {/* BUG-02: ERROR ENCIMA DE LOS BOTONES */}
               {error && (
                 <div
                   role="alert"
@@ -739,13 +1009,12 @@ export default function GestionUsuariosPage() {
                 </div>
               )}
 
-              {/* BOTONES */}
-              <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
+              <div className="flex justify-end gap-3 pt-3">
                 <button
                   type="button"
                   disabled={procesando}
                   onClick={cerrarInvitar}
-                  className="min-h-11 md:min-h-0 rounded-lg border px-5 py-3"
+                  className="rounded-lg border px-5 py-3"
                 >
                   Cancelar
                 </button>
@@ -753,7 +1022,7 @@ export default function GestionUsuariosPage() {
                 <button
                   type="submit"
                   disabled={procesando}
-                  className="min-h-11 md:min-h-0 rounded-lg bg-orange-400 px-5 py-3 font-semibold disabled:opacity-50"
+                  className="rounded-lg bg-orange-400 px-5 py-3 font-semibold disabled:opacity-50"
                 >
                   {procesando
                     ? "Registrando..."
@@ -765,14 +1034,14 @@ export default function GestionUsuariosPage() {
         </div>
       )}
 
-      {/* MODAL CONFIRMACIÓN DE INVITACIÓN */}
+      {/* MODAL DE INVITACIÓN REGISTRADA */}
       {invitacionCreada && (
-        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-exito"
-            className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-2xl bg-white p-6 text-center shadow-xl sm:rounded-xl sm:p-7"
+            className="w-full max-w-sm rounded-xl bg-white p-7 text-center shadow-xl"
           >
             <CheckCircle2
               className="mx-auto mb-4 text-green-600"
@@ -786,7 +1055,7 @@ export default function GestionUsuariosPage() {
               Invitación registrada
             </h2>
 
-            <p className="mt-3 break-words text-sm">
+            <p className="mt-3 text-sm">
               Se registró la invitación para{" "}
               <strong>{invitacionCreada}</strong>.
             </p>
@@ -800,7 +1069,7 @@ export default function GestionUsuariosPage() {
               onClick={() =>
                 setInvitacionCreada(null)
               }
-              className="mt-6 min-h-11 md:min-h-0 w-full rounded-lg bg-orange-500 p-3 font-semibold text-white"
+              className="mt-6 w-full rounded-lg bg-orange-500 p-3 font-semibold text-white"
             >
               Aceptar
             </button>
@@ -808,14 +1077,88 @@ export default function GestionUsuariosPage() {
         </div>
       )}
 
+      {/* MODAL REENVIAR INVITACIÓN */}
+      {confirmarReenvio && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-reenvio"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+          >
+            <div className="mb-5 flex items-center gap-3">
+              <div className="rounded-full bg-orange-100 p-3 text-orange-500">
+                <Send size={22} />
+              </div>
+
+              <h2
+                id="titulo-reenvio"
+                className="text-xl font-bold text-blue-900"
+              >
+                ¿Reenviar invitación?
+              </h2>
+            </div>
+
+            <p className="mb-3 text-sm text-gray-700">
+              Enviaremos un nuevo enlace a{" "}
+              <strong className="break-all">
+                {confirmarReenvio.correo}
+              </strong>
+              , válido por 7 días.
+            </p>
+
+            <p className="mb-6 text-sm text-gray-500">
+              El enlace anterior dejará de funcionar.
+            </p>
+
+            <div className="flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                disabled={procesando}
+                onClick={() =>
+                  setConfirmarReenvio(null)
+                }
+                className="rounded-lg border px-5 py-3 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={procesando}
+                onClick={() =>
+                  void reenviarInvitacion()
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
+              >
+                {procesando ? (
+                  <>
+                    <Loader2
+                      size={16}
+                      className="animate-spin"
+                    />
+                    Reenviando...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Reenviar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL CANCELAR INVITACIÓN */}
       {confirmarCancelar && (
-        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-cancelar"
-            className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-xl sm:p-6"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
           >
             <div className="mb-4 flex justify-end">
               <button
@@ -825,7 +1168,6 @@ export default function GestionUsuariosPage() {
                   setConfirmarCancelar(null)
                 }
                 aria-label="Cerrar"
-                className="flex h-11 w-11 items-center justify-center"
               >
                 <X size={20} />
               </button>
@@ -847,10 +1189,11 @@ export default function GestionUsuariosPage() {
               ¿Deseas cancelar la invitación de{" "}
               <strong>
                 {confirmarCancelar.nombre}
-              </strong>?
+              </strong>
+              ?
             </p>
 
-            <p className="mt-3 break-all text-center text-sm text-gray-500">
+            <p className="mt-3 text-center text-sm text-gray-500">
               {confirmarCancelar.correo}
             </p>
 
@@ -859,14 +1202,14 @@ export default function GestionUsuariosPage() {
               Esta acción no afecta a usuarios activos.
             </p>
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex justify-end gap-3">
               <button
                 type="button"
                 disabled={procesando}
                 onClick={() =>
                   setConfirmarCancelar(null)
                 }
-                className="min-h-11 md:min-h-0 rounded-lg border px-5 py-3"
+                className="rounded-lg border px-5 py-3"
               >
                 Volver
               </button>
@@ -877,7 +1220,7 @@ export default function GestionUsuariosPage() {
                 onClick={() =>
                   void cancelarInvitacion()
                 }
-                className="min-h-11 md:min-h-0 rounded-lg bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
+                className="rounded-lg bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
               >
                 {procesando
                   ? "Cancelando..."
@@ -889,13 +1232,13 @@ export default function GestionUsuariosPage() {
       )}
 
       {/* MODAL ACTIVAR / DESACTIVAR */}
-      {confirmarEstado && (
-        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+      {confirmarEstado && !confirmarEstado.esTitular && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-estado"
-            className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-xl sm:p-6"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
           >
             <AlertCircle
               className="mx-auto mb-4 text-red-500"
@@ -919,17 +1262,18 @@ export default function GestionUsuariosPage() {
               a{" "}
               <strong>
                 {confirmarEstado.nombre}
-              </strong>?
+              </strong>
+              ?
             </p>
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex justify-end gap-3">
               <button
                 type="button"
                 disabled={procesando}
                 onClick={() =>
                   setConfirmarEstado(null)
                 }
-                className="min-h-11 md:min-h-0 rounded-lg border px-5 py-3"
+                className="rounded-lg border px-5 py-3"
               >
                 Cancelar
               </button>
@@ -940,11 +1284,10 @@ export default function GestionUsuariosPage() {
                 onClick={() =>
                   void cambiarEstado()
                 }
-                className={`min-h-11 md:min-h-0 rounded-lg px-5 py-3 font-semibold text-white disabled:opacity-50 ${
-                  confirmarEstado.estado === "Activo"
-                    ? "bg-red-600"
-                    : "bg-green-600"
-                }`}
+                className={`rounded-lg px-5 py-3 font-semibold text-white disabled:opacity-50 ${confirmarEstado.estado === "Activo"
+                  ? "bg-red-600"
+                  : "bg-green-600"
+                  }`}
               >
                 {procesando
                   ? "Procesando..."
