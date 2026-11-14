@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ApplicantStageTimeline } from "./applicant-stage-timeline";
 import { Applicant } from "../types/applicant";
 import {
   MATCH_UNAVAILABLE_LABEL,
@@ -309,12 +310,33 @@ export function MatchBreakdownView({
         </div>
       )}
 
-      {/* Pestañas sin contenido definido todavía */}
-      {(activeTab === "cv" || activeTab === "historial") && (
-        <div className="bg-white rounded-2xl p-8 shadow-sm border border-[#EEE9DF] text-center text-sm text-gray-500">
-          Información no disponible por el momento.
-        </div>
-      )}
+      {/* Pestaña: CV */}
+{activeTab === "cv" && (
+  <div className="bg-white rounded-2xl p-8 shadow-sm border border-[#EEE9DF] text-center text-sm text-gray-500">
+    {applicant.cvUrl ? (
+      <a
+        href={applicant.cvUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-blue-600 hover:underline"
+      >
+        Ver CV del postulante
+      </a>
+    ) : (
+      "CV no disponible por el momento."
+    )}
+  </div>
+)}
+
+{/* Pestaña: Historial - CA-08 */}
+{activeTab === "historial" && (
+  <div className="space-y-4">
+    <ApplicantStageTimeline
+      currentStage={applicant.status}
+      history={[]}
+    />
+  </div>
+)}
     </div>
   );
 }
