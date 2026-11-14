@@ -22,11 +22,10 @@ export interface JobPosting {
     bannerUrl: string | null;
   } | null;
   technicalRequirements: JobPostingRequirement[];
-}
-
-export interface JobPostingDetail extends JobPosting {
   affinityPercentage: number | null;
 }
+
+export type JobPostingDetail = JobPosting;
 
 interface ApiJobPosting {
   id: string;
@@ -46,7 +45,7 @@ interface ApiJobPosting {
     nombre: string;
     nivel: string | null;
   }>;
-  porcentajeAfinidad?: number | null;
+  porcentajeAfinidad: number | null;
 }
 
 export interface CreateJobPostingInput {
@@ -77,6 +76,7 @@ function adaptJobPosting(posting: ApiJobPosting): JobPosting {
       name: requirement.nombre,
       level: requirement.nivel,
     })),
+    affinityPercentage: posting.porcentajeAfinidad,
   };
 }
 
@@ -92,10 +92,7 @@ export async function getJobPosting(
   const posting = await apiFetch<ApiJobPosting>(`/api/v1/job-postings/${encodeURIComponent(id)}`, {
     signal,
   });
-  return {
-    ...adaptJobPosting(posting),
-    affinityPercentage: posting.porcentajeAfinidad ?? null,
-  };
+  return adaptJobPosting(posting);
 }
 
 export async function createJobPosting(

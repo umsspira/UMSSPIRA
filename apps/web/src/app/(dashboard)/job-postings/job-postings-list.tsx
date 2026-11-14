@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, RotateCcw } from "lucide-react";
+import { ArrowRight, RefreshCw, RotateCcw } from "lucide-react";
 import { listJobPostings, type JobPosting } from "@/shared/services/job-postings";
 
 type ListState =
@@ -10,7 +10,7 @@ type ListState =
   | { kind: "loaded"; postings: JobPosting[] }
   | { kind: "error" };
 
-export function JobPostingsList() {
+export function JobPostingsList({ isGraduate }: { isGraduate: boolean }) {
   const [state, setState] = useState<ListState>({ kind: "loading" });
   const [attempt, setAttempt] = useState(0);
 
@@ -36,14 +36,25 @@ export function JobPostingsList() {
 
   return (
     <main className="mx-auto min-h-[calc(100vh-7rem)] w-full max-w-7xl bg-[#f6f5f1] px-4 py-8 text-[#111a2e] sm:px-6 lg:px-8">
-      <header className="mb-8">
-        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#f97316]">
-          Bolsa de trabajo
-        </p>
-        <h1 className="text-3xl font-bold tracking-tight">Ofertas laborales actuales</h1>
-        <p className="mt-2 max-w-2xl text-[#475569]">
-          Explora las oportunidades publicadas por las empresas.
-        </p>
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#f97316]">
+            Bolsa de trabajo
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Ofertas laborales actuales</h1>
+          <p className="mt-2 max-w-2xl text-[#475569]">
+            Explora las oportunidades publicadas por las empresas.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAttempt((value) => value + 1)}
+          disabled={state.kind === "loading"}
+          className="inline-flex items-center gap-2 rounded-lg border border-[#d9d2c5] bg-white px-4 py-2 text-sm font-semibold text-[#183c56] hover:bg-[#f1ede5] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <RefreshCw aria-hidden="true" size={16} />
+          Actualizar lista
+        </button>
       </header>
 
       {state.kind === "loading" && (
@@ -91,6 +102,50 @@ export function JobPostingsList() {
                   <span className="rounded-md bg-[#f1f5f9] px-2.5 py-1">{posting.experienceLevel}</span>
                 )}
               </div>
+              {isGraduate && (
+                <section
+                  className="mt-4 rounded-lg border border-[#e7e0d4] bg-[#fbfaf7] p-4"
+                  aria-label={`Afinidad con tu perfil: ${posting.title ?? "vacante"}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-[#183c56]">
+                      Afinidad con tu perfil
+                    </p>
+                    {posting.affinityPercentage === null ? (
+                      <span className="rounded-full bg-[#f1ede5] px-2.5 py-1 text-xs font-semibold text-[#6b7280]">
+                        No disponible
+                      </span>
+                    ) : (
+                      <span className="text-lg font-bold text-[#183c56]">
+                        {new Intl.NumberFormat("es-BO", { maximumFractionDigits: 2 }).format(
+                          posting.affinityPercentage,
+                        )}{" "}
+                        %
+                      </span>
+                    )}
+                  </div>
+                  {posting.affinityPercentage === null ? (
+                    <p className="mt-2 text-sm text-[#6b7280]">
+                      Afinidad no calculada para esta vacante.
+                    </p>
+                  ) : (
+                    <div
+                      className="mt-3 h-2 overflow-hidden rounded-full bg-[#e7e0d4]"
+                      role="progressbar"
+                      aria-label={`Afinidad para ${posting.title ?? "vacante"}`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={posting.affinityPercentage}
+                      aria-valuetext={`${posting.affinityPercentage} %`}
+                    >
+                      <div
+                        className="h-full rounded-full bg-[#ed9635] transition-[width]"
+                        style={{ width: `${posting.affinityPercentage}%` }}
+                      />
+                    </div>
+                  )}
+                </section>
+              )}
               <p className="mt-4 line-clamp-3 text-sm leading-6 text-[#475569]">
                 {posting.technicalDescription ?? "La empresa no registró una descripción."}
               </p>
