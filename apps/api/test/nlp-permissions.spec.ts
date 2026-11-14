@@ -29,14 +29,60 @@ describe('Alta dirigida de permisos — N29', () => {
     expect(() => parsePermissionMode(['--aply'])).toThrow('argumentos');
   });
 
-  it('solo acepta el proyecto del equipo y no refleja el valor rechazado', () => {
+ it('permite la copia del equipo en dry-run y apply', () => {
     const team = 'miiiuaynoxkhnngjjzvq';
-    expect(() => assertTeamPermissionTarget(`postgresql://postgres.${team}@aws-1-sa-east-1.pooler.supabase.com:5432/postgres`)).not.toThrow();
-    expect(() => assertTeamPermissionTarget(`postgresql://postgres@db.${team}.supabase.co/postgres`)).not.toThrow();
-    for (const value of [undefined, 'valor-privado', 'postgresql://postgres.otro@aws-1-sa-east-1.pooler.supabase.com/postgres']) {
-      expect(() => assertTeamPermissionTarget(value)).toThrow('destino');
+
+    const direct = `postgresql://postgres@db.${team}.supabase.co/postgres`;
+    const pooler = `postgresql://postgres.${team}@aws-1-sa-east-1.pooler.supabase.com:5432/postgres`;
+
+    for (const url of [direct, pooler]) {
+      expect(() => assertTeamPermissionTarget(url, 'dry-run')).not.toThrow();
+      expect(() => assertTeamPermissionTarget(url, 'apply')).not.toThrow();
     }
   });
+
+it('permite QA solo en dry-run y bloquea apply', () => {
+  const qa = 'abcdefghijklmnopqrst';
+  const previous = process.env.NLP_PERMISSIONS_QA_PROJECT_REF;
+
+  try {
+    process.env.NLP_PERMISSIONS_QA_PROJECT_REF = qa;
+
+    const direct = `postgresql://postgres@db.${qa}.supabase.co/postgres`;
+    const pooler = `postgresql://postgres.${qa}@aws-1-sa-east-1.pooler.supabase.com:5432/postgres`;
+
+    for (const url of [direct, pooler]) {
+      expect(() => assertTeamPermissionTarget(url, 'dry-run')).not.toThrow();
+      expect(() => assertTeamPermissionTarget(url, 'apply')).toThrow('destino');
+    }
+  } finally {
+    if (previous === undefined) {
+      delete process.env.NLP_PERMISSIONS_QA_PROJECT_REF;
+    } else {
+      process.env.NLP_PERMISSIONS_QA_PROJECT_REF = previous;
+    }
+  }
+});
+
+it('rechaza destinos no autorizados y modos invalidos', () => {
+  const invalid = [
+    undefined,
+    'valor-privado',
+    'postgresql://postgres.otro@aws-1-sa-east-1.pooler.supabase.com/postgres',
+  ];
+
+  for (const url of invalid) {
+    expect(() => assertTeamPermissionTarget(url, 'dry-run')).toThrow('destino');
+    expect(() => assertTeamPermissionTarget(url, 'apply')).toThrow('destino');
+  }
+
+  const team = 'miiiuaynoxkhnngjjzvq';
+  const direct = `postgresql://postgres@db.${team}.supabase.co/postgres`;
+
+  expect(() =>
+    assertTeamPermissionTarget(direct, 'otro' as 'apply'),
+  ).toThrow('destino');
+});
 
   it('calcula exactamente tres permisos y cuatro asociaciones', () => {
     const plan = planNlpPermissions(empty());
