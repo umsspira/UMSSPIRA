@@ -171,3 +171,38 @@ async function loadProfile() {
   const response = await cache.match(PROFILE_KEY);
   return response ? await response.text() : DEFAULT_PROFILE;
 }
+
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await fetch(request);
+    if (isCacheable(response)) await cache.put(request, response.clone());
+    return response;
+  } catch (e) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error('Recurso no disponible');
+  }
+}
+
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (isCacheable(response)) await cache.put(request, response.clone());
+  return response;
+}
+
+async function staleWhileRevalidate(request, cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  const networkPromise = fetch(request).then(async (response) => {
+    if (isCacheable(response)) {
+      await cache.put(request, response.clone());
+      await trimCache(cacheName, maxEntries);
+    }
+    return response;
+  }).catch(() => undefined);
+  return cached || (await networkPromise) || new Response('', { status: 503 });
+}
