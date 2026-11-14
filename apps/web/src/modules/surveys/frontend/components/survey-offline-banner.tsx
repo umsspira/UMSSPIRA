@@ -2,8 +2,13 @@
 
 import { useNetworkStatus } from "../hooks/use-network-status";
 
-export function SurveyOfflineBanner() {
-  const { isOffline } = useNetworkStatus();
+interface SurveyOfflineBannerProps {
+  isOffline?: boolean;
+}
+
+export function SurveyOfflineBanner({ isOffline: propIsOffline }: SurveyOfflineBannerProps = {}) {
+  const { isOffline: networkIsOffline } = useNetworkStatus();
+  const isOffline = propIsOffline ?? networkIsOffline;
 
   if (!isOffline) return null;
 
