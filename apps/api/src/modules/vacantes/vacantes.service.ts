@@ -128,4 +128,96 @@ export class VacantesService {
       select: { id: true, estado: true },
     });
   }
+  
+  private async verificarVacanteDeMiEmpresa(idVacante: string, idUsuario: string): Promise<void> {
+    const total = await this.prisma.vacante.count({
+      where: {
+        id: idVacante,
+        empresa: {
+          OR: [
+            { id_usuario: idUsuario },
+            { empresa_usuario_registros: { some: { id_usuario: idUsuario, estado: 'activo' } } },
+          ],
+        },
+      },
+    });
+    if (!total) {
+      throw new NotFoundException('Vacante no encontrada');
+    }
+  }
+
+  // HU-01: forma que espera el front (applicants.ts → normalizeApplicant).
+  private static readonly SELECT_POSTULANTE = {
+    id: true,
+    estado: true,
+    porcentaje_match: true,
+    created_at: true,
+    usuario: {
+      select: {
+        nombre: true,
+        correo: true,
+        titulado: {
+          select: {
+            nombre: true,
+            apellido: true,
+            curriculum_vitae: { select: { id: true } },
+          },
+        },
+      },
+    },
+  } as const;
+
+  private static toPostulante(p: {
+    id: string;
+    estado: string | null;
+    porcentaje_match: unknown;
+    created_at: Date | null;
+    usuario: {
+      nombre: string | null;
+      correo: string | null;
+      titulado: { nombre: string | null; apellido: string | null; curriculum_vitae: { id: string } | null } | null;
+    } | null;
+  }) {
+    const titulado = p.usuario?.titulado;
+    const nombreCompleto = [titulado?.nombre, titulado?.apellido].filter(Boolean).join(' ');
+    const match = p.porcentaje_match === null || p.porcentaje_match === undefined
+      ? null
+      : Number(p.porcentaje_match);
+    return {
+      id: p.id,
+      name: nombreCompleto || p.usuario?.nombre || 'Sin nombre',
+      email: p.usuario?.correo ?? '',
+      location: null,
+      experienceLevel: null,
+      stage: p.estado ?? 'postulado',
+      appliedAt: p.created_at ? p.created_at.toISOString() : null,
+      hasCv: Boolean(titulado?.curriculum_vitae),
+      cvUrl: null,
+      // El porcentaje viene del motor (Épica 3/5); aquí NUNCA se calcula (CA-02, CA-10).
+      matchPercentage: match !== null && Number.isFinite(match) ? match : null,
+      skills: null,
+    };
+  }
+
+  async listarPostulantes(idVacante: string, idUsuario: string) {
+    await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
+    const filas = await this.prisma.postulacion.findMany({
+      where: { id_vacante: idVacante },
+      orderBy: [{ porcentaje_match: { sort: 'desc', nulls: 'last' } }, { created_at: 'asc' }],
+      select: VacantesService.SELECT_POSTULANTE,
+    });
+    return filas.map((fila) => VacantesService.toPostulante(fila));
+  }
+
+  async obtenerPostulante(idVacante: string, idPostulacion: string, idUsuario: string) {
+    await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
+    const fila = await this.prisma.postulacion.findFirst({
+      where: { id: idPostulacion, id_vacante: idVacante },
+      select: VacantesService.SELECT_POSTULANTE,
+    });
+    if (!fila) {
+      throw new NotFoundException('Postulante no encontrado');
+    }
+    return VacantesService.toPostulante(fila);
+  }
 }
