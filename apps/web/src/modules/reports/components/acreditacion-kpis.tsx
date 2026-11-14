@@ -21,7 +21,7 @@ export function AcreditacionKpis({
 }: AcreditacionKpisProps) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <Kpi label="Total de respuestas" value={String(totalResponses)} />
+      <Kpi label="Total de respuestas" value={String(totalResponses)} hint="Encuestas enviadas" />
       <Kpi
         label="Titulados empleados"
         value={`${Math.round(employedPercent)} %`}
@@ -32,7 +32,7 @@ export function AcreditacionKpis({
         value={
           averageInsertionMonths === null
             ? 'Sin datos'
-            : `${averageInsertionMonths.toFixed(1)} meses`
+            : `${averageInsertionMonths.toFixed(1).replace('.', ',')} meses`
         }
         hint="Solo de los que trabajan"
       />
