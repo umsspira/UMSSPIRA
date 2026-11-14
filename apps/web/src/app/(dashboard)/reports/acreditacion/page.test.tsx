@@ -10,6 +10,13 @@ jest.mock('@/shared/services/auth-session', () => {
   return { authenticatedFetch: jest.fn(), SessionError };
 });
 
+// Los filtros de la T3.2 leen y escriben la URL con el router de Next.
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+  usePathname: () => '/reports/acreditacion',
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 jest.mock('@/modules/auth/frontend/services/session-expired', () => ({
   notifySessionExpired: jest.fn(),
 }));
