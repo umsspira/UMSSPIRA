@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
+import { radarLevel } from './radar-levels';
 import { AFFINITY_AREAS } from '@umsspira/shared-types';
 import { DEMO_ADMIN_ASSIGNMENT_ID, DEMO_CAREER_ID } from './demo-accounts';
 import { calculateAreaAffinity } from '../../src/modules/radar/domain/policies/affinity-calculator';
@@ -69,8 +70,8 @@ function demoId(prefix: string, sequence: number): string {
   return `${prefix}-0000-4000-8000-${sequence.toString().padStart(12, '0')}`;
 }
 
-export const demoGraduates: Array<Prisma.TituladoCreateManyInput & { id: string }> = graduateNames.map(
-  ([nombre, apellido], index) => ({
+export const demoGraduates: Array<Prisma.TituladoCreateManyInput & { id: string }> =
+  graduateNames.map(([nombre, apellido], index) => ({
     id: demoId('99100000', index + 1),
     id_carrera: DEMO_CAREER_ID,
     nombre,
@@ -79,8 +80,7 @@ export const demoGraduates: Array<Prisma.TituladoCreateManyInput & { id: string 
     anio_egreso: 2021 + (index % 5),
     grado: 'Licenciatura',
     expedido_en: 'CB',
-  }),
-);
+  }));
 
 const systemsRadarAdditionalGraduates: Array<Prisma.TituladoCreateManyInput & { id: string }> = [
   ['Emilia', 'Reyes'],
@@ -118,15 +118,14 @@ const systemsRadarSeed = systemsRadarGraduates.map((graduate, graduateIndex) => 
     const definitions = RADAR_DICTIONARY[area];
     const weights = definitions.map(({ term, weight }) => ({ term, peso: weight }));
     const start = (graduateIndex * 3 + areaIndex) % definitions.length;
-    const keywords = Array.from({ length: 5 }, (_, offset) => {
+    // Nivel por cohorte y área: el mapa usa los 5 tramos de color (HU-002 CA-02).
+    const [keywordCount, frequency] = radarLevel(graduate.anio_egreso, areaIndex);
+    const keywords = Array.from({ length: keywordCount }, (_, offset) => {
       const definition = definitions[(start + offset) % definitions.length];
       if (!definition) {
         throw new Error(`Falta una keyword del área de radar ${area}`);
       }
-      return {
-        term: definition.term,
-        count: 1 + ((graduateIndex + areaIndex + offset) % 3),
-      };
+      return { term: definition.term, count: frequency };
     });
     const result = calculateAreaAffinity(keywords, weights);
     const topKeywords: Prisma.InputJsonValue = result.palabrasClaveTop.map((keyword) => ({
@@ -137,14 +136,16 @@ const systemsRadarSeed = systemsRadarGraduates.map((graduate, graduateIndex) => 
       percentage: keyword.percentage,
     }));
 
-    return [{
-      id: demoId('99420000', graduateIndex * AFFINITY_AREAS.length + areaIndex + 1),
-      id_calculo_radar: calculationId,
-      id_area: RADAR_AREA_IDS[area],
-      puntaje: result.puntaje,
-      porcentaje: result.porcentaje,
-      palabras_clave_top: topKeywords,
-    } satisfies Prisma.AfinidadRadarCreateManyInput];
+    return [
+      {
+        id: demoId('99420000', graduateIndex * AFFINITY_AREAS.length + areaIndex + 1),
+        id_calculo_radar: calculationId,
+        id_area: RADAR_AREA_IDS[area],
+        puntaje: result.puntaje,
+        porcentaje: result.porcentaje,
+        palabras_clave_top: topKeywords,
+      } satisfies Prisma.AfinidadRadarCreateManyInput,
+    ];
   });
 
   return { calculation, affinities };
@@ -444,8 +445,9 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   null,
 ];
 
-const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios.slice(0, respondentIds.length).map(
-  (scenario, index) => {
+const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios
+  .slice(0, respondentIds.length)
+  .map((scenario, index) => {
     const idTitulado = respondentIds[index];
     if (!idTitulado) {
       throw new Error(`Falta el titulado de demostración para la respuesta ${index + 1}`);
@@ -458,8 +460,7 @@ const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios.
       // Cada 7 días desde el 15/01/2026: la última queda antes de la fecha actual del sprint.
       fechaEnvio: new Date(Date.UTC(2026, 0, 15 + index * 7)),
     };
-  },
-);
+  });
 
 export async function seedEpic9(prisma: PrismaClient): Promise<void> {
   await prisma.titulado.createMany({ data: systemsRadarGraduates, skipDuplicates: true });

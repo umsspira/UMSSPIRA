@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
+import { radarLevel } from './radar-levels';
 import { AFFINITY_AREAS } from '@umsspira/shared-types';
 import { RADAR_AREA_IDS } from '../../src/modules/radar/domain/entities/radar-area';
 import { calculateAreaAffinity } from '../../src/modules/radar/domain/policies/affinity-calculator';
@@ -140,15 +141,14 @@ const radarSeed = qaSecondCareerGraduates.map((graduate, graduateIndex) => {
     const definitions = RADAR_DICTIONARY[area];
     const weights = definitions.map(({ term, weight }) => ({ term, peso: weight }));
     const start = (graduateIndex * 3 + areaIndex) % definitions.length;
-    const keywords = Array.from({ length: 5 }, (_, offset) => {
+    // Nivel por cohorte y área: el mapa usa los 5 tramos de color (HU-002 CA-02).
+    const [keywordCount, frequency] = radarLevel(graduate.anio_egreso, areaIndex);
+    const keywords = Array.from({ length: keywordCount }, (_, offset) => {
       const definition = definitions[(start + offset) % definitions.length];
       if (!definition) {
         throw new Error(`Falta una keyword del área de radar ${area}`);
       }
-      return {
-        term: definition.term,
-        count: 1 + ((graduateIndex + areaIndex + offset) % 3),
-      };
+      return { term: definition.term, count: frequency };
     });
 
     return calculateAreaAffinity(keywords, weights);
