@@ -17,6 +17,7 @@ import { GetGraduateReportUseCase } from '../../application/use-cases/get-gradua
 import { ExportReportCsvUseCase } from '../../application/use-cases/export-report-csv.use-case';
 import { ExportReportPdfUseCase } from '../../application/use-cases/export-report-pdf.use-case';
 import { GetCompetencyHeatmapUseCase } from '../../application/use-cases/get-competency-heatmap.use-case';
+import { GetAccreditationDashboardUseCase } from '../../application/use-cases/get-accreditation-dashboard.use-case';
 
 export const reportsProviders: Provider[] = [
   PrismaReportRepository,
@@ -54,5 +55,10 @@ export const reportsProviders: Provider[] = [
     provide: GetCompetencyHeatmapUseCase,
     inject: [REPORT_REPOSITORY],
     useFactory: (repository: ReportRepository) => new GetCompetencyHeatmapUseCase(repository),
+  },
+  {
+    provide: GetAccreditationDashboardUseCase,
+    inject: [REPORT_REPOSITORY],
+    useFactory: (repository: ReportRepository) => new GetAccreditationDashboardUseCase(repository),
   },
 ];
