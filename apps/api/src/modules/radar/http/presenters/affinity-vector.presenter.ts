@@ -73,13 +73,28 @@ function toExplanation(
     return null;
   }
 
-  const rawChanges = Array.isArray(candidate.changes) ? candidate.changes : [];
-  const changes = rawChanges.map((change) => ({
-    keyword: String(change.keyword ?? ''),
-    previousPoints: Number(change.previousPoints ?? 0),
-    currentPoints: Number(change.currentPoints ?? 0),
-    deltaPercentagePoints: roundPercentage(Number(change.deltaPercentagePoints ?? 0)),
-  }));
+  if (!Array.isArray(candidate.changes)) {
+    return null;
+  }
+  const changes = [];
+  for (const change of candidate.changes) {
+    if (
+      !change ||
+      typeof change.keyword !== 'string' ||
+      change.keyword.trim().length === 0 ||
+      !Number.isFinite(change.previousPoints) ||
+      !Number.isFinite(change.currentPoints) ||
+      !Number.isFinite(change.deltaPercentagePoints)
+    ) {
+      return null;
+    }
+    changes.push({
+      keyword: change.keyword,
+      previousPoints: change.previousPoints,
+      currentPoints: change.currentPoints,
+      deltaPercentagePoints: roundPercentage(change.deltaPercentagePoints),
+    });
+  }
 
   return {
     cause: candidate.cause,
