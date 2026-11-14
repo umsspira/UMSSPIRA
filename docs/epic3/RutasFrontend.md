@@ -377,13 +377,13 @@ Aspectos de seguridad verificados:
 
 Variables de entorno:
 
-| Variable | Valor en `.env.example` | Valor en `.env.local` | Efecto |
-|---|---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:3000` | `http://localhost:3000` | Base de la API para las rutas que no empiezan con `/api/v1/`. |
-| `NEXT_PUBLIC_USE_AFFINITY_MOCK` | `false` | `true` | Activa los mocks de afinidad. En producción debe ser `false`. |
-| `NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS` | `false` | `true` | Muestra "Simular Actualización" y "Simular Timeout". |
-| `API_INTERNAL_URL` | No definida | No definida | Base interna usada por el middleware y el proxy. Si falta, usa `NEXT_PUBLIC_API_URL`. |
-| `NEXT_PUBLIC_DEMO_MODE` | No definida | No definida | Afecta el envío de tokens en `apiFetch`; no es exclusiva de la Épica 3. |
+| Variable | Valor en `.env.example` | Efecto |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:3000` | Base de la API para las rutas que no empiezan con `/api/v1/`. |
+| `NEXT_PUBLIC_USE_AFFINITY_MOCK` | `false` | Activa los mocks de afinidad. En producción debe ser `false`. |
+| `NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS` | `false` | Muestra "Simular Actualización" y "Simular Timeout". |
+| `API_INTERNAL_URL` | No definida | Base interna usada por el middleware y el proxy. Si falta, usa `NEXT_PUBLIC_API_URL`. |
+| `NEXT_PUBLIC_DEMO_MODE` | No definida | Afecta el envío de tokens en `apiFetch`; no es exclusiva de la Épica 3. |
 
 Mocks disponibles:
 
@@ -488,4 +488,3 @@ Pendientes de verificación:
 - Abrir y descargar un respaldo PDF y uno JPG reales.
 - Confirmar que `POST /affinity/config` no existe en el entorno desplegado y decidir si se elimina o se implementa.
 - Confirmar si `/radar-preview` debe existir en producción.
-
