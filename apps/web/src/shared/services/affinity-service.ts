@@ -10,7 +10,7 @@ import {
   RADAR_AREA_IDS,
 } from '@umsspira/shared-types/src/affinity';
 
-import { ApiError, apiClient, apiFetch } from './api-client';
+import { ApiError, apiFetch } from './api-client';
 
 export interface AffinityAreaVector extends AffinityAreaScore {
   keywords: string[];
@@ -28,7 +28,6 @@ const AREA_BY_ID = Object.fromEntries(
 
 const AFFINITY_ENDPOINT = '/api/v1/radar';
 const RADAR_RECALCULATE_ENDPOINT = '/api/v1/radar/recalculate';
-const AFFINITY_CONFIG_ENDPOINT = '/affinity/config';
 
 function normalizeArea(area: string): AffinityArea | undefined {
   if (AFFINITY_AREAS.includes(area as AffinityArea)) {
@@ -76,7 +75,10 @@ function adaptRadarResponse(
 
 export const RECALCULATE_TIMEOUT_MS = 7000;
 
+// Los datos simulados solo se permiten en pruebas automatizadas. Cualquier
+// build de Next (desarrollo o producción) usa siempre los endpoints reales.
 const USE_AFFINITY_MOCK =
+  process.env.NODE_ENV === 'test' &&
   process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK === 'true';
 
 let snapshotIndex = 0;
@@ -158,17 +160,6 @@ export async function getAffinityConfig(): Promise<AffinityConfigPayload> {
       };
 
   return orderConfigAxes(payload);
-}
-
-export async function saveAffinityConfig(
-  config: AffinityConfigPayload,
-): Promise<void> {
-  if (USE_AFFINITY_MOCK) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return;
-  }
-
-  await apiClient.post<void>(AFFINITY_CONFIG_ENDPOINT, config);
 }
 
 export async function recalculateAffinity(): Promise<AffinityVectorResult> {
