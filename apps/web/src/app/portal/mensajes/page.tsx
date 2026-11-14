@@ -14,10 +14,8 @@ import { ConversationPanel } from "@/features/chat/components/ConversationPanel"
 import { ComposeRequest } from "@/features/chat/components/ComposeRequest";
 import { formatChatTime, getInitials } from "@/features/chat/utils/format";
 
-
 import { MessagesOfflineGuard } from '@/features/chat/components/MessagesOfflineGuard';
 
-dev
 type Tab = "inbox" | "requests" | "declined";
 function Messages() {
   const params = useSearchParams();
@@ -313,9 +311,5 @@ export default function MessagesPage() {
         <Messages />
       </Suspense>
     </MessagesOfflineGuard>
-
-    <Suspense fallback={<p className="p-6">Cargando mensajes…</p>}>
-      <Messages />
-    </Suspense>
   );
 }

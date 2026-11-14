@@ -106,14 +106,12 @@ export default function EventDetailPage({
   async function confirmRegistration() {
     if (!event || isRegistering || existingRegistration || registrationLookupFailed) return;
 
-
     if (!navigator.onLine) {
       setIsConfirmOpen(false);
       setRegistrationError('Necesitas conexión para esta acción');
       setRegistrationErrorKind(null);
       return;
     }
-
     setIsRegistering(true);
     setRegistrationError(null);
     setRegistrationErrorKind(null);
@@ -339,7 +337,6 @@ export default function EventDetailPage({
                 <button type="button" onClick={() => void loadEvent()}>Reintentar</button>
               </div>
             ) : isTitulado && isAvailable ? (
-
               <>
                 <button
                   type="button"
@@ -356,11 +353,6 @@ export default function EventDetailPage({
                   </p>
                 )}
               </>
-
-              <button type="button" className="hu3-register-button" onClick={() => setIsConfirmOpen(true)}>
-                Inscribirme
-              </button>
-
             ) : isTitulado && isFull ? (
               <button
                 type="button"
