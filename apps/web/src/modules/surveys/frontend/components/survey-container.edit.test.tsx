@@ -264,10 +264,10 @@ describe('SurveyContainer · HU-006 · edición única', () => {
     });
 
     expect(
-      await screen.findByText(
-        'Cambios guardados correctamente.',
-      ),
-    ).toBeInTheDocument();
+  await screen.findByText(
+    'Sus cambios se guardaron correctamente',
+  ),
+).toBeInTheDocument();
 
     expect(
       screen.getByText('Analista Senior'),
@@ -343,10 +343,10 @@ describe('SurveyContainer · HU-006 · edición única', () => {
     );
 
     expect(
-      await screen.findByText(
-        'Esta encuesta ya fue editada. Actualice la página para ver las respuestas registradas.',
-      ),
-    ).toBeInTheDocument();
+  await screen.findByText(
+    'Esta encuesta ya fue editada. No es posible editarla nuevamente',
+  ),
+).toBeInTheDocument();
 
     expect(
       screen.getByRole('button', {

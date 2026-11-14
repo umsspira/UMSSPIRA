@@ -745,7 +745,7 @@ export function SurveyContainer() {
           role="status"
           className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800"
         >
-          Cambios guardados correctamente.
+          Sus cambios se guardaron correctamente
         </p>
       )}
 
@@ -856,8 +856,7 @@ export function SurveyContainer() {
             >
               {edit.errorKind === 'already-edited' && (
                 <p>
-                  Esta encuesta ya fue editada. Actualice la página para
-                  ver las respuestas registradas.
+                  Esta encuesta ya fue editada. No es posible editarla nuevamente
                 </p>
               )}
 
