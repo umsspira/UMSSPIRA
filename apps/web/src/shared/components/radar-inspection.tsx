@@ -196,6 +196,7 @@ export default function RadarInspection({
               affinity={selectedArea.affinity}
               previousAffinity={selectedArea.previousAffinity ?? null}
               explanation={selectedArea.explanation}
+              currentContributions={selectedArea.previousAffinity == null ? selectedArea.topKeywords?.map(({ keyword, percentage }) => ({ keyword, percentagePoints: percentage })) : undefined}
               isLoading={isExplanationLoading}
               hasError={hasExplanationError}
               onRetry={onRetryExplanation}

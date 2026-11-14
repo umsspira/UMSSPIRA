@@ -13,6 +13,7 @@ export interface ChangeExplanationProps {
   affinity: number;
   previousAffinity: number | null;
   explanation?: AffinityAreaExplanation | null;
+  currentContributions?: ChangeExplanationContributionInput[];
   isLoading?: boolean;
   hasError?: boolean;
   onRetry?: () => void;
@@ -23,6 +24,7 @@ export const ChangeExplanation: React.FC<ChangeExplanationProps> = ({
   affinity,
   previousAffinity,
   explanation,
+  currentContributions,
   isLoading = false,
   hasError = false,
   onRetry,
@@ -33,7 +35,7 @@ export const ChangeExplanation: React.FC<ChangeExplanationProps> = ({
       percentagePoints: change.deltaPercentagePoints,
     })) ?? [];
 
-  if (!isLoading && !hasError && !explanation) {
+  if (!isLoading && !hasError && !explanation && !currentContributions?.length) {
     return null;
   }
 
@@ -43,7 +45,7 @@ export const ChangeExplanation: React.FC<ChangeExplanationProps> = ({
     affinity,
     cause: explanation?.cause ?? null,
     changes: explanationContributions,
-    currentContributions: explanationContributions,
+    currentContributions: currentContributions ?? explanationContributions,
   });
 
   return (
