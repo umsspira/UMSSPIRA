@@ -37,11 +37,17 @@ describe('WebPushAdapter', () => {
   });
 
   function adapter(): WebPushAdapter {
-    return new WebPushAdapter(new ConfigService<Environment, true>({
-      VAPID_SUBJECT: 'mailto:push@umsspira.test',
-      VAPID_PUBLIC_KEY: 'public-key',
-      VAPID_PRIVATE_KEY: 'private-key',
-    }));
+    const config = {
+      get: jest.fn((key: string) => {
+        const values: Record<string, string> = {
+          VAPID_SUBJECT: 'mailto:push@umsspira.test',
+          VAPID_PUBLIC_KEY: 'public-key',
+          VAPID_PRIVATE_KEY: 'private-key',
+        };
+        return values[key];
+      }),
+    } as unknown as ConfigService<Environment, true>;
+    return new WebPushAdapter(config);
   }
 
   it('configura VAPID y serializa el payload para el proveedor', async () => {

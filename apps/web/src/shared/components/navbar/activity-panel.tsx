@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Bell, MessageSquare } from 'lucide-react';
+import { PushPermissionPanel } from '@/features/notifications/components/push-permission-panel';
 import type { NavbarActivity } from './types';
 import styles from './navbar.module.css';
 
@@ -14,6 +15,8 @@ export function ActivityPanel({ kind, items, resolveHref, onNavigate }: {
   const title = kind === 'messages' ? 'Mensajes' : 'Notificaciones';
   const Icon = kind === 'messages' ? MessageSquare : Bell;
   return <section className={styles.activityPanel} aria-label={title}><h2>{title}</h2>
+    {/* HU13: permisos y suscripción Push, solo en el panel de notificaciones */}
+    {kind === 'notifications' && <PushPermissionPanel />}
     {items.length ? <ul>{items.map(item => <li key={item.id}>{item.href ? <Link href={resolveHref(item.href)} onClick={onNavigate} prefetch={false} className={styles.activityItem}><Icon size={18} /><span><strong>{item.title}</strong><small>{item.description}</small></span>{item.unread && <span className={styles.unread} aria-label="Sin leer" />}</Link> : <div className={styles.activityItem}><Icon size={18} /><span><strong>{item.title}</strong><small>{item.description}</small></span>{item.unread && <span className={styles.unread} aria-label="Sin leer" />}</div>}</li>)}</ul> : <div className={styles.activityEmpty}><Icon size={25} /><p>{kind === 'messages' ? 'No tienes mensajes nuevos.' : 'No tienes notificaciones nuevas.'}</p></div>}
   </section>;
 }
