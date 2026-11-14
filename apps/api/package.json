@@ -59,6 +59,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@jest/globals": "29.7.0",
     "@nestjs/cli": "10.4.9",
     "@nestjs/testing": "10.4.22",
     "@types/express": "^4.17.21",
@@ -74,9 +75,9 @@
     "prettier": "3.9.10",
     "prisma": "7.10.1",
     "supertest": "7.3.1",
+    "ts-jest": "29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
-    "ts-jest": "29.2.5",
     "tsconfig-paths": "^4.2.0",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
