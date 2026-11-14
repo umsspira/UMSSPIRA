@@ -9,7 +9,11 @@ type AvailabilityQuery = {
   where: {
     id: string;
     estado: { in: string[] };
-    OR: Array<{ fecha_cierre: null | { gt: Date } }>;
+    AND: Array<{
+      OR:
+        | Array<{ fecha_publicacion: null | { lte: Date } }>
+        | Array<{ fecha_cierre: null | { gt: Date } }>;
+    }>;
   };
 };
 
@@ -38,9 +42,18 @@ describe('HU8 availability through the existing Prisma adapter (no database)', (
       if (!record || record.id !== where.id || !where.estado.in.includes(record.estado)) {
         return null;
       }
-      return where.OR.some(({ fecha_cierre: filter }) => filter === null
-        ? record.fecha_cierre === null
-        : record.fecha_cierre !== null && record.fecha_cierre > filter.gt)
+      return where.AND.every(({ OR }) => OR.some((filter) => {
+        if ('fecha_publicacion' in filter) {
+          return filter.fecha_publicacion === null
+            ? record.fecha_publicacion === null
+            : record.fecha_publicacion !== null
+              && record.fecha_publicacion <= filter.fecha_publicacion.lte;
+        }
+
+        return filter.fecha_cierre === null
+          ? record.fecha_cierre === null
+          : record.fecha_cierre !== null && record.fecha_cierre > filter.fecha_cierre.gt;
+      }))
         ? record : null;
     });
     const requirements = { obtenerRequisitos: jest.fn().mockResolvedValue([]) };
