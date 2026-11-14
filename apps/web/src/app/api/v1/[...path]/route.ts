@@ -36,11 +36,11 @@ async function proxy(request: NextRequest, context: { params: { path: string[] }
     const retry = upstream.headers.get('retry-after');
     if (retry) outgoing.set('Retry-After', retry);
     return new Response(upstream.body, { status: upstream.status, headers: outgoing });
-  } catch {
+  } catch (error: any) {
+    console.error("ERROR REAL DEL PROXY:", error);
     return Response.json({ error: { code: 'BACKEND_UNAVAILABLE', message: 'No fue posible conectar con el servidor' } }, { status: 503 });
   }
 }
-
 export const GET = proxy;
 export const POST = proxy;
 export const DELETE = proxy;

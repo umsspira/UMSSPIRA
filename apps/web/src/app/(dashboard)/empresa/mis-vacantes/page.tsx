@@ -18,7 +18,6 @@ interface Vacante {
   nivel: string;
   estado: 'ACTIVA' | 'PAUSADA' | 'CERRADA' | 'BORRADOR';
   fecha_publicacion: string;
-  // CA-04: cantidad de postulantes (si el backend la envía)
   postulantes: number | null;
 }
 
@@ -47,7 +46,6 @@ export default function MisVacantesPage() {
       setErrorCarga(false);
       try {
         const token = getAccessToken();
-        // Usamos ruta relativa para que pase por el Proxy de Next.js
         const response = await fetch('/api/v1/vacantes/mis-vacantes', {
           method: 'GET',
           headers: {
@@ -97,13 +95,12 @@ export default function MisVacantesPage() {
         setVacantes(formateadas);
       } catch (error) {
         console.error("Error al cargar de la BD:", error);
-        setErrorCarga(true); // CA-21
+        setErrorCarga(true);
       } finally {
         setIsLoading(false);
       }
     };
     fetchVacantes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey]);
 
   const handlePausar = async (vacante: Vacante) => {
@@ -111,18 +108,11 @@ export default function MisVacantesPage() {
       const token = getAccessToken();
       const response = await fetch(`/api/v1/vacantes/${vacante.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ estado: 'PAUSADA' })
       });
-
       if (!response.ok) throw new Error('Error al pausar');
-      
-      setVacantes((prev) => 
-        prev.map((v) => v.id === vacante.id ? { ...v, estado: 'PAUSADA' } : v)
-      );
+      setVacantes((prev) => prev.map((v) => v.id === vacante.id ? { ...v, estado: 'PAUSADA' } : v));
       setMenuAbierto(null);
     } catch (error) {
       alert("Error al pausar la vacante.");
@@ -136,15 +126,10 @@ export default function MisVacantesPage() {
       const token = getAccessToken();
       const response = await fetch(`/api/v1/vacantes/${vacanteACerrar.id}/cerrar`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Error al cerrar');
-      setVacantes((prev) => 
-        prev.map((v) => v.id === vacanteACerrar.id ? { ...v, estado: 'CERRADA' } : v)
-      );
+      setVacantes((prev) => prev.map((v) => v.id === vacanteACerrar.id ? { ...v, estado: 'CERRADA' } : v));
       setVacanteACerrar(null);
     } catch (error) {
       alert("Error al cerrar la vacante en la base de datos.");
@@ -160,13 +145,9 @@ export default function MisVacantesPage() {
       const token = getAccessToken();
       const response = await fetch(`/api/v1/vacantes/${vacanteAEliminar.id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Error al eliminar');
-      
       setVacantes((prev) => prev.filter((v) => v.id !== vacanteAEliminar.id));
       setVacanteAEliminar(null);
     } catch (error) {
@@ -182,17 +163,12 @@ export default function MisVacantesPage() {
 
   const getBadgeStyle = (estado: string) => {
     const estadoNormalizado = estado?.toUpperCase() || 'BORRADOR'; 
-    
     switch(estadoNormalizado) {
-      case 'ACTIVA': 
-        return { bg: '#dcfce7', color: '#166534', dot: '#22c55e' };
-      case 'PAUSADA': 
-        return { bg: '#f3f4f6', color: '#4b5563', dot: '#6b7280' };
-      case 'CERRADA': 
-        return { bg: '#e5e7eb', color: '#374151', dot: '#6b7280' };
+      case 'ACTIVA': return { bg: '#dcfce7', color: '#166534', dot: '#22c55e' };
+      case 'PAUSADA': return { bg: '#f3f4f6', color: '#4b5563', dot: '#6b7280' };
+      case 'CERRADA': return { bg: '#e5e7eb', color: '#374151', dot: '#6b7280' };
       case 'BORRADOR':
-      default: 
-        return { bg: '#f9fafb', color: '#9ca3af', dot: '#d1d5db' };
+      default: return { bg: '#f9fafb', color: '#9ca3af', dot: '#d1d5db' };
     }
   };
 
@@ -237,16 +213,7 @@ export default function MisVacantesPage() {
               </div>
             </div>
             
-            <Link 
-              href="/empresa/vacantes/publicar" 
-              className="min-h-11 w-full justify-center md:min-h-0 md:w-auto"
-              style={{ 
-                padding: '0.65rem 1.25rem', backgroundColor: 'var(--flame)', color: '#fff', 
-                borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', 
-                display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none',
-                boxShadow: '0 4px 12px rgba(255,177,98,0.3)', transition: 'all 0.2s'
-              }}
-            >
+            <Link href="/empresa/vacantes/publicar" className="min-h-11 w-full justify-center md:min-h-0 md:w-auto" style={{ padding: '0.65rem 1.25rem', backgroundColor: 'var(--flame)', color: '#fff', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', boxShadow: '0 4px 12px rgba(255,177,98,0.3)', transition: 'all 0.2s' }}>
               <Plus size={18} /> Publicar vacante
             </Link>
           </div>
@@ -256,44 +223,28 @@ export default function MisVacantesPage() {
               <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Buscar</label>
               <div style={{ position: 'relative' }}>
                 <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar por título..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ width: '100%', height: '3rem', padding: '0 1rem 0 2.75rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', outline: 'none', fontSize: '0.875rem', color: '#111827', backgroundColor: '#fff', fontWeight: 500 }} 
-                />
+                <input type="text" placeholder="Buscar por título..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '100%', height: '3rem', padding: '0 1rem 0 2.75rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', outline: 'none', fontSize: '0.875rem', color: '#111827', backgroundColor: '#fff', fontWeight: 500 }} />
               </div>
             </div>
 
             <div className="grow md:grow-0" style={{ display: 'flex', flexDirection: 'column', minWidth: 'min(180px, 100%)' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Estado</label>
               <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} style={{ height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#111827', fontSize: '0.875rem', outline: 'none', cursor: 'pointer', fontWeight: 500 }}>
-                <option value="Todos">Todos</option>
-                <option value="ACTIVA">Activa</option>
-                <option value="PAUSADA">Pausada</option>
-                <option value="CERRADA">Cerrada</option>
-                <option value="BORRADOR">Borrador</option>
+                <option value="Todos">Todos</option><option value="ACTIVA">Activa</option><option value="PAUSADA">Pausada</option><option value="CERRADA">Cerrada</option><option value="BORRADOR">Borrador</option>
               </select>
             </div>
 
             <div className="grow md:grow-0" style={{ display: 'flex', flexDirection: 'column', minWidth: 'min(180px, 100%)' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Modalidad</label>
               <select value={filterModalidad} onChange={(e) => setFilterModalidad(e.target.value)} style={{ height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#111827', fontSize: '0.875rem', outline: 'none', cursor: 'pointer', fontWeight: 500 }}>
-                <option value="Todas">Todas</option>
-                <option value="Remoto">Remoto</option>
-                <option value="Híbrido">Híbrido</option>
-                <option value="Presencial">Presencial</option>
+                <option value="Todas">Todas</option><option value="Remoto">Remoto</option><option value="Híbrido">Híbrido</option><option value="Presencial">Presencial</option>
               </select>
             </div>
 
             <div className="grow md:grow-0" style={{ display: 'flex', flexDirection: 'column', minWidth: 'min(180px, 100%)' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Nivel</label>
               <select value={filterNivel} onChange={(e) => setFilterNivel(e.target.value)} style={{ height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#111827', fontSize: '0.875rem', outline: 'none', cursor: 'pointer', fontWeight: 500 }}>
-                <option value="Todos">Todos</option>
-                <option value="Junior">Junior</option>
-                <option value="Semi-Senior">Semi-Senior</option>
-                <option value="Senior">Senior</option>
+                <option value="Todos">Todos</option><option value="Junior">Junior</option><option value="Semi-Senior">Semi-Senior</option><option value="Senior">Senior</option>
               </select>
             </div>
           </div>
@@ -308,42 +259,23 @@ export default function MisVacantesPage() {
               if (tab === 'Borradores') count = vacantes.filter(v => v.estado === 'BORRADOR').length;
               
               return (
-                <button 
-                  key={tab}
-                  className="min-h-10 md:min-h-0"
-                  onClick={() => setActiveTab(tab)}
-                  style={{ 
-                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    padding: '0.5rem 1rem', borderRadius: '99px', fontSize: '0.875rem', fontWeight: 'bold', cursor: 'pointer',
-                    backgroundColor: isActive ? '#1e293b' : '#fff', 
-                    color: isActive ? '#fff' : '#111827',
-                    border: isActive ? '1px solid #1e293b' : '1px solid var(--oatmeal)',
-                    transition: 'all 0.2s'
-                  }}
-                >
+                <button key={tab} className="min-h-10 md:min-h-0" onClick={() => setActiveTab(tab)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '99px', fontSize: '0.875rem', fontWeight: 'bold', cursor: 'pointer', backgroundColor: isActive ? '#1e293b' : '#fff', color: isActive ? '#fff' : '#111827', border: isActive ? '1px solid #1e293b' : '1px solid var(--oatmeal)', transition: 'all 0.2s' }}>
                   {tab === 'Todas' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#eab308' }}></div>}
                   {tab === 'Activas' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e' }}></div>}
                   {tab === 'Pausadas' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#eab308' }}></div>}
                   {tab === 'Cerradas' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#6b7280' }}></div>}
                   {tab === 'Borradores' && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#3b82f6' }}></div>}
-                  
                   {tab} <span style={{ color: isActive ? '#e2e8f0' : '#4b5563', fontWeight: '600' }}>({count})</span>
                 </button>
               );
             })}
           </div>
 
-          {/* CA-03: en móvil cada fila es una tarjeta; desde 768 px, tabla de escritorio sin cambios */}
           <div className="flex flex-col gap-3 md:block md:rounded-xl md:border md:bg-white" style={{ borderColor: 'var(--oatmeal)' }}>
             
             <div className="hidden md:grid" style={{ gridTemplateColumns: '40px 2.5fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '1rem', backgroundColor: '#fcfcfc', borderBottom: '1px solid var(--oatmeal)', fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center', borderRadius: '0.75rem 0.75rem 0 0' }}>
               <div><input type="checkbox" style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: 'var(--flame)' }} /></div>
-              <div>Título</div>
-              <div>Modalidad</div>
-              <div>Nivel</div>
-              <div>Estado</div>
-              <div>Fecha</div>
-              <div style={{ textAlign: 'center' }}>Acciones</div>
+              <div>Título</div><div>Modalidad</div><div>Nivel</div><div>Estado</div><div>Fecha</div><div style={{ textAlign: 'center' }}>Acciones</div>
             </div>
 
             {vacantesFiltradas.length === 0 ? (
@@ -353,15 +285,8 @@ export default function MisVacantesPage() {
                 const badge = getBadgeStyle(vacante.estado);
                 const isLast = index === vacantesFiltradas.length - 1;
                 return (
-                  <div 
-                    key={vacante.id} 
-                    className={`relative grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border bg-white p-4 md:grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_120px] md:items-center md:gap-4 md:rounded-none md:border-0 ${!isLast ? 'md:border-b' : 'md:rounded-b-xl'}`}
-                    style={{ borderColor: 'var(--oatmeal)', fontSize: '0.875rem', transition: 'background-color 0.2s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fdfbf7'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}
-                  >
+                  <div key={vacante.id} className={`relative grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border bg-white p-4 md:grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_120px] md:items-center md:gap-4 md:rounded-none md:border-0 ${!isLast ? 'md:border-b' : 'md:rounded-b-xl'}`} style={{ borderColor: 'var(--oatmeal)', fontSize: '0.875rem', transition: 'background-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fdfbf7'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}>
                     
-                    {/* En celular el checkbox va arriba a la derecha de la tarjeta */}
                     <div className="absolute right-4 top-4 flex md:static md:items-center md:justify-center">
                       <input type="checkbox" style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--flame)', border: '1px solid #f43f5e', borderRadius: '4px' }} />
                     </div>
@@ -399,19 +324,11 @@ export default function MisVacantesPage() {
 
                     <div className="relative col-span-2 flex justify-end md:col-span-1 md:justify-center" style={{ gap: '0.4rem' }}>
                       
-                      <button 
-                        aria-label="Ver detalle"
-                        className="inline-flex min-h-10 min-w-10 items-center justify-center md:min-h-0 md:min-w-0"
-                        onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}`)}
-                        style={{ border: '1px solid var(--oatmeal)', background: '#fff', padding: '0.4rem', borderRadius: '0.4rem', cursor: 'pointer', color: '#374151', transition: 'all 0.15s' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--flame)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--flame)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = 'var(--oatmeal)'; }}>
+                      <button aria-label="Ver detalle" className="inline-flex min-h-10 min-w-10 items-center justify-center md:min-h-0 md:min-w-0" onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}/candidatos`)} style={{ border: '1px solid var(--oatmeal)', background: '#fff', padding: '0.4rem', borderRadius: '0.4rem', cursor: 'pointer', color: '#374151', transition: 'all 0.15s' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--flame)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--flame)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = 'var(--oatmeal)'; }}>
                         <Eye size={16} />
                       </button>
                       
-                      <button aria-label="Editar" className="inline-flex min-h-10 min-w-10 items-center justify-center md:min-h-0 md:min-w-0" onClick={() => handleEditar(vacante.id)} style={{ border: '1px solid var(--oatmeal)', background: '#fff', padding: '0.4rem', borderRadius: '0.4rem', cursor: 'pointer', color: '#374151', transition: 'all 0.15s' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#111827'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#111827'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = 'var(--oatmeal)'; }}>
+                      <button aria-label="Editar" className="inline-flex min-h-10 min-w-10 items-center justify-center md:min-h-0 md:min-w-0" onClick={() => handleEditar(vacante.id)} style={{ border: '1px solid var(--oatmeal)', background: '#fff', padding: '0.4rem', borderRadius: '0.4rem', cursor: 'pointer', color: '#374151', transition: 'all 0.15s' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#111827'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#111827'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = 'var(--oatmeal)'; }}>
                         <Pencil size={16} />
                       </button>
 
@@ -481,4 +398,4 @@ export default function MisVacantesPage() {
       </div>
     </div>
   );
-}
+}
