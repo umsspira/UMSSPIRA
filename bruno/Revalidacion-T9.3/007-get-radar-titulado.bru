@@ -1,0 +1,35 @@
+meta {
+  name: 007 CA-HU9-03 GET radar titulado
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/radar
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tituladoToken}}
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Nunca responde 404", function() {
+    expect(res.status).to.not.equal(404);
+  });
+
+  test("Respuesta envuelta en data con seis areas", function() {
+    expect(res.body.data).to.be.an("object");
+    expect(res.body.data.areas).to.be.an("array").with.lengthOf(6);
+  });
+}
+
+docs {
+  CA-HU9-03: GET /radar con titulado (radar:self:read) responde 200. Un 404
+  incumple el criterio. Requiere ejecutar antes 001-login-titulado.
+}

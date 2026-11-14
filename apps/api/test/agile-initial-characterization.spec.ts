@@ -1,12 +1,9 @@
 import { KeywordExtractorService } from '../src/modules/nlp/application/services/keyword-extractor.service';
-import { mapKeywordsToAreas } from '../src/modules/nlp/application/services/keyword-area-mapper';
-import type {
-  DictionaryAreaAssociation,
-  DictionaryEntry,
-} from '../src/modules/nlp/domain/entities/dictionary-entry';
+import type { DictionaryEntry } from '../src/modules/nlp/domain/entities/dictionary-entry';
 import { normalizePhrase } from '../src/modules/nlp/domain/policies/text-normalizer';
 import { RADAR_DICTIONARY } from '../src/modules/radar/domain/affinity-catalog';
 import { calculateAreaAffinity } from '../src/modules/radar/domain/policies/affinity-calculator';
+import { mapKeywordsToRadarAreas } from '../src/modules/radar/domain/policies/keyword-area-mapper';
 import { CURRENT_PROFILE_DESCRIPTION_ORDER } from '../src/modules/radar/domain/policies/profile-description-order';
 import { RADAR_AREA_IDS, type RadarArea } from '../src/modules/radar/domain/entities/radar-area';
 import { PrismaProfileTextReaderAdapter } from '../src/modules/radar/infrastructure/adapters/prisma-profile-text-reader.adapter';
@@ -19,7 +16,7 @@ interface AreaOutcome {
 
 interface DictionaryFixture {
   entries: DictionaryEntry[];
-  areasByKeyword: Map<string, DictionaryAreaAssociation[]>;
+  weightsByArea: Record<string, Array<{ term: string; peso: number }>>;
 }
 
 const AREAS = Object.keys(RADAR_AREA_IDS) as RadarArea[];
@@ -29,42 +26,30 @@ const AREAS = Object.keys(RADAR_AREA_IDS) as RadarArea[];
  * El catálogo es la fuente de verdad de los pesos; la base replica esos valores.
  */
 function buildDictionary(): DictionaryFixture {
-  const definitions = new Map<
-    string,
-    { aliases: Set<string>; areas: Map<string, { nombre: string | null; peso: number }> }
-  >();
+  const definitions = new Map<string, Set<string>>();
+  const weightsByArea: Record<string, Array<{ term: string; peso: number }>> = {};
 
   for (const area of AREAS) {
     const areaId = RADAR_AREA_IDS[area];
 
     for (const keyword of RADAR_DICTIONARY[area]) {
       const canonical = normalizePhrase(keyword.term);
-      const definition = definitions.get(canonical) ?? {
-        aliases: new Set<string>(),
-        areas: new Map<string, { nombre: string | null; peso: number }>(),
-      };
+      const aliases = definitions.get(canonical) ?? new Set<string>();
 
-      definition.areas.set(areaId, { nombre: area, peso: keyword.weight });
       for (const alias of keyword.aliases ?? []) {
-        definition.aliases.add(normalizePhrase(alias));
+        aliases.add(normalizePhrase(alias));
       }
-      definitions.set(canonical, definition);
+      definitions.set(canonical, aliases);
+      (weightsByArea[areaId] ??= []).push({ term: canonical, peso: keyword.weight });
     }
   }
 
-  const entries: DictionaryEntry[] = [];
-  const areasByKeyword = new Map<string, DictionaryAreaAssociation[]>();
+  const entries: DictionaryEntry[] = [...definitions].map(([canonical, aliases]) => ({
+    canonical,
+    aliases: [...aliases],
+  }));
 
-  for (const [canonical, definition] of definitions) {
-    const areas = [...definition.areas].map(([id, { nombre, peso }]) => ({ id, nombre, peso }));
-    entries.push({ canonical, aliases: [...definition.aliases], areas });
-    areasByKeyword.set(canonical, areas);
-    for (const alias of definition.aliases) {
-      areasByKeyword.set(alias, areas);
-    }
-  }
-
-  return { entries, areasByKeyword };
+  return { entries, weightsByArea };
 }
 
 const dictionary = buildDictionary();
@@ -76,9 +61,9 @@ function calculate(texts: readonly string[]): Record<RadarArea, AreaOutcome> {
   const { keywords } = extractor.extract(texts.join('\n'));
   const grouped = new Map<RadarArea, Array<{ term: string; peso: number }>>();
 
-  for (const association of mapKeywordsToAreas(keywords, dictionary.areasByKeyword)) {
+  for (const association of mapKeywordsToRadarAreas(keywords, dictionary.weightsByArea)) {
     const current = grouped.get(association.area) ?? [];
-    current.push({ term: association.term, peso: association.weight });
+    current.push({ term: association.term, peso: association.peso });
     grouped.set(association.area, current);
   }
 
@@ -147,6 +132,7 @@ describe('HU-9 CA-05 - origen del Agile inicial', () => {
       experienciaLaboral: { findMany: jest.fn().mockResolvedValue([]) },
       certificacion: { findMany: jest.fn().mockResolvedValue([]) },
       perfilArea: { findFirst },
+      proyecto: { findMany: jest.fn().mockResolvedValue([]) },
     } as unknown as PrismaService;
 
     const reader = new PrismaProfileTextReaderAdapter(prisma);
