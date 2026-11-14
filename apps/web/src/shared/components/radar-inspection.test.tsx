@@ -202,7 +202,7 @@ describe('Información real sin vinculación de respaldos', () => {
     expect(screen.getByText('typescript')).toBeInTheDocument();
     expect(screen.getByText(/No se recibió información de respaldos/)).toBeInTheDocument();
     expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
-    expect(screen.getByText(/título e institución.*cargo y empresa.*nombre y entidad emisora.*descripción profesional/)).toBeInTheDocument();
+    expect(screen.getByText(/título e institución.*cargo y empresa.*nombre y entidad emisora.*descripción profesional.*nombre, descripción y tecnologías de los proyectos/)).toBeInTheDocument();
     expect(screen.queryByText(/electivas aprobadas|certificaciones validadas/)).not.toBeInTheDocument();
   });
 
