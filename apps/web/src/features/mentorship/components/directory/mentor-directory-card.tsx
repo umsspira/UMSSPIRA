@@ -5,10 +5,23 @@ import { ArrowRightIcon } from 'lucide-react';
 import { useState } from 'react';
 import { mentorInitials, mentorProfileHref, type DirectoryMentor } from '../../model/mentor-directory';
 
+function uniqueInterests(interests: DirectoryMentor['interests'] | null) {
+  if (!interests) return [];
+  const seen = new Set<string>();
+  return interests.filter(interest => {
+    const normalizedName = interest.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
+    const key = normalizedName || interest.id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function MentorDirectoryCard({ mentor }: { mentor: DirectoryMentor }) {
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
-  const visibleInterests = mentor.interests?.slice(0, 3) ?? [];
-  const remainingInterests = mentor.interests?.slice(3) ?? [];
+  const interests = uniqueInterests(mentor.interests);
+  const visibleInterests = interests.slice(0, 3);
+  const remainingInterests = interests.slice(3);
   const label = mentor.availability === 'AVAILABLE' ? 'Disponible'
     : mentor.availability === 'PAUSED' ? 'En pausa'
     : mentor.availability === 'UNAVAILABLE' ? 'No disponible' : 'Sin disponibilidad definida';

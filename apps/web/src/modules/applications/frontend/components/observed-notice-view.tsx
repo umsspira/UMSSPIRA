@@ -114,7 +114,6 @@ function ValidView({ data, token }: { data: ObservedApplicationDetail; token: st
   const form: CorrectionValues = {
     firstName: data.nombres,
     lastName: data.apellidos,
-    birthDate: data.fechaIngreso ?? "",
     ci: data.ci,
     complement: data.complementoCi ?? "",
     issuedIn: data.expedidoEn,

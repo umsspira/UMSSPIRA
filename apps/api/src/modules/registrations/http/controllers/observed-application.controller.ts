@@ -4,11 +4,13 @@ import {
   Get,
   Patch,
   Post,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { CorrectionTokenGuard } from '../guards/correction-token.guard';
 import { PublicRegistration } from '../decorators/public-registration.decorator';
 import { CorrectionApplicationId } from '../decorators/correction-application-id.decorator';
@@ -40,6 +42,25 @@ export class ObservedApplicationController {
         applicationId,
       );
     return { data };
+  }
+
+  @Get('document/content')
+  async getDocumentContent(
+    @CorrectionApplicationId() applicationId: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const file =
+      await this.observedApplicationService.getDocumentContent(applicationId);
+    response.setHeader('Content-Type', file.mime);
+    response.setHeader('Content-Length', String(file.size));
+    response.setHeader(
+      'Content-Disposition',
+      'inline; filename="respaldo"; filename*=UTF-8\'\'' +
+        encodeURIComponent(file.name),
+    );
+    response.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.send(Buffer.from(file.bytes));
   }
 
   @Patch()
