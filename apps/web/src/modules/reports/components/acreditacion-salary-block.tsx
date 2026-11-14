@@ -10,22 +10,20 @@ export function AcreditacionSalaryBlock({ ranges }: { ranges: SalaryRangeCount[]
   const max = Math.max(1, ...counts.map((item) => item.count));
 
   return (
-    <section className="rounded-xl border border-oatmeal bg-white p-4 sm:p-6">
+    <section className="min-w-0 rounded-xl border border-oatmeal bg-white p-4 sm:p-6">
       <h2 className="text-lg font-semibold text-abyssal-blue">Salario mensual</h2>
-      <p className="mt-1 text-sm text-abyssal-blue/70">Titulados por rango, en Bs</p>
+      <p className="mt-1 text-sm text-abyssal-blue/70">Cantidad de titulados por rango (Bs)</p>
       <ul className="mt-4 space-y-3">
         {counts.map(({ range, count }) => (
-          <li key={range}>
-            <div className="flex items-center justify-between gap-2 text-sm text-abyssal-blue">
-              <span>{range}</span>
-              <span className="font-semibold">{count}</span>
-            </div>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-palladian">
+          <li key={range} className="flex items-center gap-3 text-sm text-abyssal-blue">
+            <span className="w-28 shrink-0">{range}</span>
+            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-palladian">
               <div
-                className="h-full rounded-full bg-truffle-trouble"
+                className="h-full rounded-full bg-burning-flame"
                 style={{ width: `${(count / max) * 100}%` }}
               />
             </div>
+            <span className="w-8 shrink-0 text-right font-semibold">{count}</span>
           </li>
         ))}
       </ul>
