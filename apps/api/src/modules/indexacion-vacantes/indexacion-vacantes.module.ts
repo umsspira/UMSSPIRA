@@ -1,16 +1,20 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Client } from '@elastic/elasticsearch';
+import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
+import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 import { getJobPostingSearchConfig } from '../../shared/infrastructure/search/job-posting-search.config';
 import {
   ELASTICSEARCH_CLIENT,
   ELASTICSEARCH_INDEX,
 } from './indexacion-vacantes.constants';
-import { IndexacionVacantesController } from './indexacion-vacantes.controller';
 import { IndexacionVacantesService } from './indexacion-vacantes.service';
+import { PrismaVacanteIndexacionReader } from './prisma-vacante-indexacion.reader';
+import { VacanteIndexacionCoordinator } from './vacante-indexacion.coordinator';
 
 @Module({
-  controllers: [IndexacionVacantesController],
+  imports: [ConfigModule, PrismaModule],
+  controllers: [],
   providers: [
     {
       provide: ELASTICSEARCH_CLIENT,
@@ -33,7 +37,26 @@ import { IndexacionVacantesService } from './indexacion-vacantes.service';
         getJobPostingSearchConfig(config).index,
     },
     IndexacionVacantesService,
+    {
+      provide: PrismaVacanteIndexacionReader,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) =>
+        new PrismaVacanteIndexacionReader(prisma),
+    },
+    {
+      provide: VacanteIndexacionCoordinator,
+      inject: [
+        PrismaVacanteIndexacionReader,
+        IndexacionVacantesService,
+        ConfigService,
+      ],
+      useFactory: (
+        reader: PrismaVacanteIndexacionReader,
+        indexador: IndexacionVacantesService,
+        config: ConfigService,
+      ) => new VacanteIndexacionCoordinator(reader, indexador, config),
+    },
   ],
-  exports: [IndexacionVacantesService],
+  exports: [VacanteIndexacionCoordinator],
 })
 export class IndexacionVacantesModule {}
