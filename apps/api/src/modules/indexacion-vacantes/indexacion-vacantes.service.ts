@@ -7,10 +7,14 @@ import {
 } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
 import {
+  toJobPostingSearchDocument,
+  type JobPostingSearchDocument,
+} from '../../shared/infrastructure/search/job-posting-search-document';
+import {
   ELASTICSEARCH_CLIENT,
   ELASTICSEARCH_INDEX,
 } from './indexacion-vacantes.constants';
-import { VacanteIndexable } from './interfaces/vacante-indexable.interface';
+import type { VacanteIndexable } from './interfaces/vacante-indexable.interface';
 
 @Injectable()
 export class IndexacionVacantesService {
@@ -21,13 +25,36 @@ export class IndexacionVacantesService {
     @Inject(ELASTICSEARCH_INDEX) private readonly indexName: string,
   ) {}
 
+  /** Construccion aislada, sin consultas ni indexacion; usa la politica compartida con HU8. */
+  construirDocumento(
+    vacante: VacanteIndexable,
+    ahora: Date,
+  ): JobPostingSearchDocument {
+    if (!vacante || typeof vacante !== 'object') {
+      throw new BadRequestException(
+        'Debes enviar los datos oficiales de una vacante.',
+      );
+    }
+
+    try {
+      return toJobPostingSearchDocument(vacante, ahora);
+    } catch (error) {
+      if (error instanceof TypeError || error instanceof RangeError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+  }
+
   /**
    * Crea el índice si aún no existe. Si dos peticiones intentan crearlo
    * simultáneamente, se acepta que una de ellas encuentre el índice creado.
    */
   async asegurarIndice(): Promise<void> {
     try {
-      const existe = await this.client.indices.exists({ index: this.indexName });
+      const existe = await this.client.indices.exists({
+        index: this.indexName,
+      });
       if (existe) {
         return;
       }
@@ -37,23 +64,20 @@ export class IndexacionVacantesService {
           index: this.indexName,
           mappings: {
             properties: {
+              schema_version: { type: 'integer' },
               id: { type: 'keyword' },
               titulo: { type: 'text' },
-              descripcion: { type: 'text' },
-              empresa: { type: 'text' },
-              ubicacion: { type: 'text' },
-              modalidad: { type: 'keyword' },
-              tipoContrato: { type: 'keyword' },
-              fechaPublicacion: { type: 'date', format: 'strict_date_optional_time||epoch_millis' },
+              id_empresa: { type: 'keyword' },
+              razon_social: { type: 'text' },
               estado: { type: 'keyword' },
-              requerimientosLaborales: {
-                type: 'nested',
-                properties: {
-                  id: { type: 'keyword' },
-                  nombre: { type: 'text' },
-                  tipo: { type: 'keyword' },
-                  nivel: { type: 'keyword' },
-                },
+              disponible: { type: 'boolean' },
+              created_at: {
+                type: 'date',
+                format: 'strict_date_optional_time||epoch_millis',
+              },
+              fecha_cierre: {
+                type: 'date',
+                format: 'strict_date_optional_time||epoch_millis',
               },
             },
           },
@@ -74,7 +98,10 @@ export class IndexacionVacantesService {
         }
       }
     } catch (error) {
-      this.logger.error('No fue posible preparar el índice de vacantes.', error);
+      this.logger.error(
+        'No fue posible preparar el índice de vacantes.',
+        error,
+      );
       throw new ServiceUnavailableException(
         'No se pudo preparar el índice en Elasticsearch. Verifica que el servicio esté disponible.',
       );
@@ -85,24 +112,20 @@ export class IndexacionVacantesService {
    * Indexar con un _id determinista hace que una segunda indexación de la
    * misma vacante actualice el documento existente en lugar de duplicarlo.
    */
-  async indexarVacante(vacante: VacanteIndexable) {
-    this.validarVacante(vacante);
+  async indexarVacante(vacante: VacanteIndexable, ahora: Date = new Date()) {
+    const documento = this.construirDocumento(vacante, ahora);
     await this.asegurarIndice();
 
     try {
       const respuesta = await this.client.index({
         index: this.indexName,
-        id: vacante.id,
-        document: {
-          ...vacante,
-          id: vacante.id,
-          requerimientosLaborales: vacante.requerimientosLaborales ?? [],
-        },
+        id: documento.id,
+        document: documento,
         refresh: 'wait_for',
       });
 
       return {
-        idVacante: vacante.id,
+        idVacante: documento.id,
         idDocumento: respuesta._id,
         indice: respuesta._index,
         resultado: respuesta.result,
@@ -125,31 +148,6 @@ export class IndexacionVacantesService {
     } catch {
       throw new ServiceUnavailableException(
         'No se pudo establecer conexión con Elasticsearch.',
-      );
-    }
-  }
-
-  private validarVacante(vacante: VacanteIndexable): void {
-    if (!vacante || typeof vacante !== 'object') {
-      throw new BadRequestException('Debes enviar los datos de una vacante.');
-    }
-
-    if (typeof vacante.id !== 'string' || !vacante.id.trim()) {
-      throw new BadRequestException('La vacante debe tener un id válido.');
-    }
-
-    for (const campo of ['titulo', 'descripcion', 'empresa'] as const) {
-      if (typeof vacante[campo] !== 'string' || !vacante[campo].trim()) {
-        throw new BadRequestException(`El campo ${campo} es obligatorio.`);
-      }
-    }
-
-    if (
-      vacante.requerimientosLaborales !== undefined &&
-      !Array.isArray(vacante.requerimientosLaborales)
-    ) {
-      throw new BadRequestException(
-        'requerimientosLaborales debe ser un arreglo.',
       );
     }
   }

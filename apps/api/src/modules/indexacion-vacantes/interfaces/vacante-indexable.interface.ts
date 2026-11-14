@@ -1,23 +1,16 @@
-/**
- * Contrato provisional entre HU3 y HU4.
- * HU3 podrá adaptar su salida a esta estructura cuando esté implementada.
- */
-export interface RequerimientoIndexable {
-  id?: string;
-  nombre: string;
-  tipo?: string;
-  nivel?: string;
-}
+import type { Prisma } from '../../../generated/prisma/client';
+import type { JobPostingSearchSource } from '../../../shared/infrastructure/search/job-posting-search-document';
 
-export interface VacanteIndexable {
-  id: string;
-  titulo: string;
-  descripcion: string;
-  empresa: string;
-  ubicacion?: string;
-  modalidad?: string;
-  tipoContrato?: string;
-  fechaPublicacion?: string;
-  estado?: string;
-  requerimientosLaborales?: RequerimientoIndexable[];
-}
+/** Proyeccion oficial que podra utilizar el futuro lector Prisma de HU4. */
+export const VACANTE_INDEXACION_SELECT = {
+  id: true,
+  titulo: true,
+  id_empresa: true,
+  empresa: { select: { razon_social: true } },
+  estado: true,
+  created_at: true,
+  fecha_cierre: true,
+} as const satisfies Prisma.VacanteSelect;
+
+/** Entrada del contrato provisional compartido HU4/HU7; no es un DTO HTTP. */
+export type VacanteIndexable = JobPostingSearchSource;
