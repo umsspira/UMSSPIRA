@@ -18,7 +18,7 @@ import { useSurveyUserId } from '../hooks/use-survey-user-id';
 
 import {
   getMySurveyResponse,
-  getSurveySubmissionStatus,
+  getSurveyStatusInfo,
   type SurveyPersistedAnswer,
 } from '../services/surveys.service';
 
@@ -66,7 +66,7 @@ export function SurveyContainer() {
   const [showErrors, setShowErrors] = useState(false);
 
   const [submissionCheck, setSubmissionCheck] = useState<
-    'checking' | 'available' | 'submitted' | 'error'
+    'checking' | 'available' | 'submitted' | 'no_survey' | 'error'
   >('checking');
 
   const [statusCheckAttempt, setStatusCheckAttempt] = useState(0);
@@ -97,40 +97,41 @@ export function SurveyContainer() {
 
     setSubmissionCheck('checking');
 
-    getSurveySubmissionStatus()
-      .then(async (submitted) => {
-        if (!active) return;
-
-        if (!submitted) {
-          setSubmissionCheck('available');
-          return;
-        }
-
-        try {
-          const response = await getMySurveyResponse();
-
-          if (active) {
-            setRecordedResponse(response);
-          }
-        } catch {
-          // /status ya confirmó que existe respuesta.
-          // El resumen es información complementaria.
-        } finally {
-          if (active) {
-            setSubmissionCheck('submitted');
-          }
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setSubmissionCheck('error');
-        }
-      });
+    // Una sola consulta a /status (T5.2): si falla, se muestra el error de verificación.
+    getSurveyStatusInfo().then(async (statusResult) => {
+      if (!active) return;
+      if (!statusResult.hasActiveSurvey) {
+        setSubmissionCheck('no_survey');
+        return;
+      }
+      if (!statusResult.submitted) {
+        setSubmissionCheck('available');
+        return;
+      }
+      try {
+        const response = await getMySurveyResponse();
+        if (active) setRecordedResponse(response);
+      } catch {
+        // El bloqueo ya fue confirmado por /status; el resumen es complementario.
+      } finally {
+        if (active) setSubmissionCheck('submitted');
+      }
+    }).catch(() => {
+      if (active) setSubmissionCheck('error');
+    });
 
     return () => {
       active = false;
     };
   }, [statusCheckAttempt]);
+
+  // Borrar el borrador cuando la encuesta ya fue enviada o finalizada con éxito
+  useEffect(() => {
+    if (submissionCheck === 'submitted' || submission.status === 'success') {
+      clearDraft();
+    }
+  }, [submissionCheck, submission.status, clearDraft]);
+
 
   /**
    * Tras cerrar el modal del envío inicial, enfoca el mensaje de éxito.
@@ -711,6 +712,24 @@ export function SurveyContainer() {
             }
           >
             Reintentar verificación
+          </Button>
+        </div>
+      )}
+      {submissionCheck === 'no_survey' && (
+        <div
+          role="status"
+          className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#E6D7BF] bg-[#FEF1E0] p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-base font-medium text-abyssal-blue">
+            No hay una encuesta disponible por el momento
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            className="rounded-xl border border-[#D1C6B4] bg-[#E5DECF] font-semibold text-abyssal-blue hover:bg-[#DACFBE]"
+            onClick={() => router.push('/portal')}
+          >
+            Volver al inicio
           </Button>
         </div>
       )}

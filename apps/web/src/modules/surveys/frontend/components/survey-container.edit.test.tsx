@@ -11,14 +11,14 @@ import { SurveyContainer } from './survey-container';
 
 import {
   getMySurveyResponse,
-  getSurveySubmissionStatus,
+  getSurveyStatusInfo,
   updateMySurveyResponse,
 } from '../services/surveys.service';
 
 jest.mock('../services/surveys.service', () => ({
   ...jest.requireActual('../services/surveys.service'),
 
-  getSurveySubmissionStatus: jest.fn(),
+  getSurveyStatusInfo: jest.fn(),
 
   getMySurveyResponse: jest.fn(),
 
@@ -47,8 +47,8 @@ jest.mock('../hooks/use-survey-submit', () => ({
 }));
 
 const mockedSubmissionStatus =
-  getSurveySubmissionStatus as jest.MockedFunction<
-    typeof getSurveySubmissionStatus
+  getSurveyStatusInfo as jest.MockedFunction<
+    typeof getSurveyStatusInfo
   >;
 
 const mockedGetMySurveyResponse =
@@ -77,7 +77,11 @@ beforeEach(() => {
   window.localStorage.clear();
   window.sessionStorage.clear();
 
-  mockedSubmissionStatus.mockResolvedValue(true);
+  mockedSubmissionStatus.mockResolvedValue({
+    submitted: true,
+    hasActiveSurvey: true,
+    surveyId: null,
+  });
 
   mockedGetMySurveyResponse.mockResolvedValue(
     RECORDED_RESPONSE,
