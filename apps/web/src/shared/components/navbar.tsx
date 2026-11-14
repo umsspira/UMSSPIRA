@@ -28,6 +28,7 @@ import { clearAccessToken } from '@/shared/services/auth-session';
 import { clearToken } from '@/shared/services/api-client';
 import { useUnreadSummary } from '@/features/chat/hooks/useUnreadSummary';
 import { formatChatTime, getInitials } from '@/features/chat/utils/format';
+import { PushPermissionPanel } from '@/features/notifications/components/push-permission-panel';
 
 const MAX_VISIBLE_COUNT = 99;
 const formatUnreadCount = (count: number): string =>
@@ -337,11 +338,19 @@ export const Navbar: React.FC<{ eventManagement?: boolean }> = ({
               </button>
 
               {isNotificationsOpen && (
-                <div
-                  role="status"
-                  className="absolute right-0 mt-3 w-64 rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600 shadow-2xl z-50"
-                >
-                  No tienes notificaciones nuevas.
+                <div className="absolute right-0 mt-3 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-100 bg-white text-sm text-slate-600 shadow-2xl z-50">
+                  <h3 className="border-b border-slate-100 px-4 py-3 font-bold text-slate-900">
+                    Notificaciones
+                  </h3>
+
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <PushPermissionPanel />
+                  </div>
+
+                  <div role="status" className="px-4 py-6 text-center text-slate-500">
+                    <Bell className="mx-auto mb-2 h-6 w-6" aria-hidden="true" />
+                    <p className="text-xs">No tienes notificaciones nuevas.</p>
+                  </div>
                 </div>
               )}
             </div>

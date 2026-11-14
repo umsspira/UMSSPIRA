@@ -59,6 +59,7 @@ export default function EventParticipantsPage() {
 
   const occupation = data?.occupation;
   const isEmpty = data !== null && data.participants.length === 0;
+  const hasAttendance = data?.participants.some((participant) => participant.attendedAt) ?? false;
 
   return (
     <main className="events-page hu8-page">
@@ -73,9 +74,16 @@ export default function EventParticipantsPage() {
                 : 'Consulta de inscripciones y ocupación.'}
           </p>
         </div>
+        <div className="event-scanner-actions">
+          {data && !errorMessage ? (
+            <Link href={`/events/${id}/scanner`} className="event-button event-button-primary">
+              Escanear QR
+            </Link>
+          ) : null}
         <Link href="/events" className="event-button hu8-back">
           Volver a gestión
         </Link>
+        </div>
       </header>
 
       {!isLoading && !errorMessage && occupation ? (
@@ -150,8 +158,12 @@ export default function EventParticipantsPage() {
         <section className="hu8-panel">
           <header className="hu8-panel-heading">
             <div>
-              <h2>Participantes inscritos</h2>
-              <p>Actualizado con el estado real de las inscripciones.</p>
+              <h2>{hasAttendance ? 'Participantes y asistencia' : 'Participantes inscritos'}</h2>
+              <p>
+                {hasAttendance
+                  ? 'La asistencia se registró sin modificar la inscripción ni el cupo del evento.'
+                  : 'Actualizado con el estado real de las inscripciones.'}
+              </p>
             </div>
           </header>
           <div className="hu8-table-scroll">
@@ -165,6 +177,7 @@ export default function EventParticipantsPage() {
                   <th scope="col">Fecha de inscripción</th>
                   <th scope="col">Estado</th>
                   <th scope="col">Pase QR</th>
+                  <th scope="col">Asistencia</th>
                 </tr>
               </thead>
               <tbody>
@@ -185,6 +198,16 @@ export default function EventParticipantsPage() {
                         : undefined
                     }>
                       {PASS_LABELS[participant.passStatus]}
+                    </td>
+                    <td>
+                      {participant.attendedAt ? (
+                        <time
+                          dateTime={participant.attendedAt}
+                          title={formatEventDateTime(participant.attendedAt)}
+                        >
+                          Registrada
+                        </time>
+                      ) : participant.status === 'CANCELADA' ? 'Sin asistencia' : 'Pendiente'}
                     </td>
                   </tr>
                 ))}

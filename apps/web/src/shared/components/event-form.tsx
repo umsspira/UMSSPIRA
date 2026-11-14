@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { EventScheduleDialog } from '@/shared/components/event-schedule-dialog';
 import {
   EVENT_DATE_MAX_YEAR,
   EVENT_DATE_MIN_YEAR,
@@ -55,6 +56,7 @@ interface PendingPublication {
 
 export interface EventFormProps {
   onSubmit: (event: CreateEventDto, image: File | null) => void | Promise<void>;
+  onSchedule?: (event: CreateEventDto, image: File | null, scheduledAt: string) => Promise<void>;
   onCancel?: () => void;
   onValidationChange?: (errorCount: number) => void;
   isSubmitting?: boolean;
@@ -92,6 +94,7 @@ const VALIDATED_FIELDS: EventFormValidatedField[] = [
 
 export default function EventForm({
   onSubmit,
+  onSchedule,
   onCancel,
   onValidationChange,
   isSubmitting = false,
@@ -108,6 +111,7 @@ export default function EventForm({
   const [showAllErrors, setShowAllErrors] = useState(false);
   const [pendingPublication, setPendingPublication] = useState<PendingPublication | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -192,6 +196,11 @@ export default function EventForm({
     } finally {
       setIsSavingDraft(false);
     }
+  };
+
+  const requestSchedule = () => {
+    if (!validateForm()) return;
+    setScheduleOpen(true);
   };
 
   const requestPublication = (event: FormEvent<HTMLFormElement>) => {
@@ -340,6 +349,11 @@ export default function EventForm({
           {showDraftSaveButton ? <button type="button" className="event-button event-button-secondary" onClick={() => void saveDraft()} disabled={isBusy}>
             {isSavingDraft ? 'Guardando…' : 'Guardar borrador'}
           </button> : null}
+          {onSchedule && allowPublication ? (
+            <button type="button" className="event-button event-button-secondary" onClick={requestSchedule} disabled={isBusy}>
+              Programar publicación
+            </button>
+          ) : null}
           {allowPublication ? (
             <button type="submit" className="event-button event-button-primary" disabled={isBusy}>{submitLabel}</button>
           ) : !showDraftSaveButton ? (
@@ -360,12 +374,34 @@ export default function EventForm({
         {showDraftSaveButton ? <button type="button" className="event-button event-button-secondary" onClick={() => void saveDraft()} disabled={isBusy}>
           {isSavingDraft ? 'Guardando…' : 'Guardar borrador'}
         </button> : null}
+        {onSchedule && allowPublication ? (
+          <button type="button" className="event-button event-button-secondary" onClick={requestSchedule} disabled={isBusy}>
+            Programar publicación
+          </button>
+        ) : null}
         {allowPublication ? (
           <button type="submit" form="event-create-form" className="event-button event-button-primary" disabled={isBusy}>{isSubmitting ? 'Guardando…' : 'Publicar'}</button>
         ) : !showDraftSaveButton ? (
           <button type="submit" form="event-create-form" className="event-button event-button-primary" disabled={isBusy}>{isSubmitting ? 'Guardando…' : submitLabel}</button>
         ) : null}
       </div>
+
+      {scheduleOpen && onSchedule && (
+        <EventScheduleDialog
+          event={{
+            title: form.title.trim(),
+            dateLabel,
+            location: form.location.trim(),
+            maxCapacity: Number(form.maxCapacity),
+          }}
+          isSubmitting={isBusy}
+          onCancel={() => setScheduleOpen(false)}
+          onConfirm={async (scheduledAt) => {
+            await onSchedule(buildEventDto(EVENT_STATUS.BORRADOR), form.image, scheduledAt);
+            setScheduleOpen(false);
+          }}
+        />
+      )}
 
       {pendingPublication && (
         <EventConfirmDialog

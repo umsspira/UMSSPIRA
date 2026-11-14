@@ -96,7 +96,7 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
         <div className="qr-passes-topbar">
           <header className="qr-passes-heading">
             <h1>Mis pases QR</h1>
-            <p>Accede a tus credenciales digitales y verifica su estado.</p>
+            <p>Tus pases confirmados se guardan para consultarlos incluso sin Internet.</p>
           </header>
           <nav className="qr-passes-tabs" aria-label="Navegación de eventos">
             <Link href="/portal/eventos">Explorar</Link>
@@ -129,29 +129,61 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
         {/* Estado de error */}
         {loadState === 'error' && (
           <section
-            className="qr-passes-empty"
+            className={`hu12-state-card ${loadError === 'session' ? 'hu12-state-session' : 'hu12-state-error'}`}
             role="alert"
           >
-            <AlertCircle
-              size={44}
-              aria-hidden="true"
-            />
+            <span className="hu12-state-badge">
+              {loadError === 'session' ? 'ACCESO PROTEGIDO' : 'ERROR DE CARGA'}
+            </span>
 
-            <h2>No pudimos cargar tus pases</h2>
+            <h2>
+              {loadError === 'session'
+                ? 'Tu sesión ha finalizado'
+                : 'No pudimos cargar tus pases'}
+            </h2>
 
-            <p>{loadError === 'session' ? 'Inicia sesión para consultar tus pases.'
-              : loadError === 'forbidden' ? 'Tu cuenta no tiene permiso para consultar estos pases.'
-              : 'No pudimos consultar el servidor. Inténtalo nuevamente.'}</p>
+            <p>{loadError === 'session'
+              ? 'Tu sesión ha caducado. Los pases siguen asociados a tu cuenta.'
+              : loadError === 'forbidden'
+                ? 'Tu cuenta no tiene permiso para consultar estos pases.'
+                : 'Tus inscripciones pueden seguir activas. El problema ocurrió al consultar los pases.'}</p>
 
-            {loadError === 'session' ? (
-              <Link href="/login" className="qr-passes-button">Iniciar sesión</Link>
-            ) : (
-              <button type="button" className="qr-passes-button" onClick={retry}>
-                <RefreshCw size={18} aria-hidden="true" />
-                Reintentar
-              </button>
-            )}
+            <p>{loadError === 'session'
+              ? 'Después de ingresar podrás consultar los pases asociados a tus inscripciones.'
+              : loadError === 'unavailable'
+                ? 'Comprueba tu conexión y vuelve a intentarlo. Si el problema continúa, regresa a Mis eventos.'
+                : ''}</p>
+
+            <div className="hu12-state-actions">
+              {loadError === 'session' ? (
+                <>
+                  <Link href="/portal/eventos" className="hu12-state-secondary">Explorar eventos</Link>
+                  <Link href="/login" className="hu12-state-primary">Iniciar sesión</Link>
+                </>
+              ) : (
+                <>
+                  {loadError === 'unavailable' && (
+                    <Link href="/portal/eventos/mis-eventos" className="hu12-state-secondary">
+                      Mis eventos
+                    </Link>
+                  )}
+                  <button type="button" className="hu12-state-primary" onClick={retry}>
+                    Reintentar
+                  </button>
+                </>
+              )}
+            </div>
           </section>
+        )}
+
+        {loadState === 'success' && (
+          <div className="qr-passes-filter-bar">
+            <div role="group" aria-label="Filtrar pases" className="qr-passes-filter-options">
+              <button type="button" aria-pressed={filter === 'all'} className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>TODOS</button>
+              <button type="button" aria-pressed={filter === 'inactive'} className={filter === 'inactive' ? 'active' : ''} onClick={() => setFilter('inactive')}>NO VIGENTES</button>
+            </div>
+            <p>{validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}</p>
+          </div>
         )}
 
         {/* Estado vacío */}
@@ -182,13 +214,6 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
         {/* Listado compacto; el pase completo se conserva al abrirlo. */}
         {loadState === 'success' && passes.length > 0 && (
           <>
-            <div className="qr-passes-filter-bar">
-              <div role="group" aria-label="Filtrar pases" className="qr-passes-filter-options">
-                <button type="button" aria-pressed={filter === 'all'} className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>TODOS</button>
-                <button type="button" aria-pressed={filter === 'inactive'} className={filter === 'inactive' ? 'active' : ''} onClick={() => setFilter('inactive')}>NO VIGENTES</button>
-              </div>
-              <p>{validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}</p>
-            </div>
             {visiblePasses.length === 0 ? (
               <p className="qr-passes-no-results" role="status">No tienes pases no vigentes.</p>
             ) : (

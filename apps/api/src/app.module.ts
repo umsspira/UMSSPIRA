@@ -18,6 +18,7 @@ import { RadarModule } from './modules/radar/radar.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { SurveysModule } from './modules/surveys/surveys.module';
 import { VacantesModule } from './modules/vacantes/vacantes.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -40,7 +41,9 @@ import { VacantesModule } from './modules/vacantes/vacantes.module';
     ChatModule,
     SurveysModule,
     VacantesModule,
+    NotificationsModule,
   ],
   controllers: [RootController, HealthController],
 })
 export class AppModule {}
+

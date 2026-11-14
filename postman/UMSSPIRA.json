@@ -1965,6 +1965,540 @@
               "variable": []
             }
           }
+        },
+        {
+          "name": "HU14 · Asistencia QR",
+          "description": "Completa baseUrl, eventId, accessToken y attendanceQrToken con datos de tu entorno. Obtén el token administrativo con Auth/Iniciar sesión. Los pasos 01 a 04 registran asistencia y deben ejecutarse en orden. Para repetir el caso 201, utiliza otra inscripción sin asistencia. Los pasos 05 a 10 prueban rechazos y requieren los datos indicados en cada petición. La comprobación de concurrencia está automatizada en apps/api/test/record-event-attendance.integration.spec.ts.",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{accessToken}}",
+                "type": "string"
+              }
+            ]
+          },
+          "item": [
+            {
+              "name": "01 · Consultar participantes antes del ingreso",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "description": "Usa un evento de prueba propio. Guarda la ocupación para comparar después del escaneo. Ejecuta los pasos 01 a 04 en orden, con un pase confirmado y vigente que todavía no tenga asistencia.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/participants",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "participants"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                      "const data = pm.response.json().data;",
+                      "pm.test(\"Participantes disponibles\", () => {",
+                      "  pm.expect(data.participants).to.be.an(\"array\");",
+                      "  pm.expect(data.occupation).to.be.an(\"object\");",
+                      "});",
+                      "pm.collectionVariables.set(\"attendanceOccupation\", JSON.stringify(data.occupation));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "02 · Registrar la primera asistencia",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "Registra una asistencia real en el evento de prueba. attendanceQrToken es el valor exacto del QR del participante. La identidad del administrador se obtiene de accessToken.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/attendance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "attendance"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"qrToken\": \"{{attendanceQrToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                      "const data = pm.response.json().data;",
+                      "pm.test(\"Asistencia confirmada\", () => {",
+                      "  pm.expect(data.code).to.eql(\"ATTENDANCE_RECORDED\");",
+                      "  pm.expect(data.attendanceRecorded).to.eql(true);",
+                      "  pm.expect(data.eventId).to.eql(pm.variables.get(\"eventId\"));",
+                      "  pm.expect(data.registrationId).to.be.a(\"string\").and.not.empty;",
+                      "  pm.expect(data.participantName).to.be.a(\"string\").and.not.empty;",
+                      "  pm.expect(Number.isFinite(Date.parse(data.attendedAt))).to.eql(true);",
+                      "});",
+                      "pm.collectionVariables.set(\"attendanceRegistrationId\", data.registrationId);",
+                      "pm.collectionVariables.set(\"attendanceRegisteredAt\", data.attendedAt);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "03 · Repetir el mismo pase",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "Repite el token del paso 02. Debe recuperar la asistencia original.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/attendance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "attendance"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"qrToken\": \"{{attendanceQrToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                      "const data = pm.response.json().data;",
+                      "pm.test(\"Recupera el registro original\", () => {",
+                      "  pm.expect(data.code).to.eql(\"ATTENDANCE_ALREADY_RECORDED\");",
+                      "  pm.expect(data.attendanceRecorded).to.eql(true);",
+                      "  pm.expect(data.registrationId).to.eql(pm.collectionVariables.get(\"attendanceRegistrationId\"));",
+                      "  pm.expect(data.attendedAt).to.eql(pm.collectionVariables.get(\"attendanceRegisteredAt\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "04 · Consultar la asistencia y los cupos",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "description": "Comprueba el seguimiento de la asistencia y la ocupación guardada en el paso 01. Durante esta comparación, otras inscripciones o cancelaciones en el evento pueden cambiar legítimamente la ocupación.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/participants",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "participants"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                      "const data = pm.response.json().data;",
+                      "pm.test(\"Una inscripción con la asistencia original\", () => {",
+                      "  const rows = data.participants.filter(item => item.registrationId === pm.collectionVariables.get(\"attendanceRegistrationId\"));",
+                      "  pm.expect(rows).to.have.lengthOf(1);",
+                      "  pm.expect(rows[0].attendedAt).to.eql(pm.collectionVariables.get(\"attendanceRegisteredAt\"));",
+                      "  pm.expect(rows[0].status).to.eql(\"CONFIRMADA\");",
+                      "});",
+                      "pm.test(\"El escaneo conserva la ocupación\", () => {",
+                      "  pm.expect(data.occupation).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"attendanceOccupation\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "05 · Rechazar un token desconocido",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "Usa un identificador aleatorio como token inexistente.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/attendance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "attendance"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"qrToken\": \"hu14-inexistente-{{$guid}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                      "const body = pm.response.json();",
+                      "pm.test(\"Rechazo sin datos del participante\", () => {",
+                      "  pm.expect(body.error.code).to.eql(\"PASS_NOT_FOUND\");",
+                      "  pm.expect(body).not.to.have.property(\"data\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "06 · Rechazar un pase de otro evento",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "attendanceOtherEventQrToken debe pertenecer a otro evento. eventId sigue siendo el evento propio seleccionado para el ingreso.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/attendance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "attendance"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"qrToken\": \"{{attendanceOtherEventQrToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                      "const body = pm.response.json();",
+                      "pm.test(\"Rechazo sin datos del participante\", () => {",
+                      "  pm.expect(body.error.code).to.eql(\"PASS_EVENT_MISMATCH\");",
+                      "  pm.expect(body).not.to.have.property(\"data\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "07 · Rechazar un pase vencido",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "attendanceExpiredQrToken debe pertenecer al evento seleccionado, con inscripción CONFIRMADA y pase vencido. El evento debe seguir PUBLICADO.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/attendance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "attendance"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"qrToken\": \"{{attendanceExpiredQrToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 410\", () => pm.response.to.have.status(410));",
+                      "const body = pm.response.json();",
+                      "pm.test(\"Rechazo sin datos del participante\", () => {",
+                      "  pm.expect(body.error.code).to.eql(\"PASS_EXPIRED\");",
+                      "  pm.expect(body).not.to.have.property(\"data\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "08 · Rechazar datos adicionales enviados por el cliente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "El administrador se toma de la sesión. El contrato rechaza campos extra.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/attendance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "attendance"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"qrToken\": \"{{attendanceQrToken}}\",\n  \"adminId\": \"cliente\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Sin confirmación de asistencia\", () => pm.expect(pm.response.json()).not.to.have.property(\"data\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "09 · Rechazar un usuario sin permiso",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "Usa accessTokenOtroTitulado con una sesión válida de Titulado sin permiso eventos:manage.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/attendance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "attendance"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessTokenOtroTitulado}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"qrToken\": \"{{attendanceQrToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                      "const body = pm.response.json();",
+                      "pm.test(\"Rechazo sin datos del participante\", () => {",
+                      "  pm.expect(body.error.code).to.eql(\"FORBIDDEN\");",
+                      "  pm.expect(body).not.to.have.property(\"data\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "10 · Rechazar una solicitud sin sesión",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "Esta petición desactiva la autenticación y las cookies de Postman para comprobar el caso sin sesión.",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/events/owned/{{eventId}}/attendance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events",
+                    "owned",
+                    "{{eventId}}",
+                    "attendance"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"qrToken\": \"{{attendanceQrToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                      "const body = pm.response.json();",
+                      "pm.test(\"Rechazo sin datos del participante\", () => {",
+                      "  pm.expect(body.error.code).to.eql(\"UNAUTHENTICATED\");",
+                      "  pm.expect(body).not.to.have.property(\"data\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "protocolProfileBehavior": {
+                "disableCookies": true
+              }
+            }
+          ]
         }
       ]
     },
@@ -5028,6 +5562,21 @@
     {
       "key": "radarTopKeywordsJson",
       "value": ""
+    },
+    {
+      "key": "attendanceQrToken",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "attendanceOtherEventQrToken",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "attendanceExpiredQrToken",
+      "value": "",
+      "type": "default"
     }
   ]
 }

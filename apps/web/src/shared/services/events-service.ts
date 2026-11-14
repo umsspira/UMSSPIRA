@@ -284,3 +284,41 @@ function requireUserId(
 
   return userId;
 }
+
+
+export interface ScheduledEventItem extends EventItem {
+  scheduledAt?: string | null;
+  schedulingStatus?: 'PENDIENTE' | 'FALLIDA' | 'EJECUTADA' | null;
+}
+
+export async function scheduleDraftEvent(
+  eventId: string,
+  scheduledAt: string,
+  userId?: string,
+): Promise<ScheduledEventItem> {
+  requireUserId(userId, 'programar la publicación');
+
+  return (await apiClient<{ data: ScheduledEventItem }>(
+    `/api/v1/events/drafts/${encodeURIComponent(eventId)}/schedule`,
+    {
+      method: 'PATCH',
+      authenticated: true,
+      body: { scheduledAt },
+    },
+  )).data;
+}
+
+export async function cancelDraftSchedule(
+  eventId: string,
+  userId?: string,
+): Promise<ScheduledEventItem> {
+  requireUserId(userId, 'cancelar la programación');
+
+  return (await apiClient<{ data: ScheduledEventItem }>(
+    `/api/v1/events/drafts/${encodeURIComponent(eventId)}/schedule/cancel`,
+    {
+      method: 'PATCH',
+      authenticated: true,
+    },
+  )).data;
+}
