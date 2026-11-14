@@ -1,11 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { SurveyContainer } from './survey-container';
-import { getSurveySubmissionStatus } from '../services/surveys.service';
+import { getSurveyStatusInfo } from '../services/surveys.service';
 
 jest.mock('../services/surveys.service', () => ({
   ...jest.requireActual('../services/surveys.service'),
-  getSurveySubmissionStatus: jest.fn().mockResolvedValue(false),
+  getSurveyStatusInfo: jest.fn().mockResolvedValue({ submitted: false, hasActiveSurvey: true, surveyId: null }),
 }));
 
 const mockPush = jest.fn();
@@ -50,12 +50,12 @@ function llenarFormulario() {
 
 const SESSION_KEY = 'umsspira:survey-session:user-1';
 
-const mockedSubmissionStatus = getSurveySubmissionStatus as jest.Mock;
+const mockedSubmissionStatus = getSurveyStatusInfo as jest.Mock;
 
 beforeEach(() => {
   window.localStorage.clear();
   window.sessionStorage.clear();
-  mockedSubmissionStatus.mockResolvedValue(false);
+  mockedSubmissionStatus.mockResolvedValue({ submitted: false, hasActiveSurvey: true, surveyId: null });
 });
 
 async function renderSurvey() {
@@ -250,7 +250,7 @@ describe('SurveyContainer · formulario HU-2', () => {
   });
 
   it('bloquea la encuesta después de verificar un envío previo en el servidor', async () => {
-    mockedSubmissionStatus.mockResolvedValue(true);
+    mockedSubmissionStatus.mockResolvedValue({ submitted: true, hasActiveSurvey: true, surveyId: null });
     render(<SurveyContainer />);
 
     expect(await screen.findByText('Esta encuesta ya fue enviada. No es posible enviarla nuevamente.')).toBeInTheDocument();

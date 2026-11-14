@@ -6,7 +6,7 @@ import { useSurveyDraft } from '../hooks/use-survey-draft';
 import { isMeaningfulText, useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
 import { useSurveySubmit } from '../hooks/use-survey-submit';
 import { useSurveyUserId } from '../hooks/use-survey-user-id';
-import { getMySurveyResponse, getSurveySubmissionStatus, getSurveyStatusInfo, type SurveyPersistedAnswer } from '../services/surveys.service';
+import { getMySurveyResponse, getSurveyStatusInfo, type SurveyPersistedAnswer } from '../services/surveys.service';
 import { SurveyDraftNotice } from './survey-draft-notice';
 import { Button } from '@/shared/components/button';
 import { SurveyJobInputs } from './survey-job-inputs';
@@ -48,20 +48,8 @@ export function SurveyContainer() {
     let active = true;
     setSubmissionCheck('checking');
 
-    const checkSurveyStatus = async (): Promise<{ submitted: boolean; hasActiveSurvey: boolean }> => {
-      try {
-        const info = await getSurveyStatusInfo();
-        return info;
-      } catch {
-        const submitted = await getSurveySubmissionStatus();
-        if (typeof submitted === 'object' && submitted !== null && 'hasActiveSurvey' in (submitted as Record<string, unknown>)) {
-          return submitted as unknown as { submitted: boolean; hasActiveSurvey: boolean };
-        }
-        return { submitted: Boolean(submitted), hasActiveSurvey: true };
-      }
-    };
-
-    checkSurveyStatus().then(async (statusResult) => {
+    // Una sola consulta a /status (T5.2): si falla, se muestra el error de verificación.
+    getSurveyStatusInfo().then(async (statusResult) => {
       if (!active) return;
       if (!statusResult.hasActiveSurvey) {
         setSubmissionCheck('no_survey');
