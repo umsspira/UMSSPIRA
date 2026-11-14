@@ -255,3 +255,65 @@
     padding: 20px 14px 44px;
   }
 }
+
+/* HU19 — Detalle de certificado D77-D80 */
+
+.detailLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.previewArea {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #d8d1c6;
+  border-radius: 8px;
+  background: #f7f4ee;
+}
+
+.documentInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid #d8d1c6;
+  border-radius: 8px;
+  background: #f7f4ee;
+}
+
+.documentInfo h2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.documentMetadata {
+  width: 100%;
+  margin: 0;
+}
+
+.documentMetadata dt {
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.documentMetadata dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .detailLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .documentInfo {
+    padding: 18px;
+  }
+}

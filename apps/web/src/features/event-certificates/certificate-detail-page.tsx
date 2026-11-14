@@ -1,7 +1,15 @@
-﻿import Link from 'next/link';
+﻿'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { CertificatePreview } from './certificate-preview';
+import {
+  downloadCertificatePdf,
+} from './certificate-file-service';
 import styles from './certificates.module.css';
 
 export type CertificateDetailState =
+  | 'available'
   | 'loading'
   | 'processing'
   | 'unavailable'
@@ -9,23 +17,34 @@ export type CertificateDetailState =
   | 'forbidden'
   | 'unauthenticated';
 
+interface CertificateDocument {
+  id: string;
+  eventName: string;
+  participationDate: string;
+  pdf: Blob;
+}
+
 interface Props {
   state: CertificateDetailState;
+  document?: CertificateDocument;
   eventName?: string;
   onRetry?: () => void;
 }
 
 export function CertificateDetailPage({
   state,
+  document,
   eventName,
   onRetry,
 }: Props) {
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
   const content = {
     loading: {
       title: 'Consultando certificado',
       tag: 'CARGANDO',
       heading: 'Estamos recuperando tu documento',
-      description: 'Esta operación puede tardar unos instantes.',
+      description: 'Espera mientras recuperamos tu certificado.',
     },
     processing: {
       title: 'Certificado aún no disponible',
@@ -60,7 +79,22 @@ export function CertificateDetailPage({
       heading: 'Debes iniciar sesión',
       description: 'Identifícate para consultar tus certificados.',
     },
-  }[state];
+  };
+
+  const isAvailable = state === 'available' && !!document;
+  const fallback = content[state === 'available' ? 'unavailable' : state];
+
+  function handleDownload() {
+    if (!document || !isAvailable) return;
+
+    setDownloadError(null);
+
+    try {
+      downloadCertificatePdf(document.pdf, document.id);
+    } catch {
+      setDownloadError('No se pudo iniciar la descarga. Intenta nuevamente.');
+    }
+  }
 
   return (
     <main className={styles.page}>
@@ -74,34 +108,82 @@ export function CertificateDetailPage({
         </nav>
 
         <header className={styles.header}>
-          <h1>{content.title}</h1>
-          <p>{content.description}</p>
+          <h1>
+            {isAvailable ? 'Certificado de participación' : fallback.title}
+          </h1>
+          <p>
+            {isAvailable
+              ? `Evento: ${document.eventName}`
+              : fallback.description}
+          </p>
         </header>
 
-        <section className={styles.statePanel} role="status">
-          <span className={styles.counter}>{content.tag}</span>
-          <h2>{content.heading}</h2>
-          <p>{content.description}</p>
+        {isAvailable ? (
+          <section className={styles.detailLayout}>
+            <div className={styles.previewArea}>
+              <CertificatePreview
+                pdf={document.pdf}
+                title={document.eventName}
+              />
+            </div>
 
-          <div className={styles.buttons}>
-            <Link
-              className={styles.secondaryButton}
-              href="/mis-certificados"
-            >
-              Mis certificados
-            </Link>
+            <aside className={styles.documentInfo}>
+              <h2>Documento disponible</h2>
+              <span className={styles.available}>EMITIDO</span>
 
-            {(state === 'error' || state === 'unavailable') && onRetry && (
+              <dl className={styles.documentMetadata}>
+                <dt>Evento</dt>
+                <dd>{document.eventName}</dd>
+                <dt>Fecha de participación</dt>
+                <dd>{document.participationDate}</dd>
+              </dl>
+
               <button
                 type="button"
                 className={styles.primaryButton}
-                onClick={onRetry}
+                onClick={handleDownload}
               >
-                Reintentar consulta
+                Descargar certificado
               </button>
-            )}
-          </div>
-        </section>
+
+              {downloadError && (
+                <p role="alert">{downloadError}</p>
+              )}
+
+              <Link
+                className={styles.secondaryButton}
+                href="/mis-certificados"
+              >
+                Volver al listado
+              </Link>
+            </aside>
+          </section>
+        ) : (
+          <section className={styles.statePanel} role="status">
+            <span className={styles.counter}>{fallback.tag}</span>
+            <h2>{fallback.heading}</h2>
+            <p>{fallback.description}</p>
+
+            <div className={styles.buttons}>
+              <Link
+                className={styles.secondaryButton}
+                href="/mis-certificados"
+              >
+                Mis certificados
+              </Link>
+
+              {(state === 'error' || state === 'unavailable') && onRetry && (
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={onRetry}
+                >
+                  Reintentar consulta
+                </button>
+              )}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
