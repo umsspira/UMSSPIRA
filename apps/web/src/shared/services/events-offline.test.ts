@@ -10,6 +10,14 @@ import {
 import { getEventCatalog } from './events-service';
 import { apiClient } from './api-client';
 
+Object.defineProperty(globalThis, 'structuredClone', {
+  configurable: true,
+  writable: true,
+  value: <T>(value: T): T => {
+    return JSON.parse(JSON.stringify(value)) as T;
+  },
+});
+
 jest.mock('./api-client', () => ({
   apiClient: jest.fn(),
 }));
