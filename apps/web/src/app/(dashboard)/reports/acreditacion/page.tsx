@@ -123,7 +123,10 @@ export default function AccreditationHeatmapPage() {
           <p role="alert" className="text-sm text-red-700">{identityError}</p>
         ) : careerName ? (
           <div className="min-w-0 space-y-6">
-            <ConnectedAccreditationIndicators load={loadAccreditationIndicators} />
+                       <ConnectedAccreditationIndicators
+              careerName={careerName}
+              load={loadAccreditationIndicators}
+            />
             <ConnectedCompetencyHeatmap
               careerName={careerName}
               load={loadCompetencyHeatmap}
