@@ -41,6 +41,16 @@ const corsOrigins = z
   )
   .transform((origins) => [...new Set(origins.map((origin) => new URL(origin).origin))]);
 
+const optionalUrl = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.url().optional(),
+);
+
+const optionalSecret = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().min(1).optional(),
+);
+
 export const environmentSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -83,6 +93,16 @@ export const environmentSchema = z
       .optional(),
     CORRECTION_LINK_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
     WEB_BASE_URL: z.string().url().default('http://localhost:3001'),
+    SUPABASE_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    SUPABASE_URL: optionalUrl,
+    SUPABASE_ANON_KEY: optionalSecret,
+    SUPABASE_SERVICE_ROLE_KEY: optionalSecret,
+    ELASTICSEARCH_NODE: optionalUrl,
+    ELASTICSEARCH_API_KEY: optionalSecret,
+    ELASTICSEARCH_INDEX_VACANTES: z.string().min(1).default('vacantes'),
   })
   .superRefine((env, context) => {
     const store = env.AUTH_RATE_LIMIT_STORE ?? (env.NODE_ENV === 'production' ? 'redis' : 'memory');
