@@ -113,3 +113,14 @@ async function trimCache(cacheName, maxEntries) {
   const keys = await cache.keys();
   if (keys.length > maxEntries) await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
 }
+
+function getHandledUrl(request) {
+  if (request.method !== 'GET') return null;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return null;
+  if (['/api/', '/auth/'].some(p => url.pathname.startsWith(p)) || url.pathname.includes('webpack-hmr') || url.pathname === '/sw.js' || url.pathname === '/sw-extensions.js') return null;
+  if (request.mode === 'navigate' && url.pathname !== '/portal' && !url.pathname.startsWith('/portal/') && url.pathname !== '/offline') return null;
+  if (request.headers.get('Authorization')) return null;
+  if (url.pathname !== '/portal' && !url.pathname.startsWith('/portal/') && !url.pathname.startsWith('/_next/static/') && !url.pathname.startsWith('/_next/image') && !url.pathname.startsWith('/icons/') && url.pathname !== '/manifest.webmanifest' && url.pathname !== '/offline') return null;
+  return url;
+}
