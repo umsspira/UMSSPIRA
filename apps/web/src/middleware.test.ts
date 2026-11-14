@@ -37,9 +37,10 @@ jest.mock("next/server", () => {
 });
 
 function request(path: string, refresh?: string): NextRequest {
+  const url = new URL("http://localhost:3001" + path);
   return {
-    url: "http://localhost:3001" + path,
-    nextUrl: { pathname: path },
+    url: url.toString(),
+    nextUrl: { pathname: url.pathname, search: url.search },
     cookies: {
       get: (name: string) => name === "umsspira_refresh" && refresh
         ? { value: refresh } : undefined,
@@ -80,6 +81,22 @@ describe("HU-EP09-04 / T4.1: middleware de reportería", () => {
       "http://localhost:3001/login?reportes=requiere-sesion",
     );
     expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('BUG 1: también informa el motivo desde /reports/encuestas', async () => {
+    const result = observed(await middleware(request('/reports/encuestas')));
+    expect(result.destination).toBe('http://localhost:3001/login?reportes=requiere-sesion');
+    expect(result.headers.get('Cache-Control')).toBe('no-store');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("preserva el destino de vacantes para continuar después del login", async () => {
+    const result = observed(await middleware(request("/job-postings/abc?origen=listado")));
+    expect(result.status).toBe(307);
+    const destination = new URL(result.destination!);
+    expect(destination.pathname).toBe("/login");
+    expect(destination.searchParams.get("next")).toBe("/job-postings/abc?origen=listado");
   });
 
   it("CA-03: administrador autenticado accede al módulo y sus subrutas", async () => {

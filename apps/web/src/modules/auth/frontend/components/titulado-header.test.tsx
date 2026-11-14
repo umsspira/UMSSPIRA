@@ -13,6 +13,15 @@ describe("TituladoHeader", () => {
     expect(screen.getByRole("link", { name: "Mi perfil profesional" })).toHaveAttribute("href", "/profile");
   });
 
+  it("incluye el acceso a la bolsa de trabajo", () => {
+    render(<TituladoHeader />);
+
+    expect(screen.getByRole("link", { name: "Bolsa de trabajo" })).toHaveAttribute(
+      "href",
+      "/job-postings",
+    );
+  });
+
   it("sigue sin mostrar ningún enlace administrativo y conserva cerrar sesión", () => {
     render(<TituladoHeader />);
 

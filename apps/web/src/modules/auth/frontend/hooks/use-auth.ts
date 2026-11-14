@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { authStore, useAuthStore } from "../store";
 import { clearAccessToken, setAccessToken } from "@/shared/services/auth-session";
 import {
-  getRedirectPath,
+  getPostLoginRedirectPath,
   login,
   LOGIN_ERROR_MESSAGE,
   saveSession,
@@ -24,7 +24,10 @@ export function useAuth() {
         authStore.setState({ status: "authenticated", role, accessToken });
         saveSession(accessToken, role, remember);
         setAccessToken(accessToken);
-        router.push(getRedirectPath(role));
+        const requestedPath = typeof window === "undefined"
+          ? null
+          : new URLSearchParams(window.location.search).get("next");
+        router.push(getPostLoginRedirectPath(role, requestedPath));
       } catch (error) {
         clearAccessToken();
         authStore.setState({
