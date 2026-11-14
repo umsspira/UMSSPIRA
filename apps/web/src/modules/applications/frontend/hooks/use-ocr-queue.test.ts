@@ -25,7 +25,7 @@ const job = (id: string) => ({
   applicationId: id,
   revision: 1,
   token: id,
-  expiresAt: "",
+  expiresAt: "2027-01-01T00:00:00.000Z",
 });
 const tick = async (ms = 0) => {
   await act(async () => {
@@ -52,6 +52,61 @@ describe("OCR inbox queue", () => {
     } as Response);
   });
   afterEach(() => jest.useRealTimers());
+
+  it.each([
+    ["array", []],
+    ["empty object", {}],
+    ["missing data", undefined],
+    ["string", "invalid"],
+    ["missing token", { ...job("invalid"), token: "" }],
+    ["missing application", { ...job("invalid"), applicationId: undefined }],
+    ["invalid revision", { ...job("invalid"), revision: 0 }],
+    ["invalid expiration", { ...job("invalid"), expiresAt: "invalid" }],
+  ])(
+    "rejects %s without downloading or reporting a fake job, then recovers",
+    async (_name, invalid) => {
+      request.mockImplementation(async (path) =>
+        path === "ocr/claim" ? (null as never) : ({} as never),
+      );
+      request.mockResolvedValueOnce(invalid as never);
+      read.mockResolvedValue({} as never);
+      const { result, unmount } = renderHook(() => useOcrQueue());
+      await tick();
+      expect(result.current).toContain("reserva OCR recibida no es válida");
+      expect(request.mock.calls.map(([path]) => path)).toEqual(["ocr/claim"]);
+      expect(fetchDocument).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+      await tick(29999);
+      expect(request).toHaveBeenCalledTimes(1);
+      request.mockResolvedValueOnce(job("recovered") as never);
+      await tick(1);
+      expect(fetchDocument).toHaveBeenCalledWith(
+        "/api/v1/applications/ocr/recovered/document",
+        expect.any(Object),
+      );
+      expect(
+        request.mock.calls.some(([path]) => path === "ocr/recovered/complete"),
+      ).toBe(true);
+      expect(request.mock.calls.some(([path]) => path.endsWith("/fail"))).toBe(
+        false,
+      );
+      unmount();
+      await tick();
+      expect(jest.getTimerCount()).toBe(0);
+    },
+  );
+
+  it("accepts null as an empty queue without starting a document read", async () => {
+    request.mockResolvedValue(null as never);
+    const { result, unmount } = renderHook(() => useOcrQueue());
+    await tick();
+    expect(result.current).toContain("Análisis automático disponible");
+    expect(fetchDocument).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+    unmount();
+    await tick();
+    expect(jest.getTimerCount()).toBe(0);
+  });
 
   it("finishes the active job, then processes opened requests in order before background work", async () => {
     let finish!: (value: never) => void;
