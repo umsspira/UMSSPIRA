@@ -22,6 +22,17 @@ export const mentorAreasSchema = z.strictObject({
 export const mentorInterestsSchema = z.strictObject({
   ids: z.array(mentorIdSchema).min(1).max(100),
 });
+export const saveMentorInterestsSchema = z.strictObject({
+  areaIds: z
+    .array(mentorIdSchema)
+    .min(1)
+    .max(5)
+    .refine((ids) => new Set(ids).size === ids.length, { message: 'No repitas un área' }),
+  topicIds: z
+    .array(mentorIdSchema)
+    .max(100)
+    .refine((ids) => new Set(ids).size === ids.length, { message: 'No repitas un tópico' }),
+});
 export const availabilitySchema = z.strictObject({
   availabilityStatus: z.enum(['DISPONIBLE', 'EN_PAUSA', 'NO_DISPONIBLE']),
 });

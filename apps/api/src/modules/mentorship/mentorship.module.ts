@@ -19,6 +19,7 @@ import { SetMentorAreasController } from './http/controllers/set-mentor-areas.co
 import { GetMentorInterestCatalogController } from './http/controllers/get-mentor-interest-catalog.controller';
 import { GetMyMentorInterestsController } from './http/controllers/get-my-mentor-interests.controller';
 import { AddMentorInterestsController } from './http/controllers/add-mentor-interests.controller';
+import { SaveMentorInterestsController } from './http/controllers/save-mentor-interests.controller';
 import { RemoveMentorInterestController } from './http/controllers/remove-mentor-interest.controller';
 import { GetMentorAvailabilityController } from './http/controllers/get-mentor-availability.controller';
 import { SetMentorAvailabilityController } from './http/controllers/set-mentor-availability.controller';
@@ -53,6 +54,7 @@ import { DeleteCustomInterestController } from './http/controllers/delete-custom
     GetMentorInterestCatalogController,
     GetMyMentorInterestsController,
     AddMentorInterestsController,
+    SaveMentorInterestsController,
     RemoveMentorInterestController,
     CreateCustomInterestController,
     UpdateCustomInterestController,

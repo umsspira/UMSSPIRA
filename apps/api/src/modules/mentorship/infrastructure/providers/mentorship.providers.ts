@@ -40,6 +40,7 @@ import { SetMentorAreasUseCase } from '../../application/use-cases/set-mentor-ar
 import { GetMentorInterestCatalogUseCase } from '../../application/use-cases/get-mentor-interest-catalog.use-case';
 import { GetMyMentorInterestsUseCase } from '../../application/use-cases/get-my-mentor-interests.use-case';
 import { AddMentorInterestsUseCase } from '../../application/use-cases/add-mentor-interests.use-case';
+import { SaveMentorInterestsUseCase } from '../../application/use-cases/save-mentor-interests.use-case';
 import { RemoveMentorInterestUseCase } from '../../application/use-cases/remove-mentor-interest.use-case';
 import { GetMentorAvailabilityUseCase } from '../../application/use-cases/get-mentor-availability.use-case';
 import { SetMentorAvailabilityUseCase } from '../../application/use-cases/set-mentor-availability.use-case';
@@ -164,6 +165,12 @@ export const mentorshipProviders: Provider[] = [
     provide: AddMentorInterestsUseCase,
     inject: [MENTOR_CATALOG_REPOSITORY],
     useFactory: (repository: MentorCatalogRepository) => new AddMentorInterestsUseCase(repository),
+  },
+  {
+    provide: SaveMentorInterestsUseCase,
+    inject: [MENTOR_CATALOG_REPOSITORY],
+    useFactory: (repository: MentorCatalogRepository) =>
+      new SaveMentorInterestsUseCase(repository),
   },
   {
     provide: RemoveMentorInterestUseCase,

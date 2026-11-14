@@ -36,9 +36,16 @@ export interface MentorAreas {
   interests: MentorInterest[];
 }
 
+export interface InterestCatalogArea extends AreaReference {
+  description: string;
+  selected: boolean;
+  locked: boolean;
+}
+
 export interface InterestCatalogGroup {
-  area: AreaReference;
+  area: InterestCatalogArea;
   interests: (MentorInterest & { selected: boolean })[];
+  customInterestsAvailable?: boolean;
 }
 
 export interface DirectoryMentor {
