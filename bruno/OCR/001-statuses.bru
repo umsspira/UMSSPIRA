@@ -1,0 +1,36 @@
+meta {
+  name: Estados por carrera
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/statuses
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "ids": [
+      "{{ocrApplicationId}}"
+    ]
+  }
+}
+
+tests {
+  test("HTTP 201", function () { expect(res.getStatus()).to.equal(201); });
+  test("Lista de estados", function () { expect(res.getBody().data).to.be.an("array"); });
+}
+
+docs {
+  Configurar ocrApplicationId con UUID de solicitud ficticia propia. No modifica datos.
+}

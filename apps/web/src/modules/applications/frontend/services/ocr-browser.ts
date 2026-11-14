@@ -50,6 +50,14 @@ async function readDocument(
   // Keep a reference to terminate the actual Worker on route changes, loss of lease or timeout.
   signal.throwIfAborted();
   if (cpuOnly) disposeOcrEngine();
+  const gpu = (
+    navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }
+  ).gpu;
+  const gpuAvailable =
+    !cpuOnly &&
+    !!gpu &&
+    (await gpu.requestAdapter().then(Boolean, () => false));
+  signal.throwIfAborted();
   let worker: Worker | undefined = cachedWorker;
   const terminate = () => {
     worker?.terminate();
@@ -81,14 +89,14 @@ async function readDocument(
           .href,
       },
       ortOptions: {
-        backend: cpuOnly ? "wasm" : "auto",
+        backend: gpuAvailable ? "auto" : "wasm",
         numThreads: globalThis.crossOriginIsolated
           ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
           : 1,
         simd: true,
         wasmPaths: new URL("/ocr/runtime/", location.origin).href,
       },
-      textRecognitionBatchSize: 4,
+      textRecognitionBatchSize: gpuAvailable ? 4 : 1,
     }).catch((error: unknown) => {
       signal.removeEventListener("abort", terminate);
       terminate();
