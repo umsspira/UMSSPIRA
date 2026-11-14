@@ -15,3 +15,6 @@ const PROFILES = { default: { maxAssets: 80 }, desktop: { maxAssets: 200 }, mobi
 const DEFAULT_PROFILE = 'default';
 const PROFILE_KEY = '/__sw-profile';
 const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+
+const EXT = (self.UMSSPIRA_SW = { routes: [], messages: {} });
+try { if (typeof importScripts === 'function') importScripts('/sw-extensions.js'); } catch (e) { console.warn(e); }
