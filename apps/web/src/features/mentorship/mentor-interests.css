@@ -646,10 +646,44 @@
   padding: 20px 24px;
 }
 
-.interests-actions > span {
-  margin-right: auto;
+.interests-actions-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 100%;
+  margin-left: auto;
+}
+
+.interests-actions-buttons {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 100%;
+}
+
+.interests-save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: rgb(27 38 50 / 60%);
+}
+
+.interests-save-status-dirty {
+  color: #a35139;
+}
+
+.interests-save-status-dirty::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .interests-page .mentor-button {
@@ -687,8 +721,7 @@
 }
 
 .interests-page .interests-actions > .mentor-button:first-child {
-  border: 0;
-  padding-left: 0;
+  border: 1px solid #c9c1b1;
 }
 
 .interests-page .mentor-button:disabled {
@@ -697,6 +730,8 @@
 }
 
 .interests-page .interests-actions .mentor-button {
+  min-width: 0;
+  white-space: normal;
   min-height: 44px;
   padding: 11px 20px;
 }
@@ -805,7 +840,8 @@
     width: 100%;
   }
 
-  .interests-actions > span {
+  .interests-actions-panel,
+  .interests-actions-buttons {
     width: 100%;
   }
 

@@ -726,19 +726,29 @@ export function MentorInterests({
           <ArrowLeftIcon size={16} aria-hidden="true" />
           Volver a Áreas técnicas
         </SecondaryButton>
-        <span role="status">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span>
-        <SecondaryButton disabled={!dirty || saving} onClick={() => setDialog('discard')}>
-          Descartar cambios
-        </SecondaryButton>
-        <PrimaryButton disabled={!dirty} loading={saving} loadingLabel="Guardando…" onClick={() => setDialog('save')}>
-          Guardar configuración ({draft.topicIds.length})
-        </PrimaryButton>
-        {success && (
-          <SecondaryButton className="interests-return-profile" onClick={() => leave('/mentorship/profile')}>
-            <CheckIcon size={16} aria-hidden="true" />
-            Volver a mi perfil
-          </SecondaryButton>
-        )}
+        <div className="interests-actions-panel">
+          <div className="interests-actions-buttons">
+            <SecondaryButton disabled={!dirty || saving} onClick={() => setDialog('discard')}>
+              Descartar cambios
+            </SecondaryButton>
+            {success ? (
+              <PrimaryButton className="interests-return-profile" onClick={() => leave('/mentorship/profile')}>
+                <CheckIcon size={16} aria-hidden="true" />
+                Volver a mi perfil
+              </PrimaryButton>
+            ) : (
+              <PrimaryButton disabled={!dirty} loading={saving} loadingLabel="Guardando…"
+                iconRight={ArrowRightIcon} onClick={() => setDialog('save')}>
+                Guardar configuración ({draft.topicIds.length})
+              </PrimaryButton>
+            )}
+          </div>
+          {!success && (
+            <span role="status" className={`interests-save-status${dirty ? ' interests-save-status-dirty' : ''}`}>
+              {dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}
+            </span>
+          )}
+        </div>
       </footer>
 
       {/* Modal guardar configuración */}

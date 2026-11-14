@@ -41,7 +41,29 @@ it('guarda solo después de confirmar y muestra el resultado', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
   await screen.findByText(/Intereses guardados correctamente/);
   expect(onSave).toHaveBeenCalledWith({ areaIds: ['web'], topicIds: ['react', 'rest'] });
-  expect(screen.getByRole('button', { name: /Guardar configuración/ })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: /Guardar configuración/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Descartar cambios' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Volver a mi perfil' })).toBeEnabled();
+  expect(screen.queryByText('Cambios sin guardar')).not.toBeInTheDocument();
+  expect(screen.queryByText('Sin cambios pendientes')).not.toBeInTheDocument();
+  expect(push).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Volver a mi perfil' }));
+  expect(push).toHaveBeenCalledWith('/mentorship/profile');
+});
+
+it('muestra el estado debajo de las acciones y vuelve a guardar al editar después del éxito', async () => {
+  setup();
+  expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
+  add();
+  const status = screen.getByText('Cambios sin guardar');
+  expect(status.previousElementSibling).toHaveClass('interests-actions-buttons');
+  openSave();
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+  await screen.findByRole('button', { name: 'Volver a mi perfil' });
+  fireEvent.click(screen.getByRole('button', { name: 'APIs REST' }));
+  expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Guardar configuración/ })).toBeEnabled();
+  expect(screen.getByText('Cambios sin guardar')).toBeInTheDocument();
 });
 
 it('mantiene el borrador y permite reintentar cuando falla el guardado', async () => {
@@ -49,6 +71,7 @@ it('mantiene el borrador y permite reintentar cuando falla el guardado', async (
   setup(); add(); openSave();
   fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Error de conexión');
+  expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'true');
   fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
   await screen.findByText(/Intereses guardados correctamente/);
