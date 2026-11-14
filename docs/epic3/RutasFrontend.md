@@ -13,16 +13,18 @@ Informe de análisis estático del frontend de la Épica 3.
 | Endpoints de radar consumidos | `GET /api/v1/radar`, `POST /api/v1/radar/recalculate` y `GET /api/v1/radar/certifications/:area` |
 | Endpoint de respaldo consumido | `GET /api/v1/perfil/certificaciones/:id/respaldo/enlace` y el archivo firmado público |
 | Endpoint backend sin consumo frontend | `POST /api/v1/nlp/extract` |
-| Endpoint frontend sin backend | `POST /affinity/config`, declarado pero no usado y no existente en la API |
-| Estado local actual | `NEXT_PUBLIC_USE_AFFINITY_MOCK=true` en `apps/web/.env.local` |
+| Endpoint frontend sin backend | Ninguno: `saveAffinityConfig` y `POST /affinity/config` se eliminaron en la auditoría de mocks |
+| Estado local actual | `NEXT_PUBLIC_USE_AFFINITY_MOCK` no está en `apps/web/.env.local`; el mock de afinidad solo se activa en pruebas automatizadas |
 
-La única pantalla que ejercita el cálculo real de afinidad es `/afinidad/egresado`. La vista de reclutador corresponde funcionalmente a la Épica 4 y usa un arreglo estático. `/radar-preview` es una demostración pública con datos de ejemplo. El flujo de recálculo usa 500 ms de debounce y 7000 ms de timeout; no usa los 2000 ms citados en ejemplos de diseño.
+> Actualización 2026-11-14 (auditoría de mocks): `NEXT_PUBLIC_USE_AFFINITY_MOCK` ya no puede activar datos simulados en desarrollo ni en producción; requiere `NODE_ENV=test`. Los controles de simulación se ignoran en builds de producción. `/afinidad/reclutador` muestra por defecto un estado de dependencia y solo revela la demostración mediante una acción explícita. `POST /affinity/config` y `saveAffinityConfig` fueron eliminados. El inventario priorizado completo está en `docs/epic3/AuditoriaMocks.md`.
+
+La única pantalla que ejercita el cálculo real de afinidad es `/afinidad/egresado`. La vista de reclutador corresponde funcionalmente a la Épica 4; tras la auditoría, su estado operativo por defecto es "no disponible" y los datos de ejemplo solo se muestran tras una acción explícita. `/radar-preview` es una demostración pública con datos de ejemplo. El flujo de recálculo usa 500 ms de debounce y 7000 ms de timeout; no usa los 2000 ms citados en ejemplos de diseño.
 
 Hallazgos principales:
 
-- El frontend declara `POST /affinity/config`, pero la API no expone ese controlador y el proxy no incluye el módulo `affinity`. La función `saveAffinityConfig` no se invoca desde la interfaz.
+- El frontend ya no declara `POST /affinity/config`: `saveAffinityConfig` y `AFFINITY_CONFIG_ENDPOINT` se eliminaron porque la API no expone ese controlador y el proxy no incluye el módulo `affinity`.
 - El middleware permite que el rol `administrador` abra `/afinidad` y `/afinidad/egresado`, pero la API exige `radar:self:read` o `radar:self:write` y un `graduateId`. El administrador no tiene esos permisos ni scope, por lo que la vista termina en error.
-- El modo mock de afinidad no cubre certificaciones: `getAreaCertifications` siempre llama al backend, incluso con `NEXT_PUBLIC_USE_AFFINITY_MOCK=true`.
+- El modo mock de afinidad no cubre certificaciones: `getAreaCertifications` siempre llama al backend. Esto solo aplica a pruebas automatizadas, porque el mock ya no se activa fuera de `NODE_ENV=test`.
 - El README del módulo Radar describe áreas obsoletas (`cybersecurity` y `mobile-development`); el código y el contrato compartido usan `cybersecurity-networks` e `it-management`.
 - Hay componentes y un hook sin montaje en rutas: `AffinityCalculator`, `AffinitySummaryCard`, `AffinitySiteHeader`, `AffinitySiteFooter` y `useAffinityCalculation`.
 
@@ -83,8 +85,8 @@ apps/web/src/app
 |---|---|---|---|---|---|
 | `/afinidad` | `apps/web/src/app/(dashboard)/afinidad/page.tsx` | Server Component | `redirect('/afinidad/egresado')` | Titulado y administrador | IMPLEMENTADO |
 | `/afinidad/egresado` | `apps/web/src/app/(dashboard)/afinidad/egresado/page.tsx` | Client Component | `GraduateAffinityView` | Titulado y administrador | IMPLEMENTADO |
-| `/afinidad/reclutador` | `apps/web/src/app/(dashboard)/afinidad/reclutador/page.tsx` | Client Component | `RecruiterCandidatesView` | Empresa y administrador | IMPLEMENTADO CON MOCK |
-| `/radar-preview` | `apps/web/src/app/radar-preview/page.tsx` | Server Component | `AffinityRadar` con JSON de ejemplo | Público | IMPLEMENTADO CON MOCK |
+| `/afinidad/reclutador` | `apps/web/src/app/(dashboard)/afinidad/reclutador/page.tsx` | Client Component | `RecruiterCandidatesView` | Empresa y administrador | PARCIAL / BLOQUEADO POR DEPENDENCIA |
+| `/radar-preview` | `apps/web/src/app/radar-preview/page.tsx` | Server Component | `AffinityRadar` con JSON de ejemplo | Público | DEMOSTRACIÓN EXPLÍCITA |
 | `/postulantes` | `apps/web/src/app/(dashboard)/postulantes/page.tsx` | Server Component | `redirect('/afinidad/reclutador')` | Empresa y administrador | IMPLEMENTADO |
 | `/empresa/postulantes` | `apps/web/src/app/(dashboard)/empresa/postulantes/page.tsx` | Server Component | `redirect('/afinidad/reclutador')` | Empresa y administrador | IMPLEMENTADO |
 | `/api/v1/[...path]` | `apps/web/src/app/api/v1/[...path]/route.ts` | Route Handler | Proxy hacia la API interna | Según el endpoint de destino | IMPLEMENTADO |
@@ -125,7 +127,7 @@ El parámetro `returnTo` se valida con `rutaDeRegreso` en `apps/web/src/modules/
 - Tipo: Client Component que renderiza `GraduateAffinityView`.
 - Contenedor: `main` con ancho máximo y padding. El header lo aporta `(dashboard)/layout.tsx`.
 - Datos: `getAffinityVector`, `recalculateAffinity`, `getAreaCertifications` y `obtenerEnlaceRespaldo`.
-- Estado: IMPLEMENTADO. En el entorno local opera con mock; con `NEXT_PUBLIC_USE_AFFINITY_MOCK=false` usa los endpoints reales.
+- Estado: IMPLEMENTADO. Usa siempre los endpoints reales en desarrollo y producción. `NEXT_PUBLIC_USE_AFFINITY_MOCK` solo surte efecto con `NODE_ENV=test`.
 - Funciones principales:
   - Carga inicial del vector y skeleton mientras no hay respuesta.
   - Estado vacío cuando las seis áreas están en cero.
@@ -134,7 +136,7 @@ El parámetro `returnTo` se valida con `rutaDeRegreso` en `apps/web/src/modules/
   - Selección de área en el radar y panel de inspección.
   - Panel de certificaciones relacionadas y visor de respaldos.
   - Botón "Recalcular", diálogo de cambios pendientes y aviso de éxito.
-  - Controles de simulación si `NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS=true`.
+  - Controles de simulación si `NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS=true` y el build no es de producción.
 - Parámetros de ruta: ninguno.
 - Observación: el título visible es "Tu afinidad profesional". La vista no recibe `graduateId` por URL; el backend lo obtiene del token.
 
@@ -143,10 +145,11 @@ El parámetro `returnTo` se valida con `rutaDeRegreso` en `apps/web/src/modules/
 - Archivo: `apps/web/src/app/(dashboard)/afinidad/reclutador/page.tsx`.
 - Tipo: Client Component que renderiza `RecruiterCandidatesView`.
 - Comentario del archivo: "Modo Buscador / Reclutador (Épica 4)".
-- Datos: `apps/web/src/shared/mocks/candidates-mock.json`. No hay llamada al backend.
-- Búsqueda: `NlpSearch` reordena el mock con `rankCandidatesByQuery`; no envía texto a `/api/v1/nlp/extract`.
-- Estado: IMPLEMENTADO CON MOCK. La funcionalidad de afinidad real de candidatos no está conectada.
-- Observación: la ruta está bajo `/afinidad`, pero su alcance funcional pertenece a la Épica 4. El `TODO` de `recruiter-candidates-view.tsx` confirma que falta reemplazar el mock.
+- Estado por defecto: no disponible. La vista explica que falta el endpoint de candidatos con afinidad y que el rol empresa no tiene permiso de Radar.
+- Datos: `apps/web/src/shared/mocks/candidates-mock.json` solo se carga tras pulsar "Ver demostración con datos de ejemplo"; la vista muestra un aviso ámbar de que son datos de ejemplo.
+- Búsqueda: `NlpSearch` recibe una función `searchCandidates` desde la pantalla; la demostración reordena su fixture con `rankCandidatesByQuery`. No envía texto a `/api/v1/nlp/extract` porque no hay contrato de candidatos.
+- Estado: PARCIAL / BLOQUEADO POR DEPENDENCIA. La ruta no puede operar con datos reales hasta que exista el endpoint de candidatos de la Épica 4 coordinado con Épica 3.
+- Observación: la ruta está bajo `/afinidad`, pero su alcance funcional pertenece a la Épica 4. El estado por defecto ya no presenta el mock como si fueran postulaciones reales.
 
 ### 5.4 `/radar-preview`
 
@@ -155,7 +158,7 @@ El parámetro `returnTo` se valida con `rutaDeRegreso` en `apps/web/src/modules/
 - Datos: importa `apps/web/src/shared/mocks/affinity-vector-mock.json` en tiempo de módulo.
 - Comportamiento: muestra `AffinityRadar` con las seis áreas del mock y un aviso de que los datos son de ejemplo.
 - Acceso: público. No está en el `matcher` del middleware y no usa el layout del dashboard.
-- Estado: IMPLEMENTADO CON MOCK.
+- Estado: DEMOSTRACIÓN EXPLÍCITA, pendiente de decisión de Producto/DevOps sobre su permanencia en el despliegue operativo.
 - Observación: es una pantalla de demostración. Si se publica en producción, debe quedar claro que no representa el perfil del visitante.
 
 ### 5.5 Redirecciones alias
@@ -228,7 +231,6 @@ La Épica 3 consume respuestas con sobre `{ data: ... }`. `apiFetch` devuelve di
 | `obtenerEnlaceRespaldo` | `GET /api/v1/perfil/certificaciones/:id/respaldo/enlace` | `CreateBackupLinkController` | `perfil:self:read` | `{ url, expiraEn }` |
 | Enlaces del visor | `GET /api/v1/perfil/respaldos/:id/archivo?expira=...&firma=...` | `ReadSignedBackupController` | Público con enlace firmado | Bytes del archivo, `Content-Type` y `Content-Disposition` |
 | Sin consumidor frontend | `POST /api/v1/nlp/extract` | `ExtractKeywordsController` | `nlp:extract` | `{ keywords, unmapped }` |
-| Sin backend | `POST /affinity/config` | No existe | No aplica | No aplica |
 
 Detalles de contrato:
 
@@ -238,8 +240,8 @@ Detalles de contrato:
 - `GET /api/v1/radar/certifications/:area` valida `:area` con `z.enum(AFFINITY_AREAS)`. Un área inválida responde 400.
 - `GET /api/v1/perfil/certificaciones/:id/respaldo/enlace` devuelve una URL relativa a `/api/v1/perfil/respaldos/...` con `expira` y `firma`.
 - El archivo firmado se sirve con `Cache-Control: private, no-store`. Sin `descargar=1` usa `Content-Disposition: inline`; con `descargar=1` usa `attachment`.
-- `POST /api/v1/nlp/extract` existe y el proxy lo permite, pero `NlpSearch` no lo usa. La búsqueda del reclutador es local y mock.
-- `POST /affinity/config` tiene tres problemas: no existe en la API, no está en la lista de módulos del proxy y `saveAffinityConfig` no se invoca. La constante `AFFINITY_CONFIG_ENDPOINT` tampoco empieza con `/api/v1`, por lo que `apiUrl` la resolvería contra `NEXT_PUBLIC_API_URL` y no contra el proxy.
+- `POST /api/v1/nlp/extract` existe y el proxy lo permite, pero no hay contrato de candidatos que justifique usarlo desde `NlpSearch`; la búsqueda operativa del reclutador está bloqueada.
+- `saveAffinityConfig` y la constante `AFFINITY_CONFIG_ENDPOINT` se eliminaron: la API no expone `POST /affinity/config` y el proxy no incluye el módulo `affinity`.
 
 Transporte y autenticación:
 
@@ -380,8 +382,8 @@ Variables de entorno:
 | Variable | Valor en `.env.example` | Efecto |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3000` | Base de la API para las rutas que no empiezan con `/api/v1/`. |
-| `NEXT_PUBLIC_USE_AFFINITY_MOCK` | `false` | Activa los mocks de afinidad. En producción debe ser `false`. |
-| `NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS` | `false` | Muestra "Simular Actualización" y "Simular Timeout". |
+| `NEXT_PUBLIC_USE_AFFINITY_MOCK` | `false` | Solo activa los mocks de afinidad cuando `NODE_ENV=test`. No tiene efecto en `next dev` ni en `next build`. |
+| `NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS` | `false` | Muestra "Simular Actualización" y "Simular Timeout" en desarrollo; se ignora en builds de producción. |
 | `API_INTERNAL_URL` | No definida | Base interna usada por el middleware y el proxy. Si falta, usa `NEXT_PUBLIC_API_URL`. |
 | `NEXT_PUBLIC_DEMO_MODE` | No definida | Afecta el envío de tokens en `apiFetch`; no es exclusiva de la Épica 3. |
 
@@ -389,12 +391,12 @@ Mocks disponibles:
 
 | Archivo | Contenido | Consumidor |
 |---|---|---|
-| `apps/web/src/shared/mocks/affinity-vector-mock.json` | Vector de seis áreas | `getAffinityVector`, `calculateAffinityVector` y `radar-preview` |
-| `apps/web/src/shared/mocks/affinity-snapshots-mock.json` | Tres snapshots rotativos | `recalculateAffinity` en modo mock |
-| `apps/web/src/shared/mocks/affinity-config-mock.json` | Ponderaciones por área | `getAffinityConfig` en modo mock |
-| `apps/web/src/shared/mocks/candidates-mock.json` | Candidatos, áreas y evidencia | `RecruiterCandidatesView` y `NlpSearch` |
+| `apps/web/src/shared/mocks/affinity-vector-mock.json` | Vector de seis áreas | `getAffinityVector` y `calculateAffinityVector` solo en pruebas; `radar-preview` como demo explícita |
+| `apps/web/src/shared/mocks/affinity-snapshots-mock.json` | Tres snapshots rotativos | `recalculateAffinity` solo en pruebas |
+| `apps/web/src/shared/mocks/affinity-config-mock.json` | Ponderaciones por área | `getAffinityConfig` solo en pruebas |
+| `apps/web/src/shared/mocks/candidates-mock.json` | Candidatos, áreas y evidencia | Demostración explícita de `RecruiterCandidatesView` |
 
-Comportamiento con mock activo:
+Comportamiento con mock activo (solo `NODE_ENV=test`):
 
 - `getAffinityVector` devuelve el vector de ejemplo sin espera.
 - `calculateAffinityVector` espera 1000 ms y devuelve el vector con `calculatedAt` actual.
@@ -402,14 +404,13 @@ Comportamiento con mock activo:
 - `getAffinityConfig` usa el mock de configuración y ordena los ejes según `AFFINITY_AREAS`.
 - `getAreaCertifications` no consulta el flag de mock. Siempre llama a `GET /api/v1/radar/certifications/:area`. En un entorno sin backend, el panel de certificaciones muestra error aunque el resto de la vista use mock.
 - `RadarBackupViewerModal` siempre usa el endpoint real de Perfil.
-- La búsqueda del reclutador usa el mock sin espera artificial y sin llamada de red.
+- La búsqueda del reclutador, cuando se abre la demostración, reordena el fixture sin espera artificial y sin llamada de red.
 
-Comportamiento con mock apagado:
+Comportamiento con mock apagado (desarrollo y producción):
 
 - `getAffinityVector` llama a `GET /api/v1/radar` y adapta las áreas.
 - `recalculateAffinity` llama a `POST /api/v1/radar/recalculate`.
 - `getAffinityConfig` no llama a `/affinity/config`. Construye los ejes a partir de `weighting` del vector.
-- `saveAffinityConfig` llamaría a `POST /affinity/config`, pero no se usa.
 - `getAreaCertifications` llama al endpoint real.
 - Los errores 401 se convierten en "Tu sesion expiro. Inicia sesion nuevamente" en `apiFetch`; los demás estados se convierten en `ApiError` con el mensaje de la API. La vista de afinidad, de todos modos, muestra su mensaje genérico "No se pudo actualizar tu radar".
 
@@ -437,7 +438,8 @@ Pruebas existentes relacionadas:
 | `apps/web/src/shared/components/affinity-influential-keywords.test.tsx` | Palabras clave. |
 | `apps/web/src/shared/components/candidate-card.test.tsx` | Tarjeta de candidato y radar mini. |
 | `apps/web/src/shared/components/evidence-breakdown.test.tsx` | Pestañas y evidencia. |
-| `apps/web/src/shared/components/nlp-search.test.tsx` | Búsqueda local y reordenamiento. |
+| `apps/web/src/shared/components/nlp-search.test.tsx` | Búsqueda delegada a la pantalla y ausencia de búsqueda cuando no se provee callback. |
+| `apps/web/src/shared/components/recruiter-candidates-view.test.tsx` | Estado de dependencia por defecto, revelado explícito de la demo, aviso y ordenamiento. |
 | `apps/web/src/shared/components/candidates-empty-state.test.tsx` | Estado vacío del reclutador. |
 | `apps/web/src/shared/components/radar-real-data.test.tsx` | Integración de datos reales del radar. |
 | `apps/web/src/shared/components/t3.6-certificacion-aws-radar.e2e.test.tsx` | Caso AWS y radar. El nombre usa puntos, no kebab-case. |
@@ -451,12 +453,12 @@ Pruebas existentes relacionadas:
 
 | Severidad | Hallazgo | Evidencia | Recomendación |
 |---|---|---|---|
-| Alta | `POST /affinity/config` no existe en la API y no está en el proxy. | `affinity-service.ts:19`, `:172-181`; `route.ts:4-8` | Eliminar `saveAffinityConfig` y la constante, o implementar el endpoint y agregar `affinity` a la lista de módulos. |
+| Resuelto | `POST /affinity/config` no existía en la API ni en el proxy. | `affinity-service.ts` | Eliminados `saveAffinityConfig`, `AFFINITY_CONFIG_ENDPOINT` y sus pruebas. |
 | Alta | El administrador puede abrir la afinidad del titulado, pero la API lo rechaza. | `route-access.ts:82-92`; `access.policy.ts`; `graduate-scope.ts:8-13` | Decidir el modo administrativo y ajustar middleware, permisos y mensaje de error. |
-| Media | El mock de afinidad no cubre certificaciones ni respaldos. | `affinity-service.ts:234-239`; `radar-certifications-panel.tsx:20-27` | Agregar mock de certificaciones o condicionar el panel al modo real. |
-| Media | La vista de reclutador es de Épica 4 y no consume backend. | `recruiter-candidates-view.tsx:11`; `nlp-search.tsx:49-54` | Mover la ruta a la Épica 4 y conectar `POST /api/v1/nlp/extract` cuando exista el contrato de candidatos. |
+| Media | El mock de afinidad no cubre certificaciones ni respaldos. | `affinity-service.ts`; `radar-certifications-panel.tsx` | Agregar mock de certificaciones o condicionar el panel al modo real; hoy el mock solo existe en pruebas. |
+| Media | La vista de reclutador es de Épica 4 y no consume backend. | `recruiter-candidates-view.tsx`; `nlp-search.tsx` | Estado de dependencia ya implementado; conectar el contrato de candidatos cuando exista, en coordinación con Épica 4. |
 | Media | El README del módulo Radar describe áreas obsoletas. | `apps/api/src/modules/radar/README.md:12-13` | Actualizar el README a `cybersecurity-networks` e `it-management`. |
-| Media | `/radar-preview` es público y usa datos de ejemplo. | `radar-preview/page.tsx:1-18`; `middleware.ts:65-72` | Mantenerlo solo en desarrollo o protegerlo con una bandera de entorno. |
+| Media | `/radar-preview` es público y usa datos de ejemplo. | `radar-preview/page.tsx`; `middleware.ts:65-72` | Producto/DevOps deben confirmar si permanece como demo explícita o sale del despliegue operativo. |
 | Baja | Componentes y hook sin montaje efectivo. | `affinity-calculator.tsx`, `affinity-summary-card.tsx`, `affinity-site-header.tsx`, `affinity-site-footer.tsx`, `use-affinity-calculation.ts` | Eliminarlos o integrarlos en una ruta concreta. |
 | Baja | Identificadores en español en código de la Épica 3. | `graduate-affinity-view.tsx:44,46,52`; `affinity-areas.ts:13,22,29` | Renombrar a inglés: `months`, `year`, `CERTIFICATION_ROUTE`, `LABEL_TO_AREA_ID`, `normalize`, `isOfficialArea`. |
 | Baja | Emojis en comentarios de navegación. | `navbar/navigation.ts:62,66` | Eliminarlos si se aplica la regla de "sin emojis" a todo el código. |
@@ -477,7 +479,7 @@ Checklist de convenciones:
 | Textos de UI y comentarios en español | Cumple | La UI y los comentarios están en español. |
 | Sin emojis | Cumple en UI, falla en comentarios | La UI de afinidad no tiene emojis; `navigation.ts` sí tiene emojis en comentarios. |
 | Componentes compartidos en `shared/components` | Cumple con observación | `AffinityLinkCard` está en `modules/profile/ver` por pertenecer a Perfil. |
-| Endpoints existentes y consumidos correctamente | Falla parcialmente | `POST /affinity/config` no existe y no se usa; `POST /api/v1/nlp/extract` existe y no se consume. |
+| Endpoints existentes y consumidos correctamente | Cumple parcialmente | `POST /api/v1/nlp/extract` existe y no se consume porque falta el contrato de candidatos. |
 | Pruebas de componentes y servicios | Cumple | Hay cobertura amplia de radar, afinidad, reclutador y respaldos. |
 
 Pendientes de verificación:
@@ -486,5 +488,6 @@ Pendientes de verificación:
 - Probar con `NEXT_PUBLIC_USE_AFFINITY_MOCK=false` y una sesión de titulado real.
 - Probar el rol administrador en `/afinidad/egresado` y confirmar el 403.
 - Abrir y descargar un respaldo PDF y uno JPG reales.
-- Confirmar que `POST /affinity/config` no existe en el entorno desplegado y decidir si se elimina o se implementa.
+- Confirmar con Producto/DevOps si `/radar-preview` permanece como demostración explícita en el despliegue operativo.
+- Confirmar con Épica 4 el contrato de candidatos y si `/afinidad/reclutador` debe moverse de ruta o quedarse bajo Épica 3.
 - Confirmar si `/radar-preview` debe existir en producción.
