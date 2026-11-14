@@ -5,8 +5,14 @@ import {
   RadarRepositoryPort,
   AreaScoreRecord,
 } from '../ports/radar-repository.port';
-import { calculateAreaAffinity } from '../../domain/policies/affinity-calculator';
-import { ALGORITHM_VERSION } from '../../domain/policies/affinity-config';
+import {
+  calculateAreaAffinity,
+  calculateAreaKeywordContributions,
+} from '../../domain/policies/affinity-calculator';
+import {
+  ALGORITHM_VERSION,
+  DICTIONARY_VERSION,
+} from '../../domain/policies/affinity-config';
 import { calculateInputHash } from '../../domain/policies/input-hash';
 import { RADAR_AREA_IDS, RadarArea } from '../../domain/entities/radar-area';
 import { buildRadarVector } from '../services/radar-vector.builder';
@@ -35,7 +41,7 @@ export class RecalculateRadarUseCase {
     texts: readonly string[],
     hasLaborHistory: boolean,
   ): Promise<RadarVector> {
-    const currentHash = calculateInputHash(texts);
+    const currentHash = calculateInputHash(texts, DICTIONARY_VERSION);
     const startedAt = Date.now();
 
     // Bloqueo asesor transaccional (pg_advisory_xact_lock) por titulado.
@@ -76,12 +82,12 @@ export class RecalculateRadarUseCase {
 
       for (const slug of slugs) {
         const areaId = RADAR_AREA_IDS[slug];
-        const areaResult = calculateAreaAffinity(
-          keywords,
-          mappedKeywords
-            .filter((mapping) => mapping.areaId === areaId)
-            .map(({ term, peso }) => ({ term, peso })),
-        );
+        const areaMappings = mappedKeywords
+          .filter((mapping) => mapping.areaId === areaId)
+          .map(({ term, peso }) => ({ term, peso }));
+
+        const areaResult = calculateAreaAffinity(keywords, areaMappings);
+        const contribucionesKeyword = calculateAreaKeywordContributions(keywords, areaMappings);
 
         areas.push({
           areaSlug: slug,
@@ -90,6 +96,7 @@ export class RecalculateRadarUseCase {
           porcentaje: areaResult.porcentaje,
           ponderacion: areaResult.ponderacion,
           palabrasClaveTop: areaResult.palabrasClaveTop,
+          contribucionesKeyword,
         });
       }
 
@@ -99,6 +106,7 @@ export class RecalculateRadarUseCase {
         hashEntrada: currentHash,
         estado,
         versionAlgoritmo: ALGORITHM_VERSION,
+        versionDiccionario: DICTIONARY_VERSION,
         areas,
         unmapped,
       });
