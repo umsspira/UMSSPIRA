@@ -9,7 +9,7 @@ it('conecta las áreas de prueba con los intereses y conserva lo confirmado al v
   fireEvent.click(screen.getByRole('button', { name: 'Modificar áreas técnicas' }));
   fireEvent.click(screen.getByLabelText('Bases de datos'));
   fireEvent.click(screen.getByRole('button', { name: 'Confirmar áreas de prueba' }));
-  expect(screen.getByRole('button', { name: 'PostgreSQL' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'PostgreSQL' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Laravel' }));
   fireEvent.click(screen.getByRole('button', { name: /Guardar configuración/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
