@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { EVENT_STATUS, type EventItem, type EventRegistrationItem } from '@umsspira/shared-types';
+import { EVENT_PARTICIPATION_STATUS, EVENT_STATUS, type EventItem, type EventRegistrationItem, type MyEventRegistrationItem } from '@umsspira/shared-types';
 
 import { ApiClientError } from '@/shared/services/api-client';
-import { cancelEventRegistration, getPublishedEvent, registerForEvent } from '@/shared/services/events-service';
+import { cancelEventRegistration, getMyEventRegistrations, getPublishedEvent, registerForEvent } from '@/shared/services/events-service';
 import { CancelRegistrationAction } from './cancel-registration-action';
 import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
 import { formatPeopleCount } from '@/shared/utils/event-copy';
@@ -35,6 +35,9 @@ export default function EventDetailPage({
   );
   const [isTitulado, setIsTitulado] = useState(false);
   const [registration, setRegistration] = useState<EventRegistrationItem | null>(null);
+  const [existingRegistration, setExistingRegistration] = useState<MyEventRegistrationItem | null>(null);
+  const [historicalRegistration, setHistoricalRegistration] = useState<MyEventRegistrationItem | null>(null);
+  const [registrationLookupFailed, setRegistrationLookupFailed] = useState(false);
   const [isRegistrationCancelled, setIsRegistrationCancelled] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [registrationErrorKind, setRegistrationErrorKind] = useState<'duplicate' | 'capacity' | 'unavailable' | 'generic' | null>(null);
@@ -47,15 +50,39 @@ export default function EventDetailPage({
 
     setIsLoading(true);
     setErrorState(null);
+    setIsTitulado(false);
+    setRegistration(null);
+    setIsRegistrationCancelled(false);
+    setExistingRegistration(null);
+    setHistoricalRegistration(null);
+    setRegistrationLookupFailed(false);
 
     try {
-      setEvent(await getPublishedEvent(id));
       try {
         const currentUser = await getCurrentUser();
-        setIsTitulado(currentUser.role === 'titulado');
+        const titulado = currentUser.role === 'titulado';
+        setIsTitulado(titulado);
+        if (titulado) {
+          try {
+            const registrations = await getMyEventRegistrations();
+            const historical = registrations.find((item) =>
+              item.event.id === id && item.event.status === EVENT_STATUS.CANCELADO);
+            if (historical) {
+              setEvent(null);
+              setHistoricalRegistration(historical);
+              return;
+            }
+            setExistingRegistration(registrations.find((item) =>
+              item.event.id === id && item.status === 'CONFIRMADA'
+              && item.participationStatus === EVENT_PARTICIPATION_STATUS.VIGENTE) ?? null);
+          } catch {
+            setRegistrationLookupFailed(true);
+          }
+        }
       } catch {
         setIsTitulado(false);
       }
+      setEvent(await getPublishedEvent(id));
     } catch (error) {
       setEvent(null);
       setErrorState(
@@ -77,7 +104,7 @@ export default function EventDetailPage({
   );
 
   async function confirmRegistration() {
-    if (!event || isRegistering) return;
+    if (!event || isRegistering || existingRegistration || registrationLookupFailed) return;
 
     if (!navigator.onLine) {
       setIsConfirmOpen(false);
@@ -125,6 +152,43 @@ export default function EventDetailPage({
         <p className="hu2-detail-loading" role="status">
           Cargando evento...
         </p>
+      </main>
+    );
+  }
+
+  if (historicalRegistration) {
+    const historicalEvent = historicalRegistration.event;
+    return (
+      <main className="hu2-detail-page">
+        <div className="hu2-detail-shell">
+          <Link href="/portal/eventos/mis-eventos" className="hu2-back-link">
+            ← Volver a mis eventos
+          </Link>
+          <div className="hu2-detail-grid">
+            <article className="hu2-detail-hero">
+              <header className="hu2-detail-cover">
+                <span className="hu2-cover-accent" aria-hidden="true" />
+                <p>Evento universitario</p>
+                <strong>{historicalEvent.title.toLocaleUpperCase('es')}</strong>
+                <span className="hu2-detail-status">EVENTO CANCELADO</span>
+              </header>
+              <div className="hu2-detail-hero-copy">
+                <h1 className="min-w-0 max-w-full break-words">{historicalEvent.title}</h1>
+              </div>
+            </article>
+            <aside className="hu2-detail-info">
+              <h2>Información del evento</h2>
+              <dl>
+                <div><dt>Inicio</dt><dd>{formatEventDateTime(historicalEvent.startDate)}</dd></div>
+                <div><dt>Fin</dt><dd>{formatEventDateTime(historicalEvent.endDate)}</dd></div>
+                <div><dt>Ubicación</dt><dd>{historicalEvent.location || 'Por definir'}</dd></div>
+              </dl>
+              <p className="hu3-registration-message" role="status">
+                Este evento fue cancelado y no acepta nuevas inscripciones. Tu participación permanece en el historial.
+              </p>
+            </aside>
+          </div>
+        </div>
       </main>
     );
   }
@@ -261,7 +325,18 @@ export default function EventDetailPage({
               </div>
             ) : null}
             {registrationErrorKind === 'capacity' && registrationError ? <p className="hu3-registration-message" role="alert">{registrationError}</p> : null}
-            {isTitulado && isAvailable ? (
+            {isTitulado && existingRegistration ? (
+              <div className="hu3-registration-message" role="status">
+                Ya tienes una inscripción confirmada para este evento.{' '}
+                <Link href="/portal/eventos/mis-eventos">Ver mis eventos</Link>
+                {existingRegistration.hasPass ? <Link href="/events/catalog/passes">Ver pase QR</Link> : null}
+              </div>
+            ) : isTitulado && registrationLookupFailed ? (
+              <div className="hu3-registration-message" role="alert">
+                No pudimos verificar tu inscripción. Intenta nuevamente antes de inscribirte.
+                <button type="button" onClick={() => void loadEvent()}>Reintentar</button>
+              </div>
+            ) : isTitulado && isAvailable ? (
               <>
                 <button
                   type="button"
@@ -299,7 +374,7 @@ export default function EventDetailPage({
           <h2>Descripción</h2>
           <p>{event.description || 'Sin descripción disponible.'}</p>
         </section>
-        {isFull ? (
+        {isFull && !existingRegistration ? (
           <section className="hu3-capacity-alert" role="alert">
             <div>
               <h2>No es posible completar la inscripción</h2>

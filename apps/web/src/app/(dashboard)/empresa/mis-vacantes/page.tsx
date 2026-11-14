@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
 import { API_BASE_URL } from '@/shared/config/api';
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
 
 interface Vacante {
   id: string;
@@ -22,6 +23,8 @@ interface Vacante {
 
 export default function MisVacantesPage() {
   const router = useRouter();
+  // BUG-06-01: en celular la tabla se muestra como tarjetas
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [vacantes, setVacantes] = useState<Vacante[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -95,6 +98,7 @@ export default function MisVacantesPage() {
       }
     };
     fetchVacantes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handlePausar = async (vacante: Vacante) => {
@@ -172,11 +176,19 @@ export default function MisVacantesPage() {
   };
 
   const getBadgeStyle = (estado: string) => {
-    switch(estado) {
-      case 'ACTIVA': return { bg: '#dcfce7', color: '#15803d', dot: '#22c55e' };
-      case 'PAUSADA': return { bg: '#fef3c7', color: '#b45309', dot: '#f59e0b' };
-      case 'CERRADA': return { bg: '#e5e7eb', color: '#374151', dot: '#6b7280' };
-      default: return { bg: '#f9fafb', color: '#9ca3af', dot: '#d1d5db' };
+    // Convertimos todo a mayúsculas para que no falle si llega como "Pausada" o "pausada"
+    const estadoNormalizado = estado?.toUpperCase() || 'BORRADOR'; 
+    
+    switch(estadoNormalizado) {
+      case 'ACTIVA': 
+        return { bg: '#dcfce7', color: '#166534', dot: '#22c55e' }; // Verde
+      case 'PAUSADA': 
+        return { bg: '#f3f4f6', color: '#4b5563', dot: '#6b7280' }; // Gris oscuro (BUG corregido)
+      case 'CERRADA': 
+        return { bg: '#e5e7eb', color: '#374151', dot: '#6b7280' }; // Gris
+      case 'BORRADOR':
+      default: 
+        return { bg: '#f9fafb', color: '#9ca3af', dot: '#d1d5db' }; // Gris claro
     }
   };
 
@@ -196,14 +208,14 @@ export default function MisVacantesPage() {
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--ink)' }}>Cargando vacantes...</div>;
 
   return (
-    <div style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', padding: isMobile ? '1rem' : '2rem', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         
         <Link href="/empresa/vacantes/publicar" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#4b5563', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600, transition: 'all 0.2s' }}>
           <ArrowLeft size={16} /> Volver a Publicar Vacantes
         </Link>
 
-        <div style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', padding: '2.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+        <div style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', padding: isMobile ? '1.25rem' : '2.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -314,17 +326,24 @@ export default function MisVacantesPage() {
             })}
           </div>
 
-          <div style={{ border: '1px solid var(--oatmeal)', borderRadius: '0.75rem', backgroundColor: '#fff' }}>
+          {/* BUG-06-01: en celular el contenedor no lleva borde y las filas son tarjetas separadas */}
+          <div style={isMobile
+            ? { display: 'flex', flexDirection: 'column', gap: '0.75rem' }
+            : { border: '1px solid var(--oatmeal)', borderRadius: '0.75rem', backgroundColor: '#fff' }
+          }>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 2.5fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '1rem', backgroundColor: '#fcfcfc', borderBottom: '1px solid var(--oatmeal)', fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center', borderRadius: '0.75rem 0.75rem 0 0' }}>
-              <div><input type="checkbox" style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: 'var(--flame)' }} /></div>
-              <div>Título</div>
-              <div>Modalidad</div>
-              <div>Nivel</div>
-              <div>Estado</div>
-              <div>Fecha</div>
-              <div style={{ textAlign: 'center' }}>Acciones</div>
-            </div>
+            {/* BUG-06-01: los encabezados se ocultan en celular */}
+            {!isMobile && (
+              <div style={{ display: 'grid', gridTemplateColumns: '40px 2.5fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '1rem', backgroundColor: '#fcfcfc', borderBottom: '1px solid var(--oatmeal)', fontSize: '0.75rem', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', alignItems: 'center', borderRadius: '0.75rem 0.75rem 0 0' }}>
+                <div><input type="checkbox" style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: 'var(--flame)' }} /></div>
+                <div>Título</div>
+                <div>Modalidad</div>
+                <div>Nivel</div>
+                <div>Estado</div>
+                <div>Fecha</div>
+                <div style={{ textAlign: 'center' }}>Acciones</div>
+              </div>
+            )}
 
             {vacantesFiltradas.length === 0 ? (
               <div style={{ padding: '4rem', textAlign: 'center', color: '#4b5563', fontWeight: 500 }}>
@@ -337,7 +356,19 @@ export default function MisVacantesPage() {
                 return (
                   <div 
                     key={vacante.id} 
-                    style={{ 
+                    style={isMobile ? {
+                      position: 'relative',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '0.75rem 1rem',
+                      padding: '1rem',
+                      border: '1px solid var(--oatmeal)',
+                      borderRadius: '0.75rem',
+                      alignItems: 'center',
+                      fontSize: '0.875rem',
+                      backgroundColor: '#fff',
+                      transition: 'background-color 0.2s'
+                    } : { 
                       display: 'grid', 
                       gridTemplateColumns: '40px 2.5fr 1fr 1fr 1fr 1fr 120px', 
                       gap: '1rem', 
@@ -353,11 +384,15 @@ export default function MisVacantesPage() {
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}
                   >
                     
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* En celular el checkbox va arriba a la derecha de la tarjeta */}
+                    <div style={isMobile
+                      ? { position: 'absolute', top: '1rem', right: '1rem', display: 'flex' }
+                      : { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+                    }>
                       <input type="checkbox" style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--flame)', border: '1px solid #f43f5e', borderRadius: '4px' }} />
                     </div>
 
-                    <div>
+                    <div style={isMobile ? { gridColumn: '1 / -1', paddingRight: '2rem' } : undefined}>
                       <div style={{ fontWeight: '700', color: '#111827', fontSize: '0.95rem' }}>{vacante.titulo}</div>
                       <div style={{ fontSize: '0.8rem', color: '#4b5563', marginTop: '0.25rem', fontWeight: 500 }}>{vacante.tecnologias}</div>
                     </div>
@@ -384,7 +419,7 @@ export default function MisVacantesPage() {
                       <Calendar size={15} /> {vacante.fecha_publicacion}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: isMobile ? 'flex-end' : 'center', gap: '0.4rem', position: 'relative', ...(isMobile ? { gridColumn: '1 / -1' } : {}) }}>
                       
                       <button 
                         onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}`)}
@@ -409,9 +444,7 @@ export default function MisVacantesPage() {
                           <button onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Eye size={14} /> Ver detalle</button>
                           <button onClick={() => handleEditar(vacante.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pencil size={14} /> Editar</button>
                           
-                          {/* 👇 AQUÍ ESTÁ EL BOTÓN CORREGIDO 👇 */}
                           <button onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}/candidatos`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Users size={14} /> Ver postulantes</button>
-                          {/* 👆 FIN DEL BOTÓN CORREGIDO 👆 */}
 
                           {vacante.estado === 'ACTIVA' && (
                             <button onClick={() => handlePausar(vacante)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pause size={14} /> Pausar</button>

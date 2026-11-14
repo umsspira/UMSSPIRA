@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, FolderOpen, Mail, UserRound } from 'lucide-react';
 import { Button } from '@/shared/components/button';
 import {
@@ -43,6 +43,8 @@ const alertClass =
 
 export function ObservedReviewSubmit({ token, version, result, currentDocument, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
+  const [declarationAccepted, setDeclarationAccepted] = useState(false);
+  useEffect(() => { setDeclarationAccepted(false); }, [result]);
   // Conserva la versión y los pasos ya guardados para reintentar sin repetirlos (CA-10.5).
   const progress = useRef<ResubmitProgress>({ version, dataSaved: false, documentSaved: false });
   const { values, changedFields, file, emailChanged } = result;
@@ -50,7 +52,7 @@ export function ObservedReviewSubmit({ token, version, result, currentDocument, 
   const sending = phase.name === 'sending';
 
   async function handleSubmit() {
-    if (sending || emailChanged) return;
+    if (!declarationAccepted || sending || emailChanged) return;
     setPhase({ name: 'sending' });
     const outcome = await resubmitObservedApplication(token, result, progress.current);
     if (outcome.status === 'success') setPhase({ name: 'success' });
@@ -133,9 +135,6 @@ export function ObservedReviewSubmit({ token, version, result, currentDocument, 
           <dl className="grid gap-3 sm:grid-cols-3">
             <ReviewField label="Nombres">{mark('firstName', values.firstName)}</ReviewField>
             <ReviewField label="Apellidos">{mark('lastName', values.lastName)}</ReviewField>
-            <ReviewField label="Fecha de nacimiento">
-              {mark('birthDate', values.birthDate)}
-            </ReviewField>
             <ReviewField label="Cédula de Identidad (C.I.)">{mark('ci', values.ci)}</ReviewField>
             <ReviewField label="Complemento">{mark('complement', values.complement)}</ReviewField>
             <ReviewField label="Expedido en">
@@ -192,7 +191,7 @@ export function ObservedReviewSubmit({ token, version, result, currentDocument, 
           </dl>
         </ReviewSection>
 
-        <ReviewDeclaration />
+        <ReviewDeclaration checked={declarationAccepted} onChange={setDeclarationAccepted} disabled={sending} />
       </div>
 
       {emailChanged && (
@@ -215,7 +214,7 @@ export function ObservedReviewSubmit({ token, version, result, currentDocument, 
         <Button
           type="button"
           onClick={handleSubmit}
-          disabled={sending || emailChanged}
+          disabled={!declarationAccepted || sending || emailChanged}
           className="bg-burning-flame text-abyssal-blue hover:bg-burning-flame/90 inline-flex items-center justify-center gap-2 px-6 text-sm font-bold"
         >
           {sending ? 'Entregando...' : phase.name === 'error' ? 'Reintentar' : 'Entregar solicitud'}

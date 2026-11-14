@@ -1,3 +1,4 @@
+import { RADAR_CERTIFICATION_READER_PORT } from '../src/modules/radar/application/ports/certification-reader.port';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -76,6 +77,7 @@ function account(role: 'titulado' | 'empresa') {
   return found;
 }
 
+const certificationReader = { getCertifications: jest.fn().mockResolvedValue([]) };
 const radarRepository = new InMemoryRadarRepository();
 const profileReader = new StubProfileTextReader();
 const extractor = new StubKeywordExtractor();
@@ -89,6 +91,8 @@ async function createApp(): Promise<INestApplication> {
   );
   const auth = new InMemoryAuthStore(hashes);
   const module = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(RADAR_CERTIFICATION_READER_PORT)
+    .useValue(certificationReader)
     .overrideProvider(PrismaService)
     .useValue({})
     .overrideProvider(RedisService)
@@ -164,6 +168,20 @@ describe('Radar HU-8 - contrato HTTP de keywords influyentes', () => {
       .post('/api/v1/radar/recalculate')
       .auth(token, { type: 'bearer' });
   }
+
+  it('certificaciones por área requiere sesión y permiso de titulado', async () => {
+    await request(app.getHttpServer()).get('/api/v1/radar/certifications/cloud-devops').expect(401);
+    await request(app.getHttpServer()).get('/api/v1/radar/certifications/cloud-devops').auth(empresaToken, { type: 'bearer' }).expect(403);
+  });
+
+  it('valida el área y no acepta un titulado ajeno por query', async () => {
+    await request(app.getHttpServer()).get('/api/v1/radar/certifications/invalid').auth(tituladoToken, { type: 'bearer' }).expect(400);
+    certificationReader.getCertifications.mockClear();
+    const result = await request(app.getHttpServer()).get('/api/v1/radar/certifications/cloud-devops?graduateId=foreign').auth(tituladoToken, { type: 'bearer' }).expect(200);
+    expect(result.body.data).toEqual({ area: 'cloud-devops', source: 'current-profile', certifications: [] });
+    expect(certificationReader.getCertifications.mock.calls[0][0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(certificationReader.getCertifications.mock.calls[0][0]).not.toBe('foreign');
+  });
 
   it('GET sin calculo previo responde data con seis areas y previousAffinity null', async () => {
     profileReader.texts = ['javascript'];

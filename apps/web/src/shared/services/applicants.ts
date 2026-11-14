@@ -151,6 +151,64 @@ const MOCK_APPLICANTS: Applicant[] = [
 ];
 
 /* ============================================================
+   FECHAS DE PRUEBA (BUG-05-01)
+   Las fechas de postulación de prueba se calculan a partir de la fecha de
+   publicación de la vacante, para que nunca queden antes de ella.
+   Solo aplica a los datos de prueba: con la API real no se usa.
+   ============================================================ */
+
+// Cuántos días después de la publicación se postuló cada candidato de prueba
+const MOCK_APPLIED_AFTER_DAYS: Record<string, number> = {
+  "app-1": 6,
+  "app-2": 4,
+  "app-3": 2,
+  "app-4": 1,
+  "app-5": 0,
+};
+
+/** "2026-11-01" -> Date local (sin desfase de zona horaria). null si no es válida. */
+function parseIsoDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const [datePart] = value.split("T");
+  const [y, m, d] = datePart.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function toIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Postulantes de prueba con fechas coherentes con la vacante:
+ * nunca antes de su publicación y nunca en el futuro.
+ * Si no se conoce la fecha de la vacante, se dejan las fechas originales.
+ */
+function getMockApplicants(vacancyPublishedAt?: string | null): Applicant[] {
+  const published = parseIsoDate(vacancyPublishedAt);
+  if (!published) return MOCK_APPLICANTS;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return MOCK_APPLICANTS.map((applicant) => {
+    const days = MOCK_APPLIED_AFTER_DAYS[applicant.id] ?? 0;
+    const applied = new Date(
+      published.getFullYear(),
+      published.getMonth(),
+      published.getDate() + days
+    );
+    const notFuture = applied > today ? today : applied;
+    const safe = notFuture < published ? published : notFuture;
+    return { ...applicant, appliedAt: toIsoDate(safe) };
+  });
+}
+
+/* ============================================================
    HELPERS DE RED
    ============================================================ */
 async function apiGet(path: string): Promise<Response> {
@@ -175,15 +233,19 @@ async function readJson(res: Response): Promise<unknown> {
 
 /* ============================================================
    SERVICIO PÚBLICO (lanzan MatchEngineError si fallan)
+   El parámetro vacancyPublishedAt solo se usa con datos de prueba.
    ============================================================ */
 
 /** Lista de postulantes de una vacante. */
-export async function getApplicantsByVacancy(vacancyId: string): Promise<Applicant[]> {
+export async function getApplicantsByVacancy(
+  vacancyId: string,
+  vacancyPublishedAt?: string | null
+): Promise<Applicant[]> {
   if (USE_MOCK) {
     await new Promise((resolve) => setTimeout(resolve, 250));
     if (MOCK_SCENARIO === "error") throw new MatchEngineError();
     if (MOCK_SCENARIO === "empty") return [];
-    return MOCK_APPLICANTS;
+    return getMockApplicants(vacancyPublishedAt);
   }
 
   const res = await apiGet(`/api/v1/vacancies/${vacancyId}/applicants`);
@@ -199,12 +261,13 @@ export async function getApplicantsByVacancy(vacancyId: string): Promise<Applica
 /** Detalle de un postulante. Devuelve null si no existe. */
 export async function getApplicantById(
   vacancyId: string,
-  applicantId: string
+  applicantId: string,
+  vacancyPublishedAt?: string | null
 ): Promise<Applicant | null> {
   if (USE_MOCK) {
     await new Promise((resolve) => setTimeout(resolve, 250));
     if (MOCK_SCENARIO === "error") throw new MatchEngineError();
-    return MOCK_APPLICANTS.find((a) => a.id === applicantId) ?? null;
+    return getMockApplicants(vacancyPublishedAt).find((a) => a.id === applicantId) ?? null;
   }
 
   const res = await apiGet(`/api/v1/vacancies/${vacancyId}/applicants/${applicantId}`);

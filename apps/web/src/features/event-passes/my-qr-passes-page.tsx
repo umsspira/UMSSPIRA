@@ -2,28 +2,30 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   AlertCircle,
   Info,
   LoaderCircle,
   RefreshCw,
-  Ticket,
   WifiOff,
 } from 'lucide-react';
 import type { EventPassDto } from '@umsspira/shared-types';
-
 import { ApiClientError } from '@/shared/services/api-client';
+import { SessionError } from '@/shared/services/auth-session';
+import { authStore } from '@/modules/auth/frontend/store';
 import { getMyEventPasses } from './event-passes-service';
-import { EventPassQrCard } from './event-pass-qr-card';
 import {
   getOfflineQrPasses,
   type OfflineQrPass,
 } from './offline/offline-qr-storage';
 import { getOfflineSessionUserId } from './offline/offline-session';
 import { OfflineSyncStatus } from './offline/offline-sync-status';
+import { EventsMobileBottomNav } from '@/features/events/events-mobile-bottom-nav';
 
 type LoadState = 'loading' | 'success' | 'error';
 type PassSource = 'server' | 'offline';
+type PassFilter = 'all' | 'inactive';
 
 /** Convierte un pase guardado en el dispositivo al formato que usa la tarjeta. */
 function toEventPassDto(saved: OfflineQrPass): EventPassDto {
@@ -56,13 +58,28 @@ async function loadSavedPasses(): Promise<EventPassDto[]> {
   return saved.map(toEventPassDto);
 }
 
-export default function MyQrPassesPage() {
+function isValidPass(pass: EventPassDto): boolean {
+  return pass.status === 'ACTIVO' && pass.isValidForAccess;
+}
+
+function passSchedule(pass: EventPassDto): string {
+  const value = pass.eventDetails?.dateTime;
+  if (!value || Number.isNaN(new Date(value).getTime())) return 'Fecha no disponible';
+  return new Intl.DateTimeFormat('es-BO', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/La_Paz',
+  }).format(new Date(value));
+}
+
+export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }: { passesHref?: string }) {
   const [passes, setPasses] = useState<EventPassDto[]>([]);
   const [source, setSource] = useState<PassSource>('server');
   const [loadState, setLoadState] = useState<LoadState>('loading');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [loadError, setLoadError] = useState<'session' | 'forbidden' | 'unavailable' | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const hasLoaded = useRef(false);
+  const [filter, setFilter] = useState<PassFilter>('all');
+  const validCount = passes.filter(isValidPass).length;
+  const visiblePasses = filter === 'inactive' ? passes.filter((pass) => !isValidPass(pass)) : passes;
 
   const retry = useCallback(() => {
     setRetryCount((value) => value + 1);
@@ -70,11 +87,18 @@ export default function MyQrPassesPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const unsubscribe = authStore.subscribe(() => {
+      if (authStore.getState().status !== 'idle') return;
+      controller.abort();
+      setPasses([]);
+      setLoadError('session');
+      setLoadState('error');
+    });
 
     async function loadPasses() {
       // En recargas posteriores no se vacía la lista: evita parpadeos al reconectar.
       if (!hasLoaded.current) setLoadState('loading');
-      setErrorMessage('');
+      setLoadError(null);
 
       try {
         const result = await getMyEventPasses(controller.signal);
@@ -92,10 +116,12 @@ export default function MyQrPassesPage() {
       } catch (error) {
         if (controller.signal.aborted) return;
 
+        const isServerError =
+          error instanceof ApiClientError || error instanceof SessionError;
+
         // Sin conexión (o fallo de red): se muestran los pases guardados.
         // Si el servidor respondió con un error (ej. sesión rechazada) no se usan.
-        const isNetworkFailure =
-          !navigator.onLine || !(error instanceof ApiClientError);
+        const isNetworkFailure = !navigator.onLine || !isServerError;
 
         if (isNetworkFailure) {
           try {
@@ -117,11 +143,9 @@ export default function MyQrPassesPage() {
 
         if (controller.signal.aborted) return;
 
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : 'No se pudieron cargar tus pases QR.',
-        );
+        const status = error instanceof ApiClientError || error instanceof SessionError
+          ? error.status : undefined;
+        setLoadError(status === 401 ? 'session' : status === 403 ? 'forbidden' : 'unavailable');
 
         setLoadState('error');
       }
@@ -129,7 +153,10 @@ export default function MyQrPassesPage() {
 
     void loadPasses();
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      unsubscribe();
+    };
   }, [retryCount]);
 
   // HU03 CA-01: al volver la conexión la lista se actualiza sola, sin recargar la página.
@@ -141,39 +168,17 @@ export default function MyQrPassesPage() {
   return (
     <main className="qr-passes-page">
       <div className="qr-passes-container">
-        {/* Navegación de eventos */}
-        <nav
-          className="qr-passes-tabs"
-          aria-label="Navegación de eventos"
-        >
-          <Link href="/events/catalog">
-            Explorar
-          </Link>
-
-          <span>Mis eventos</span>
-
-          <Link
-            href="/events/catalog/passes"
-            aria-current="page"
-            className="active"
-          >
-            Mis pases
-          </Link>
-        </nav>
-
-        {/* Encabezado */}
-        <header className="qr-passes-heading">
-          <div className="qr-passes-heading-icon">
-            <Ticket size={24} aria-hidden="true" />
-          </div>
-
-          <h1>Mis pases QR</h1>
-
-          <p>
-            Consulta el estado de tus credenciales digitales
-            para los eventos en los que te inscribiste.
-          </p>
-        </header>
+        <div className="qr-passes-topbar">
+          <header className="qr-passes-heading">
+            <h1>Mis pases QR</h1>
+            <p>Accede a tus credenciales digitales y verifica su estado.</p>
+          </header>
+          <nav className="qr-passes-tabs" aria-label="Navegación de eventos">
+            <Link href="/portal/eventos">Explorar</Link>
+            <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
+            <Link href={passesHref} aria-current="page" className="active">Mis pases</Link>
+          </nav>
+        </div>
 
         {/* HU03: resultado y última actualización de los pases guardados */}
         <OfflineSyncStatus />
@@ -223,20 +228,18 @@ export default function MyQrPassesPage() {
 
             <h2>No pudimos cargar tus pases</h2>
 
-            <p>{errorMessage}</p>
+            <p>{loadError === 'session' ? 'Inicia sesión para consultar tus pases.'
+              : loadError === 'forbidden' ? 'Tu cuenta no tiene permiso para consultar estos pases.'
+              : 'No pudimos consultar el servidor. Inténtalo nuevamente.'}</p>
 
-            <button
-              type="button"
-              className="qr-passes-button"
-              onClick={retry}
-            >
-              <RefreshCw
-                size={18}
-                aria-hidden="true"
-              />
-
-              Reintentar
-            </button>
+            {loadError === 'session' ? (
+              <Link href="/login" className="qr-passes-button">Iniciar sesión</Link>
+            ) : (
+              <button type="button" className="qr-passes-button" onClick={retry}>
+                <RefreshCw size={18} aria-hidden="true" />
+                Reintentar
+              </button>
+            )}
           </section>
         )}
 
@@ -257,7 +260,7 @@ export default function MyQrPassesPage() {
             </p>
 
             <Link
-              href="/events/catalog"
+              href="/portal/eventos"
               className="qr-passes-button"
             >
               Explorar eventos
@@ -265,22 +268,46 @@ export default function MyQrPassesPage() {
           </section>
         )}
 
-        {/* Listado de pases QR */}
+        {/* Listado compacto; el pase completo se conserva al abrirlo. */}
         {loadState === 'success' && passes.length > 0 && (
-          <section
-            className="qr-passes-grid"
-            aria-label="Listado de mis pases"
-          >
-            {passes.map((pass) => (
-              <EventPassQrCard
-                key={pass.id}
-                pass={pass}
-                fromOfflineStorage={source === 'offline'}
-              />
-            ))}
-          </section>
+          <>
+            <div className="qr-passes-filter-bar">
+              <div role="group" aria-label="Filtrar pases" className="qr-passes-filter-options">
+                <button type="button" aria-pressed={filter === 'all'} className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>TODOS</button>
+                <button type="button" aria-pressed={filter === 'inactive'} className={filter === 'inactive' ? 'active' : ''} onClick={() => setFilter('inactive')}>NO VIGENTES</button>
+              </div>
+              <p>{validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}</p>
+            </div>
+            {visiblePasses.length === 0 ? (
+              <p className="qr-passes-no-results" role="status">No tienes pases no vigentes.</p>
+            ) : (
+              <section className="qr-passes-grid" aria-label="Listado de mis pases">
+                {visiblePasses.map((pass) => {
+                  const valid = isValidPass(pass);
+                  return (
+                    <article key={pass.id} className={`qr-passes-list-card${valid ? '' : ' is-inactive'}`}>
+                      {valid && pass.qrToken ? (
+                        <div className="qr-passes-list-qr" aria-label="Vista previa del código QR">
+                          <QRCodeSVG value={pass.qrToken} size={130} fgColor="#1B2632" bgColor="#EEE9DF" />
+                        </div>
+                      ) : null}
+                      <div className="qr-passes-list-copy">
+                        <h2>{pass.eventDetails?.name || 'Evento sin nombre'}</h2>
+                        <span className={`qr-passes-list-status${valid ? '' : ' is-inactive'}`}>{valid ? 'VÁLIDO' : pass.status === 'VENCIDO' ? 'VENCIDO' : 'PASE INVALIDADO'}</span>
+                        <p>{valid ? `${passSchedule(pass)} · ${pass.eventDetails?.location || 'Ubicación no disponible'}` : 'El pase asociado ya no es válido para acceso.'}</p>
+                        <Link className="qr-passes-open" href={`/mis-pases/${encodeURIComponent(pass.id)}${passesHref === '/events/catalog/passes' ? '?from=catalog' : ''}`}>
+                          {valid ? 'Abrir pase' : 'Ver detalle'}
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
+              </section>
+            )}
+          </>
         )}
       </div>
+      <EventsMobileBottomNav />
     </main>
   );
 }

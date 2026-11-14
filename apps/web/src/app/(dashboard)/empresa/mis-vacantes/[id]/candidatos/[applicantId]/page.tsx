@@ -33,10 +33,10 @@ export default function ApplicantMatchPage() {
       setLoading(true);
       setError(false);
       try {
-        const [data, vac] = await Promise.all([
-          getApplicantById(vacancyId, applicantId),
-          getVacancyById(vacancyId).catch(() => null),
-        ]);
+        // Primero la vacante: su fecha de publicación se usa para la fecha de
+        // postulación de prueba (BUG-05-01). Si falla, solo se oculta su tarjeta.
+        const vac = await getVacancyById(vacancyId).catch(() => null);
+        const data = await getApplicantById(vacancyId, applicantId, vac?.publishedAt);
         if (!cancelled) {
           setApplicant(data);
           setVacancy(vac);
@@ -58,7 +58,7 @@ export default function ApplicantMatchPage() {
   }, [vacancyId, applicantId, reloadKey]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6">
       {vacancy && <VacancyHeader vacancy={vacancy} />}
 
       {loading && (

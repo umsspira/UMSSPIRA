@@ -12,7 +12,12 @@ export async function middleware(request: NextRequest) {
   // Sprint 2 T4.1: las encuestas son privadas para el rol titulado.
   const isSurvey = path === '/surveys' || path.startsWith('/surveys/');
   const refresh = request.cookies.get('umsspira_refresh')?.value;
-  const redirect = (destination: string) => NextResponse.redirect(new URL(destination, request.url));
+  const redirect = (destination: string) => {
+    const response = NextResponse.redirect(new URL(destination, request.url));
+    // La redirección nunca debe cachearse: el motivo puede depender de la sesión.
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
+  };
   // HU-004: conservar el motivo para explicar al visitante por qué fue redirigido.
   const loginDestination = isReport ? '/login?reportes=requiere-sesion' : LOGIN_PATH;
   if (!refresh) return redirect(loginDestination);

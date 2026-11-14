@@ -21,17 +21,17 @@ describe("HU-004 CA-06: ventana de alerta de sesión caducada", () => {
     render(<SessionExpiredDialog />);
     act(() => notifySessionExpired());
 
-    const dialog = screen.getByRole("alertdialog", { name: "Su sesión ha expirado" });
-    expect(dialog).toHaveTextContent("Por seguridad, inicie sesión nuevamente para continuar.");
+    const dialog = screen.getByRole("alertdialog", { name: "Vuelve a iniciar sesión" });
+    expect(dialog).toHaveTextContent("La sesión caducó. Se descartaron los datos locales de autenticación.");
     expect(clearSession).toHaveBeenCalledTimes(1);
     expect(authStore.reset).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Iniciar sesión nuevamente" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Iniciar sesión" })).toHaveFocus();
   });
 
   it("redirige a /login solicitando reautenticación", () => {
     render(<SessionExpiredDialog />);
     act(() => notifySessionExpired());
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión nuevamente" }));
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }));
     expect(hardRedirect).toHaveBeenCalledWith("/login?reportes=sesion-expirada");
   });
 });

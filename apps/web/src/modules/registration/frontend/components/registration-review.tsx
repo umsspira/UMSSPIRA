@@ -43,6 +43,7 @@ export function RegistrationReview() {
   const [careers, setCareers] = useState<Career[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [declarationAccepted, setDeclarationAccepted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editing, setEditing] = useState<RegistrationEditVariant | null>(null);
 
@@ -52,6 +53,10 @@ export function RegistrationReview() {
   const verifiedEmail = useRegistrationStore((state) => state.verifiedEmail);
   const setPersonalData = useRegistrationStore((state) => state.setPersonalData);
   const setConfirmation = useRegistrationStore((state) => state.setConfirmation);
+
+  useEffect(() => {
+    setDeclarationAccepted(false);
+  }, [personalData, document]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -114,6 +119,7 @@ export function RegistrationReview() {
   }
 
   async function handleSubmit() {
+    if (!declarationAccepted) return;
     if (!personalData || !document || !sessionToken || editing || isSaving || isSubmitting) return;
     if (!isEmailVerified) {
       setError('Debes verificar tu correo electrónico antes de entregar la solicitud.');
@@ -297,7 +303,8 @@ export function RegistrationReview() {
             </div>
           </ReviewSection>
 
-          <ReviewDeclaration />
+          <ReviewDeclaration checked={declarationAccepted} onChange={setDeclarationAccepted}
+            disabled={isSubmitting || isSaving || Boolean(editing)} />
         </div>
 
         {!isEmailVerified && (
@@ -320,7 +327,7 @@ export function RegistrationReview() {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={!isEmailVerified || isSubmitting || isSaving || Boolean(editing)}
+            disabled={!declarationAccepted || !isEmailVerified || isSubmitting || isSaving || Boolean(editing)}
             className="bg-burning-flame text-abyssal-blue hover:bg-burning-flame/90 hover:text-abyssal-blue disabled:hover:bg-burning-flame focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-abyssal-blue focus-visible:ring-offset-2 inline-flex items-center justify-center gap-2 px-6 text-sm font-bold"
           >
             {isSubmitting ? 'Enviando solicitud...' : 'Entregar solicitud'}
