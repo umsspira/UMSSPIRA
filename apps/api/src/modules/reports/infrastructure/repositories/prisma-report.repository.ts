@@ -15,13 +15,18 @@ import {
   type AccreditationDashboard,
   type AccreditationSalaryRange,
 } from '../../application/contracts/accreditation-dashboard';
+import type { AccreditationFilter } from '../../application/contracts/accreditation-filters';
+import { semesterRange } from '../../domain/policies/accreditation-format.policy';
 
 export const MAX_EXPORT_ROWS = 10000;
 
 @Injectable()
 export class PrismaReportRepository implements ReportRepository {
   constructor(private readonly prisma: PrismaService) {}
-  async accreditationDashboard(careerIds: readonly string[]): Promise<AccreditationDashboard> {
+  async accreditationDashboard(
+    careerIds: readonly string[],
+    filter: AccreditationFilter = {},
+  ): Promise<AccreditationDashboard> {
     const salaryRanges = Object.fromEntries(
       ACCREDITATION_SALARY_RANGES.map((range) => [range, 0]),
     ) as Record<AccreditationSalaryRange, number>;
@@ -75,10 +80,11 @@ export class PrismaReportRepository implements ReportRepository {
       return empty();
     }
 
-    // Titulados exclusivamente de las carreras autorizadas.
+    // Titulados exclusivamente de las carreras autorizadas y, si se eligió, de esa cohorte (HU-003 CA-03).
     const graduates = await this.prisma.titulado.findMany({
       where: {
         id_carrera: { in: [...careerIds] },
+        ...(filter.cohort !== undefined ? { anio_egreso: filter.cohort } : {}),
       },
       select: {
         id: true,
@@ -101,6 +107,8 @@ export class PrismaReportRepository implements ReportRepository {
         idTitulado: {
           in: [...graduateById.keys()],
         },
+        // Semestre elegido: por la fecha de envío de la encuesta (HU-003 CA-04).
+        ...(filter.semester ? { fechaEnvio: semesterRange(filter.semester) } : {}),
       },
       select: {
         id: true,
@@ -253,14 +261,18 @@ export class PrismaReportRepository implements ReportRepository {
     return { totalApplications, approvedApplications, observedApplications, activeMentors };
   }
 
-  async competencyHeatmap(careerIds: readonly string[]): Promise<CompetencyHeatmap> {
+  async competencyHeatmap(
+    careerIds: readonly string[],
+    filter: AccreditationFilter = {},
+  ): Promise<CompetencyHeatmap> {
     // Integración T2.2/T2.3: esta consulta entrega el contrato completo del
     // mapa; radar solo es la fuente de cálculos y no se modifica desde reports.
     const calculations = await this.prisma.calculoRadar.findMany({
       where: {
         titulado: {
           id_carrera: { in: [...careerIds] },
-          anio_egreso: { not: null },
+          // Con una cohorte elegida el mapa queda con una sola fila; el semestre no aplica (HU-003 CA-03 y CA-05).
+          anio_egreso: filter.cohort !== undefined ? filter.cohort : { not: null },
         },
       },
       orderBy: [{ id_titulado: 'asc' }, { fecha_calculo: 'desc' }, { id: 'desc' }],
