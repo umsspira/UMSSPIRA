@@ -878,6 +878,7 @@ model Solicitud {
   auditoria_dictamen_registros AuditoriaDictamen[]
   control_reenvio_otp          ControlReenvioOtp?
   consultas_estado             ConsultaEstadoSolicitud[]
+  historial_eventos            HistorialEvento[] 
   @@map("solicitud")
 }
 
@@ -1480,4 +1481,19 @@ model OcrResultado {
   creado_en DateTime @default(now()) @db.Timestamptz
   trabajo OcrTrabajo @relation(fields: [id_trabajo], references: [id], onDelete: NoAction, onUpdate: NoAction)
   @@map("ocr_resultado")
+}
+model HistorialEvento {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_solicitud String   @db.Uuid
+  version      Int      @db.SmallInt
+  tipo_actor   String   @db.VarChar(20) // 'TITULADO', 'SISTEMA', 'ADMINISTRADOR'
+  actor_id     String?  @db.Uuid       // ID del usuario o admin (nullable para sistema)
+  accion       String   @db.VarChar(50) // 'ENVIO', 'OCR_ANALISIS', 'DICTAMEN'
+  detalle      String?  @db.Text       // Texto corto generado (ej: "OCR sugirió observar")
+  creado_en    DateTime @default(now()) @db.Timestamptz(6)
+
+  solicitud    Solicitud @relation(fields: [id_solicitud], references: [id], onDelete: Cascade)
+
+  @@index([id_solicitud, creado_en(sort: Desc)])
+  @@map("historial_evento")
 }
