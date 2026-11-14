@@ -158,18 +158,6 @@ export function MentorAreasPage() {
 
   return (
     <main className="mentorship-shell mentor-areas-page">
-      <nav aria-label="Ruta de navegación" className="mentorship-breadcrumb">
-        <ol className="breadcrumb-list">
-          <li><Link href="/" className="breadcrumb-link">Inicio</Link></li>
-          <li aria-hidden="true">/</li>
-          <li><Link href="/mentorship" className="breadcrumb-link">Mentorías</Link></li>
-          <li aria-hidden="true">/</li>
-          <li><Link href="/mentorship/profile" className="breadcrumb-link">Mi perfil de mentor</Link></li>
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" className="breadcrumb-current">Configurar áreas técnicas</li>
-        </ol>
-      </nav>
-
       <p className="page-eyebrow">Red universitaria de desarrollo</p>
       <h1 className="page-title page-title-with-eyebrow mentor-areas-page-title">Áreas técnicas de especialidad</h1>
       <p className="page-description">

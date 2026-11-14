@@ -1,19 +1,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { HomeIcon, ArrowRightIcon, CompassIcon, UserRoundCogIcon } from 'lucide-react';
+import { ArrowRightIcon, CompassIcon, UserRoundCogIcon } from 'lucide-react';
 import { ExploreCard } from '@/features/mentorship/components/explore-card';
 import { ActiveMentorRequestsLink } from '@/features/mentorship/components/active-mentor-requests-link';
 
 export default function MentoriasPage() {
   return (
     <main className="mentorship-shell">
-      <nav aria-label="Ruta de navegación" className="mentorship-breadcrumb">
-        <ol className="breadcrumb-list">
-          <li><Link href="/" className="breadcrumb-link"><HomeIcon aria-hidden="true" className="icon" />Inicio</Link></li>
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" className="breadcrumb-current">Mentorías</li>
-        </ol>
-      </nav>
       <section aria-labelledby="mentorship-title" className="mentorship-hero">
         <Image src="/mentorship-cover.jpg" alt="" fill priority sizes="(max-width: 1152px) 100vw, 1152px" className="mentorship-cover" />
         <div aria-hidden="true" className="mentorship-overlay" />

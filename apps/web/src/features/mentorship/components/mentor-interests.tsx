@@ -44,20 +44,6 @@ export function MentorInterests({ catalog, initialConfiguration, onSave, areasHr
     return () => window.removeEventListener('beforeunload', prevent);
   }, [dirty]);
 
-  useEffect(() => {
-    if (!dirty) return;
-    function protectBreadcrumb(event: MouseEvent) {
-      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.interests-page .breadcrumb-link') : null;
-      if (!link) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (!savingRef.current) { setDestination(link.getAttribute('href') || '/mentorship/profile'); setDialog('leave'); }
-    }
-    document.addEventListener('click', protectBreadcrumb, true);
-    return () => document.removeEventListener('click', protectBreadcrumb, true);
-  }, [dirty]);
-
   function change(next: InterestConfiguration) {
     setDraft(normalizeInterests(catalog, next));
     setSuccess(false);
