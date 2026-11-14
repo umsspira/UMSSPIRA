@@ -20,6 +20,7 @@ import { formatDate, getInitials } from "@/shared/utils/format";
 export default function CandidatesPage() {
   const params = useParams();
   const router = useRouter();
+  const PAGE_SIZE = 10;
   const vacancyId = params?.id as string;
 
   const [applicants, setApplicants] = useState<Applicant[]>([]);
@@ -72,7 +73,17 @@ export default function CandidatesPage() {
     filteredApplicants,
     handleClearFilters,
   } = useApplicantFilters(applicants);
+  
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, minMatch, selectedStatus, selectedLevel, applicants]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredApplicants.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const firstIndex = (currentPage - 1) * PAGE_SIZE;
+  const pageApplicants = filteredApplicants.slice(firstIndex, firstIndex + PAGE_SIZE);
+  
   return (
     <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6">
       {/* Encabezado + Volver */}
@@ -88,8 +99,6 @@ export default function CandidatesPage() {
           <p className="text-sm text-gray-500">
             Revisa los postulantes de la vacante y encuentra el mejor talento.
           </p>
-          {/* Quitar cuando exista la API de postulantes (Epic 5) */}
-          <p className="mt-1 text-xs text-gray-400">Postulantes de ejemplo</p>
         </div>
       </div>
 
@@ -182,7 +191,9 @@ export default function CandidatesPage() {
           {/* Tabla de postulantes */}
           <div className="space-y-2">
             <p className="text-xs text-gray-500 font-medium">
-              Mostrando {filteredApplicants.length} de {applicants.length} postulantes
+                            {filteredApplicants.length === 0
+                ? `Mostrando 0 de ${applicants.length} postulantes`
+                : `Mostrando ${firstIndex + 1}–${firstIndex + pageApplicants.length} de ${filteredApplicants.length} postulantes`}
             </p>
 
             {filteredApplicants.length === 0 ? (
@@ -204,7 +215,7 @@ export default function CandidatesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredApplicants.map((applicant) => (
+                    {pageApplicants.map((applicant) => (
                       <tr key={applicant.id} className="border-b border-[#EEE9DF] last:border-0">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -234,7 +245,7 @@ export default function CandidatesPage() {
                           )}
                         </td>
 
-                        <td className="px-4 py-3 text-[#1B2632]">{applicant.experienceLevel}</td>
+                        <td className="px-4 py-3 text-[#1B2632]">{applicant.experienceLevel ?? "No registrado"}</td>
                         <td className="px-4 py-3">
                           <StatusBadge status={applicant.status} />
                         </td>
@@ -277,6 +288,44 @@ export default function CandidatesPage() {
                   </tbody>
                 </table>
               </div>
+            )}
+            {totalPages > 1 && (
+              <nav className="flex items-center justify-center gap-1 pt-2" aria-label="Paginación de postulantes">
+                <button
+                  type="button"
+                  onClick={() => setPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  aria-label="Página anterior"
+                  className="w-9 h-9 rounded-md border border-[#EEE9DF] bg-white text-[#1B2632] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPage(n)}
+                    aria-label={`Página ${n}`}
+                    aria-current={n === currentPage ? "page" : undefined}
+                    className={`w-9 h-9 rounded-md text-sm font-semibold border ${
+                      n === currentPage
+                        ? "bg-[#1B2632] text-white border-[#1B2632]"
+                        : "bg-white text-[#1B2632] border-[#EEE9DF] hover:bg-gray-50"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  aria-label="Página siguiente"
+                  className="w-9 h-9 rounded-md border border-[#EEE9DF] bg-white text-[#1B2632] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  ›
+                </button>
+              </nav>
             )}
           </div>
         </>

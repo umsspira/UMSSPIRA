@@ -133,12 +133,14 @@ export function MatchBreakdownView({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-[#1B2632]">{applicant.name}</h2>
-                <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                  {applicant.experienceLevel}
-                </span>
+                {applicant.experienceLevel && (
+                  <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                    {applicant.experienceLevel}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-gray-500">{applicant.email}</p>
-              <p className="text-sm text-gray-500">{applicant.location}</p>
+              <p className="text-sm text-gray-500">{applicant.location ?? "Ubicación no registrada"}</p>
             </div>
           </div>
 
@@ -185,11 +187,11 @@ export function MatchBreakdownView({
           </div>
           <div>
             <p className="text-xs text-gray-500">Ubicación</p>
-            <p className="font-medium">{applicant.location}</p>
+            <p className="font-medium">{applicant.location ?? "No registrada"}</p>
           </div>
           <div>
             <p className="text-xs text-gray-500">Nivel de experiencia</p>
-            <p className="font-medium">{applicant.experienceLevel}</p>
+            <p className="font-medium">{applicant.experienceLevel ?? "No registrado"}</p>
           </div>
           <div>
             <p className="text-xs text-gray-500">Estado</p>

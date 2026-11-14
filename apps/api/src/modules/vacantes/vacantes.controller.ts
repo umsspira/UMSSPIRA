@@ -12,7 +12,24 @@ export class VacantesController {
   async listar(@CurrentActor() actor: ActorContext) {
     return this.vacantesService.obtenerMisVacantes(actor.id);
   }
+  @Get(':idVacante/postulantes')
+  @RequirePermissions('empresas:self:read')
+  async listarPostulantes(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.listarPostulantes(idVacante, actor.id);
+  }
 
+  @Get(':idVacante/postulantes/:idPostulacion')
+  @RequirePermissions('empresas:self:read')
+  async obtenerPostulante(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @Param('idPostulacion', ParseUUIDPipe) idPostulacion: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.obtenerPostulante(idVacante, idPostulacion, actor.id);
+  }
   // HU-04: la empresa cambia la etapa de un postulante de SUS vacantes.
   @Patch(':idVacante/postulantes/:idPostulacion/etapa')
   @RequirePermissions('empresas:self:write')

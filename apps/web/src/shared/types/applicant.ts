@@ -20,8 +20,8 @@ export interface Applicant {
   id: string;
   name: string;
   email: string;
-  location: string;
-  experienceLevel: ExperienceLevel;
+  location: string | null;
+  experienceLevel: ExperienceLevel | null;
   status: ApplicantStatus;
   /** Fecha de postulación en formato ISO (ej. "2025-09-10"). */
   appliedAt: string | null;
