@@ -1,19 +1,27 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  KEYWORD_EXTRACTOR_PORT,
-  KeywordExtractorPort,
-} from '../ports/keyword-extractor.port';
+import { KEYWORD_EXTRACTOR_PORT, KeywordExtractorPort } from '../ports/keyword-extractor.port';
 import {
   RADAR_REPOSITORY_PORT,
   RadarRepositoryPort,
   AreaScoreRecord,
 } from '../ports/radar-repository.port';
-import { calculateAreaAffinity } from '../../domain/policies/affinity-calculator';
-import { ALGORITHM_VERSION } from '../../domain/policies/affinity-config';
+import {
+  calculateAreaAffinity,
+  calculateAreaKeywordContributions,
+} from '../../domain/policies/affinity-calculator';
+import {
+  ALGORITHM_VERSION,
+  DICTIONARY_VERSION,
+} from '../../domain/policies/affinity-config';
 import { calculateInputHash } from '../../domain/policies/input-hash';
 import { RADAR_AREA_IDS, RadarArea } from '../../domain/entities/radar-area';
 import { buildRadarVector } from '../services/radar-vector.builder';
 import type { RadarVector } from '../contracts/radar-vector';
+import {
+  RADAR_AREA_WEIGHT_READER_PORT,
+  type AreaWeightReaderPort,
+} from '../ports/area-weight-reader.port';
+import { mapKeywordsToRadarAreas } from '../../domain/policies/keyword-area-mapper';
 
 @Injectable()
 export class RecalculateRadarUseCase {
@@ -23,6 +31,9 @@ export class RecalculateRadarUseCase {
 
     @Inject(RADAR_REPOSITORY_PORT)
     private readonly radarRepository: RadarRepositoryPort,
+
+    @Inject(RADAR_AREA_WEIGHT_READER_PORT)
+    private readonly areaWeightReader: AreaWeightReaderPort,
   ) {}
 
   async execute(
@@ -30,7 +41,7 @@ export class RecalculateRadarUseCase {
     texts: readonly string[],
     hasLaborHistory: boolean,
   ): Promise<RadarVector> {
-    const currentHash = calculateInputHash(texts);
+    const currentHash = calculateInputHash(texts, DICTIONARY_VERSION);
     const startedAt = Date.now();
 
     // Bloqueo asesor transaccional (pg_advisory_xact_lock) por titulado.
@@ -64,13 +75,19 @@ export class RecalculateRadarUseCase {
       const estado = keywords.length === 0 ? 'VACIO' : 'COMPLETADO';
 
       // Cargar los pesos de la base de datos.
-      const areaWeights = await repository.getAreaWeights();
+      const areaWeights = await this.areaWeightReader.getAreaWeights();
+      const mappedKeywords = mapKeywordsToRadarAreas(keywords, areaWeights);
       const slugs = Object.keys(RADAR_AREA_IDS) as RadarArea[];
       const areas: AreaScoreRecord[] = [];
 
       for (const slug of slugs) {
         const areaId = RADAR_AREA_IDS[slug];
-        const areaResult = calculateAreaAffinity(keywords, areaWeights[areaId] ?? []);
+        const areaMappings = mappedKeywords
+          .filter((mapping) => mapping.areaId === areaId)
+          .map(({ term, peso }) => ({ term, peso }));
+
+        const areaResult = calculateAreaAffinity(keywords, areaMappings);
+        const contribucionesKeyword = calculateAreaKeywordContributions(keywords, areaMappings);
 
         areas.push({
           areaSlug: slug,
@@ -79,6 +96,7 @@ export class RecalculateRadarUseCase {
           porcentaje: areaResult.porcentaje,
           ponderacion: areaResult.ponderacion,
           palabrasClaveTop: areaResult.palabrasClaveTop,
+          contribucionesKeyword,
         });
       }
 
@@ -88,6 +106,7 @@ export class RecalculateRadarUseCase {
         hashEntrada: currentHash,
         estado,
         versionAlgoritmo: ALGORITHM_VERSION,
+        versionDiccionario: DICTIONARY_VERSION,
         areas,
         unmapped,
       });

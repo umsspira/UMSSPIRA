@@ -5,8 +5,8 @@ import { getAreaCertifications } from '../services/affinity-service';
 import type { RadarCertificationEvidenceResponse } from '@umsspira/shared-types';
 
 jest.mock('../services/affinity-service', () => ({ getAreaCertifications: jest.fn() }));
-jest.mock('@/modules/profile/components/backup-viewer-modal', () => ({
-  BackupViewerModal: ({ certificationId, certificationName, onClose }: { certificationId: string; certificationName: string; onClose: () => void }) => <div role="dialog">{certificationId} {certificationName}<button onClick={onClose}>Cerrar</button></div>,
+jest.mock('./radar-backup-viewer-modal', () => ({
+  RadarBackupViewerModal: ({ certificationId, certificationName, onClose }: { certificationId: string; certificationName: string; onClose: () => void }) => <div role="dialog">{certificationId} {certificationName}<button onClick={onClose}>Cerrar</button></div>,
 }));
 const get = getAreaCertifications as jest.Mock;
 const response: RadarCertificationEvidenceResponse = {

@@ -13,6 +13,8 @@ export interface AreaScoreRecord {
   ponderacion: number | null;
   // Detalle de las palabras clave que más aportaron al área (HU-8 / Explicabilidad)
   palabrasClaveTop: KeywordContribution[];
+  // Contribuciones completas por keyword en el área (HU-13 / Migración M2)
+  contribucionesKeyword?: KeywordContribution[];
 }
 
 /**
@@ -25,6 +27,7 @@ export interface RadarCalculationSnapshot {
   hashEntrada: string | null;
   estado: 'COMPLETADO' | 'VACIO';
   versionAlgoritmo: string;
+  versionDiccionario?: string | null;
   fechaCalculo: Date;
   afinidad: Array<{
     areaId: string;
@@ -32,6 +35,7 @@ export interface RadarCalculationSnapshot {
     porcentaje: number;
     ponderacion: number | null;
     palabrasClaveTop: KeywordContribution[];
+    contribucionesKeyword?: KeywordContribution[];
   }>;
 }
 
@@ -54,7 +58,10 @@ export interface RadarRepositoryPort {
    * Obtiene el cálculo inmediatamente anterior al actual.
    * Requerido para contrastar variaciones (+8%, -3%) y exponer el campo previousAffinity.
    */
-  getPreviousCalculation(tituladoId: string, currentCalculationId: string): Promise<RadarCalculationSnapshot | null>;
+  getPreviousCalculation(
+    tituladoId: string,
+    currentCalculationId: string,
+  ): Promise<RadarCalculationSnapshot | null>;
 
   /**
    * Obtiene los términos no mapeados vigentes del titulado para exponerlos en la respuesta.
@@ -81,13 +88,8 @@ export interface RadarRepositoryPort {
     hashEntrada: string;
     estado: 'COMPLETADO' | 'VACIO';
     versionAlgoritmo: string;
+    versionDiccionario?: string | null;
     areas: AreaScoreRecord[];
     unmapped: Array<{ term: string; count: number }>;
   }): Promise<RadarCalculationSnapshot>;
-
-  /**
-   * Consulta el catálogo de pesos asignados por área desde la tabla 'palabra_clave_area'.
-   * La clave del registro es el UUID del área.
-   */
-  getAreaWeights(): Promise<Record<string, Array<{ term: string; peso: number }>>>;
 }

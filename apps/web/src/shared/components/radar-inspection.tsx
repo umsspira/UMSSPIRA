@@ -6,7 +6,8 @@ import { formatPercentage } from "@/shared/utils/percentage";
 import { InfluentialKeywords } from './affinity-influential-keywords';
 import { calculateVariation } from "@/shared/utils/affinity-variation";
 import { VariationIndicator } from "./variation-indicator";
-import type { AffinityKeywordContribution } from "@umsspira/shared-types";
+import { ChangeExplanation } from './change-explanation';
+import type { AffinityAreaExplanation, AffinityKeywordContribution } from "@umsspira/shared-types";
 
 // 1. Tipado estricto de la evidencia tal como viene en el JSON
 export interface EvidenceItem {
@@ -21,7 +22,7 @@ export interface AreaData {
   previousAffinity?: number | null;
   evidence?: EvidenceItem[];
   topKeywords?: AffinityKeywordContribution[];
-
+  explanation?: AffinityAreaExplanation | null;
 }
 
 interface RadarInspectionProps {
@@ -29,6 +30,9 @@ interface RadarInspectionProps {
   onSelectArea: (id: string | null) => void;
   areas?: AreaData[];
   certificationsPanel?: React.ReactNode;
+  isExplanationLoading?: boolean;
+  hasExplanationError?: boolean;
+  onRetryExplanation?: () => void;
 }
 
 // 2. Diccionario de ids a los nombres oficiales de shared-types (CA-HU7-22)
@@ -52,6 +56,9 @@ export default function RadarInspection({
   onSelectArea,
   areas = [],
   certificationsPanel,
+  isExplanationLoading = false,
+  hasExplanationError = false,
+  onRetryExplanation,
 }: RadarInspectionProps) {
 
   // 3. Estado vacío actualizado: SOLO muestra el mensaje, sin botón "Completar perfil"
@@ -141,7 +148,28 @@ export default function RadarInspection({
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-gray-500 italic">La afinidad se calcula con los textos de formación académica, experiencia laboral, certificaciones y descripción profesional. El contenido del JPG no se analiza para calcular el porcentaje.</p>
+        {/* Avisos sobre el cálculo de coincidencias */}
+<div className="mt-2 space-y-2 text-xs text-gray-600 border-t border-gray-200 pt-3">
+  <p>
+    El cálculo utiliza únicamente la información textual guardada en tu perfil:
+    título e institución de formación, cargo y empresa de experiencia laboral, nombre y entidad emisora de certificaciones, descripción profesional, y nombre, descripción y tecnologías de los proyectos. Las fechas, los archivos adjuntos y los enlaces de los proyectos quedan fuera del cálculo.
+  </p>
+
+  <p>
+    El porcentaje representa coincidencias de palabras entre la información de tu
+    perfil y el catálogo de áreas; no mide ni certifica tu nivel de competencia.
+  </p>
+
+  <p>
+    Solo se utiliza la información guardada en tu perfil. Los cambios que aún no
+    hayas guardado no se incluyen en el cálculo.
+  </p>
+
+  <p>
+    El sistema no interpreta negaciones. Por ejemplo, si escribes
+    «No tengo experiencia con AWS», puede contar «AWS» como una coincidencia.
+  </p>
+</div>
       </div>
 
       {/* Panel derecho: Inspección detallada y respaldos filtrados */}
@@ -163,6 +191,16 @@ export default function RadarInspection({
             </div>
             
             {selectedArea.affinity === 0 && <p className="text-sm text-gray-500">No se detectaron aportes para esta área en el cálculo mostrado.</p>}
+            <ChangeExplanation
+              areaLabel={AREA_NAMES_MAP[selectedArea.area] || selectedArea.area}
+              affinity={selectedArea.affinity}
+              previousAffinity={selectedArea.previousAffinity ?? null}
+              explanation={selectedArea.explanation}
+              currentContributions={selectedArea.previousAffinity == null && selectedArea.topKeywords?.length ? [] : undefined}
+              isLoading={isExplanationLoading}
+              hasError={hasExplanationError}
+              onRetry={onRetryExplanation}
+            />
             {certificationsPanel ?? <>
             {certifications.length === 0 && projects.length === 0 && (
               <p className="text-sm text-gray-500">
@@ -184,7 +222,7 @@ export default function RadarInspection({
             )}
             {projects.length > 0 && (
               <div>
-                <h5 className="font-semibold text-sm text-gray-700 mb-1">Proyectos asociados:</h5>
+                <h5 className="font-semibold text-sm text-gray-700 mb-1">Proyectos relacionados:</h5>
                 <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
                   {projects.map((proj, idx) => (
                     <li key={idx}>
@@ -196,7 +234,7 @@ export default function RadarInspection({
               </div>
             )}
             </>}
-            <InfluentialKeywords keywords={selectedArea?.topKeywords}/>
+            <InfluentialKeywords keywords={selectedArea.topKeywords} />
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
