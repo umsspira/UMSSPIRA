@@ -139,7 +139,7 @@ describe('MentorDetailPage', () => {
 
     render(<MentorDetailPage mentorId={MENTOR_ID} />);
 
-    const avatar = await screen.findByRole('img', { name: 'Foto de Rodrigo Salazar Torrico no disponible' });
+    const avatar = await screen.findByRole('img', { name: 'Avatar de Rodrigo Salazar Torrico' });
     expect(avatar).toHaveTextContent('RS');
     expect(avatar).not.toHaveTextContent('Rod');
   });
@@ -205,6 +205,7 @@ describe('MentorDetailPage', () => {
     render(<MentorDetailPage mentorId={MENTOR_ID} />);
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Carlos Vargas' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Avatar de Carlos Vargas' })).toHaveTextContent('CV');
     expect(screen.getAllByText('Disponibilidad sin configurar')).toHaveLength(2);
     expect(screen.getByRole('button', { name: /Solicitar mentoría/i })).toBeDisabled();
     expect(screen.queryByText('Horarios disponibles')).not.toBeInTheDocument();

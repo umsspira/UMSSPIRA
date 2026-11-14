@@ -487,7 +487,6 @@ export class PrismaMentorRepository implements MentorRepository {
               descripcion: input.descripcion ?? null,
               experiencia: input.experiencia,
               informacion_relevante: input.informacion_relevante ?? null,
-              foto_perfil: input.foto_perfil ?? null,
               ...(input.anios_exp !== undefined ? { anios_exp: input.anios_exp } : {}),
               fecha_actualizacion: new Date(),
             },

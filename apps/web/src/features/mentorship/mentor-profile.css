@@ -682,6 +682,51 @@
   margin: 0 auto;
 }
 
+.mentor-info-avatar-section {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: .75rem;
+  border-bottom: 0.8px solid rgba(201, 193, 177, 0.6);
+  padding-bottom: 1.25rem;
+  text-align: left;
+}
+
+.mentor-info-avatar-section h4 {
+  margin: 0;
+  color: #1B2632;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mentor-info-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mentor-info-avatar {
+  display: flex;
+  width: 4rem;
+  height: 4rem;
+  flex: 0 0 4rem;
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #20252B;
+  color: #FFFFFF;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.mentor-info-avatar-row p {
+  margin: 0;
+  color: rgba(27, 38, 50, 0.75);
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+
 .mentor-info-empty-icon {
   display: flex;
   align-items: center;
@@ -1204,4 +1249,3 @@
     justify-content: space-between;
   }
 }
-

@@ -10,15 +10,6 @@ export const mentorInformationSchema = z.strictObject({
   descripcion: z.string().trim().max(500).optional(),
   experiencia: z.string().trim().min(1).max(800),
   informacion_relevante: z.string().trim().max(500).nullable().optional(),
-  foto_perfil: z
-    .url()
-    .max(2048)
-    .refine(
-      (value) => ['http:', 'https:'].includes(new URL(value).protocol),
-      'La foto debe ser una URL HTTP o HTTPS',
-    )
-    .nullable()
-    .optional(),
   anios_exp: z.number().int().min(0).max(80).optional(),
 });
 export const mentorAreasSchema = z.strictObject({

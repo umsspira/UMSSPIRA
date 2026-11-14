@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -14,7 +14,6 @@ import {
   PencilIcon,
   Trash2Icon,
   SaveIcon,
-  CameraIcon,
   AlertTriangleIcon,
   XIcon,
 } from 'lucide-react';
@@ -27,12 +26,27 @@ import {
   deleteMentorProfileInformation,
   type MentorProfileInformationData,
 } from '../services/mentor-profile-info-api';
+import { mentorInitials } from '../model/mentor-directory';
 
 const MAX_DESCRIPCION = 500;
 const MAX_EXPERIENCIA = 800;
 const MAX_RELEVANTE = 500;
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-const ALLOWED_EXTENSIONS = ['image/jpeg', 'image/png', 'image/webp'];
+
+function AvatarProfileSection({ name }: { name: string }) {
+  const displayName = name.trim() || 'Mentor';
+
+  return (
+    <section className="mentor-info-avatar-section" aria-labelledby="mentor-info-avatar-title">
+      <h4 id="mentor-info-avatar-title">Avatar de perfil</h4>
+      <div className="mentor-info-avatar-row">
+        <div className="mentor-info-avatar" role="img" aria-label={`Avatar de ${displayName}`}>
+          {mentorInitials(displayName)}
+        </div>
+        <p>Se usan las iniciales de tu nombre en tu avatar.</p>
+      </div>
+    </section>
+  );
+}
 
 function formatDateSpanish(dateStr?: string | null): string {
   if (!dateStr) return '—';
@@ -76,23 +90,21 @@ export function MentorProfileInfoPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [savedData, setSavedData] = useState<MentorProfileInformationData | null>(null);
+  const [nombre, setNombre] = useState('');
 
   // Form state
   const [descripcion, setDescripcion] = useState('');
   const [experiencia, setExperiencia] = useState('');
   const [informacionRelevante, setInformacionRelevante] = useState('');
-  const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
-  const [photoError, setPhotoError] = useState('');
   const [formAlertError, setFormAlertError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ descripcion?: string; experiencia?: string }>({});
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadProfile() {
     setLoading(true);
     setError('');
     try {
       const state = await getMentorProfileInformation();
+      setNombre(state.nombre);
       const hasData = state.exists && state.profile && Boolean(state.profile.descripcion || state.profile.experiencia);
       if (hasData && state.profile) {
         setExists(true);
@@ -100,7 +112,6 @@ export function MentorProfileInfoPage() {
         setDescripcion(state.profile.descripcion || '');
         setExperiencia(state.profile.experiencia || '');
         setInformacionRelevante(state.profile.informacion_relevante || '');
-        setFotoPerfil(state.profile.foto_perfil || null);
         setIsEditing(false);
       } else {
         setExists(false);
@@ -108,7 +119,6 @@ export function MentorProfileInfoPage() {
         setDescripcion('');
         setExperiencia('');
         setInformacionRelevante('');
-        setFotoPerfil(null);
         setIsEditing(false);
       }
     } catch (err) {
@@ -126,9 +136,8 @@ export function MentorProfileInfoPage() {
   const isDirty = exists
     ? descripcion !== (savedData?.descripcion || '') ||
       experiencia !== (savedData?.experiencia || '') ||
-      informacionRelevante !== (savedData?.informacion_relevante || '') ||
-      fotoPerfil !== (savedData?.foto_perfil || null)
-    : descripcion.length > 0 || experiencia.length > 0 || informacionRelevante.length > 0 || fotoPerfil !== null;
+      informacionRelevante !== (savedData?.informacion_relevante || '')
+    : descripcion.length > 0 || experiencia.length > 0 || informacionRelevante.length > 0;
 
   // Validation
   const descripcionExceeded = descripcion.length > MAX_DESCRIPCION;
@@ -141,59 +150,23 @@ export function MentorProfileInfoPage() {
     setSuccessBanner('');
     setFormAlertError('');
     setFieldErrors({});
-    setPhotoError('');
     setIsEditing(true);
   }
 
   function handleCancelEdit() {
     setFieldErrors({});
     setFormAlertError('');
-    setPhotoError('');
     if (savedData && (savedData.descripcion || savedData.experiencia)) {
       setDescripcion(savedData.descripcion || '');
       setExperiencia(savedData.experiencia || '');
       setInformacionRelevante(savedData.informacion_relevante || '');
-      setFotoPerfil(savedData.foto_perfil || null);
       setIsEditing(false);
     } else {
       setDescripcion('');
       setExperiencia('');
       setInformacionRelevante('');
-      setFotoPerfil(null);
       setIsEditing(false);
     }
-  }
-
-  function handlePhotoUpload(e: ChangeEvent<HTMLInputElement>) {
-    setPhotoError('');
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!ALLOWED_EXTENSIONS.includes(file.type)) {
-      setPhotoError('El formato de imagen no es admitido. Selecciona un archivo JPG, PNG o WEBP.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setPhotoError('La fotografía supera los 5 MB permitidos. Elige un archivo más liviano.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setFotoPerfil(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function handleDeletePhoto() {
-    setFotoPerfil(null);
-    setPhotoError('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   async function handleSave() {
@@ -229,7 +202,6 @@ export function MentorProfileInfoPage() {
         descripcion: descripcion.trim(),
         experiencia: experiencia.trim(),
         informacion_relevante: informacionRelevante.trim() || null,
-        foto_perfil: fotoPerfil,
       });
 
       if (state.profile) {
@@ -237,7 +209,6 @@ export function MentorProfileInfoPage() {
         setDescripcion(state.profile.descripcion || '');
         setExperiencia(state.profile.experiencia || '');
         setInformacionRelevante(state.profile.informacion_relevante || '');
-        setFotoPerfil(state.profile.foto_perfil || null);
       }
       setExists(true);
       setIsEditing(false);
@@ -259,7 +230,6 @@ export function MentorProfileInfoPage() {
       setDescripcion('');
       setExperiencia('');
       setInformacionRelevante('');
-      setFotoPerfil(null);
       setShowDeleteModal(false);
       setIsEditing(false);
       setSuccessBanner('');
@@ -339,6 +309,7 @@ export function MentorProfileInfoPage() {
           ) : !exists && !isEditing ? (
             /* Estado Vacío */
             <div className="mentor-info-empty">
+              <AvatarProfileSection name={nombre} />
               <div className="mentor-info-empty-icon" aria-hidden="true">
                 <FileTextIcon size={24} />
               </div>
@@ -361,26 +332,7 @@ export function MentorProfileInfoPage() {
           ) : !isEditing && savedData ? (
             /* Vista de Lectura */
             <div className="mentor-info-read-body">
-              <div className="mentor-info-read-avatar-row">
-                {savedData.foto_perfil ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={savedData.foto_perfil}
-                    alt="Foto de perfil del mentor"
-                    className="mentor-info-avatar-img-sm"
-                  />
-                ) : (
-                  <div className="mentor-info-avatar-placeholder-sm" aria-label="Avatar por defecto">
-                    M
-                  </div>
-                )}
-                <div>
-                  <h4 className="mentor-info-photo-title">Fotografía de perfil</h4>
-                  <p className="mentor-info-photo-desc">
-                    Se usa la foto de tu perfil de titulado.
-                  </p>
-                </div>
-              </div>
+              <AvatarProfileSection name={nombre} />
 
               <div className="mentor-info-section">
                 <div className="mentor-info-section-header">
@@ -437,70 +389,7 @@ export function MentorProfileInfoPage() {
               }}
             >
               <div className="mentor-info-form-body">
-                {/* Sección Fotografía */}
-                <section className="mentor-info-photo-section">
-                  <div className="mentor-info-photo-header">
-                    <h4>Fotografía de perfil</h4>
-                    <span>(opcional)</span>
-                  </div>
-                  <p className="mentor-info-photo-hint">
-                    Se mostrará en el directorio de mentores y en tu perfil detallado. JPG, PNG o WEBP, hasta 5 MB.
-                  </p>
-
-                  <div className="mentor-info-photo-controls">
-                    {fotoPerfil ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={fotoPerfil}
-                        alt="Vista previa de foto de perfil"
-                        className="mentor-info-avatar-img"
-                      />
-                    ) : (
-                      <div className="mentor-info-avatar-placeholder" aria-label="Avatar por defecto">
-                        M
-                      </div>
-                    )}
-
-                    <div className="mentor-info-photo-actions">
-                      <p className="mentor-info-photo-actions-note">
-                        Se usa la foto de tu perfil de titulado.
-                      </p>
-                      <div className="mentor-info-photo-btn-group">
-                        <button
-                          type="button"
-                          className="mentor-info-btn-change-photo"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <CameraIcon size={16} aria-hidden="true" />
-                          Cambiar foto
-                        </button>
-                        {fotoPerfil && (
-                          <button
-                            type="button"
-                            className="mentor-info-btn-delete-photo"
-                            onClick={handleDeletePhoto}
-                          >
-                            <Trash2Icon size={16} aria-hidden="true" />
-                            Eliminar foto
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".jpg,.jpeg,.png,.webp"
-                        className="sr-only"
-                        onChange={handlePhotoUpload}
-                        aria-label="Subir fotografía de perfil"
-                      />
-                      {photoError && (
-                        <p role="alert" className="mentor-info-photo-error">
-                          {photoError}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </section>
+                <AvatarProfileSection name={nombre} />
 
                 {/* Banner de error de validación superior si se intenta guardar incompleto */}
                 {formAlertError && (
