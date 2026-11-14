@@ -7,6 +7,7 @@ import { getMentorProfile } from '../services/mentorship-api';
 import { getMentorAreas } from '../services/mentor-areas-api';
 import { getMentorInterests } from '../services/mentor-interests-api';
 import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorSchedule } from '../services/mentor-schedule-api';
 import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 import { SecondaryButton } from './mentor-button';
 
@@ -35,11 +36,12 @@ export function MentorProfileCompleteness({
     setLoading(true);
     setError('');
     try {
-      const [profile, areas, interests, availability, information] = await Promise.all([
+      const [profile, areas, interests, availability, weekly, information] = await Promise.all([
         getMentorProfile(signal),
         getMentorAreas(signal),
         getMentorInterests(signal),
         getMentorAvailability(signal),
+        getMentorSchedule(signal),
         getMentorProfileInformation(signal),
       ]);
       if (signal?.aborted) return;
@@ -47,7 +49,8 @@ export function MentorProfileCompleteness({
         participation: profile.isActive,
         areas: areas.selectedIds.length > 0,
         interests: interests.configuration.topicIds.length > 0,
-        availability: availability.availabilityStatus !== null,
+        // Disponibilidad configurada: estado elegido y al menos un horario semanal (HU 6.18).
+        availability: availability.availabilityStatus !== null && weekly.schedule.length > 0,
         information: Boolean(
           information.exists
           && information.profile?.descripcion?.trim()

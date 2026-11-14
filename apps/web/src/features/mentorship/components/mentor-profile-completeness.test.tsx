@@ -6,6 +6,7 @@ import { getMentorProfile } from '../services/mentorship-api';
 import { getMentorAreas } from '../services/mentor-areas-api';
 import { getMentorInterests } from '../services/mentor-interests-api';
 import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorSchedule } from '../services/mentor-schedule-api';
 import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 
 jest.mock('next/link', () => ({
@@ -18,12 +19,14 @@ jest.mock('../services/mentorship-api');
 jest.mock('../services/mentor-areas-api');
 jest.mock('../services/mentor-interests-api');
 jest.mock('../services/mentor-availability-api');
+jest.mock('../services/mentor-schedule-api');
 jest.mock('../services/mentor-profile-info-api');
 
 const profile = jest.mocked(getMentorProfile);
 const areas = jest.mocked(getMentorAreas);
 const interests = jest.mocked(getMentorInterests);
 const availability = jest.mocked(getMentorAvailability);
+const schedule = jest.mocked(getMentorSchedule);
 const information = jest.mocked(getMentorProfileInformation);
 
 type ProfileInformation = Awaited<ReturnType<typeof getMentorProfileInformation>>;
@@ -33,18 +36,21 @@ function setProfileState({
   selectedAreaIds = [],
   topicIds = [],
   availabilityStatus = null,
+  slots = [],
   profileInfo = { nombre: 'Mentor', exists: false, profile: null },
 }: {
   active?: boolean;
   selectedAreaIds?: string[];
   topicIds?: string[];
   availabilityStatus?: 'DISPONIBLE' | 'EN_PAUSA' | 'NO_DISPONIBLE' | null;
+  slots?: { weekday: number; start: string; end: string }[];
   profileInfo?: ProfileInformation;
 } = {}) {
   profile.mockResolvedValue({ isActive: active, requirements: { egresado: true } });
   areas.mockResolvedValue({ areas: [], selectedIds: selectedAreaIds });
   interests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds } });
   availability.mockResolvedValue({ availabilityStatus, fecha_actualizacion: null });
+  schedule.mockResolvedValue({ schedule: slots, fecha_actualizacion: null });
   information.mockResolvedValue(profileInfo);
 }
 
@@ -80,6 +86,7 @@ it('marca una seccion pendiente si falta un campo obligatorio y llega a 100 % cu
     selectedAreaIds: ['area-1'],
     topicIds: ['topic-1'],
     availabilityStatus: 'NO_DISPONIBLE',
+    slots: [{ weekday: 1, start: '09:00', end: '10:00' }],
     profileInfo: { nombre: 'Mentor', exists: true, profile: { descripcion: 'Descripción', experiencia: '   ' } },
   });
   render(<MentorProfileCompleteness />);
@@ -99,6 +106,21 @@ it('marca una seccion pendiente si falta un campo obligatorio y llega a 100 % cu
   await waitFor(() => expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100'));
   expect(screen.getByText('¡Tu perfil de mentor está completo!')).toBeInTheDocument();
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
+});
+
+it('considera pendiente la disponibilidad si hay estado pero ningún horario semanal (HU 6.18)', async () => {
+  setProfileState({ active: true, availabilityStatus: 'DISPONIBLE', slots: [] });
+  render(<MentorProfileCompleteness />);
+
+  await screen.findByRole('progressbar');
+  expect(screen.getByRole('link', { name: 'Completar disponibilidad' })).toHaveAttribute(
+    'href',
+    '/mentorship/profile/availability#first-incomplete',
+  );
+
+  schedule.mockResolvedValue({ schedule: [{ weekday: 2, start: '18:00', end: '20:00' }], fecha_actualizacion: '2026-11-14' });
+  await act(async () => { window.dispatchEvent(new PopStateEvent('popstate')); });
+  await waitFor(() => expect(screen.queryByRole('link', { name: 'Completar disponibilidad' })).not.toBeInTheDocument());
 });
 
 it('actualiza los datos cuando se regresa al indicador mediante la navegacion del navegador', async () => {

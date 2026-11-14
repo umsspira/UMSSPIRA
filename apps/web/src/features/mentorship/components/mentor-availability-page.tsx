@@ -123,10 +123,11 @@ export function MentorAvailabilityPage() {
   }, [loadAvailability]);
 
   useEffect(() => {
-    if (!loading && window.location.hash === '#first-incomplete' && !savedStatus) {
+    // Sin estado se enfoca la primera opción; con estado pero sin horarios, el selector de día (HU 6.18).
+    if (!loading && window.location.hash === '#first-incomplete' && (!savedStatus || !savedSchedule.length)) {
       document.getElementById('first-incomplete')?.focus();
     }
-  }, [loading, savedStatus]);
+  }, [loading, savedStatus, savedSchedule.length]);
 
   useEffect(() => {
     if (!forbidden) return;
@@ -274,7 +275,7 @@ export function MentorAvailabilityPage() {
         </div>
       )}
 
-      {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} />}
+      {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} firstIncomplete={Boolean(savedStatus) && !savedSchedule.length} />}
 
       <div className="mentor-availability-actions">
         <Link href="/mentorship/profile" className="mentor-availability-back" onClick={event => {

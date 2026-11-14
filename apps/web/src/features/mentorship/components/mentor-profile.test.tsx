@@ -12,6 +12,7 @@ jest.mock('../services/mentorship-api');
 jest.mock('../services/mentor-areas-api', () => ({ getMentorAreas: jest.fn().mockResolvedValue({ areas: [], selectedIds: [] }) }));
 jest.mock('../services/mentor-interests-api', () => ({ getMentorInterests: jest.fn().mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } }) }));
 jest.mock('../services/mentor-availability-api', () => ({ getMentorAvailability: jest.fn().mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null }) }));
+jest.mock('../services/mentor-schedule-api', () => ({ getMentorSchedule: jest.fn().mockResolvedValue({ schedule: [], fecha_actualizacion: null }) }));
 jest.mock('../services/mentor-profile-info-api', () => ({ getMentorProfileInformation: jest.fn().mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null }) }));
 const getProfile = jest.mocked(getMentorProfile);
 const updateParticipation = jest.mocked(updateMentorParticipation);

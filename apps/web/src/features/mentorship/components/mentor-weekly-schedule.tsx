@@ -21,12 +21,16 @@ interface MentorWeeklyScheduleProps {
   schedule: ScheduleSlot[];
   onChange: (schedule: ScheduleSlot[]) => void;
   disabled?: boolean;
+  /** HU 6.13: el checklist del perfil enlaza aquí cuando faltan horarios. */
+  firstIncomplete?: boolean;
 }
 
 /** HU 6.18: horarios semanales del mentor, con la estructura del prototipo de Figma. */
-export function MentorWeeklySchedule({ schedule, onChange, disabled = false }: MentorWeeklyScheduleProps) {
+export function MentorWeeklySchedule({ schedule, onChange, disabled = false, firstIncomplete = false }: MentorWeeklyScheduleProps) {
   const id = useId();
-  const [expanded, setExpanded] = useState(schedule.length > 0);
+  const [expanded, setExpanded] = useState(
+    schedule.length > 0 || (firstIncomplete && window.location.hash === '#first-incomplete'),
+  );
   const [weekday, setWeekday] = useState(1);
   const [start, setStart] = useState('09:00');
   const [end, setEnd] = useState('10:00');
@@ -73,7 +77,7 @@ export function MentorWeeklySchedule({ schedule, onChange, disabled = false }: M
       <div className="mentor-schedule-form">
         <label className="mentor-schedule-field">
           <span>Día</span>
-          <select value={weekday} onChange={event => { setWeekday(Number(event.target.value)); setError(null); }} disabled={disabled}>
+          <select id={firstIncomplete ? 'first-incomplete' : undefined} value={weekday} onChange={event => { setWeekday(Number(event.target.value)); setError(null); }} disabled={disabled}>
             {WEEKDAYS.map(day => <option key={day.weekday} value={day.weekday}>{dayOptionLabel(schedule, day.weekday)}</option>)}
           </select>
         </label>
