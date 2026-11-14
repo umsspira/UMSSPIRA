@@ -6,6 +6,8 @@ import { ConnectedCompetencyHeatmap } from '@/modules/reports/components/compete
 import { loadCompetencyHeatmap } from '@/modules/reports/services/competency-heatmap.adapter';
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
+import { ConnectedAccreditationIndicators } from '@/modules/reports/components/connected-accreditation-indicators';
+import { loadAccreditationIndicators } from '@/modules/reports/services/accreditation-indicators.adapter';
 
 const REPORTS_ACTIVE_TAB_KEY = 'umsspira:reports-active-tab';
 
@@ -120,10 +122,13 @@ export default function AccreditationHeatmapPage() {
         ) : identityError ? (
           <p role="alert" className="text-sm text-red-700">{identityError}</p>
         ) : careerName ? (
-          <ConnectedCompetencyHeatmap
-            careerName={careerName}
-            load={loadCompetencyHeatmap}
-          />
+          <div className="min-w-0 space-y-6">
+            <ConnectedAccreditationIndicators load={loadAccreditationIndicators} />
+            <ConnectedCompetencyHeatmap
+              careerName={careerName}
+              load={loadCompetencyHeatmap}
+            />
+          </div>
         ) : null}
       </div>
     </main>
