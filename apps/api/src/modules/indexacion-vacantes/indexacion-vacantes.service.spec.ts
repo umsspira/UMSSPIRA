@@ -1,5 +1,3 @@
-import { strict as assert } from 'node:assert';
-import { test } from 'node:test';
 import { Client } from '@elastic/elasticsearch';
 import { IndexacionVacantesService } from './indexacion-vacantes.service';
 import { ELASTICSEARCH_INDEX } from './indexacion-vacantes.constants';
@@ -61,41 +59,40 @@ const vacanteEjemplo: VacanteIndexable = {
   ],
 };
 
-test('crea el índice e indexa la vacante con el mismo ID', async () => {
-  const { service, documentos, getCreaciones } = crearServicioFake();
+describe('IndexacionVacantesService', () => {
+  it('crea el índice e indexa la vacante con el mismo ID', async () => {
+    const { service, documentos, getCreaciones } = crearServicioFake();
 
-  const resultado = await service.indexarVacante(vacanteEjemplo);
+    const resultado = await service.indexarVacante(vacanteEjemplo);
 
-  assert.equal(getCreaciones(), 1);
-  assert.equal(resultado.idDocumento, vacanteEjemplo.id);
-  assert.equal(documentos.size, 1);
-  assert.equal(
-    documentos.get(vacanteEjemplo.id)?.requerimientosLaborales?.length,
-    2,
-  );
-});
-
-test('reindexar la misma vacante conserva un solo documento', async () => {
-  const { service, documentos } = crearServicioFake();
-
-  await service.indexarVacante(vacanteEjemplo);
-  await service.indexarVacante({
-    ...vacanteEjemplo,
-    titulo: 'Desarrollador backend actualizado',
+    expect(getCreaciones()).toBe(1);
+    expect(resultado.idDocumento).toBe(vacanteEjemplo.id);
+    expect(documentos.size).toBe(1);
+    expect(
+      documentos.get(vacanteEjemplo.id)?.requerimientosLaborales?.length,
+    ).toBe(2);
   });
 
-  assert.equal(documentos.size, 1);
-  assert.equal(
-    documentos.get(vacanteEjemplo.id)?.titulo,
-    'Desarrollador backend actualizado',
-  );
-});
+  it('reindexar la misma vacante conserva un solo documento', async () => {
+    const { service, documentos } = crearServicioFake();
 
-test('rechaza una vacante sin título', async () => {
-  const { service } = crearServicioFake();
+    await service.indexarVacante(vacanteEjemplo);
+    await service.indexarVacante({
+      ...vacanteEjemplo,
+      titulo: 'Desarrollador backend actualizado',
+    });
 
-  await assert.rejects(
-    () => service.indexarVacante({ ...vacanteEjemplo, titulo: '' }),
-    /El campo titulo es obligatorio/,
-  );
+    expect(documentos.size).toBe(1);
+    expect(documentos.get(vacanteEjemplo.id)?.titulo).toBe(
+      'Desarrollador backend actualizado',
+    );
+  });
+
+  it('rechaza una vacante sin título', async () => {
+    const { service } = crearServicioFake();
+
+    await expect(
+      service.indexarVacante({ ...vacanteEjemplo, titulo: '' }),
+    ).rejects.toThrow('El campo titulo es obligatorio');
+  });
 });
