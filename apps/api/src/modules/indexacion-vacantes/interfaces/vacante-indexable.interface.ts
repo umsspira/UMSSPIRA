@@ -1,7 +1,7 @@
 import type { Prisma } from '../../../generated/prisma/client';
 import type { JobPostingSearchSource } from '../../../shared/infrastructure/search/job-posting-search-document';
 
-/** Proyeccion oficial que podra utilizar el futuro lector Prisma de HU4. */
+/** Proyeccion oficial utilizada por el lector Prisma autorizado de HU4. */
 export const VACANTE_INDEXACION_SELECT = {
   id: true,
   titulo: true,

@@ -55,6 +55,15 @@ const vacanteEjemplo: Prisma.VacanteGetPayload<{
 };
 
 describe('IndexacionVacantesService (HU4, persistencia y Elasticsearch simulados)', () => {
+  it('rechaza un UUID de borrado invalido sin llamar a Elasticsearch', async () => {
+    const { service, fakeClient } = crearServicioFake();
+    await expect(service.eliminarVacante('*')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(fakeClient.indices.exists).not.toHaveBeenCalled();
+    expect(fakeClient.index).not.toHaveBeenCalled();
+  });
+
   it('construye el documento compartido desde la proyeccion Prisma sin llamadas externas', () => {
     const { service, fakeClient } = crearServicioFake();
     const before = JSON.stringify(vacanteEjemplo);

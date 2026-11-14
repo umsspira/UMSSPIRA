@@ -25,6 +25,11 @@ export class IndexacionVacantesService {
     @Inject(ELASTICSEARCH_INDEX) private readonly indexName: string,
   ) {}
 
+  /** Permite comprobar el destino antes de coordinar escrituras autorizadas. */
+  get indice(): string {
+    return this.indexName;
+  }
+
   /** Construccion aislada, sin consultas ni indexacion; usa la politica compartida con HU8. */
   construirDocumento(
     vacante: VacanteIndexable,
@@ -134,6 +139,56 @@ export class IndexacionVacantesService {
       this.logger.error(`Error indexando la vacante ${vacante.id}.`, error);
       throw new ServiceUnavailableException(
         'No se pudo indexar la vacante en Elasticsearch.',
+      );
+    }
+  }
+
+  /** No crea el indice; borrar un documento o indice ausente es idempotente. */
+  async eliminarVacante(idVacante: string) {
+    if (
+      typeof idVacante !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idVacante,
+      )
+    ) {
+      throw new BadRequestException(
+        'El identificador de la vacante debe ser un UUID.',
+      );
+    }
+
+    try {
+      const respuesta = await this.client.delete({
+        index: this.indexName,
+        id: idVacante,
+        refresh: 'wait_for',
+      });
+      return {
+        idVacante,
+        indice: this.indexName,
+        resultado: respuesta.result,
+      };
+    } catch (error) {
+      const meta = (
+        error as {
+          meta?: {
+            statusCode?: number;
+            body?: { result?: string; error?: { type?: string } };
+          };
+        } | null
+      )?.meta;
+      if (
+        meta?.statusCode === 404 &&
+        (meta.body?.result === 'not_found' ||
+          meta.body?.error?.type === 'index_not_found_exception')
+      ) {
+        return { idVacante, indice: this.indexName, resultado: 'not_found' };
+      }
+      this.logger.error(
+        `Error eliminando la vacante ${idVacante} del indice.`,
+        error,
+      );
+      throw new ServiceUnavailableException(
+        'No se pudo eliminar la vacante de Elasticsearch.',
       );
     }
   }
