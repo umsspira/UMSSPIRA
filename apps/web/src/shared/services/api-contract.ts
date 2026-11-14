@@ -32,7 +32,8 @@ export function readApiError(value: unknown, fallback: string) {
 export function apiUrl(path: string): string {
   if (path.startsWith("/api/v1/")) return path;
   const base = (
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"
   ).replace(/\/+$/, "");
   return `${base}${path}`;
 }
+
