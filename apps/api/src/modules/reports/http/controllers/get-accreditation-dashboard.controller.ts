@@ -13,7 +13,8 @@ import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.
 
 import { GetAccreditationDashboardUseCase } from '../../application/use-cases/get-accreditation-dashboard.use-case';
 
-import { reportMetricsSchema } from '../schemas/reports.schemas';
+import { accreditationFilterSchema } from '../schemas/reports.schemas';
+import { extractAccreditationFilters } from '../../application/contracts/accreditation-filters';
 
 @Controller('reports')
 @Roles('administrador')
@@ -24,10 +25,11 @@ export class GetAccreditationDashboardController {
   @RequirePermissions('reportes:read')
   async handle(
     @CurrentActor() actor: ActorContext,
-    @Query(new ZodValidationPipe(reportMetricsSchema))
-    query: z.infer<typeof reportMetricsSchema>,
+    @Query(new ZodValidationPipe(accreditationFilterSchema))
+    query: z.infer<typeof accreditationFilterSchema>,
   ) {
-    const dashboard = await this.useCase.execute(actor, query.careerId);
+    const filters = extractAccreditationFilters(query);
+    const dashboard = await this.useCase.execute(actor, query.careerId, filters);
 
     return { data: dashboard };
   }

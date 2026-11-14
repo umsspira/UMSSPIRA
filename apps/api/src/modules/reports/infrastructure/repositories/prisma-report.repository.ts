@@ -15,8 +15,10 @@ import {
   type AccreditationDashboard,
   type AccreditationSalaryRange,
 } from '../../application/contracts/accreditation-dashboard';
-import type { AccreditationFilter } from '../../application/contracts/accreditation-filters';
-import { semesterRange } from '../../domain/policies/accreditation-format.policy';
+import {
+  type AccreditationFilter,
+  getSemesterFromDate,
+} from '../../application/contracts/accreditation-filters';
 
 export const MAX_EXPORT_ROWS = 10000;
 
@@ -31,13 +33,18 @@ export class PrismaReportRepository implements ReportRepository {
       ACCREDITATION_SALARY_RANGES.map((range) => [range, 0]),
     ) as Record<AccreditationSalaryRange, number>;
 
-    const empty = (): AccreditationDashboard => ({
+    const empty = (
+      availableCohorts: number[] = [],
+      availableSemesters: string[] = [],
+    ): AccreditationDashboard => ({
       totalResponses: 0,
       employedGraduates: 0,
       employedPercentage: 0,
       averageInsertionMonths: null,
       salaryRanges: { ...salaryRanges },
       employabilityByCohort: [],
+      availableCohorts,
+      availableSemesters,
     });
 
     if (careerIds.length === 0) {
@@ -80,11 +87,11 @@ export class PrismaReportRepository implements ReportRepository {
       return empty();
     }
 
-    // Titulados exclusivamente de las carreras autorizadas y, si se eligió, de esa cohorte (HU-003 CA-03).
+    // Titulados de las carreras autorizadas. La cohorte y el semestre se aplican más abajo,
+    // después de armar las opciones disponibles, para que los selectores no se achiquen (HU-003 CA-01 y CA-02).
     const graduates = await this.prisma.titulado.findMany({
       where: {
         id_carrera: { in: [...careerIds] },
-        ...(filter.cohort !== undefined ? { anio_egreso: filter.cohort } : {}),
       },
       select: {
         id: true,
@@ -107,8 +114,6 @@ export class PrismaReportRepository implements ReportRepository {
         idTitulado: {
           in: [...graduateById.keys()],
         },
-        // Semestre elegido: por la fecha de envío de la encuesta (HU-003 CA-04).
-        ...(filter.semester ? { fechaEnvio: semesterRange(filter.semester) } : {}),
       },
       select: {
         id: true,
@@ -141,7 +146,29 @@ export class PrismaReportRepository implements ReportRepository {
       }
     }
 
-    const totalResponses = latestResponses.size;
+    const availableCohortsSet = new Set<number>();
+    const availableSemestersSet = new Set<string>();
+
+    for (const response of latestResponses.values()) {
+      const graduate = graduateById.get(response.idTitulado);
+      if (graduate?.anio_egreso !== null && graduate?.anio_egreso !== undefined) {
+        availableCohortsSet.add(graduate.anio_egreso);
+      }
+      if (response.fechaEnvio) {
+        availableSemestersSet.add(getSemesterFromDate(response.fechaEnvio));
+      }
+    }
+
+    const availableCohorts = Array.from(availableCohortsSet).sort((a, b) => a - b);
+    const semesterSortKey = (semester: string) => {
+      const [term, year] = semester.split('/').map(Number);
+      return year * 10 + term;
+    };
+    const availableSemesters = Array.from(availableSemestersSet).sort(
+      (a, b) => semesterSortKey(b) - semesterSortKey(a),
+    );
+
+    let totalResponses = 0;
     let employedGraduates = 0;
     let insertionTotal = 0;
     let insertionCount = 0;
@@ -150,6 +177,19 @@ export class PrismaReportRepository implements ReportRepository {
 
     for (const response of latestResponses.values()) {
       const graduate = graduateById.get(response.idTitulado)!;
+
+      if (filter.cohort !== undefined && graduate.anio_egreso !== filter.cohort) {
+        continue;
+      }
+
+      if (filter.semester !== undefined) {
+        const respSemester = getSemesterFromDate(response.fechaEnvio);
+        if (respSemester !== filter.semester) {
+          continue;
+        }
+      }
+
+      totalResponses += 1;
 
       const normalized = response.condicionLaboral.trim().toLowerCase();
 
@@ -225,6 +265,8 @@ export class PrismaReportRepository implements ReportRepository {
         insertionCount > 0 ? Number((insertionTotal / insertionCount).toFixed(1)) : null,
       salaryRanges,
       employabilityByCohort,
+      availableCohorts,
+      availableSemesters,
     };
   }
   async metrics(careerIds: readonly string[]) {
@@ -267,6 +309,7 @@ export class PrismaReportRepository implements ReportRepository {
   ): Promise<CompetencyHeatmap> {
     // Integración T2.2/T2.3: esta consulta entrega el contrato completo del
     // mapa; radar solo es la fuente de cálculos y no se modifica desde reports.
+    // HU-003 CA-03/CA-05: se filtra por cohorte si se especifica; el semestre no aplica al mapa.
     const calculations = await this.prisma.calculoRadar.findMany({
       where: {
         titulado: {

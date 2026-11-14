@@ -55,4 +55,25 @@ describe('GetCompetencyHeatmapUseCase', () => {
     ).toThrow('No tienes acceso a la carrera solicitada');
     expect(competencyHeatmap).not.toHaveBeenCalled();
   });
+
+  it('pasa los filtros de cohorte al repositorio', async () => {
+    const competencyHeatmap = jest.fn().mockResolvedValue({});
+    const useCase = new GetCompetencyHeatmapUseCase({ competencyHeatmap } as never);
+
+    await useCase.execute(
+      {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'administrador',
+        permissions: ['reportes:read'],
+        scopes: { companyIds: [], graduateId: null, careerIds: ['career-1'] },
+        credentialVersion: 1,
+      },
+      'career-1',
+      { cohort: 2023 },
+    );
+
+    expect(competencyHeatmap).toHaveBeenCalledWith(['career-1'], { cohort: 2023 });
+  });
 });
