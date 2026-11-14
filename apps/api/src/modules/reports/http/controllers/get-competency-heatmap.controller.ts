@@ -1,9 +1,13 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
+import type { z } from 'zod';
 import { CurrentActor } from '../../../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../../../shared/http/auth/decorators/require-permissions.decorator';
 import { Roles } from '../../../../shared/http/auth/decorators/roles.decorator';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
+import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
 import { GetCompetencyHeatmapUseCase } from '../../application/use-cases/get-competency-heatmap.use-case';
+import { accreditationFilterSchema } from '../schemas/reports.schemas';
+import { extractAccreditationFilters } from '../../application/contracts/accreditation-filters';
 
 @Controller('reports')
 @Roles('administrador')
@@ -12,9 +16,12 @@ export class GetCompetencyHeatmapController {
 
   @Get('accreditation/heatmap')
   @RequirePermissions('reportes:read')
-  async handle(@CurrentActor() actor: ActorContext) {
-    // Integración T2.2: consumir GET /api/v1/reports/accreditation/heatmap
-    // para construir la matriz, leyenda y vista móvil del mapa.
-    return { data: await this.useCase.execute(actor) };
+  async handle(
+    @CurrentActor() actor: ActorContext,
+    @Query(new ZodValidationPipe(accreditationFilterSchema))
+    query: z.infer<typeof accreditationFilterSchema>,
+  ) {
+    const filters = extractAccreditationFilters(query);
+    return { data: await this.useCase.execute(actor, query.careerId, filters) };
   }
 }
