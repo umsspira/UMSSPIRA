@@ -1,0 +1,35 @@
+meta {
+  name: 011 CA-HU9-04 POST recalculate sin permiso
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/radar/recalculate
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{empresaToken}}
+}
+
+tests {
+  test("Status 403", function() {
+    expect(res.status).to.equal(403);
+  });
+
+  test("Nunca responde 404", function() {
+    expect(res.status).to.not.equal(404);
+  });
+
+  test("Codigo FORBIDDEN", function() {
+    expect(res.body.error.code).to.equal("FORBIDDEN");
+  });
+}
+
+docs {
+  CA-HU9-04: POST /radar/recalculate con una cuenta autenticada sin
+  radar:self:write responde 403. Un 404 incumple el criterio. Requiere ejecutar
+  antes 002-login-empresa.
+}

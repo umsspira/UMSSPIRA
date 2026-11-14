@@ -1,0 +1,41 @@
+meta {
+  name: 005 CA-HU9-02 auth/me empresa
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{empresaToken}}
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Nunca responde 404", function() {
+    expect(res.status).to.not.equal(404);
+  });
+
+  test("Rol empresa", function() {
+    expect(res.body.data.role).to.equal("empresa");
+  });
+
+  test("Carece de nlp:extract, radar:self:read y radar:self:write", function() {
+    const permisos = res.body.data.permissions;
+    expect(permisos).to.not.include("nlp:extract");
+    expect(permisos).to.not.include("radar:self:read");
+    expect(permisos).to.not.include("radar:self:write");
+  });
+}
+
+docs {
+  CA-HU9-02: /auth/me de la empresa carece de nlp:extract, radar:self:read y
+  radar:self:write. Requiere ejecutar antes 002-login-empresa.
+}

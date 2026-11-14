@@ -1,0 +1,30 @@
+meta {
+  name: 009 CA-HU9-03 GET radar sin token
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/radar
+  body: none
+  auth: none
+}
+
+tests {
+  test("Status 401", function() {
+    expect(res.status).to.equal(401);
+  });
+
+  test("Nunca responde 404", function() {
+    expect(res.status).to.not.equal(404);
+  });
+
+  test("Codigo UNAUTHENTICATED", function() {
+    expect(res.body.error.code).to.equal("UNAUTHENTICATED");
+  });
+}
+
+docs {
+  CA-HU9-03: GET /radar sin token responde 401. Un 404 incumple el criterio.
+  No requiere credenciales.
+}

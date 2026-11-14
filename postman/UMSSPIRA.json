@@ -4880,6 +4880,589 @@
           }
         }
       ]
+    },
+    {
+      "name": "Revalidacion-T9.3",
+      "description": "Revalidacion T9.3 (HU-9): /auth/me, GET /radar y POST /radar/recalculate con titulado, empresa y administrador. CA-HU9-02, CA-HU9-03 y CA-HU9-04. El resultado del administrador queda [POR CONFIRMAR con PO/BE]. Ejecuta 001 a 003 para obtener los tokens en tiempo de ejecucion; no se guardan tokens reales en el repositorio.",
+      "item": [
+        {
+          "name": "Iniciar sesion titulado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Inicia sesion con la cuenta de titulado y guarda data.accessToken en {{tituladoToken}} en tiempo de ejecucion. Completa tituladoEmail y tituladoPassword en las variables de la coleccion o en un entorno local. No escribas tokens reales en el repositorio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{tituladoEmail}}\",\n  \"password\": \"{{tituladoPassword}}\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"tituladoToken\", body.data.accessToken);",
+                  "pm.test(\"Guarda el token de titulado en tiempo de ejecucion\", () => pm.expect(body.data.accessToken).to.be.a(\"string\").and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesion empresa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Inicia sesion con la cuenta de empresa y guarda data.accessToken en {{empresaToken}} en tiempo de ejecucion. Completa empresaEmail y empresaPassword en las variables de la coleccion o en un entorno local. No escribas tokens reales en el repositorio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{empresaEmail}}\",\n  \"password\": \"{{empresaPassword}}\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"empresaToken\", body.data.accessToken);",
+                  "pm.test(\"Guarda el token de empresa en tiempo de ejecucion\", () => pm.expect(body.data.accessToken).to.be.a(\"string\").and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesion administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Inicia sesion con la cuenta de administrador y guarda data.accessToken en {{administradorToken}} en tiempo de ejecucion. Completa administradorEmail y administradorPassword en las variables de la coleccion o en un entorno local. No escribas tokens reales en el repositorio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{administradorEmail}}\",\n  \"password\": \"{{administradorPassword}}\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"administradorToken\", body.data.accessToken);",
+                  "pm.test(\"Guarda el token de administrador en tiempo de ejecucion\", () => pm.expect(body.data.accessToken).to.be.a(\"string\").and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "004 CA-HU9-02 auth/me titulado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tituladoToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-02: /auth/me del titulado incluye nlp:extract, radar:self:read y radar:self:write.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Rol titulado\", () => pm.expect(body.data.role).to.eql(\"titulado\"));",
+                  "pm.test(\"Incluye los tres permisos\", () => { const p = body.data.permissions; pm.expect(p).to.include(\"nlp:extract\"); pm.expect(p).to.include(\"radar:self:read\"); pm.expect(p).to.include(\"radar:self:write\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "005 CA-HU9-02 auth/me empresa",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{empresaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-02: /auth/me de la empresa carece de nlp:extract, radar:self:read y radar:self:write.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Rol empresa\", () => pm.expect(body.data.role).to.eql(\"empresa\"));",
+                  "pm.test(\"Carece de los tres permisos\", () => { const p = body.data.permissions; pm.expect(p).to.not.include(\"nlp:extract\"); pm.expect(p).to.not.include(\"radar:self:read\"); pm.expect(p).to.not.include(\"radar:self:write\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "006 auth/me administrador (observado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{administradorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "[POR CONFIRMAR con PO/BE]: ningun CA define el resultado esperado del administrador. Registra el comportamiento observado en codigo.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Rol administrador\", () => pm.expect(body.data.role).to.eql(\"administrador\"));",
+                  "pm.test(\"Incluye nlp:extract y carece de los permisos de radar\", () => { const p = body.data.permissions; pm.expect(p).to.include(\"nlp:extract\"); pm.expect(p).to.not.include(\"radar:self:read\"); pm.expect(p).to.not.include(\"radar:self:write\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "007 CA-HU9-03 GET radar titulado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tituladoToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-03: GET /radar con titulado (radar:self:read) responde 200. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Respuesta envuelta en data con seis areas\", () => { pm.expect(body.data).to.be.an(\"object\"); pm.expect(body.data.areas).to.be.an(\"array\").with.lengthOf(6); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "008 CA-HU9-03 GET radar sin permiso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{empresaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-03: GET /radar con una cuenta autenticada sin radar:self:read responde 403. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Codigo FORBIDDEN\", () => pm.expect(body.error.code).to.eql(\"FORBIDDEN\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "009 CA-HU9-03 GET radar sin token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "CA-HU9-03: GET /radar sin token responde 401. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Codigo UNAUTHENTICATED\", () => pm.expect(body.error.code).to.eql(\"UNAUTHENTICATED\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "010 CA-HU9-04 POST recalculate titulado",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tituladoToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-04: POST /radar/recalculate con titulado (radar:self:write) responde 200. Un 404 incumple el criterio. Este caso persiste un calculo en la cuenta ficticia del titulado.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar/recalculate",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar",
+                "recalculate"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Respuesta envuelta en data con recalculated booleano\", () => { pm.expect(body.data).to.be.an(\"object\"); pm.expect(body.data.recalculated).to.be.a(\"boolean\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "011 CA-HU9-04 POST recalculate sin permiso",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{empresaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-04: POST /radar/recalculate con una cuenta autenticada sin radar:self:write responde 403. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar/recalculate",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar",
+                "recalculate"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Codigo FORBIDDEN\", () => pm.expect(body.error.code).to.eql(\"FORBIDDEN\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "012 CA-HU9-04 POST recalculate sin token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "CA-HU9-04: POST /radar/recalculate sin token responde 401. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar/recalculate",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar",
+                "recalculate"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Codigo UNAUTHENTICATED\", () => pm.expect(body.error.code).to.eql(\"UNAUTHENTICATED\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -5072,6 +5655,51 @@
     {
       "key": "radarTopKeywordsJson",
       "value": ""
+    },
+    {
+      "key": "tituladoEmail",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "tituladoPassword",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "empresaEmail",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "empresaPassword",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "administradorEmail",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "administradorPassword",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "tituladoToken",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "empresaToken",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "administradorToken",
+      "value": "",
+      "type": "secret"
     }
   ]
 }

@@ -1,0 +1,39 @@
+meta {
+  name: 010 CA-HU9-04 POST recalculate titulado
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/radar/recalculate
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tituladoToken}}
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Nunca responde 404", function() {
+    expect(res.status).to.not.equal(404);
+  });
+
+  test("Respuesta envuelta en data con recalculated booleano", function() {
+    expect(res.body.data).to.be.an("object");
+    expect(res.body.data.recalculated).to.be.a("boolean");
+  });
+}
+
+docs {
+  CA-HU9-04: POST /radar/recalculate con titulado (radar:self:write) responde
+  200. Un 404 incumple el criterio.
+
+  Este caso persiste un calculo de radar en la cuenta ficticia del titulado.
+  Ejecutalo solo si el entorno es de integracion o QA. Requiere ejecutar antes
+  001-login-titulado.
+}
