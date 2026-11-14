@@ -14,6 +14,8 @@ Rutas verificadas en `apps/web/src/app`. Los grupos `(public)` y `(dashboard)` o
 | `/register/correction` | Solicitud de un nuevo enlace de corrección. | Público | [page.tsx](../../apps/web/src/app/%28public%29/register/correction/page.tsx) |
 | `/register/correction/[token]` | Consulta de observaciones, edición, reemplazo y reentrega. | Enlace de corrección válido; no requiere login | [page.tsx](../../apps/web/src/app/%28public%29/register/correction/[token]/page.tsx) |
 | `/activate` | Validación de OTP y definición de contraseña. | Solicitud aprobada y credencial de activación | [page.tsx](../../apps/web/src/app/%28public%29/activate/page.tsx) |
+| `/status` | Consulta pública del estado por correo mediante `StatusQueryForm`. | Público; respuesta genérica y envío al correo verificado | [page.tsx](../../apps/web/src/app/%28public%29/status/page.tsx) |
+| `/me` | Página compartida de datos del usuario autenticado. | Sesión autenticada | [page.tsx](../../apps/web/src/app/%28dashboard%29/me/page.tsx) |
 | `/login` | Inicio de sesión y acceso a consulta de estado por correo. | Público | [page.tsx](../../apps/web/src/app/%28public%29/login/page.tsx) |
 | `/forgot-password` | Solicitud de correo de recuperación. | Público | [page.tsx](../../apps/web/src/app/%28public%29/forgot-password/page.tsx) |
 | `/reset-password` | Validación del enlace y nueva contraseña. | Credencial de recuperación válida | [page.tsx](../../apps/web/src/app/%28public%29/reset-password/page.tsx) |
@@ -22,7 +24,7 @@ Rutas verificadas en `apps/web/src/app`. Los grupos `(public)` y `(dashboard)` o
 
 ## Integración y alcance
 
-- HU-18 se abre desde login y registro: es un formulario integrado, sin página independiente de consulta de estado.
+- HU-18 dispone de la página pública `/status`, accesible desde login y registro; consume `POST /api/v1/registrations/status-query`.
 - El expediente y los controles administrativos están integrados en `/applications`; no se documenta una página `/applications/[id]` que no existe en este corte.
 - La activación usa la misma ruta `/activate` para sus pasos.
 - Las llamadas HTTP pasan por `/api/v1/[...path]`, proxy compartido de Next.js hacia NestJS; el inventario está en [RutasBackend.md](RutasBackend.md).

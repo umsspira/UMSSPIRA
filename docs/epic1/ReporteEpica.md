@@ -46,7 +46,7 @@ Se corrigieron además el reinicio del buscador, recorte de contenido del dictam
 | HU-15 | Existe detector local de calidad de imagen y sus pruebas. Los avisos orientan sobre legibilidad; no certifican autenticidad. La validación integral del flujo permanece sujeta al cierre del sprint. |
 | HU-16 | Hay implementación de motivos múltiples y explicación compartida entre resolución, correo y corrección, con pruebas de reglas y concurrencia. Mantiene una observación por decisión y el máximo de dos. |
 | HU-17 | Hay trabajo de persistencia de eventos y revisión única para conservar la evolución del expediente. El historial cronológico completo en interfaz y su validación de permisos siguen pendientes de acreditación integral. |
-| HU-18 | Están el formulario integrado en login/registro, endpoint público, selección de última solicitud enviada, límites y plantillas según estado; hay pruebas de consulta y correos. Responde de forma genérica y no modifica el dictamen. |
+| HU-18 | Están la página pública `/status` accesible desde login/registro, endpoint público, selección de última solicitud enviada, límites y plantillas según estado; hay pruebas de consulta y correos. Responde de forma genérica y no modifica el dictamen. |
 
 El OCR produce hallazgos y sugerencias; la decisión oficial corresponde al administrador. Un error de lectura o dato ausente exige revisión humana y no demuestra falsedad documental.
 
