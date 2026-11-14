@@ -24,7 +24,7 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
       data: {
         idEncuesta: data.idEncuesta,
         idTitulado: data.idTitulado,
-        condicionLaboral: String(data.condicionLaboral),
+        condicionLaboral: data.condicionLaboral,
         cargo: data.cargo,
         empresa: data.empresa,
         area: data.area,
@@ -332,8 +332,7 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     let trabajan = 0;
     let noTrabajan = 0;
     for (const group of condicionGroups) {
-      const normalized = group.condicionLaboral.trim().toLowerCase();
-      if (normalized === 'trabaja' || normalized === 'true') {
+      if (group.condicionLaboral) {
         trabajan += group._count._all;
       } else {
         noTrabajan += group._count._all;
@@ -362,11 +361,7 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     }
 
     const respuestas = rawRespuestas.map((item) => {
-      const normalized = item.condicionLaboral.trim().toLowerCase();
-      const condicionLaboral =
-        normalized === 'trabaja' || normalized === 'true'
-          ? 'Trabaja'
-          : 'No trabaja';
+      const condicionLaboral = item.condicionLaboral ? 'Trabaja' : 'No trabaja';
 
       return {
         id: item.id,
