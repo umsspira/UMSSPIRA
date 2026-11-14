@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="GlobalHeader/NotificationsHitArea">
+<g id="GlobalHeader/Notifications">
+<path id="Vector" d="M28 18C28 14.6863 25.3137 12 22 12C18.6863 12 16 14.6863 16 18C16 25 13 25 13 27H31C31 25 28 25 28 18Z" stroke="#EEE9DF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M23.73 31C23.5542 31.3031 23.3018 31.5547 22.9982 31.7295C22.6946 31.9044 22.3504 31.9965 22 31.9965C21.6496 31.9965 21.3054 31.9044 21.0018 31.7295C20.6982 31.5547 20.4458 31.3031 20.27 31" stroke="#EEE9DF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<circle id="GlobalHeader/NotificationDot" cx="31" cy="9" r="4" fill="#FFB162"/>
+</g>
+</svg>

@@ -1,0 +1,263 @@
+{
+  "info": {
+    "_postman_id": "4f294e79-fca7-41e9-9b96-fc4544a9d684",
+    "name": "UMSSPIRA API",
+    "description": "Pruebas locales de UMSSPIRA. Las vacantes y sus requisitos usan la API autenticada de Epic5 y PostgreSQL/Prisma. Configura accessToken con un token de una cuenta asociada a una empresa. La búsqueda requiere Elasticsearch.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "API disponible",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{apiUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vacantes",
+      "item": [
+        {
+          "name": "Validar estructura",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"titulo\": \"Analista de Datos Junior\",\n  \"idEmpresa\": \"{{$guid}}\",\n  \"estado\": \"Disponible\",\n  \"requisitosTecnicos\": {\n    \"requerimientoLaboralIds\": []\n  }\n}"
+            },
+            "url": "{{apiUrl}}/api/v1/vacantes/estructura/validar"
+          }
+        },
+        {
+          "name": "Crear vacante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.environment.set('vacancyId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Analista de Datos Junior\",\n  \"modalidad\": \"Híbrido\",\n  \"descripcion\": \"Analiza información y prepara reportes para apoyar decisiones de negocio.\",\n  \"ubicacion\": \"Cochabamba\",\n  \"area\": \"Datos y Analítica\",\n  \"condiciones\": \"Jornada completa\",\n  \"requisitos\": [\"SQL\", \"Python\"]\n}"
+            },
+            "url": "{{apiUrl}}/api/v1/vacantes"
+          }
+        },
+        {
+          "name": "Listar mis vacantes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiUrl}}/api/v1/vacantes/mis-vacantes"
+          }
+        },
+        {
+          "name": "Obtener vacante",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiUrl}}/api/v1/vacantes/{{vacancyId}}"
+          }
+        },
+        {
+          "name": "Editar vacante",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descripcion\": \"Descripción actualizada de la oportunidad laboral.\"\n}"
+            },
+            "url": "{{apiUrl}}/api/v1/vacantes/{{vacancyId}}"
+          }
+        },
+        {
+          "name": "Indexar vacante",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{apiUrl}}/api/v1/vacantes/{{vacancyId}}/indexar"
+          }
+        },
+        {
+          "name": "Buscar vacantes indexadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{apiUrl}}/api/v1/vacantes/buscar?q=analista"
+          }
+        },
+        {
+          "name": "Asociar requisitos técnicos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (Array.isArray(body) && body[0]?.id) pm.environment.set('technicalRequirementId', body[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requisitos\": [\n    {\n      \"competencia\": \"SQL\",\n      \"nivel\": \"Intermedio\",\n      \"tipo\": \"Obligatorio\",\n      \"descripcion\": \"Consultas y transformación de datos\"\n    }\n  ]\n}"
+            },
+            "url": "{{apiUrl}}/api/v1/vacantes/{{vacancyId}}/requisitos"
+          }
+        },
+        {
+          "name": "Listar requisitos técnicos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiUrl}}/api/v1/vacantes/{{vacancyId}}/requisitos"
+          }
+        },
+        {
+          "name": "Obtener estructura de matching",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiUrl}}/api/v1/vacantes/{{vacancyId}}/requisitos/matching"
+          }
+        },
+        {
+          "name": "Actualizar requisito técnico",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nivel\": \"Avanzado\",\n  \"tipo\": \"Deseable\",\n  \"descripcion\": \"Experiencia práctica con consultas complejas\"\n}"
+            },
+            "url": "{{apiUrl}}/api/v1/vacantes/{{vacancyId}}/requisitos/{{technicalRequirementId}}"
+          }
+        },
+        {
+          "name": "Eliminar requisito técnico",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{apiUrl}}/api/v1/vacantes/{{vacancyId}}/requisitos/{{technicalRequirementId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Formación académica",
+      "item": [
+        {
+          "name": "Listar formación por egresado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{apiUrl}}/api/v1/formacion-academica?idEgresado={{egresadoId}}"
+          }
+        },
+        {
+          "name": "Registrar formación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.idFormacion) pm.environment.set('formationId', body.idFormacion);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idEgresado\": \"{{egresadoId}}\",\n  \"idCarrera\": null,\n  \"tipoFormacion\": \"Bachiller\",\n  \"institucion\": \"Unidad Educativa\",\n  \"titulo\": \"Bachiller\",\n  \"nivelAcademico\": \"Secundario\",\n  \"estado\": \"Titulado\",\n  \"anioInicio\": 2010,\n  \"anioFin\": 2015\n}"
+            },
+            "url": "{{apiUrl}}/api/v1/formacion-academica"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Experiencia laboral (requiere Supabase Auth)",
+      "item": [
+        {
+          "name": "Listar mis experiencias",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{supabaseToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{apiUrl}}/api/v1/experiencias-laborales"
+          }
+        },
+        {
+          "name": "Registrar experiencia",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{supabaseToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"Empresa de ejemplo\",\n  \"position\": \"Analista\",\n  \"description\": \"Análisis y elaboración de reportes.\",\n  \"employmentType\": \"Tiempo completo\",\n  \"startDate\": \"2023-01-01\",\n  \"currentlyWorking\": true,\n  \"endDate\": null\n}"
+            },
+            "url": "{{apiUrl}}/api/v1/experiencias-laborales"
+          }
+        }
+      ]
+    }
+  ]
+}
