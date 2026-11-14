@@ -1141,12 +1141,13 @@ model PalabraClaveNoMapeada {
 }
 
 model CalculoRadar {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_titulado       String   @db.Uuid
-  version_algoritmo String   @db.VarChar
-  hash_entrada      String?  @db.VarChar(64)
-  estado            String   @db.VarChar
-  fecha_calculo     DateTime @default(now()) @db.Timestamptz(6)
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_titulado         String   @db.Uuid
+  version_algoritmo   String   @db.VarChar
+  version_diccionario String?  @db.VarChar(50)
+  hash_entrada        String?  @db.VarChar(64)
+  estado              String   @db.VarChar
+  fecha_calculo       DateTime @default(now()) @db.Timestamptz(6)
 
   titulado           Titulado        @relation(fields: [id_titulado], references: [id], onDelete: NoAction)
   afinidad_registros AfinidadRadar[]
@@ -1156,12 +1157,13 @@ model CalculoRadar {
 }
 
 model AfinidadRadar {
-  id                 String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_calculo_radar   String  @db.Uuid
-  id_area            String  @db.Uuid
-  puntaje            Decimal @db.Decimal
-  porcentaje         Decimal @db.Decimal(5, 2)
-  palabras_clave_top Json?
+  id                     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_calculo_radar        String  @db.Uuid
+  id_area                String  @db.Uuid
+  puntaje                Decimal @db.Decimal
+  porcentaje             Decimal @db.Decimal(5, 2)
+  palabras_clave_top     Json?
+  contribuciones_keyword Json?
 
   calculo_radar CalculoRadar @relation(fields: [id_calculo_radar], references: [id], onDelete: NoAction)
   area          Area         @relation(fields: [id_area], references: [id], onDelete: NoAction)
