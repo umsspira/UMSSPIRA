@@ -2,16 +2,25 @@ import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
 import type { PasswordHasher } from '../../src/modules/auth/application/ports/password-hasher.port';
 import { Argon2PasswordHasher } from '../../src/modules/auth/infrastructure/security/argon2-password.hasher';
 import { seedCatalogs } from './catalogs';
-import { seedInformaticsAdmin } from './informatics-career';
+import { seedInformaticsAdmin, seedInformaticsCareer } from './informatics-career';
 import {
   DEMO_ACCOUNTS,
   DEMO_CAREER_ID,
   DEMO_COMPANY_ID,
   DEMO_GRADUATE_ID,
+  DEMO_INFORMATICS_QA_ADMIN_ID,
   type DemoAccount,
 } from './demo-accounts';
 
-function profileFor(account: DemoAccount): Partial<Prisma.UsuarioCreateInput> {
+function profileFor(
+  account: DemoAccount,
+  informaticsCareerId: string,
+): Partial<Prisma.UsuarioCreateInput> {
+  const careerId =
+    account.id === DEMO_INFORMATICS_QA_ADMIN_ID
+      ? informaticsCareerId
+      : (account.careerId ?? DEMO_CAREER_ID);
+
   if (account.role === 'titulado') {
     return {
       titulado: {
@@ -29,7 +38,7 @@ function profileFor(account: DemoAccount): Partial<Prisma.UsuarioCreateInput> {
                 expedido_en: 'CB' as const,
               }
             : {}),
-          carrera: { connect: { id: account.careerId ?? DEMO_CAREER_ID } },
+          carrera: { connect: { id: careerId } },
         },
       },
     };
@@ -56,7 +65,7 @@ function profileFor(account: DemoAccount): Partial<Prisma.UsuarioCreateInput> {
       create: {
         id: account.profileId,
         estado: 'ACTIVO',
-        carrera: { connect: { id: account.careerId ?? DEMO_CAREER_ID } },
+        carrera: { connect: { id: careerId } },
       },
     },
   };
@@ -67,6 +76,7 @@ export async function seedBase(
   passwords: Pick<PasswordHasher, 'hash'> = new Argon2PasswordHasher(),
 ): Promise<void> {
   await seedCatalogs(prisma);
+  const informaticsCareerId = await seedInformaticsCareer(prisma);
 
   const roleCodes = [...new Set(DEMO_ACCOUNTS.map((account) => account.role))];
   const roles = await prisma.rolAcceso.findMany({
@@ -92,7 +102,7 @@ export async function seedBase(
     const hash = await passwords.hash(account.password);
     await prisma.usuario.create({
       data: {
-        ...profileFor(account),
+        ...profileFor(account, informaticsCareerId),
         usuario_id: account.id,
         correo: account.email,
         nombre: account.name,

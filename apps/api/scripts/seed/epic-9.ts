@@ -1,5 +1,10 @@
 import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
+import { radarLevel } from './radar-levels';
+import { AFFINITY_AREAS } from '@umsspira/shared-types';
 import { DEMO_ADMIN_ASSIGNMENT_ID, DEMO_CAREER_ID } from './demo-accounts';
+import { calculateAreaAffinity } from '../../src/modules/radar/domain/policies/affinity-calculator';
+import { RADAR_DICTIONARY } from '../../src/modules/radar/domain/affinity-catalog';
+import { RADAR_AREA_IDS } from '../../src/modules/radar/domain/entities/radar-area';
 
 // Los reportes HTTP se generan con las solicitudes de la épica 1; no son archivos estáticos.
 const DEMO_SURVEY_ID = '99000000-0000-4000-8000-000000000001';
@@ -65,8 +70,8 @@ function demoId(prefix: string, sequence: number): string {
   return `${prefix}-0000-4000-8000-${sequence.toString().padStart(12, '0')}`;
 }
 
-const demoGraduates: Prisma.TituladoCreateManyInput[] = graduateNames.map(
-  ([nombre, apellido], index) => ({
+export const demoGraduates: Array<Prisma.TituladoCreateManyInput & { id: string }> =
+  graduateNames.map(([nombre, apellido], index) => ({
     id: demoId('99100000', index + 1),
     id_carrera: DEMO_CAREER_ID,
     nombre,
@@ -75,8 +80,79 @@ const demoGraduates: Prisma.TituladoCreateManyInput[] = graduateNames.map(
     anio_egreso: 2021 + (index % 5),
     grado: 'Licenciatura',
     expedido_en: 'CB',
-  }),
-);
+  }));
+
+const systemsRadarAdditionalGraduates: Array<Prisma.TituladoCreateManyInput & { id: string }> = [
+  ['Emilia', 'Reyes'],
+  ['Franco', 'Ledezma'],
+  ['Lorena', 'Vargas'],
+].map(([nombre, apellido], index) => ({
+  id: demoId('99400000', index + 1),
+  id_carrera: DEMO_CAREER_ID,
+  nombre,
+  apellido,
+  anio_ingreso: 2021,
+  anio_egreso: 2026,
+  grado: 'Licenciatura',
+  expedido_en: 'CB',
+}));
+
+export const systemsRadarGraduates = [...demoGraduates, ...systemsRadarAdditionalGraduates];
+
+const systemsRadarSeed = systemsRadarGraduates.map((graduate, graduateIndex) => {
+  const calculationId = demoId('99410000', graduateIndex + 1);
+  const calculation = {
+    id: calculationId,
+    id_titulado: graduate.id,
+    version_algoritmo: 'qa-seed-v1',
+    estado: 'COMPLETADO',
+    fecha_calculo: new Date(Date.UTC(2026, 1, 1 + graduateIndex)),
+  } satisfies Prisma.CalculoRadarCreateManyInput;
+
+  const affinities = AFFINITY_AREAS.flatMap((area, areaIndex) => {
+    // Esta ausencia intencional permite comprobar CA-05: el área se omite, no se registra como 0 %.
+    if (graduate.anio_egreso === 2025 && area === 'data-ai') {
+      return [];
+    }
+
+    const definitions = RADAR_DICTIONARY[area];
+    const weights = definitions.map(({ term, weight }) => ({ term, peso: weight }));
+    const start = (graduateIndex * 3 + areaIndex) % definitions.length;
+    // Nivel por cohorte y área: el mapa usa los 5 tramos de color (HU-002 CA-02).
+    const [keywordCount, frequency] = radarLevel(graduate.anio_egreso, areaIndex);
+    const keywords = Array.from({ length: keywordCount }, (_, offset) => {
+      const definition = definitions[(start + offset) % definitions.length];
+      if (!definition) {
+        throw new Error(`Falta una keyword del área de radar ${area}`);
+      }
+      return { term: definition.term, count: frequency };
+    });
+    const result = calculateAreaAffinity(keywords, weights);
+    const topKeywords: Prisma.InputJsonValue = result.palabrasClaveTop.map((keyword) => ({
+      keyword: keyword.keyword,
+      weight: keyword.weight,
+      frequency: keyword.frequency,
+      points: keyword.points,
+      percentage: keyword.percentage,
+    }));
+
+    return [
+      {
+        id: demoId('99420000', graduateIndex * AFFINITY_AREAS.length + areaIndex + 1),
+        id_calculo_radar: calculationId,
+        id_area: RADAR_AREA_IDS[area],
+        puntaje: result.puntaje,
+        porcentaje: result.porcentaje,
+        palabras_clave_top: topKeywords,
+      } satisfies Prisma.AfinidadRadarCreateManyInput,
+    ];
+  });
+
+  return { calculation, affinities };
+});
+
+export const systemsRadarCalculations = systemsRadarSeed.map(({ calculation }) => calculation);
+export const systemsRadarAffinities = systemsRadarSeed.flatMap(({ affinities }) => affinities);
 
 // La cuenta titulado@umss.edu.bo queda sin respuesta para que QA pueda enviar la encuesta y ver el guardado.
 const respondentIds = demoGraduates.map(({ id }) => id);
@@ -369,8 +445,9 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   null,
 ];
 
-const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios.slice(0, respondentIds.length).map(
-  (scenario, index) => {
+const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios
+  .slice(0, respondentIds.length)
+  .map((scenario, index) => {
     const idTitulado = respondentIds[index];
     if (!idTitulado) {
       throw new Error(`Falta el titulado de demostración para la respuesta ${index + 1}`);
@@ -383,11 +460,10 @@ const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios.
       // Cada 7 días desde el 15/01/2026: la última queda antes de la fecha actual del sprint.
       fechaEnvio: new Date(Date.UTC(2026, 0, 15 + index * 7)),
     };
-  },
-);
+  });
 
 export async function seedEpic9(prisma: PrismaClient): Promise<void> {
-  await prisma.titulado.createMany({ data: demoGraduates, skipDuplicates: true });
+  await prisma.titulado.createMany({ data: systemsRadarGraduates, skipDuplicates: true });
   if (reportes.length > 0) {
     await prisma.reporte.createMany({ data: reportes, skipDuplicates: true });
   }
@@ -395,4 +471,6 @@ export async function seedEpic9(prisma: PrismaClient): Promise<void> {
     await prisma.encuesta.createMany({ data: encuestas, skipDuplicates: true });
   }
   await prisma.respuestaEncuesta.createMany({ data: respuestas, skipDuplicates: true });
+  await prisma.calculoRadar.createMany({ data: systemsRadarCalculations, skipDuplicates: true });
+  await prisma.afinidadRadar.createMany({ data: systemsRadarAffinities, skipDuplicates: true });
 }

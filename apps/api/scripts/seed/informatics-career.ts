@@ -1,8 +1,12 @@
 import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
-import { DEMO_ACCOUNTS } from './demo-accounts';
+import {
+  DEMO_ACCOUNTS,
+  DEMO_INFORMATICS_ADMIN_ASSIGNMENT_ID,
+  DEMO_INFORMATICS_CAREER_ID,
+} from './demo-accounts';
 
-export const INFORMATICS_CAREER_ID = '10000000-0000-4000-8000-000000000002';
-export const INFORMATICS_ADMIN_ASSIGNMENT_ID = '10000000-0000-4000-8000-000000000005';
+export const INFORMATICS_CAREER_ID = DEMO_INFORMATICS_CAREER_ID;
+export const INFORMATICS_ADMIN_ASSIGNMENT_ID = DEMO_INFORMATICS_ADMIN_ASSIGNMENT_ID;
 
 const careerNames = new Set([
   'ingenieria informatica',
