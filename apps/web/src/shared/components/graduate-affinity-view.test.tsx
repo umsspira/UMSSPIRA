@@ -343,6 +343,45 @@ describe('GraduateAffinityView', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('no presenta los ceros iniciales como dato final ni activa estados vacíos', async () => {
+    let resolveVector!: (value: ReturnType<typeof makeVector>) => void;
+    mockGetAffinityVector.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVector = resolve;
+      })
+    );
+
+    render(<GraduateAffinityView />);
+
+    expect(
+      screen.getByRole('status', {
+        name: 'Cargando tu radar de afinidad',
+      })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completar perfil')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Aún no podemos calcular tus áreas/)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Sin datos de historial laboral')
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveVector(makeVector(recalculatedAreas, { hasLaborHistory: undefined }));
+    });
+
+    expect(
+      await screen.findByText('Resumen de tu afinidad')
+    ).toBeInTheDocument();
+    expect(screen.getByText('85%')).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completar perfil')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Sin datos de historial laboral')
+    ).not.toBeInTheDocument();
+  });
+
   it('muestra las seis etiquetas visibles en el orden esperado', async () => {
     render(<GraduateAffinityView />);
 
@@ -573,7 +612,7 @@ describe('GraduateAffinityView', () => {
     render(<GraduateAffinityView />);
 
     expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
-    expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no podemos mostrar coincidencias/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Vector Calculado/i)).not.toBeInTheDocument();
@@ -631,6 +670,13 @@ describe('GraduateAffinityView', () => {
 
     const link = await screen.findByRole('link', { name: /Volver a mi perfil/i });
     expect(link).toHaveAttribute('href', '/profile');
+  });
+
+  it('«Volver a mi perfil» usa el mismo botón que las pantallas del perfil (HU-11)', async () => {
+    render(<GraduateAffinityView />);
+
+    const link = await screen.findByRole('link', { name: 'Volver a mi perfil' });
+    expect(link).toHaveClass('min-h-[44px]', 'text-[15px]');
   });
 
   it('dispara automáticamente el recálculo tras el debounce de 500 ms cuando hasPendingChanges es true', async () => {
@@ -801,7 +847,22 @@ describe('GraduateAffinityView', () => {
     expect(screen.queryByRole('button', { name: /Simular Actualización/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Simular Timeout/i)).not.toBeInTheDocument();
   });
+   it('muestra el aviso de demostración cuando el modo demostración está activo', async () => {
+    render(<GraduateAffinityView showDemoNotice />);
 
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.getByTestId('affinity-demo-notice')).toHaveTextContent(/Demostración/i);
+  });
+
+  it('no muestra el aviso de demostración cuando el modo demostración está apagado', async () => {
+    render(<GraduateAffinityView showDemoNotice={false} />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.queryByTestId('affinity-demo-notice')).not.toBeInTheDocument();
+  });
+  
   it('muestra el estado vacío cuando el vector tiene áreas pero todas con afinidad cero y sin evidencias', async () => {
     const zeroAreas = recalculatedAreas.map((area) => ({
       ...area,
@@ -815,9 +876,9 @@ describe('GraduateAffinityView', () => {
     render(<GraduateAffinityView />);
 
     expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
-    expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no podemos mostrar coincidencias/i)).toBeInTheDocument();
     expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Áreas con mayor afinidad identificadas:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Áreas con mayor coincidencia de palabras:/i)).not.toBeInTheDocument();
   });
 
   it('ordena el resumen de mayor a menor afinidad en las áreas identificadas', async () => {
@@ -866,7 +927,7 @@ describe('GraduateAffinityView', () => {
 
     await screen.findByText('Resumen de tu afinidad');
 
-    const topSection = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    const topSection = await screen.findByText(/Áreas con mayor coincidencia de palabras:/i);
     expect(topSection).toBeInTheDocument();
 
     const badges = screen.getAllByText(/^\d+\.\s+/);
@@ -939,7 +1000,7 @@ describe('GraduateAffinityView', () => {
 
     render(<GraduateAffinityView />);
 
-    const heading = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    const heading = await screen.findByText(/Áreas con mayor coincidencia de palabras:/i);
     const topSection = heading.closest('.bg-palladian') as HTMLElement;
 
     expect(

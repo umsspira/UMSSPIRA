@@ -1,8 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  KEYWORD_EXTRACTOR_PORT,
-  KeywordExtractorPort,
-} from '../ports/keyword-extractor.port';
+import { KEYWORD_EXTRACTOR_PORT, KeywordExtractorPort } from '../ports/keyword-extractor.port';
 import {
   RADAR_REPOSITORY_PORT,
   RadarRepositoryPort,
@@ -14,6 +11,11 @@ import { calculateInputHash } from '../../domain/policies/input-hash';
 import { RADAR_AREA_IDS, RadarArea } from '../../domain/entities/radar-area';
 import { buildRadarVector } from '../services/radar-vector.builder';
 import type { RadarVector } from '../contracts/radar-vector';
+import {
+  RADAR_AREA_WEIGHT_READER_PORT,
+  type AreaWeightReaderPort,
+} from '../ports/area-weight-reader.port';
+import { mapKeywordsToRadarAreas } from '../../domain/policies/keyword-area-mapper';
 
 @Injectable()
 export class RecalculateRadarUseCase {
@@ -23,6 +25,9 @@ export class RecalculateRadarUseCase {
 
     @Inject(RADAR_REPOSITORY_PORT)
     private readonly radarRepository: RadarRepositoryPort,
+
+    @Inject(RADAR_AREA_WEIGHT_READER_PORT)
+    private readonly areaWeightReader: AreaWeightReaderPort,
   ) {}
 
   async execute(
@@ -64,13 +69,19 @@ export class RecalculateRadarUseCase {
       const estado = keywords.length === 0 ? 'VACIO' : 'COMPLETADO';
 
       // Cargar los pesos de la base de datos.
-      const areaWeights = await repository.getAreaWeights();
+      const areaWeights = await this.areaWeightReader.getAreaWeights();
+      const mappedKeywords = mapKeywordsToRadarAreas(keywords, areaWeights);
       const slugs = Object.keys(RADAR_AREA_IDS) as RadarArea[];
       const areas: AreaScoreRecord[] = [];
 
       for (const slug of slugs) {
         const areaId = RADAR_AREA_IDS[slug];
-        const areaResult = calculateAreaAffinity(keywords, areaWeights[areaId] ?? []);
+        const areaResult = calculateAreaAffinity(
+          keywords,
+          mappedKeywords
+            .filter((mapping) => mapping.areaId === areaId)
+            .map(({ term, peso }) => ({ term, peso })),
+        );
 
         areas.push({
           areaSlug: slug,

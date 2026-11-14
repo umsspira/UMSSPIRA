@@ -46,7 +46,7 @@ describe('build-profile-json', () => {
     });
   });
 
-  const empty: ProfileRecords = { education: [], experience: [], certification: [] };
+  const empty: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
 
   it('exporta respaldo null en una formación sin archivo adjunto', () => {
     const records: ProfileRecords = {

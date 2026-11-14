@@ -38,58 +38,49 @@ function Harness({ item }: { item: TimelineItem }) {
       item={item}
       isOpen={open}
       onToggle={() => setOpen((value) => !value)}
-      status={<span>Respaldo verificado</span>}
     />
   );
 }
 
 describe('CertificationItem', () => {
-  it('cerrada se ve como en la v3 y no muestra los datos extendidos', () => {
+  it('cerrada muestra entidad, año y grado una sola vez, sin el archivo (HU-21, CA-03)', () => {
     render(<Harness item={withBackup} />);
 
     expect(screen.getByRole('button', { name: /AWS Solutions Architect/ })).toHaveAttribute(
       'aria-expanded',
       'false',
     );
-    expect(screen.getByText('Amazon Web Services · 2022')).toBeInTheDocument();
-    expect(screen.getByText('Grado: Profesional')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'respaldo.pdf' })).toBeInTheDocument();
-    expect(screen.getByText('Respaldo verificado')).toBeInTheDocument();
+    expect(screen.getAllByText('Amazon Web Services · 2022')).toHaveLength(1);
+    expect(screen.getAllByText('Grado: Profesional')).toHaveLength(1);
+    expect(screen.queryByText('respaldo.pdf')).not.toBeInTheDocument();
+  });
+
+  it('abierta muestra el archivo una sola vez y no repite entidad, año ni grado (HU-21, CA-03)', () => {
+    render(<Harness item={withBackup} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /AWS Solutions Architect/ }));
+
+    expect(screen.getAllByText('respaldo.pdf')).toHaveLength(1);
+    expect(screen.getAllByText(/Amazon Web Services/)).toHaveLength(1);
+    expect(screen.getAllByText(/Profesional/)).toHaveLength(1);
     expect(screen.queryByText('Entidad emisora')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Descargar respaldo.pdf' })).not.toBeInTheDocument();
   });
 
-  it('al hacer clic muestra entidad, año y grado', () => {
+  it('cada respaldo se descarga desde su propio archivo (E2.2)', () => {
     render(<Harness item={withBackup} />);
 
     fireEvent.click(screen.getByRole('button', { name: /AWS Solutions Architect/ }));
 
-    expect(screen.getByText('Entidad emisora').nextSibling).toHaveTextContent('Amazon Web Services');
-    expect(screen.getByText('Año').nextSibling).toHaveTextContent('2022');
-    expect(screen.getByText('Grado').nextSibling).toHaveTextContent('Profesional');
-  });
-
-  it('con respaldo muestra el nombre del archivo', () => {
-    render(<Harness item={withBackup} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /AWS Solutions Architect/ }));
-
-    const detail = screen.getByText('Entidad emisora').closest('div[id]') as HTMLElement;
-    expect(within(detail).getByText('respaldo.pdf')).toBeInTheDocument();
-    expect(within(detail).getByRole('link', { name: 'Descargar respaldo.pdf' })).toBeInTheDocument();
-  });
-
-  it('cada respaldo abre su propio archivo (E2.2)', () => {
-    render(<Harness item={withBackup} />);
-
-    expect(screen.getByRole('link', { name: 'respaldo.pdf' })).toHaveAttribute('href', '/respaldos/aws.pdf');
+    expect(screen.getByRole('link', { name: 'Descargar respaldo.pdf' })).toHaveAttribute('href', '/respaldos/aws.pdf');
   });
 
   it('sin dirección del archivo muestra el nombre sin enlace', () => {
     render(<Harness item={{ ...withBackup, documentUrl: undefined }} />);
 
+    fireEvent.click(screen.getByRole('button', { name: /AWS Solutions Architect/ }));
+
     expect(screen.getByText('respaldo.pdf')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'respaldo.pdf' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Descargar respaldo.pdf' })).not.toBeInTheDocument();
   });
 
   it('sin respaldo muestra el aviso', () => {
@@ -108,11 +99,11 @@ describe('CertificationItem', () => {
 
     fireEvent.keyDown(header, { key: 'Enter' });
     expect(header).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByText('Entidad emisora')).toBeInTheDocument();
+    expect(screen.getByText('respaldo.pdf')).toBeInTheDocument();
 
     fireEvent.keyDown(header, { key: 'Enter' });
     expect(header).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Entidad emisora')).not.toBeInTheDocument();
+    expect(screen.queryByText('respaldo.pdf')).not.toBeInTheDocument();
   });
 
   it('«Ver respaldo» abre el visor con el nombre de la certificación', async () => {
@@ -137,5 +128,23 @@ describe('CertificationItem', () => {
     render(<Harness item={withBackup} />);
 
     expect(screen.queryByRole('button', { name: 'Ver respaldo' })).not.toBeInTheDocument();
+  });
+});
+
+describe('CertificationItem · tipo de respaldo (HU-18, T18.5)', () => {
+  function abrirDetalle(item: TimelineItem) {
+    render(<Harness item={item} />);
+    fireEvent.click(screen.getByRole('button', { name: /AWS Solutions Architect/ }));
+  }
+
+  it('indica «PDF» cuando el respaldo es un documento', () => {
+    abrirDetalle({ ...withBackup, documentType: 'pdf' });
+    expect(screen.getByText('PDF')).toBeInTheDocument();
+    expect(screen.queryByText('Foto')).not.toBeInTheDocument();
+  });
+
+  it('indica «Foto» cuando el respaldo es una imagen o no tiene tipo', () => {
+    abrirDetalle({ ...withBackup, document: 'respaldo.jpg', documentType: undefined });
+    expect(screen.getByText('Foto')).toBeInTheDocument();
   });
 });

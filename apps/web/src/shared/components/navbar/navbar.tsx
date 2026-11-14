@@ -12,6 +12,7 @@ import { NavbarSearch } from './search-dialog';
 import type { NavbarProps } from './types';
 import styles from './navbar.module.css';
 import { MessagesButton } from './messages-button';
+import { ProfilePhotoContent } from '../profile-photo-avatar';
 const unchangedHref = (href: string) => href;
 
 function NavbarContent({ session, onLogout, currentPath, resolveHref = unchangedHref, onLogin, onSearch, notifications = [], messages = [], accountExtra }: NavbarProps) {
@@ -122,7 +123,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
           <span className={styles.separator} aria-hidden="true" />
           <div className={styles.actionDropdown}>
             <button type="button" className={styles.accountTrigger} aria-label={`Menú de ${session.name}`} aria-expanded={opened === 'account'} aria-controls={panelId('account')} onClick={event => toggle('account', event.currentTarget)} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); openWithKeyboard('account', event.currentTarget); } }}>
-              <span className={styles.avatar}>{session.initials}</span>
+              <span className={styles.avatar}>{session.role === 'titulado' ? <ProfilePhotoContent fallback={session.initials} /> : session.initials}</span>
               <span className={styles.profileCopy}>
                 <strong>{isCompany ? 'empresa' : session.name}</strong>
                 <small>{isCompany ? 'Empresa' : NAVBAR_ROLE_LABEL[session.role]}</small>

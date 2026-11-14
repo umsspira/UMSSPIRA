@@ -8,9 +8,9 @@ import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-e
 import {
   type ErroresCertificacion,
   validarCertificacion,
-  validarRespaldo,
 } from '@/modules/profile/validation/reglas-perfil';
 import { formatearTamanio } from '@/modules/profile/utils/format-file-size';
+import { BACKUP_ACCEPT, BACKUP_HINT, backupTypeOf, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
 import { ApiError } from '@/shared/services/api-client';
  
 export type Certificacion = {
@@ -38,6 +38,15 @@ type FormularioCertificacionesProps = {
   // Acciones de cada certificación registrada (BUG HU8-02)
   hrefEditar?: (id: string) => string;
   onEliminar?: (id: string) => void;
+  // Textos del botón de enviar y del aviso al guardar; en Agregar registros van a borrador (HU-13)
+  textoBoton?: string;
+  textoGuardada?: string;
+  // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
+  valoresIniciales?: Certificacion;
+  // Avisa lo que hay escrito en cada cambio, para subirlo como borrador incompleto (HU-14)
+  onDatosChange?: (datos: Certificacion) => void;
+  // HU-18 (T18.1): reemplaza el respaldo de la certificación recién guardada, sin crear otro registro
+  onCambiarRespaldo?: (archivo: File) => Promise<void>;
 };
  
 const VACIO: Certificacion = { nombre: '', entidadEmisora: '', anioEmision: '', grado: '', respaldo: null };
@@ -62,8 +71,14 @@ export function FormularioCertificaciones({
   onCancelar,
   hrefEditar,
   onEliminar,
+  textoBoton = 'Agregar certificación',
+  textoGuardada = 'Certificación guardada',
+  valoresIniciales,
+  onDatosChange,
+  onCambiarRespaldo,
 }: FormularioCertificacionesProps) {
-  const [datos, setDatos] = useState<Certificacion>(VACIO);
+  const [datos, setDatos] = useState<Certificacion>(valoresIniciales ?? VACIO);
+  useEffect(() => onDatosChange?.(datos), [datos, onDatosChange]);
   const fotoRef = useRef<HTMLInputElement>(null);
   const documentoRef = useRef<HTMLInputElement>(null);
   // Archivo rechazado (no es JPG o supera 5 MB): no se adjunta y se explica junto al campo
@@ -77,6 +92,11 @@ export function FormularioCertificaciones({
   const [vistaPrevia, setVistaPrevia] = useState<string>();
   // Aviso «Certificación guardada» tras guardar (T8.5); se quita al empezar a escribir otra
   const [guardada, setGuardada] = useState(false);
+  // «Cambiar respaldo» de la certificación guardada (T18.1)
+  const cambioRef = useRef<HTMLInputElement>(null);
+  const [cambiandoRespaldo, setCambiandoRespaldo] = useState(false);
+  const [respaldoActualizado, setRespaldoActualizado] = useState(false);
+  const [errorCambio, setErrorCambio] = useState<string>();
 
   // Errores a la vista: campos, respaldo (el del archivo elegido o el de obligatorio, sin contarlo dos veces) y API
   const cantidadErrores = [
@@ -88,9 +108,10 @@ export function FormularioCertificaciones({
   ].filter(Boolean).length;
   useEffect(() => onErroresChange?.(cantidadErrores), [cantidadErrores, onErroresChange]);
  
-  // Se crea al elegir la foto y se libera al quitarla, cambiarla o salir (evita fugas de memoria)
+  // Se crea al elegir la foto y se libera al quitarla, cambiarla o salir (evita fugas de memoria).
+  // Un PDF no tiene miniatura: se muestra el ícono de documento
   useEffect(() => {
-    if (!datos.respaldo || typeof URL.createObjectURL !== 'function') {
+    if (!datos.respaldo || backupTypeOf(datos.respaldo) !== 'image' || typeof URL.createObjectURL !== 'function') {
       setVistaPrevia(undefined);
       return;
     }
@@ -114,6 +135,29 @@ export function FormularioCertificaciones({
     limpiarError(campo);
     setErrorGuardar(undefined);
     setGuardada(false);
+    setRespaldoActualizado(false);
+    setErrorCambio(undefined);
+  }
+
+  // Elige otro archivo para la certificación guardada: mismas reglas (PDF o JPG, máximo 5 MB)
+  async function cambiarRespaldo(evento: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = evento.target.files?.[0];
+    evento.target.value = '';
+    if (!archivo || !onCambiarRespaldo || cambiandoRespaldo) return;
+    setRespaldoActualizado(false);
+    const error = validateBackupFile(archivo);
+    setErrorCambio(error);
+    if (error) return;
+    setCambiandoRespaldo(true);
+    try {
+      await onCambiarRespaldo(archivo);
+      setRespaldoActualizado(true);
+    } catch (apiError) {
+      if (!(apiError instanceof ApiError)) throw apiError;
+      setErrorCambio(`No se pudo cambiar el respaldo. ${apiError.message}`);
+    } finally {
+      setCambiandoRespaldo(false);
+    }
   }
  
   function elegirRespaldo(evento: React.ChangeEvent<HTMLInputElement>) {
@@ -121,7 +165,7 @@ export function FormularioCertificaciones({
     evento.target.value = '';
     if (!archivo) return;
     // El atributo accept se puede saltar eligiendo "Todos los archivos"
-    const error = validarRespaldo(archivo);
+    const error = validateBackupFile(archivo);
     setErrorRespaldo(error);
     if (!error) {
       setDatos({ ...datos, respaldo: archivo });
@@ -143,6 +187,8 @@ export function FormularioCertificaciones({
       setDatos(VACIO);
       setErrorRespaldo(undefined);
       setGuardada(true);
+      setRespaldoActualizado(false);
+      setErrorCambio(undefined);
     } catch (error) {
       // Se conserva lo escrito y la foto elegida: «Reintentar» vuelve a enviar lo mismo (T8.6)
       if (!(error instanceof ApiError)) throw error;
@@ -321,15 +367,15 @@ export function FormularioCertificaciones({
                 Subir documento
               </button>
             </div>
-            {/* Decisión del equipo: el backend y el almacenamiento solo aceptan JPG (BUG-HU2-007) */}
-            <p className="text-xs text-[#2C3B4D]/70">Solo JPG, máximo 5 MB</p>
+            {/* HU-18: se acepta PDF o JPG */}
+            <p className="text-xs text-[#2C3B4D]/70">{BACKUP_HINT}</p>
           </div>
           <MensajeError id="error-respaldo" mensaje={errorRespaldo ?? errores.respaldo} />
  
           <input
             ref={fotoRef}
             type="file"
-            accept="image/jpeg"
+            accept={BACKUP_ACCEPT}
             aria-label="Subir foto"
             className="hidden"
             onChange={elegirRespaldo}
@@ -337,7 +383,7 @@ export function FormularioCertificaciones({
           <input
             ref={documentoRef}
             type="file"
-            accept="image/jpeg"
+            accept={BACKUP_ACCEPT}
             aria-label="Subir documento"
             className="hidden"
             onChange={elegirRespaldo}
@@ -359,9 +405,38 @@ export function FormularioCertificaciones({
         {guardada && (
           <p role="status" className="flex items-center gap-1.5 text-sm font-semibold text-[#2C3B4D]">
             <Check className="h-4 w-4 text-[#A35139]" aria-hidden="true" />
-            Certificación guardada
+            {textoGuardada}
           </p>
         )}
+        {guardada && onCambiarRespaldo && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => cambioRef.current?.click()}
+              disabled={cambiandoRespaldo}
+              // En celular ocupa todo el ancho, igual que «Agregar certificación» y «Cancelar»
+              className={`${botonRespaldoClase} w-full justify-center disabled:cursor-not-allowed disabled:opacity-50 md:w-auto`}
+            >
+              <FileText className="h-4 w-4" aria-hidden="true" />
+              {cambiandoRespaldo ? 'Cambiando…' : 'Cambiar respaldo'}
+            </button>
+            <input
+              ref={cambioRef}
+              type="file"
+              accept={BACKUP_ACCEPT}
+              aria-label="Cambiar respaldo"
+              className="hidden"
+              onChange={(evento) => void cambiarRespaldo(evento)}
+            />
+            {respaldoActualizado && (
+              <p role="status" className="flex items-center gap-1.5 text-sm font-semibold text-[#2C3B4D]">
+                <Check className="h-4 w-4 text-[#A35139]" aria-hidden="true" />
+                Respaldo actualizado
+              </p>
+            )}
+          </div>
+        )}
+        <MensajeError id="error-cambiar-respaldo" mensaje={errorCambio} />
         {guardada && returnTo && (
           <Link
             href={returnTo}
@@ -388,7 +463,7 @@ export function FormularioCertificaciones({
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#2C3B4D] bg-white px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
         >
           <Plus className="h-4 w-4" />
-          {guardando ? `Guardando…${progreso !== undefined ? ` ${progreso} %` : ''}` : 'Agregar certificación'}
+          {guardando ? `Guardando…${progreso !== undefined ? ` ${progreso} %` : ''}` : textoBoton}
         </button>
         {onCancelar && (
           <button

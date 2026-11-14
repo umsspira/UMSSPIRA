@@ -31,7 +31,7 @@ jest.mock('@/modules/profile/services/profile-records-service', () => ({
 const crearCertificacion = api.crearCertificacion as jest.Mock;
 const subirRespaldo = api.subirRespaldo as jest.Mock;
  
-const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [] };
+const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
  
 const CREADA: CertificationRecord = {
   id: 'cert-1',
@@ -176,7 +176,7 @@ describe('Completar perfil · Cancelar, editar y eliminar certificaciones (bugs 
     clearPendingProfileChanges();
   });
 
-  it('Cancelar sin guardar no envía nada a la API y vuelve a Afinidad', () => {
+  it('Cancelar sin guardar no envía nada a la API, limpia, cierra la sección y sigue en la página (HU-21, CA-06)', () => {
     abrirCertificaciones('/afinidad');
     fireEvent.change(screen.getByLabelText('Nombre de certificación'), { target: { value: 'Borrador' } });
 
@@ -184,13 +184,9 @@ describe('Completar perfil · Cancelar, editar y eliminar certificaciones (bugs 
 
     expect(crearCertificacion).not.toHaveBeenCalled();
     expect(subirRespaldo).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('/afinidad');
-  });
-
-  it('Cancelar sin returnTo vuelve al resumen del perfil', () => {
-    abrirCertificaciones();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(push).toHaveBeenCalledWith('/profile');
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /certificaciones/i, expanded: false })).toBeInTheDocument();
+    expect(screen.getByLabelText('Nombre de certificación')).toHaveValue('');
   });
 
   it('si ya se creó y falló la foto, Cancelar no la borra y la muestra como registrada', async () => {
@@ -204,7 +200,7 @@ describe('Completar perfil · Cancelar, editar y eliminar certificaciones (bugs 
 
     expect(eliminar).not.toHaveBeenCalled();
     expect(screen.getByText('Certificaciones registradas')).toBeInTheDocument();
-    expect(push).toHaveBeenCalledWith('/afinidad');
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('editar abre la edición con regreso a esta sección y a Afinidad', () => {
@@ -278,5 +274,43 @@ describe('Completar perfil · espera la carga inicial del perfil (revisión PR #
 
     fireEvent.click(await screen.findByRole('button', { name: /certificaciones/i }));
     expect(screen.getByText('AWS Cloud Practitioner')).toBeInTheDocument();
+  });
+});
+
+describe('Completar perfil · cambiar respaldo sin duplicar (HU-18, T18.6)', () => {
+  beforeEach(() => {
+    crearCertificacion.mockReset();
+    subirRespaldo.mockReset();
+  });
+
+  it('reemplaza el respaldo de la misma certificación y no crea otra', async () => {
+    crearCertificacion.mockResolvedValue(CREADA);
+    subirRespaldo.mockResolvedValue(undefined);
+    abrirCertificaciones();
+    llenarYAgregar();
+    await screen.findByText('Certificación guardada');
+
+    const pdf = new File(['%PDF-1.4'], 'titulo.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Cambiar respaldo', { selector: 'input' }), { target: { files: [pdf] } });
+
+    expect(await screen.findByText('Respaldo actualizado')).toBeInTheDocument();
+    expect(subirRespaldo).toHaveBeenLastCalledWith('cert-1', pdf, expect.any(Function));
+    expect(crearCertificacion).toHaveBeenCalledTimes(1);
+    // Sigue habiendo una sola certificación registrada
+    expect(screen.getAllByText('AWS Cloud Practitioner')).toHaveLength(1);
+  });
+
+  it('un archivo de más de 5 MB no se sube al cambiar el respaldo', async () => {
+    crearCertificacion.mockResolvedValue(CREADA);
+    subirRespaldo.mockResolvedValue(undefined);
+    abrirCertificaciones();
+    llenarYAgregar();
+    await screen.findByText('Certificación guardada');
+    const grande = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'grande.pdf', { type: 'application/pdf' });
+
+    fireEvent.change(screen.getByLabelText('Cambiar respaldo', { selector: 'input' }), { target: { files: [grande] } });
+
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
+    expect(subirRespaldo).toHaveBeenCalledTimes(1);
   });
 });

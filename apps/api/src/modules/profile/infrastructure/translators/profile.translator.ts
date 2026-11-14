@@ -4,12 +4,14 @@ import type {
   Certificacion,
   CertificacionRespaldo,
   PerfilArea,
+  Proyecto,
 } from '../../../../generated/prisma/client';
 import type {
   CertificationBackup,
   CertificationRecord,
   EducationRecord,
   ExperienceRecord,
+  ProjectRecord,
 } from '../../domain/entities/profile-record';
 import type { ProfessionalDescription } from '../../domain/entities/professional-description';
 
@@ -36,6 +38,19 @@ export function toExperience(row: ExperienciaLaboral): ExperienceRecord {
     position: row.cargo,
     startDate: row.fecha_inicio,
     endDate: row.fecha_fin,
+  };
+}
+
+export function toProject(row: Proyecto): ProjectRecord {
+  return {
+    kind: 'project',
+    id: row.id,
+    graduateId: row.id_titulado,
+    createdAt: row.fecha_creacion,
+    name: row.nombre,
+    url: row.enlace,
+    description: row.descripcion,
+    technologies: row.tecnologias,
   };
 }
 

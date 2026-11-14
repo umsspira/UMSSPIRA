@@ -107,3 +107,81 @@ svg {
 ::-webkit-scrollbar-thumb:hover {
   background: #2C3B4D;
 }
+/* Animaciones del modal de Mis registros */
+@keyframes profile-modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes profile-modal-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.profile-modal-backdrop {
+  animation: profile-modal-backdrop-in 200ms ease-out both;
+}
+
+.profile-modal-content {
+  animation: profile-modal-content-in 200ms ease-out both;
+}
+
+@keyframes profile-modal-backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes profile-modal-content-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes profile-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.profile-modal-backdrop-out {
+  animation: profile-modal-backdrop-out 200ms ease-in both;
+}
+
+.profile-modal-content-out {
+  animation: profile-modal-content-out 200ms ease-in both;
+}
+
+.profile-notice {
+  animation: profile-notice-in 200ms ease-out both;
+}
+/* Accesibilidad: respetar la preferencia de reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

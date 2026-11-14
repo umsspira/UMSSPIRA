@@ -141,7 +141,28 @@ export default function RadarInspection({
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-gray-500 italic">La afinidad se calcula con los textos de formación académica, experiencia laboral, certificaciones y descripción profesional. El contenido del JPG no se analiza para calcular el porcentaje.</p>
+        {/* Avisos sobre el cálculo de coincidencias */}
+<div className="mt-2 space-y-2 text-xs text-gray-600 border-t border-gray-200 pt-3">
+  <p>
+    El cálculo utiliza únicamente la información textual guardada en tu perfil:
+    título e institución de formación, cargo y empresa de experiencia laboral, nombre y entidad emisora de certificaciones, descripción profesional, y nombre, descripción y tecnologías de los proyectos. Las fechas, los archivos adjuntos y los enlaces de los proyectos quedan fuera del cálculo.
+  </p>
+
+  <p>
+    El porcentaje representa coincidencias de palabras entre la información de tu
+    perfil y el catálogo de áreas; no mide ni certifica tu nivel de competencia.
+  </p>
+
+  <p>
+    Solo se utiliza la información guardada en tu perfil. Los cambios que aún no
+    hayas guardado no se incluyen en el cálculo.
+  </p>
+
+  <p>
+    El sistema no interpreta negaciones. Por ejemplo, si escribes
+    «No tengo experiencia con AWS», puede contar «AWS» como una coincidencia.
+  </p>
+</div>
       </div>
 
       {/* Panel derecho: Inspección detallada y respaldos filtrados */}
@@ -184,7 +205,7 @@ export default function RadarInspection({
             )}
             {projects.length > 0 && (
               <div>
-                <h5 className="font-semibold text-sm text-gray-700 mb-1">Proyectos asociados:</h5>
+                <h5 className="font-semibold text-sm text-gray-700 mb-1">Proyectos relacionados:</h5>
                 <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
                   {projects.map((proj, idx) => (
                     <li key={idx}>

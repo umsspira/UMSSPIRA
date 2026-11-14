@@ -8,6 +8,10 @@ import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session
 
 import { ProfileStoreProvider, useProfileStore } from './profile-store';
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+}));
+
 function AddEducationButton() {
   const { addEducation } = useProfileStore();
   return (
@@ -115,8 +119,8 @@ describe('ProfileStoreProvider · carga desde la API', () => {
     );
 
     expect(await screen.findByText('Ingeniero de sistemas.')).toBeInTheDocument();
-    // Experiencia y certificaciones llegan vacías desde la API
-    expect(screen.getAllByText('Sin registros')).toHaveLength(2);
+    // Experiencia, certificaciones y proyectos (HU-19) llegan vacíos desde la API
+    expect(screen.getAllByText('Sin registros')).toHaveLength(3);
   });
 
   it('el resumen muestra el nombre y la carrera del titulado con sesión, no los de prueba', async () => {

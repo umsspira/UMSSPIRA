@@ -8,6 +8,7 @@ const API_SECTIONS: Record<RecordSection, string> = {
   education: 'formacion-academica',
   experience: 'experiencia-laboral',
   certification: 'certificaciones',
+  project: 'proyectos',
 };
 
 export class DeleteRecordException extends Error {

@@ -6,6 +6,7 @@ import { ExtractKeywordsController } from './http/controllers/extract-keywords.c
 import { nlpProviders } from './infrastructure/providers/nlp.providers';
 import { NlpDictionaryUnavailableFilter } from './http/filters/nlp-dictionary-unavailable.filter';
 
+
 @Module({
   imports: [PrismaModule],
   controllers: [ExtractKeywordsController],
