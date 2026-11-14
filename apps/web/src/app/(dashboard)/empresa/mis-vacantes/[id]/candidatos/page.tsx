@@ -101,8 +101,7 @@ export default function CandidatesPage() {
   const firstIndex = (currentPage - 1) * PAGE_SIZE;
   const pageApplicants = filteredApplicants.slice(firstIndex, firstIndex + PAGE_SIZE);
 
-    // --- CA-02 y CA-16: Lógica para guardar la etapa ---
-  // 👇 Agregamos este traductor para enviar los códigos que espera el backend
+  // --- CA-02 y CA-16: Lógica para guardar la etapa ---
   const STAGE_CODES: Record<string, string> = {
     "Postulado": "postulado",
     "En revisión": "en_revision",
@@ -126,22 +125,18 @@ export default function CandidatesPage() {
     setConfirmDiscardId(null);
     
     try {
-      // Petición al backend
       const res = await fetch(`/api/v1/vacantes/${vacancyId}/postulantes/${applicantId}/etapa`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        // 👇 AQUÍ ESTÁ EL CAMBIO: Usamos "etapa" y enviamos el código en minúsculas
-        body: JSON.stringify({ etapa: STAGE_CODES[newStage] }), 
+        body: JSON.stringify({ etapa: STAGE_CODES[newStage] }),
       });
 
       if (!res.ok) throw new Error("Error al actualizar");
 
-      // Actualizar la lista localmente (El "as any" evita el error de TypeScript)
       setApplicants((prev) =>
         prev.map((app) => app.id === applicantId ? { ...app, status: newStage as any } : app)
       );
 
-      // Mostrar el mensaje de éxito (CA-02)
       setToastMessage(`Etapa actualizada: ${applicantName} pasó a ${newStage}`);
       setTimeout(() => setToastMessage(null), 4000);
 
@@ -224,7 +219,7 @@ export default function CandidatesPage() {
             {filteredApplicants.length === 0 ? (
               <div className="bg-white p-8 rounded-xl text-center border border-[#EEE9DF] text-gray-500">Ningún postulante cumple con los filtros aplicados.</div>
             ) : (
-              <div className="bg-white rounded-xl border border-[#EEE9DF] shadow-sm overflow-visible"> {/* CAMBIO: overflow-visible para que el menú no se corte */}
+              <div className="bg-white rounded-xl border border-[#EEE9DF] shadow-sm overflow-visible">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-[#1B2632] border-b border-[#EEE9DF]">
                     <tr>

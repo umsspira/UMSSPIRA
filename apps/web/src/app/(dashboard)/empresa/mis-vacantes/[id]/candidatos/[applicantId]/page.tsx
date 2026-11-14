@@ -11,6 +11,7 @@ import {
 import { getVacancyById } from "@/shared/services/vacancies";
 import { VacancyHeader } from "@/shared/components/vacancy-header";
 import { MatchBreakdownView } from "@/shared/components/match-breakdown-view";
+import { Cargando, EstadoError } from "../../../../_components/estado-pantalla";
 
 const STAGES = ["Postulado", "En revisión", "Preseleccionado", "Entrevista", "Descartado"];
 
@@ -143,30 +144,45 @@ export default function ApplicantMatchPage() {
         </div>
       </div>
 
-      {loading && <div className="p-8 text-center text-[#1B2632] font-medium" role="status">Cargando candidato...</div>}
+      {loading && <Cargando texto="Cargando candidato..." />}
 
       {!loading && error && (
-        <div className="p-8 max-w-xl mx-auto text-center space-y-4" role="alert">
-          <p className="text-[#A35139] font-semibold">{MATCH_ENGINE_ERROR_MESSAGE}</p>
-          <button onClick={() => setReloadKey((k) => k + 1)} className="px-4 py-2 text-xs font-bold text-white bg-[#1B2632] rounded-lg">Reintentar</button>
+        <div className="space-y-2">
+          <EstadoError
+            mensaje={MATCH_ENGINE_ERROR_MESSAGE}
+            onReintentar={() => setReloadKey((k) => k + 1)}
+          />
+          <div className="mx-auto max-w-xl px-8">
+            <button
+              onClick={goBackToList}
+              className="min-h-11 md:min-h-0 w-full rounded-lg border border-gray-300 px-4 py-2 text-xs font-bold text-[#1B2632] hover:bg-gray-50"
+            >
+              Volver a la lista
+            </button>
+          </div>
         </div>
       )}
 
       {!loading && !error && !applicant && (
         <div className="p-8 text-center space-y-4">
           <p className="text-gray-500">No se encontró al postulante.</p>
-          <button onClick={goBackToList} className="px-4 py-2 text-xs font-bold text-[#1B2632] border rounded-lg">Volver a la lista</button>
+          <button
+            onClick={goBackToList}
+            className="min-h-11 md:min-h-0 w-full sm:w-auto px-4 py-2 text-xs font-bold text-[#1B2632] border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Volver a la lista
+          </button>
         </div>
       )}
 
       {!loading && !error && applicant && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Columna Izquierda: Desglose del Candidato (Lo que ya tenías) */}
+          {/* Columna Izquierda: Desglose del Candidato */}
           <div className="lg:col-span-2 space-y-4">
             <MatchBreakdownView applicant={applicant} onBack={goBackToList} />
           </div>
 
-          {/* Columna Derecha: Etapas de Selección (El nuevo diseño) */}
+          {/* Columna Derecha: Etapas de Selección */}
           <div className="bg-white p-6 rounded-xl border border-[#EEE9DF] shadow-sm h-fit">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-[#1B2632]">Etapa de selección</h2>
@@ -185,7 +201,6 @@ export default function ApplicantMatchPage() {
 
                 return (
                   <div key={stage} className="relative flex items-start gap-4">
-                    {/* Círculo indicador */}
                     <div className={`absolute -left-6 mt-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center z-10 ${isCurrent || isPast ? color.split(' ')[0] : 'bg-gray-200'}`}>
                       {isCurrent && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                     </div>
