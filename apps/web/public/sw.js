@@ -206,3 +206,25 @@ async function staleWhileRevalidate(request, cacheName, maxEntries) {
   }).catch(() => undefined);
   return cached || (await networkPromise) || new Response('', { status: 503 });
 }
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  for (const route of EXT.routes) {
+    try { if (route.match(new URL(request.url), request)) { event.respondWith(route.handle(event)); return; } } catch (e) {}
+  }
+  const url = getHandledUrl(request);
+  if (!url) return;
+  if (request.mode === 'navigate') { event.respondWith(handleNavigation(request)); return; }
+  if (isPrivateRoute(url.pathname) || request.headers.has('RSC') || request.headers.has('Next-Router-State-Tree') || url.searchParams.has('_rsc')) return;
+  if (url.pathname.startsWith('/_next/static/')) { event.respondWith(IS_LOCALHOST ? networkFirst(request, STATIC_CACHE) : cacheFirst(request, STATIC_CACHE)); return; }
+  if (request.destination === 'image' || request.destination === 'font' || url.pathname.startsWith('/_next/image')) {
+    event.respondWith(loadProfile().then((profile) => staleWhileRevalidate(request, ASSETS_CACHE, PROFILES[profile]?.maxAssets || 80)));
+    return;
+  }
+  if (url.pathname === '/manifest.webmanifest' || url.pathname.startsWith('/icons/')) {
+    event.respondWith(networkFirst(request, CACHE_NAME).catch(async () => {
+      const cached = await caches.match(request);
+      return cached || new Response('No disponible', { status: 503 });
+    }));
+  }
+});
