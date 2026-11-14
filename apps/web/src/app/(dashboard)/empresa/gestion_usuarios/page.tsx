@@ -12,6 +12,7 @@ import {
   Users,
   UserX,
   UserCheck,
+  Send,
 } from "lucide-react";
 
 import {
@@ -19,15 +20,63 @@ import {
   invitarUsuarioEmpresa,
   actualizarUsuarioEmpresa,
   cancelarInvitacionEmpresa,
+  reenviarInvitacionEmpresa,
   type UsuarioEmpresa,
   type RolEmpresa,
+  type EstadoUsuarioEmpresa,
+
 } from "@/shared/services/company-users";
+
+// HU-02: Formatear fecha de vencimiento
+function formatearFecha(fecha?: string | null): string {
+  if (!fecha) return "Fecha no disponible";
+
+  const valor = new Date(fecha);
+
+  if (Number.isNaN(valor.getTime())) {
+    return "Fecha no disponible";
+  }
+
+  return new Intl.DateTimeFormat("es-BO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "America/La_Paz",
+  }).format(valor);
+}
+
+// HU-02: Calcular días restantes de la invitación
+function obtenerDiasRestantes(
+  fecha?: string | null
+): number {
+  if (!fecha) return 0;
+
+  const vencimiento = new Date(fecha).getTime();
+
+  if (Number.isNaN(vencimiento)) return 0;
+
+  return Math.max(
+    0,
+    Math.ceil(
+      (vencimiento - Date.now()) /
+      (1000 * 60 * 60 * 24)
+    )
+  );
+}
+
 
 export default function GestionUsuariosPage() {
   const [usuarios, setUsuarios] = useState<UsuarioEmpresa[]>([]);
   const [cargando, setCargando] = useState(true);
   const [procesando, setProcesando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+
+  const [filtroEstado, setFiltroEstado] =
+    useState<"Todos" | EstadoUsuarioEmpresa>("Todos");
+
+  const [confirmarReenvio, setConfirmarReenvio] =
+    useState<UsuarioEmpresa | null>(null);
+
 
   const [mostrarInvitar, setMostrarInvitar] = useState(false);
   const [confirmarEstado, setConfirmarEstado] =
@@ -82,12 +131,23 @@ export default function GestionUsuariosPage() {
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
 
-    return usuarios.filter((u) =>
-      [u.nombre, u.correo, u.rol, u.estado].some((v) =>
-        v.toLowerCase().includes(q)
-      )
-    );
-  }, [usuarios, busqueda]);
+    return usuarios.filter((u) => {
+      const coincideBusqueda = [
+        u.nombre,
+        u.correo,
+        u.rol,
+        u.estado,
+      ].some((valor) =>
+        valor.toLowerCase().includes(q)
+      );
+
+      const coincideEstado =
+        filtroEstado === "Todos" ||
+        u.estado === filtroEstado;
+
+      return coincideBusqueda && coincideEstado;
+    });
+  }, [usuarios, busqueda, filtroEstado]);
 
   const limpiarMensajes = () => {
     setError("");
@@ -184,6 +244,50 @@ export default function GestionUsuariosPage() {
     }
   }
 
+  async function reenviarInvitacion() {
+    const seleccionada = confirmarReenvio;
+
+    if (!seleccionada || procesando) return;
+
+    limpiarMensajes();
+    setProcesando(true);
+
+    try {
+      const resultado = await reenviarInvitacionEmpresa(
+        seleccionada.id
+      );
+
+      // Recuperar la lista real del servidor.
+      const actualizados = await obtenerUsuariosEmpresa();
+
+      setUsuarios(actualizados);
+      setConfirmarReenvio(null);
+
+      setMensaje(
+        `Invitación reenviada a ${resultado.correo}`
+      );
+    } catch (e) {
+      setConfirmarReenvio(null);
+
+      setError(
+        e instanceof Error
+          ? e.message
+          : "No se pudo reenviar la invitación."
+      );
+
+      // Recuperar el estado real sin inventar resultados.
+      try {
+        const actualizados = await obtenerUsuariosEmpresa();
+        setUsuarios(actualizados);
+      } catch {
+        // Conservar la lista actual si no hay conexión.
+      }
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+
   async function cambiarEstado() {
     const seleccionado = confirmarEstado;
 
@@ -233,7 +337,8 @@ export default function GestionUsuariosPage() {
     if (
       procesando ||
       u.esTitular ||
-      u.estado === "Pendiente"
+      u.estado === "Pendiente" ||
+      u.estado === "Vencida"
     ) {
       return;
     }
@@ -337,6 +442,24 @@ export default function GestionUsuariosPage() {
               Usuarios de la empresa
             </h2>
 
+
+            <select
+              aria-label="Filtrar por estado"
+              value={filtroEstado}
+              onChange={(e) =>
+                setFiltroEstado(
+                  e.target.value as "Todos" | EstadoUsuarioEmpresa
+                )
+              }
+              className="rounded-lg border bg-white px-3 py-2 text-sm"
+            >
+              <option value="Todos">Estado: Todos</option>
+              <option value="Activo">Activo</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Vencida">Vencida</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+
             <div className="relative">
               <Search
                 size={17}
@@ -353,7 +476,7 @@ export default function GestionUsuariosPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-gray-50 text-blue-900">
                 <tr>
@@ -391,7 +514,10 @@ export default function GestionUsuariosPage() {
                   filtrados.map((u) => (
                     <tr
                       key={u.id}
-                      className="border-t hover:bg-gray-50"
+                      className={`border-t ${u.estado === "Vencida"
+                        ? "bg-orange-50 hover:bg-orange-100"
+                        : "hover:bg-gray-50"
+                        }`}
                     >
                       <td className="px-5 py-4 font-medium">
                         {u.nombre}
@@ -403,7 +529,8 @@ export default function GestionUsuariosPage() {
 
                       <td className="px-5 py-4">
                         {u.esTitular ||
-                        u.estado === "Pendiente" ? (
+                          u.estado === "Pendiente" ||
+                          u.estado === "Vencida" ? (
                           <span>{u.rol}</span>
                         ) : (
                           <select
@@ -428,31 +555,51 @@ export default function GestionUsuariosPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <span
-                          className={`rounded-md px-3 py-1 text-xs font-semibold ${
-                            u.estado === "Activo"
+                        <div className="flex flex-col items-start gap-1">
+                          <span
+                            className={`rounded-md px-3 py-1 text-xs font-semibold ${u.estado === "Activo"
                               ? "bg-green-100 text-green-700"
                               : u.estado === "Pendiente"
                                 ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {u.estado}
-                        </span>
+                                : u.estado === "Vencida"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                          >
+                            {u.estado}
+                          </span>
+
+                          {u.estado === "Pendiente" && (
+                            <span className="text-xs text-gray-500">
+                              Vence en {obtenerDiasRestantes(u.expira_en)} días
+                            </span>
+                          )}
+
+                          {u.estado === "Vencida" && (
+                            <span className="text-xs text-red-600">
+                              Venció el {formatearFecha(u.expira_en)}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
+
                       <td className="px-5 py-4">
-                        {u.estado === "Pendiente" ? (
+                        {u.estado === "Vencida" ? (
                           <button
+                            type="button"
                             disabled={procesando}
-                            onClick={() =>
-                              setConfirmarCancelar(u)
-                            }
-                            className="rounded-md px-3 py-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            onClick={() => {
+                              limpiarMensajes();
+                              setConfirmarReenvio(u);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 font-medium text-white hover:bg-orange-600 disabled:opacity-50"
                           >
-                            Cancelar invitación
+                            <Send size={16} />
+                            Reenviar
                           </button>
-                        ) : u.esTitular ? (
+                        ) : u.estado === "Pendiente" ? (
+
                           <span className="text-gray-400">
                             Sin acciones
                           </span>
@@ -462,11 +609,10 @@ export default function GestionUsuariosPage() {
                             onClick={() =>
                               setConfirmarEstado(u)
                             }
-                            className={`flex items-center gap-2 rounded-md px-3 py-2 disabled:opacity-50 ${
-                              u.estado === "Activo"
-                                ? "text-red-600 hover:bg-red-50"
-                                : "text-green-700 hover:bg-green-50"
-                            }`}
+                            className={`flex items-center gap-2 rounded-md px-3 py-2 disabled:opacity-50 ${u.estado === "Activo"
+                              ? "text-red-600 hover:bg-red-50"
+                              : "text-green-700 hover:bg-green-50"
+                              }`}
                           >
                             {u.estado === "Activo" ? (
                               <>
@@ -488,6 +634,139 @@ export default function GestionUsuariosPage() {
               </tbody>
             </table>
           </div>
+
+          {/* TARJETAS PARA CELULAR */}
+          <div className="space-y-4 p-4 md:hidden">
+            {cargando ? (
+              <div className="flex justify-center p-6">
+                <Loader2 className="animate-spin" />
+              </div>
+            ) : filtrados.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">
+                No se encontraron usuarios.
+              </p>
+            ) : (
+              filtrados.map((u) => (
+                <article
+                  key={u.id}
+                  className={`min-w-0 overflow-hidden rounded-xl border p-4 shadow-sm ${u.estado === "Vencida"
+                      ? "border-orange-200 bg-orange-50"
+                      : "bg-white"
+                    }`}
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="break-words font-semibold text-blue-900">
+                        {u.nombre}
+                      </h3>
+
+                      <p className="mt-1 break-all text-xs text-gray-600">
+                        {u.correo}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`shrink-0 rounded-md px-2 py-1 text-xs font-semibold ${u.estado === "Activo"
+                          ? "bg-green-100 text-green-700"
+                          : u.estado === "Pendiente"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : u.estado === "Vencida"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                        }`}
+                    >
+                      {u.estado}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 border-t pt-3">
+                    <p className="text-sm text-gray-600">
+                      Rol: <strong>{u.rol}</strong>
+                    </p>
+
+                    {u.estado === "Pendiente" && (
+                      <p className="mt-2 text-xs text-yellow-700">
+                        Vence en {obtenerDiasRestantes(u.expira_en)} días
+                      </p>
+                    )}
+
+                    {u.estado === "Vencida" && (
+                      <p className="mt-2 text-xs text-red-600">
+                        Venció el {formatearFecha(u.expira_en)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    {u.estado === "Vencida" ? (
+                      <button
+                        type="button"
+                        disabled={procesando}
+                        onClick={() => {
+                          limpiarMensajes();
+                          setConfirmarReenvio(u);
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white disabled:opacity-50"
+                      >
+                        <Send size={17} />
+                        Reenviar
+                      </button>
+                    ) : u.estado === "Pendiente" ? (
+                      <button
+                        type="button"
+                        disabled={procesando}
+                        onClick={() => setConfirmarCancelar(u)}
+                        className="w-full rounded-lg border border-red-200 px-4 py-3 text-sm font-medium text-red-600 disabled:opacity-50"
+                      >
+                        Cancelar invitación
+                      </button>
+                    ) : u.esTitular ? (
+                      <p className="text-center text-xs text-gray-400">
+                        Sin acciones
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        <select
+                          aria-label={`Rol de ${u.nombre}`}
+                          value={u.rol}
+                          disabled={procesando}
+                          onChange={(e) =>
+                            void cambiarRol(
+                              u,
+                              e.target.value as RolEmpresa
+                            )
+                          }
+                          className="w-full rounded-lg border bg-white p-3 text-sm"
+                        >
+                          <option value="Administrador">
+                            Administrador
+                          </option>
+                          <option value="Reclutador">
+                            Reclutador
+                          </option>
+                        </select>
+
+                        <button
+                          type="button"
+                          disabled={procesando}
+                          onClick={() => setConfirmarEstado(u)}
+                          className={`w-full rounded-lg border px-4 py-3 text-sm font-semibold disabled:opacity-50 ${u.estado === "Activo"
+                              ? "border-red-200 text-red-600"
+                              : "border-green-200 text-green-700"
+                            }`}
+                        >
+                          {u.estado === "Activo"
+                            ? "Desactivar"
+                            : "Activar"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
 
           <div className="border-t px-5 py-4 text-sm text-gray-500">
             Total de usuarios: {filtrados.length}
@@ -693,6 +972,73 @@ export default function GestionUsuariosPage() {
         </div>
       )}
 
+      {/* MODAL REENVIAR INVITACIÓN */}
+      {confirmarReenvio && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-reenvio"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+          >
+            <div className="mb-5 flex items-center gap-3">
+              <div className="rounded-full bg-orange-100 p-3 text-orange-500">
+                <Send size={22} />
+              </div>
+
+              <h2
+                id="titulo-reenvio"
+                className="text-xl font-bold text-blue-900"
+              >
+                ¿Reenviar invitación?
+              </h2>
+            </div>
+
+            <p className="mb-3 text-sm text-gray-700">
+              Enviaremos un nuevo enlace a{" "}
+              <strong className="break-all">
+                {confirmarReenvio.correo}
+              </strong>
+              , válido por 7 días.
+            </p>
+
+            <p className="mb-6 text-sm text-gray-500">
+              El enlace anterior dejará de funcionar.
+            </p>
+
+            <div className="flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                disabled={procesando}
+                onClick={() => setConfirmarReenvio(null)}
+                className="rounded-lg border px-5 py-3 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={procesando}
+                onClick={() => void reenviarInvitacion()}
+                className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
+              >
+                {procesando ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Reenviando...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Reenviar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL CANCELAR INVITACIÓN */}
       {confirmarCancelar && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
@@ -824,11 +1170,10 @@ export default function GestionUsuariosPage() {
                 onClick={() =>
                   void cambiarEstado()
                 }
-                className={`rounded-lg px-5 py-3 font-semibold text-white disabled:opacity-50 ${
-                  confirmarEstado.estado === "Activo"
-                    ? "bg-red-600"
-                    : "bg-green-600"
-                }`}
+                className={`rounded-lg px-5 py-3 font-semibold text-white disabled:opacity-50 ${confirmarEstado.estado === "Activo"
+                  ? "bg-red-600"
+                  : "bg-green-600"
+                  }`}
               >
                 {procesando
                   ? "Procesando..."

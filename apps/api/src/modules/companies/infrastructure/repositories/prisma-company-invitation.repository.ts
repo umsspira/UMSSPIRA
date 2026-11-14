@@ -277,7 +277,6 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
           id_empresa: input.companyId,
           estado: { in: ['pendiente', 'vencida'] },
           aceptado_en: null,
-          expira_en: { lte: input.createdAt },
         },
         data: { estado: 'cancelada' },
       });

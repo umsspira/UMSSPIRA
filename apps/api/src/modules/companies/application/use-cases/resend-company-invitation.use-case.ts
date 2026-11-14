@@ -36,10 +36,7 @@ export class ResendCompanyInvitationUseCase {
     if (availability === 'cancelled') {
       throw new InvitationNotFoundError();
     }
-    // HU-02: Solo permitir reenviar invitaciones vencidas
-    if (availability !== 'expired') {
-      throw new InvitationNotFoundError();
-    }
+
     const [emailInUse] = await this.repository.findEmailsWithAccount([invitation.email]);
     if (emailInUse) {
       throw new InvitationEmailInUseError(emailInUse);
