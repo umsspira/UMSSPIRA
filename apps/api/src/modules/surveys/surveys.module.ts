@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
+import { RedisModule } from '../../shared/infrastructure/redis/redis.module';
 import { AuthModule } from '../auth/auth.module';
 
 import { SubmitSurveyController } from './http/controllers/submit-survey.controller';
@@ -9,7 +10,7 @@ import { ManageSurveysController } from './http/controllers/manage-surveys.contr
 import { surveysProviders } from './infrastructure/providers/surveys.providers';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, RedisModule, AuthModule],
   controllers: [
     SubmitSurveyController,
     GetSurveyReportController,

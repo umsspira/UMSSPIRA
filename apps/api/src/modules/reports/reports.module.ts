@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
+import { RedisModule } from '../../shared/infrastructure/redis/redis.module';
 import { AuthModule } from '../auth/auth.module';
 import { reportsProviders } from './infrastructure/providers/reports.providers';
 import { ReportExportGuard } from './http/guards/report-export.guard';
@@ -13,7 +14,7 @@ import { GetAccreditationDashboardController } from './http/controllers/get-accr
 import { ExportAccreditationPdfController } from './http/controllers/export-accreditation-pdf.controller';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, RedisModule, AuthModule],
   controllers: [
     GetReportMetricsController,
     ListReportGraduatesController,
