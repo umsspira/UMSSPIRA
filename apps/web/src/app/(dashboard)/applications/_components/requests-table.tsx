@@ -1,5 +1,6 @@
 'use client';
 
+import { useOcrStatuses, OCR_STATUS_LABELS } from '@/modules/applications/frontend/hooks/use-ocr-statuses';
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '@/modules/applications/frontend/services/application-query';
 import { StatusBadge, type RequestStatus } from '@/shared/components/badge';
 import { Button } from '@/shared/components/button';
@@ -48,6 +49,7 @@ export function RequestsTable({
   onPageChange,
   onSelect,
 }: RequestsTableProps) {
+  const ocrStatuses = useOcrStatuses(items.map(item => item.id));
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
@@ -114,6 +116,7 @@ export function RequestsTable({
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={STATUS_BADGE_MAP[item.status]} />
+                    <p className="mt-2 text-[11px] text-abyssal-blue/70">{ocrStatuses[item.id] ? OCR_STATUS_LABELS[ocrStatuses[item.id]] : "Sin análisis OCR"}</p>
                   </td>
                 </tr>
               );

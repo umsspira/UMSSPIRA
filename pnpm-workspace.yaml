@@ -11,3 +11,5 @@ allowBuilds:
   canvas: true
   unrs-resolver: false
   esbuild: true
+  protobufjs: false
+  core-js: false

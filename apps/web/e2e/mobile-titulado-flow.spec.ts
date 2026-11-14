@@ -365,9 +365,7 @@ test(
     message.Text ||
     (message.HTML ?? '').replace(/<[^>]+>/g, ' ');
   // Evita seleccionar accidentalmente otro número del correo.
-  const codes = [
-    ...new Set(messageText.match(/\b\d{6}\b/g) ?? []),
-  ];
+  const codes = Array.from(new Set(messageText.match(/\b\d{6}\b/g) ?? []));
   expect(
     codes,
     'El correo debe contener un único código de seis dígitos',

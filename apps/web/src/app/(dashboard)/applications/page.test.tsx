@@ -7,6 +7,14 @@ import {
 } from '@/modules/applications/frontend/services/applications-board.service';
 import { authenticatedFetch } from '@/shared/services/auth-session';
 
+jest.mock('@/modules/applications/frontend/hooks/use-ocr-queue', () => ({
+  useOcrQueue: () => 'Análisis automático en espera',
+}));
+
+jest.mock('@/modules/applications/frontend/components/ocr-panel', () => ({
+  OcrPanel: () => null,
+}));
+
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
@@ -109,12 +117,27 @@ function mockPendingApplicationDetail() {
 
 describe('ApplicationsPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockedAuthenticatedFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ data: [] }),
-    });
+  jest.clearAllMocks();
+  mockedAuthenticatedFetch.mockReset();
+
+  mockedAuthenticatedFetch.mockImplementation(
+    async (url: string) => {
+      if (url === '/api/v1/applications/s-1/ocr') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [] }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: null }),
+      };
+    },
+  );
+
     window.history.replaceState({}, '', '/applications');
     mockedFetchMetrics.mockResolvedValue({
       ok: true,
@@ -127,9 +150,9 @@ describe('ApplicationsPage', () => {
         timeZone: 'America/La_Paz',
       },
     });
-    // Reemplazar la línea 56 por:
-(globalThis as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
-  });
+
+    (globalThis as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    });
 
   it('muestra la bandeja con el total y la alerta de +48 horas (CA-04.1)', async () => {
     mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
@@ -442,11 +465,31 @@ describe('ApplicationsPage', () => {
 
     mockPendingApplicationDetail();
 
-    mockedAuthenticatedFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: async () => null,
-    });
+    mockedAuthenticatedFetch.mockImplementation(
+      async (url: string) => {
+        if (url === '/api/v1/applications/s-1/review') {
+          return {
+            ok: false,
+            status: 500,
+            json: async () => null,
+          };
+        }
+
+        if (url === '/api/v1/applications/s-1/ocr') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [] }),
+          };
+        }
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: null }),
+        };
+      },
+    );
 
     render(<ApplicationsPage />);
 
