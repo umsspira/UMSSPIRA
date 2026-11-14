@@ -346,6 +346,7 @@ describe('detalle público de eventos', () => {
 describe('Cancelación desde la inscripción confirmada', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
     jest.mocked(getMyEventRegistrations).mockReset().mockResolvedValue([]);
     jest.mocked(getPublishedEvent).mockReset().mockResolvedValue({
       ...publishedEvent,
@@ -354,6 +355,12 @@ describe('Cancelación desde la inscripción confirmada', () => {
     });
     jest.mocked(getCurrentUser).mockReset().mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
     jest.mocked(registerForEvent).mockReset().mockResolvedValue({
+
+    jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
+    jest.mocked(getPublishedEvent).mockResolvedValue({ ...publishedEvent, startDate: '2099-11-06T14:00:00Z', endDate: '2099-11-06T18:00:00Z' });
+    jest.mocked(getCurrentUser).mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
+    jest.mocked(registerForEvent).mockResolvedValue({
+dev
       id: 'inscripcion-1', eventId: EVENT_ID, status: 'CONFIRMADA',
       registeredAt: '2026-11-01T10:00:00Z', currentCapacity: 1,
     });

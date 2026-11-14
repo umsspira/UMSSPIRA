@@ -8,12 +8,17 @@ import {
   Info,
   LoaderCircle,
   RefreshCw,
+
   WifiOff,
+ 
+  
+dev
 } from 'lucide-react';
 import type { EventPassDto } from '@umsspira/shared-types';
 import { ApiClientError } from '@/shared/services/api-client';
 import { SessionError } from '@/shared/services/auth-session';
 import { authStore } from '@/modules/auth/frontend/store';
+
 import { getMyEventPasses } from './event-passes-service';
 import {
   getOfflineQrPasses,
@@ -58,6 +63,15 @@ async function loadSavedPasses(): Promise<EventPassDto[]> {
   return saved.map(toEventPassDto);
 }
 
+
+
+import { getMyEventPasses } from './event-passes-service';
+import { EventsMobileBottomNav } from '@/features/events/events-mobile-bottom-nav';
+
+type LoadState = 'loading' | 'success' | 'error';
+type PassFilter = 'all' | 'inactive';
+
+
 function isValidPass(pass: EventPassDto): boolean {
   return pass.status === 'ACTIVO' && pass.isValidForAccess;
 }
@@ -76,7 +90,9 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [loadError, setLoadError] = useState<'session' | 'forbidden' | 'unavailable' | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
   const hasLoaded = useRef(false);
+
   const [filter, setFilter] = useState<PassFilter>('all');
   const validCount = passes.filter(isValidPass).length;
   const visiblePasses = filter === 'inactive' ? passes.filter((pass) => !isValidPass(pass)) : passes;
@@ -96,8 +112,12 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
     });
 
     async function loadPasses() {
+
       // En recargas posteriores no se vacía la lista: evita parpadeos al reconectar.
       if (!hasLoaded.current) setLoadState('loading');
+
+      setLoadState('loading');
+
       setLoadError(null);
 
       try {
@@ -115,6 +135,7 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
         hasLoaded.current = true;
       } catch (error) {
         if (controller.signal.aborted) return;
+
 
         const isServerError =
           error instanceof ApiClientError || error instanceof SessionError;
@@ -193,6 +214,7 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
             Sin conexión: se muestran los pases guardados en este dispositivo.
           </p>
         )}
+
 
         {/* Estado de carga */}
         {loadState === 'loading' && (
