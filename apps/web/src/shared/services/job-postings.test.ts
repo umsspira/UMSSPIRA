@@ -34,6 +34,7 @@ it("lista las vacantes publicadas usando los datos que devuelve el API", async (
         nivelExperiencia: "Junior",
         descripcionTecnica: "Descripción real",
         fechaPublicacion: null,
+        porcentajeAfinidad: 0,
         empresa: { razonSocial: "Empresa real", descripcion: null, logoUrl: null, bannerUrl: null },
         requisitosTecnicos: [{
           areaId: "skill-area",
@@ -49,6 +50,7 @@ it("lista las vacantes publicadas usando los datos que devuelve el API", async (
       id: "vacancy-1",
       title: "Desarrollador",
       company: { name: "Empresa real" },
+      affinityPercentage: 0,
       technicalRequirements: [{
         areaId: "skill-area",
         name: "TypeScript",

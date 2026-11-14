@@ -161,7 +161,7 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
       .expect(httpStatus);
   });
 
-  it('protege las cuatro operaciones por defecto', async () => {
+  it('protege las operaciones de empresas y vacantes por defecto', async () => {
     await request(app.getHttpServer())
       .get(companyRoot + '/header')
       .expect(401);
@@ -173,6 +173,7 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
       .send({ eslogan: 'Texto' })
       .expect(401);
     await request(app.getHttpServer()).post('/api/v1/job-postings').send(validPosting).expect(401);
+    await request(app.getHttpServer()).get('/api/v1/job-postings').expect(401);
   });
 
   it('devuelve encabezado y contacto con sus campos, incluidos nulos', async () => {
@@ -372,6 +373,27 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
     expect(z.uuid().safeParse(response.body.data.id).success).toBe(true);
     expect(response.body.data.empresaId).not.toBe(DEMO_ACCOUNTS[2].id);
     expect(jobs.postings.size).toBe(1);
+  });
+
+  it('lista vacantes disponibles con afinidad para el titulado y conserva null sin convertirlo en cero', async () => {
+    const companySession = await login();
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(companySession.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const graduateSession = await login(DEMO_ACCOUNTS[0]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/job-postings')
+      .auth(graduateSession.token, { type: 'bearer' })
+      .expect(200);
+
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0]).toMatchObject({
+      id: created.body.data.id,
+      porcentajeAfinidad: null,
+    });
   });
 
   it.each([

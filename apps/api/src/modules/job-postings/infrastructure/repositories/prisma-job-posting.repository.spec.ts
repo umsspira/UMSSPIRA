@@ -42,3 +42,27 @@ describe('PrismaJobPostingRepository.findGraduateSkills', () => {
     await expect(repository.findGraduateSkills('missing-graduate')).resolves.toBeNull();
   });
 });
+
+describe('PrismaJobPostingRepository.listPublished', () => {
+  it('returns an empty list and excludes unpublished or expired postings at the query boundary', async () => {
+    const prisma = { vacante: { findMany: jest.fn().mockResolvedValue([]) } };
+    const repository = new PrismaJobPostingRepository(prisma as never);
+    const now = new Date('2026-11-14T12:00:00.000Z');
+
+    await expect(repository.listPublished(now)).resolves.toEqual([]);
+
+    expect(prisma.vacante.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          estado: { in: expect.arrayContaining(['PUBLICADO']) },
+          OR: [{ fecha_cierre: null }, { fecha_cierre: { gt: now } }],
+        },
+        orderBy: [
+          { fecha_publicacion: 'desc' },
+          { created_at: 'desc' },
+          { id: 'asc' },
+        ],
+      }),
+    );
+  });
+});

@@ -2,6 +2,7 @@ import { apiFetch } from "./api-client";
 import { getCurrentCompanyId } from "./companies";
 
 export interface JobPostingRequirement {
+  areaId?: string | null;
   name: string;
   level: string | null;
 }
@@ -13,6 +14,7 @@ export interface JobPosting {
   experienceLevel: string | null;
   technicalDescription: string | null;
   publishedAt: string | null;
+  affinityPercentage: number | null;
   company: {
     name: string | null;
     description: string | null;
@@ -75,6 +77,7 @@ function adaptJobPosting(posting: ApiJobPosting): JobPosting {
       name: requirement.nombre,
       level: requirement.nivel,
     })),
+    affinityPercentage: posting.porcentajeAfinidad ?? null,
   };
 }
 
@@ -92,7 +95,6 @@ export async function getJobPosting(
   });
   return {
     ...adaptJobPosting(posting),
-    affinityPercentage: posting.porcentajeAfinidad ?? null,
   };
 }
 

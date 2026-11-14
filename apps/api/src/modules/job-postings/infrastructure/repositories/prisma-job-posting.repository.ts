@@ -127,7 +127,7 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
   async listPublished(now: Date): Promise<PublishedJobPosting[]> {
     const records = await this.prisma.vacante.findMany({
       where: publishedWhere(now),
-      orderBy: [{ fecha_publicacion: 'desc' }, { created_at: 'desc' }],
+      orderBy: [{ fecha_publicacion: 'desc' }, { created_at: 'desc' }, { id: 'asc' }],
       select: publishedJobPostingSelect,
     });
 
