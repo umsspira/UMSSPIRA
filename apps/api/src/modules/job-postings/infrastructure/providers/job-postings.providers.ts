@@ -26,9 +26,9 @@ export const jobPostingsProviders: Provider[] = [
   },
   {
     provide: GetPublishedJobPostingUseCase,
-    inject: [JOB_POSTING_REPOSITORY],
-    useFactory: (repository: JobPostingRepository) =>
-      new GetPublishedJobPostingUseCase(repository),
+    inject: [JOB_POSTING_REPOSITORY, RequisitosTecnicosService],
+    useFactory: (repository: JobPostingRepository, requirements: RequisitosTecnicosService) =>
+      new GetPublishedJobPostingUseCase(repository, requirements),
   },
   {
     provide: GetPublishedJobPostingTechnicalRequirementsUseCase,

@@ -39,7 +39,6 @@ describe('GetPublishedJobPostingTechnicalRequirementsUseCase', () => {
       create: jest.fn(),
       listPublished: jest.fn(),
       findPublishedById: jest.fn().mockResolvedValue(posting),
-      findGraduateSkills: jest.fn(),
     };
     requirements = { obtenerRequisitos: jest.fn().mockResolvedValue([requirement]) };
     useCase = new GetPublishedJobPostingTechnicalRequirementsUseCase(jobs, requirements, () => now);
@@ -53,7 +52,6 @@ describe('GetPublishedJobPostingTechnicalRequirementsUseCase', () => {
     });
 
     await expect(useCase.execute(id)).resolves.toEqual({ idVacante: id, requisitos: [requirement] });
-    expect(jobs.findGraduateSkills).not.toHaveBeenCalled();
   });
 
   it('returns an empty array only when HU2 confirms there are no requirements', async () => {

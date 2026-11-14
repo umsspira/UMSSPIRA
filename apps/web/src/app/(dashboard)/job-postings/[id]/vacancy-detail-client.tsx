@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   BriefcaseBusiness,
+  CalendarDays,
   Clock3,
   Laptop,
   LoaderCircle,
@@ -13,8 +14,10 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { ApiError } from "@/shared/services/api-client";
-import { getJobPosting, type JobPostingDetail } from "@/shared/services/job-postings";
-import { TechnicalRequirements } from "./technical-requirements";
+import {
+  getJobPosting,
+  type JobPostingDetail,
+} from "@/shared/services/job-postings";
 import styles from "./vacancy-detail.module.css";
 
 type DetailState =
@@ -24,7 +27,7 @@ type DetailState =
   | { id: string; kind: "error" };
 
 function formatModality(modality: string): string {
-  switch (modality.toUpperCase()) {
+  switch (modality.trim().toLocaleUpperCase()) {
     case "REMOTO":
       return "Remoto";
     case "PRESENCIAL":
@@ -35,6 +38,30 @@ function formatModality(modality: string): string {
     default:
       return modality;
   }
+}
+
+function formatDate(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return new Intl.DateTimeFormat("es-BO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function VacancyFooter() {
+  return (
+    <footer className={styles.pageFooter}>
+      <span>Universidad Mayor de San Simón · UMSS Inspira · Vinculación Laboral</span>
+      <span className={styles.footerLinks}>
+        <span>Ayuda y Soporte</span>
+        <span>Política de Privacidad</span>
+        <span>Términos de uso</span>
+      </span>
+    </footer>
+  );
 }
 
 function VacancyState({
@@ -49,19 +76,15 @@ function VacancyState({
   return (
     <div className={styles.page}>
       <main className={styles.stateMain}>
-        <Link href="/job-postings" className={styles.backLink}>
-          <ArrowLeft aria-hidden="true" size={16} />
-          Volver a vacantes
-        </Link>
         <section
           className={`${styles.stateCard} ${unavailable ? "" : styles.errorStateCard}`}
           aria-labelledby="vacancy-state-title"
         >
           <div className={`${styles.stateIcon} ${unavailable ? "" : styles.errorIcon}`}>
             {unavailable ? (
-              <BriefcaseBusiness aria-hidden="true" size={32} />
+              <BriefcaseBusiness aria-hidden="true" size={24} />
             ) : (
-              <TriangleAlert aria-hidden="true" size={32} />
+              <TriangleAlert aria-hidden="true" size={24} />
             )}
           </div>
           <h1 id="vacancy-state-title" className={styles.stateTitle}>
@@ -81,24 +104,29 @@ function VacancyState({
                 onClick={onRetry}
                 className={styles.primaryButton}
               >
-                <RotateCcw aria-hidden="true" size={17} />
+                <RotateCcw aria-hidden="true" size={16} />
                 Reintentar
               </button>
             )}
             <Link href="/job-postings" className={styles.secondaryButton}>
-              <ArrowLeft aria-hidden="true" size={17} />
+              <ArrowLeft aria-hidden="true" size={16} />
               Volver a vacantes
             </Link>
           </div>
         </section>
       </main>
+      <VacancyFooter />
     </div>
   );
 }
 
-function AffinityCard({ percentage }: { percentage: number | null }) {
+function AffinityCard({ posting }: { posting: JobPostingDetail }) {
+  const percentage = posting.affinityPercentage;
   return (
-    <section className={`${styles.card} ${styles.affinityCard}`} aria-label="Afinidad con esta vacante">
+    <section
+      className={`${styles.card} ${styles.affinityCard}`}
+      aria-label="Tu afinidad con esta vacante"
+    >
       <p className={styles.affinityEyebrow}>Tu afinidad con esta vacante</p>
       {percentage !== null ? (
         <>
@@ -110,11 +138,12 @@ function AffinityCard({ percentage }: { percentage: number | null }) {
       ) : (
         <>
           <div className={styles.notCalculatedIcon}>
-            <Clock3 aria-hidden="true" size={20} />
+            <Clock3 aria-hidden="true" size={18} />
           </div>
           <p className={styles.notCalculatedTitle}>Afinidad no calculada</p>
           <p className={styles.affinityCaption}>
-            El porcentaje de afinidad aún no está disponible para esta vacante.
+            {posting.affinityMessage ??
+              "El porcentaje de afinidad aún no está disponible para esta vacante."}
           </p>
         </>
       )}
@@ -130,6 +159,10 @@ function VacancyDetails({
   isGraduate: boolean;
 }) {
   const company = posting.company;
+  const publishedDate = formatDate(posting.publishedAt);
+  const requirements = posting.technicalRequirements.filter(
+    (requirement) => requirement.name.trim().length > 0,
+  );
 
   return (
     <div className={styles.page}>
@@ -152,7 +185,7 @@ function VacancyDetails({
             />
           )}
           <div className={styles.heroShade} />
-          <span className={styles.openBadge}>● Abierta</span>
+          <span className={styles.openBadge}>Disponible</span>
           <p className={styles.heroTopline}>
             <span className={styles.companyName}>
               {company?.name ?? "Empresa no especificada"}
@@ -174,6 +207,12 @@ function VacancyDetails({
                 {posting.experienceLevel}
               </span>
             )}
+            {publishedDate && (
+              <span className={styles.badge}>
+                <CalendarDays aria-hidden="true" size={13} />
+                Publicada el {publishedDate}
+              </span>
+            )}
           </div>
         </header>
 
@@ -182,25 +221,30 @@ function VacancyDetails({
             <section className={styles.card}>
               <h2 className={styles.cardTitle}>Acerca del puesto</h2>
               <p className={styles.bodyText}>
-                {posting.technicalDescription ?? "La empresa no registró una descripción para esta vacante."}
+                {posting.technicalDescription?.trim() ||
+                  "La empresa no registró una descripción para esta vacante."}
               </p>
             </section>
 
             <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Habilidades para el cálculo de afinidad</h2>
-              {posting.technicalRequirements.length > 0 ? (
+              <h2 className={styles.cardTitle}>Competencias requeridas</h2>
+              {requirements.length > 0 ? (
                 <ul className={styles.requirementList}>
-                  {posting.technicalRequirements.map((requirement, index) => (
+                  {requirements.map((requirement, index) => (
                     <li
-                      key={`${requirement.name}-${requirement.level ?? ""}-${index}`}
+                      key={requirement.id ?? `${requirement.name}-${index}`}
                       className={styles.requirement}
                     >
                       <span className={styles.requirementDot} aria-hidden="true" />
-                      <span>
-                        {requirement.name}
-                        {requirement.level && (
-                          <span className={styles.requirementLevel}>
-                            Nivel: {requirement.level}
+                      <span className={styles.requirementContent}>
+                        <strong>{requirement.name}</strong>
+                        <span className={styles.requirementMeta}>
+                          {requirement.level && <span>Nivel: {requirement.level}</span>}
+                          {requirement.type && <span>Tipo: {requirement.type}</span>}
+                        </span>
+                        {requirement.description && (
+                          <span className={styles.requirementDescription}>
+                            {requirement.description}
                           </span>
                         )}
                       </span>
@@ -209,12 +253,10 @@ function VacancyDetails({
                 </ul>
               ) : (
                 <p className={styles.bodyText}>
-                  No se registraron habilidades para el cálculo de afinidad.
+                  Esta vacante no tiene competencias técnicas registradas.
                 </p>
               )}
             </section>
-
-            <TechnicalRequirements key={posting.id} vacancyId={posting.id} />
 
             {company && (
               <section className={styles.card}>
@@ -235,11 +277,13 @@ function VacancyDetails({
                     </span>
                   )}
                   <div>
-                    <h3 className={styles.notCalculatedTitle}>
+                    <h3 className={styles.companyTitle}>
                       {company.name ?? "Empresa no especificada"}
                     </h3>
                     {company.description && (
-                      <p className={`${styles.bodyText} mt-1`}>{company.description}</p>
+                      <p className={`${styles.bodyText} mt-1`}>
+                        {company.description}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -248,9 +292,7 @@ function VacancyDetails({
           </div>
 
           <aside className={styles.asideColumn}>
-            {isGraduate && (
-              <AffinityCard percentage={posting.affinityPercentage} />
-            )}
+            {isGraduate && <AffinityCard posting={posting} />}
             <section className={styles.card}>
               <h2 className={styles.cardTitle}>Información de la oferta</h2>
               <dl className={styles.offerInfo}>
@@ -263,7 +305,9 @@ function VacancyDetails({
                 {posting.modality && (
                   <div className={styles.offerInfoRow}>
                     <dt className={styles.offerInfoLabel}>Modalidad</dt>
-                    <dd className={styles.offerInfoValue}>{formatModality(posting.modality)}</dd>
+                    <dd className={styles.offerInfoValue}>
+                      {formatModality(posting.modality)}
+                    </dd>
                   </div>
                 )}
                 {posting.experienceLevel && (
@@ -272,11 +316,18 @@ function VacancyDetails({
                     <dd className={styles.offerInfoValue}>{posting.experienceLevel}</dd>
                   </div>
                 )}
+                {publishedDate && (
+                  <div className={styles.offerInfoRow}>
+                    <dt className={styles.offerInfoLabel}>Publicación</dt>
+                    <dd className={styles.offerInfoValue}>{publishedDate}</dd>
+                  </div>
+                )}
               </dl>
             </section>
           </aside>
         </div>
       </main>
+      <VacancyFooter />
     </div>
   );
 }
@@ -339,6 +390,7 @@ export function VacancyDetailClient({
           Cargando detalle de la vacante...
         </div>
       </main>
+      <VacancyFooter />
     </div>
   );
 }

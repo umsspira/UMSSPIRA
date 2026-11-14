@@ -3,7 +3,6 @@ import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import type { JobPostingRepository } from '../../application/ports/job-posting-repository.port';
 import type { CreateJobPostingInput } from '../../application/contracts/create-job-posting.input';
-import type { GraduateSkills } from '../../domain/entities/graduate-skills.entity';
 import type { PublishedJobPosting } from '../../domain/entities/published-job-posting.entity';
 import { jobPostingSelect, toJobPosting } from '../translators/job-posting.translator';
 
@@ -50,7 +49,10 @@ type PublishedJobPostingRecord = Prisma.VacanteGetPayload<{
 function publishedWhere(now: Date): Prisma.VacanteWhereInput {
   return {
     estado: { in: PUBLISHED_STATES },
-    OR: [{ fecha_cierre: null }, { fecha_cierre: { gt: now } }],
+    AND: [
+      { OR: [{ fecha_publicacion: null }, { fecha_publicacion: { lte: now } }] },
+      { OR: [{ fecha_cierre: null }, { fecha_cierre: { gt: now } }] },
+    ],
   };
 }
 
@@ -144,46 +146,5 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
     });
 
     return record ? toPublishedJobPosting(record) : null;
-  }
-
-  async findGraduateSkills(graduateId: string): Promise<GraduateSkills | null> {
-    const graduate = await this.prisma.titulado.findUnique({
-      where: { id: graduateId },
-      select: {
-        perfil_area_registros: {
-          select: {
-            area_id: true,
-            descripcion_profesional: true,
-            area: { select: { nombre: true } },
-          },
-        },
-        experiencia_laboral_registros: {
-          select: { cargo: true },
-        },
-        certificacion_registros: {
-          select: { nombre: true },
-        },
-      },
-    });
-
-    if (!graduate) {
-      return null;
-    }
-
-    return {
-      areaIds: graduate.perfil_area_registros.flatMap(({ area_id }) =>
-        area_id ? [area_id] : [],
-      ),
-      evidence: [
-        ...graduate.perfil_area_registros.flatMap(
-          ({ descripcion_profesional, area }) =>
-            [descripcion_profesional, area?.nombre].filter(
-              (text): text is string => typeof text === 'string',
-            ),
-        ),
-        ...graduate.experiencia_laboral_registros.map(({ cargo }) => cargo),
-        ...graduate.certificacion_registros.map(({ nombre }) => nombre),
-      ],
-    };
   }
 }

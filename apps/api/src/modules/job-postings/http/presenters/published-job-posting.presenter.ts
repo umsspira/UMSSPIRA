@@ -33,5 +33,15 @@ export function presentPublishedJobPostingDetail(
   return {
     ...presentPublishedJobPosting(posting),
     porcentajeAfinidad: posting.affinityPercentage,
+    mensajeAfinidad: posting.affinityMessage,
+    requisitosTecnicos: posting.publishedTechnicalRequirements.map((requirement) => ({
+      id: requirement.id,
+      idVacante: requirement.idVacante,
+      competencia: requirement.competencia,
+      nivel: requirement.nivel,
+      tipo: requirement.tipo,
+      descripcion: requirement.descripcion ?? null,
+      fechaCreacion: requirement.fechaCreacion,
+    })),
   };
 }

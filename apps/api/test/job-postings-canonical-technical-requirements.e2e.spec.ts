@@ -45,7 +45,7 @@ describe('HU8 canonical HTTP composition (source and authenticator simulated, no
   const authenticator: jest.Mocked<Authenticator> = { execute: jest.fn() };
   const jobs: jest.Mocked<JobPostingRepository> = {
     create: jest.fn(), listPublished: jest.fn(),
-    findPublishedById: jest.fn(), findGraduateSkills: jest.fn(),
+    findPublishedById: jest.fn(),
   };
   const source: jest.Mocked<CanonicalTechnicalRequirementsSource> = {
     findMany: jest.fn(),
@@ -86,7 +86,6 @@ describe('HU8 canonical HTTP composition (source and authenticator simulated, no
 
   afterEach(() => {
     expect(jobs.create).not.toHaveBeenCalled();
-    expect(jobs.findGraduateSkills).not.toHaveBeenCalled();
   });
 
   it.each([

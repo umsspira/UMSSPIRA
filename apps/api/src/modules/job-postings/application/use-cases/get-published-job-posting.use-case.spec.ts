@@ -2,6 +2,7 @@ import type { ActorContext } from '../../../../shared/security/contexts/actor-co
 import type { PublishedJobPosting } from '../../domain/entities/published-job-posting.entity';
 import { JobPostingNotFoundError } from '../../domain/errors/job-posting-not-found.error';
 import type { JobPostingRepository } from '../ports/job-posting-repository.port';
+import type { PublishedTechnicalRequirementsReader } from '../ports/published-technical-requirements-reader.port';
 import { GetPublishedJobPostingUseCase } from './get-published-job-posting.use-case';
 
 const posting: PublishedJobPosting = {
@@ -11,93 +12,72 @@ const posting: PublishedJobPosting = {
   experienceLevel: 'Junior',
   technicalDescription: 'Descripción registrada',
   publishedAt: new Date('2026-10-01T00:00:00.000Z'),
-  company: {
-    name: 'Empresa',
-    description: null,
-    logoUrl: null,
-    bannerUrl: null,
-  },
-  technicalRequirements: [{
-    areaId: '20000000-0000-4000-8000-000000000001',
-    name: 'Desarrollo de software',
-    level: 'Intermedio',
-  }],
+  company: { name: 'Empresa', description: null, logoUrl: null, bannerUrl: null },
+  technicalRequirements: [],
 };
 
-function actor(role: ActorContext['role'], id: string): ActorContext {
-  return {
-    id,
-    email: 'usuario@example.com',
-    name: null,
-    role,
-    permissions: [],
-    scopes: {
-      companyIds: [],
-      graduateId: role === 'titulado' ? 'graduate-1' : null,
-      careerIds: [],
-    },
-    credentialVersion: 1,
-  };
-}
+const graduate: ActorContext = {
+  id: 'user-1', email: 'egresado@example.com', name: null, role: 'titulado',
+  permissions: [], scopes: { companyIds: [], graduateId: 'graduate-1', careerIds: [] },
+  credentialVersion: 1,
+};
 
 function repository(): jest.Mocked<JobPostingRepository> {
   return {
-    create: jest.fn(),
-    listPublished: jest.fn(),
-    findPublishedById: jest.fn(),
-    findGraduateSkills: jest.fn(),
+    create: jest.fn(), listPublished: jest.fn(), findPublishedById: jest.fn(),
   };
 }
 
 describe('GetPublishedJobPostingUseCase', () => {
-  it('uses the authenticated graduate scope and selected vacancy details for affinity', async () => {
+  it('returns published details and HU8 technical requirements while reporting unavailable affinity', async () => {
     const jobs = repository();
     jobs.findPublishedById.mockResolvedValue(posting);
-    jobs.findGraduateSkills.mockResolvedValue({
-      areaIds: ['20000000-0000-4000-8000-000000000001'],
-      evidence: [],
-    });
-    const useCase = new GetPublishedJobPostingUseCase(
-      jobs,
-      () => new Date('2026-11-02T00:00:00.000Z'),
-    );
+    const technicalRequirements = [{
+      id: '20000000-0000-4000-8000-000000000001',
+      idVacante: posting.id,
+      competencia: 'TypeScript',
+      nivel: 'Avanzado' as const,
+      tipo: 'Obligatorio' as const,
+      fechaCreacion: '2026-10-01T00:00:00.000Z',
+    }];
+    const reader: jest.Mocked<PublishedTechnicalRequirementsReader> = {
+      obtenerRequisitos: jest.fn().mockResolvedValue(technicalRequirements),
+    };
+    const useCase = new GetPublishedJobPostingUseCase(jobs, reader);
 
-    await expect(
-      useCase.execute('10000000-0000-4000-8000-000000000001', actor('titulado', 'user-1')),
-    ).resolves.toMatchObject({
-      id: '10000000-0000-4000-8000-000000000001',
-      affinityPercentage: 100,
+    await expect(useCase.execute(posting.id, graduate)).resolves.toMatchObject({
+      id: posting.id,
+      title: 'Desarrollador',
+      company: { name: 'Empresa' },
+      publishedTechnicalRequirements: technicalRequirements,
+      affinityPercentage: null,
+      affinityMessage: expect.stringContaining('No fue posible calcular'),
     });
-    expect(jobs.findGraduateSkills).toHaveBeenCalledWith('graduate-1');
+    expect(reader.obtenerRequisitos).toHaveBeenCalledWith(posting.id);
   });
 
-  it('does not request affinity for actors without graduate scope', async () => {
-    const jobs = repository();
-    jobs.findPublishedById.mockResolvedValue(posting);
-    const useCase = new GetPublishedJobPostingUseCase(jobs);
-
-    await expect(
-      useCase.execute('10000000-0000-4000-8000-000000000001', actor('empresa', 'company-user')),
-    ).resolves.toMatchObject({ affinityPercentage: null });
-    expect(jobs.findGraduateSkills).not.toHaveBeenCalled();
-  });
-
-  it('treats a missing or unavailable vacancy as not found', async () => {
+  it('treats a missing or unavailable vacancy as not found without reading requirements', async () => {
     const jobs = repository();
     jobs.findPublishedById.mockResolvedValue(null);
-    const useCase = new GetPublishedJobPostingUseCase(jobs);
+    const reader: jest.Mocked<PublishedTechnicalRequirementsReader> = {
+      obtenerRequisitos: jest.fn(),
+    };
+    const useCase = new GetPublishedJobPostingUseCase(jobs, reader);
 
-    await expect(
-      useCase.execute('10000000-0000-4000-8000-000000000002', actor('titulado', 'user-1')),
-    ).rejects.toBeInstanceOf(JobPostingNotFoundError);
-    expect(jobs.findGraduateSkills).not.toHaveBeenCalled();
+    await expect(useCase.execute(posting.id, graduate)).rejects.toBeInstanceOf(
+      JobPostingNotFoundError,
+    );
+    expect(reader.obtenerRequisitos).not.toHaveBeenCalled();
   });
 
   it('rejects malformed identifiers without querying the repository', async () => {
     const jobs = repository();
-    const useCase = new GetPublishedJobPostingUseCase(jobs);
+    const reader: jest.Mocked<PublishedTechnicalRequirementsReader> = {
+      obtenerRequisitos: jest.fn(),
+    };
+    const useCase = new GetPublishedJobPostingUseCase(jobs, reader);
 
-    await expect(useCase.execute('not-a-uuid', actor('titulado', 'user-1'))).rejects.toBeInstanceOf(
+    await expect(useCase.execute('not-a-uuid', graduate)).rejects.toBeInstanceOf(
       JobPostingNotFoundError,
     );
     expect(jobs.findPublishedById).not.toHaveBeenCalled();

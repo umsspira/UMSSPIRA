@@ -37,7 +37,7 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
   const authenticator: jest.Mocked<Authenticator> = { execute: jest.fn() };
   const jobs: jest.Mocked<JobPostingRepository> = {
     create: jest.fn(), listPublished: jest.fn(),
-    findPublishedById: jest.fn(), findGraduateSkills: jest.fn(),
+    findPublishedById: jest.fn(),
   };
   const requirements: jest.Mocked<RequisitosTecnicosRepository> = {
     listarPorVacante: jest.fn(), crear: jest.fn(),
@@ -134,7 +134,6 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
     expect(response.body).toEqual({ idVacante: id, requisitos: [requirement] });
     expect(authenticator.execute).toHaveBeenCalledWith('test-session', undefined);
     expect(requirements.listarPorVacante).toHaveBeenCalledWith(id);
-    expect(jobs.findGraduateSkills).not.toHaveBeenCalled();
   });
 
   it('propagates an availability failure without reading HU2 or returning an empty result', async () => {

@@ -3,7 +3,6 @@ import type { JobPosting } from '../../src/modules/job-postings/domain/entities/
 import type { JobPostingRepository } from '../../src/modules/job-postings/application/ports/job-posting-repository.port';
 import type { CreateJobPostingInput } from '../../src/modules/job-postings/application/contracts/create-job-posting.input';
 import type { PublishedJobPosting } from '../../src/modules/job-postings/domain/entities/published-job-posting.entity';
-import type { GraduateSkills } from '../../src/modules/job-postings/domain/entities/graduate-skills.entity';
 import type { InMemoryCompanyProfileRepository } from './in-memory-company-profile.repository';
 
 export class InMemoryJobPostingRepository implements JobPostingRepository {
@@ -43,10 +42,6 @@ export class InMemoryJobPostingRepository implements JobPostingRepository {
     }
 
     return this.toPublishedPosting(posting);
-  }
-
-  async findGraduateSkills(): Promise<GraduateSkills | null> {
-    return null;
   }
 
   private toPublishedPosting(posting: JobPosting): PublishedJobPosting {

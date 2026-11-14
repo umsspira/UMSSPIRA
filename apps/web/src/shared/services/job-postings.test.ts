@@ -69,16 +69,52 @@ it("obtiene el detalle por identificador y preserva una afinidad inexistente com
       descripcionTecnica: "Descripción",
       fechaPublicacion: null,
       empresa: null,
-      requisitosTecnicos: [],
+      requisitosTecnicos: [{
+        id: "requirement-1",
+        idVacante: "vacancy/1",
+        competencia: "TypeScript",
+        nivel: "Avanzado",
+        tipo: "Obligatorio",
+        descripcion: "Experiencia profesional.",
+        fechaCreacion: "2026-11-01T00:00:00.000Z",
+      }],
       porcentajeAfinidad: null,
+      mensajeAfinidad: "No fue posible calcular la afinidad en este momento.",
     }),
   );
 
   await expect(getJobPosting("vacancy/1")).resolves.toMatchObject({
     id: "vacancy/1",
     affinityPercentage: null,
+    affinityMessage: "No fue posible calcular la afinidad en este momento.",
+    technicalRequirements: [{
+      name: "TypeScript",
+      level: "Avanzado",
+      type: "Obligatorio",
+      description: "Experiencia profesional.",
+    }],
   });
   expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/job-postings/vacancy%2F1");
+});
+
+it("rechaza un detalle que no corresponde al identificador solicitado", async () => {
+  fetchMock.mockResolvedValue(response({
+    id: "another-vacancy",
+    titulo: "Desarrollador",
+    modalidad: null,
+    nivelExperiencia: null,
+    descripcionTecnica: "Descripción",
+    fechaPublicacion: null,
+    empresa: null,
+    requisitosTecnicos: [],
+    porcentajeAfinidad: null,
+    mensajeAfinidad: "No disponible",
+  }));
+
+  await expect(getJobPosting("vacancy-1")).rejects.toMatchObject({
+    name: "ApiError",
+    status: 502,
+  });
 });
 
 it("conserva el 404 del API para distinguir una vacante no disponible", async () => {
