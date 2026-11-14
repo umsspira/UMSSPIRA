@@ -22,6 +22,7 @@ import {
   type UsuarioEmpresa,
   type RolEmpresa,
 } from "@/shared/services/company-users";
+import { Cargando, EstadoError, EstadoVacio } from "../_components/estado-pantalla";
 
 export default function GestionUsuariosPage() {
   const [usuarios, setUsuarios] = useState<UsuarioEmpresa[]>([]);
@@ -42,6 +43,8 @@ export default function GestionUsuariosPage() {
   const [rol, setRol] = useState<RolEmpresa>("Reclutador");
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [errorCarga, setErrorCarga] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   // BUG-03: Validación del nombre completo.
   const nombreValido = (valor: string) => {
@@ -57,13 +60,17 @@ export default function GestionUsuariosPage() {
   useEffect(() => {
     let activo = true;
 
+    setCargando(true);
+    setErrorCarga("");
+
     obtenerUsuariosEmpresa()
       .then((datos) => {
         if (activo) setUsuarios(datos);
       })
       .catch((e: unknown) => {
+        // CA-21: mensaje de error con "Reintentar"
         if (activo) {
-          setError(
+          setErrorCarga(
             e instanceof Error
               ? e.message
               : "Error al cargar usuarios"
@@ -77,7 +84,7 @@ export default function GestionUsuariosPage() {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -277,13 +284,13 @@ export default function GestionUsuariosPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F6F3ED] px-4 py-8 text-slate-800 sm:px-8">
+    <main className="min-h-screen overflow-x-hidden bg-[#F6F3ED] px-4 py-6 text-slate-800 sm:px-8 sm:py-8">
       <div className="mx-auto max-w-6xl">
 
         {/* ENCABEZADO */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-blue-900">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-blue-900 sm:text-3xl">
               Gestión de usuarios
             </h1>
 
@@ -299,7 +306,7 @@ export default function GestionUsuariosPage() {
               limpiarMensajes();
               setMostrarInvitar(true);
             }}
-            className="flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600"
+            className="flex min-h-11 md:min-h-0 w-full items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600 sm:w-auto"
           >
             <Plus size={20} />
             Invitar usuario
@@ -310,7 +317,7 @@ export default function GestionUsuariosPage() {
         {mensaje && (
           <div
             role="status"
-            className="mb-4 flex gap-2 rounded-lg bg-green-50 p-3 text-green-700"
+            className="sticky top-2 z-30 mb-4 flex gap-2 rounded-lg bg-green-50 p-3 text-green-700 shadow-sm break-words"
           >
             <CheckCircle2 size={20} />
             {mensaje}
@@ -321,7 +328,7 @@ export default function GestionUsuariosPage() {
         {error && !mostrarInvitar && (
           <div
             role="alert"
-            className="mb-4 flex gap-2 rounded-lg bg-red-50 p-3 text-red-700"
+            className="sticky top-2 z-30 mb-4 flex gap-2 rounded-lg bg-red-50 p-3 text-red-700 shadow-sm break-words"
           >
             <AlertCircle size={20} />
             {error}
@@ -331,16 +338,16 @@ export default function GestionUsuariosPage() {
         {/* TABLA DE USUARIOS */}
         <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
 
-          <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <Users size={21} />
               Usuarios de la empresa
             </h2>
 
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Search
                 size={17}
-                className="absolute left-3 top-3 text-gray-400"
+                className="absolute left-3 top-3.5 text-gray-400 md:top-3"
               />
 
               <input
@@ -348,12 +355,110 @@ export default function GestionUsuariosPage() {
                 placeholder="Buscar usuario..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="rounded-lg border py-2 pl-10 pr-3 outline-none focus:border-orange-400"
+                className="min-h-11 md:min-h-0 w-full rounded-lg border py-2 pl-10 pr-3 outline-none focus:border-orange-400 sm:w-auto"
               />
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* CA-03 / CA-14: en móvil cada usuario es una tarjeta */}
+          <div className="md:hidden">
+            {cargando ? (
+              <Cargando texto="Cargando usuarios..." />
+            ) : errorCarga ? (
+              <EstadoError
+                mensaje={errorCarga}
+                onReintentar={() => setReloadKey((k) => k + 1)}
+              />
+            ) : filtrados.length === 0 ? (
+              <EstadoVacio mensaje="No se encontraron usuarios." />
+            ) : (
+              <ul className="space-y-3 px-4 pb-4">
+                {filtrados.map((u) => (
+                  <li
+                    key={u.id}
+                    className="space-y-3 rounded-xl border bg-white p-4 shadow-sm"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold break-words [overflow-wrap:anywhere]">
+                        {u.nombre}
+                      </p>
+                      <p className="text-sm text-gray-600 break-all">
+                        {u.correo}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span
+                        className={`rounded-md px-3 py-1 text-xs font-semibold ${
+                          u.estado === "Activo"
+                            ? "bg-green-100 text-green-700"
+                            : u.estado === "Pendiente"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {u.estado}
+                      </span>
+
+                      {u.esTitular || u.estado === "Pendiente" ? (
+                        <span className="text-sm">{u.rol}</span>
+                      ) : (
+                        <select
+                          aria-label={`Rol de ${u.nombre}`}
+                          value={u.rol}
+                          disabled={procesando}
+                          onChange={(e) =>
+                            void cambiarRol(u, e.target.value as RolEmpresa)
+                          }
+                          className="min-h-11 md:min-h-0 flex-1 rounded-md border bg-white px-2 py-2 text-sm disabled:opacity-50"
+                        >
+                          <option value="Administrador">Administrador</option>
+                          <option value="Reclutador">Reclutador</option>
+                        </select>
+                      )}
+                    </div>
+
+                    {u.estado === "Pendiente" ? (
+                      <button
+                        disabled={procesando}
+                        onClick={() => setConfirmarCancelar(u)}
+                        className="min-h-11 md:min-h-0 w-full rounded-lg border border-red-200 px-3 py-2 font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Cancelar invitación
+                      </button>
+                    ) : u.esTitular ? (
+                      <p className="text-sm text-gray-400">Sin acciones</p>
+                    ) : (
+                      <button
+                        disabled={procesando}
+                        onClick={() => setConfirmarEstado(u)}
+                        className={`flex min-h-11 md:min-h-0 w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 font-medium disabled:opacity-50 ${
+                          u.estado === "Activo"
+                            ? "border-red-200 text-red-600 hover:bg-red-50"
+                            : "border-green-200 text-green-700 hover:bg-green-50"
+                        }`}
+                      >
+                        {u.estado === "Activo" ? (
+                          <>
+                            <UserX size={16} />
+                            Desactivar
+                          </>
+                        ) : (
+                          <>
+                            <UserCheck size={16} />
+                            Activar
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Escritorio: tabla original sin cambios */}
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-gray-50 text-blue-900">
                 <tr>
@@ -376,6 +481,15 @@ export default function GestionUsuariosPage() {
                     >
                       <Loader2 className="mx-auto animate-spin" />
                       Cargando usuarios...
+                    </td>
+                  </tr>
+                ) : errorCarga ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <EstadoError
+                        mensaje={errorCarga}
+                        onReintentar={() => setReloadKey((k) => k + 1)}
+                      />
                     </td>
                   </tr>
                 ) : filtrados.length === 0 ? (
@@ -497,12 +611,12 @@ export default function GestionUsuariosPage() {
 
       {/* MODAL INVITAR */}
       {mostrarInvitar && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-invitar"
-            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:max-h-[90dvh] sm:rounded-xl sm:p-6"
           >
             <div className="mb-6 flex items-center justify-between">
               <h2
@@ -517,6 +631,7 @@ export default function GestionUsuariosPage() {
                 disabled={procesando}
                 onClick={cerrarInvitar}
                 aria-label="Cerrar"
+                className="flex h-11 w-11 items-center justify-center"
               >
                 <X size={22} />
               </button>
@@ -625,12 +740,12 @@ export default function GestionUsuariosPage() {
               )}
 
               {/* BOTONES */}
-              <div className="flex justify-end gap-3 pt-3">
+              <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   disabled={procesando}
                   onClick={cerrarInvitar}
-                  className="rounded-lg border px-5 py-3"
+                  className="min-h-11 md:min-h-0 rounded-lg border px-5 py-3"
                 >
                   Cancelar
                 </button>
@@ -638,7 +753,7 @@ export default function GestionUsuariosPage() {
                 <button
                   type="submit"
                   disabled={procesando}
-                  className="rounded-lg bg-orange-400 px-5 py-3 font-semibold disabled:opacity-50"
+                  className="min-h-11 md:min-h-0 rounded-lg bg-orange-400 px-5 py-3 font-semibold disabled:opacity-50"
                 >
                   {procesando
                     ? "Registrando..."
@@ -652,12 +767,12 @@ export default function GestionUsuariosPage() {
 
       {/* MODAL CONFIRMACIÓN DE INVITACIÓN */}
       {invitacionCreada && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-exito"
-            className="w-full max-w-sm rounded-xl bg-white p-7 text-center shadow-xl"
+            className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-2xl bg-white p-6 text-center shadow-xl sm:rounded-xl sm:p-7"
           >
             <CheckCircle2
               className="mx-auto mb-4 text-green-600"
@@ -671,7 +786,7 @@ export default function GestionUsuariosPage() {
               Invitación registrada
             </h2>
 
-            <p className="mt-3 text-sm">
+            <p className="mt-3 break-words text-sm">
               Se registró la invitación para{" "}
               <strong>{invitacionCreada}</strong>.
             </p>
@@ -685,7 +800,7 @@ export default function GestionUsuariosPage() {
               onClick={() =>
                 setInvitacionCreada(null)
               }
-              className="mt-6 w-full rounded-lg bg-orange-500 p-3 font-semibold text-white"
+              className="mt-6 min-h-11 md:min-h-0 w-full rounded-lg bg-orange-500 p-3 font-semibold text-white"
             >
               Aceptar
             </button>
@@ -695,12 +810,12 @@ export default function GestionUsuariosPage() {
 
       {/* MODAL CANCELAR INVITACIÓN */}
       {confirmarCancelar && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-cancelar"
-            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-xl sm:p-6"
           >
             <div className="mb-4 flex justify-end">
               <button
@@ -710,6 +825,7 @@ export default function GestionUsuariosPage() {
                   setConfirmarCancelar(null)
                 }
                 aria-label="Cerrar"
+                className="flex h-11 w-11 items-center justify-center"
               >
                 <X size={20} />
               </button>
@@ -734,7 +850,7 @@ export default function GestionUsuariosPage() {
               </strong>?
             </p>
 
-            <p className="mt-3 text-center text-sm text-gray-500">
+            <p className="mt-3 break-all text-center text-sm text-gray-500">
               {confirmarCancelar.correo}
             </p>
 
@@ -743,14 +859,14 @@ export default function GestionUsuariosPage() {
               Esta acción no afecta a usuarios activos.
             </p>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 disabled={procesando}
                 onClick={() =>
                   setConfirmarCancelar(null)
                 }
-                className="rounded-lg border px-5 py-3"
+                className="min-h-11 md:min-h-0 rounded-lg border px-5 py-3"
               >
                 Volver
               </button>
@@ -761,7 +877,7 @@ export default function GestionUsuariosPage() {
                 onClick={() =>
                   void cancelarInvitacion()
                 }
-                className="rounded-lg bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
+                className="min-h-11 md:min-h-0 rounded-lg bg-red-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
               >
                 {procesando
                   ? "Cancelando..."
@@ -774,12 +890,12 @@ export default function GestionUsuariosPage() {
 
       {/* MODAL ACTIVAR / DESACTIVAR */}
       {confirmarEstado && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-estado"
-            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-xl sm:p-6"
           >
             <AlertCircle
               className="mx-auto mb-4 text-red-500"
@@ -806,14 +922,14 @@ export default function GestionUsuariosPage() {
               </strong>?
             </p>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 disabled={procesando}
                 onClick={() =>
                   setConfirmarEstado(null)
                 }
-                className="rounded-lg border px-5 py-3"
+                className="min-h-11 md:min-h-0 rounded-lg border px-5 py-3"
               >
                 Cancelar
               </button>
@@ -824,7 +940,7 @@ export default function GestionUsuariosPage() {
                 onClick={() =>
                   void cambiarEstado()
                 }
-                className={`rounded-lg px-5 py-3 font-semibold text-white disabled:opacity-50 ${
+                className={`min-h-11 md:min-h-0 rounded-lg px-5 py-3 font-semibold text-white disabled:opacity-50 ${
                   confirmarEstado.estado === "Activo"
                     ? "bg-red-600"
                     : "bg-green-600"

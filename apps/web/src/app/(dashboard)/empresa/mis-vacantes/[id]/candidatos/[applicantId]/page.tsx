@@ -11,6 +11,7 @@ import {
 import { getVacancyById } from "@/shared/services/vacancies";
 import { VacancyHeader } from "@/shared/components/vacancy-header";
 import { MatchBreakdownView } from "@/shared/components/match-breakdown-view";
+import { Cargando, EstadoError } from "../../../../_components/estado-pantalla";
 
 export default function ApplicantMatchPage() {
   const params = useParams();
@@ -61,25 +62,18 @@ export default function ApplicantMatchPage() {
     <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6">
       {vacancy && <VacancyHeader vacancy={vacancy} />}
 
-      {loading && (
-        <div className="p-8 text-center text-[#1B2632] font-medium" role="status">
-          Cargando candidato...
-        </div>
-      )}
+      {loading && <Cargando texto="Cargando candidato..." />}
 
       {!loading && error && (
-        <div className="p-8 max-w-xl mx-auto text-center space-y-4" role="alert">
-          <p className="text-[#A35139] font-semibold">{MATCH_ENGINE_ERROR_MESSAGE}</p>
-          <div className="flex justify-center gap-2">
-            <button
-              onClick={() => setReloadKey((k) => k + 1)}
-              className="px-4 py-2 text-xs font-bold text-white bg-[#1B2632] rounded-lg hover:bg-opacity-90"
-            >
-              Reintentar
-            </button>
+        <div className="space-y-2">
+          <EstadoError
+            mensaje={MATCH_ENGINE_ERROR_MESSAGE}
+            onReintentar={() => setReloadKey((k) => k + 1)}
+          />
+          <div className="mx-auto max-w-xl px-8">
             <button
               onClick={goBackToList}
-              className="px-4 py-2 text-xs font-bold text-[#1B2632] border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="min-h-11 md:min-h-0 w-full rounded-lg border border-gray-300 px-4 py-2 text-xs font-bold text-[#1B2632] hover:bg-gray-50"
             >
               Volver a la lista
             </button>
@@ -92,7 +86,7 @@ export default function ApplicantMatchPage() {
           <p className="text-gray-500">No se encontró al postulante.</p>
           <button
             onClick={goBackToList}
-            className="px-4 py-2 text-xs font-bold text-[#1B2632] border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="min-h-11 md:min-h-0 w-full sm:w-auto px-4 py-2 text-xs font-bold text-[#1B2632] border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             Volver a la lista
           </button>
@@ -104,4 +98,4 @@ export default function ApplicantMatchPage() {
       )}
     </div>
   );
-}
+}

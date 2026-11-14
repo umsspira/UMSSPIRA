@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
 import { API_BASE_URL } from '@/shared/config/api';
+import { Cargando, EstadoError, EstadoVacio } from '../../_components/estado-pantalla';
 
 export default function VacanteDetallePage() {
   const params = useParams();
@@ -17,9 +18,13 @@ export default function VacanteDetallePage() {
 
   const [vacante, setVacante] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const fetchVacante = async () => {
+      setIsLoading(true);
+      setErrorCarga(false);
       try {
         const token = getAccessToken();
         const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${id}`, {
@@ -32,38 +37,42 @@ export default function VacanteDetallePage() {
         if (response.ok) {
           const data = await response.json();
           if (data) setVacante(data);
+        } else if (response.status !== 404) {
+          setErrorCarga(true);
         }
       } catch (error) {
         console.error("Error cargando detalle", error);
+        setErrorCarga(true); // CA-21
       } finally {
         setIsLoading(false);
       }
     };
     fetchVacante();
-  }, [id]);
+  }, [id, reloadKey]);
 
-  if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--ink)' }}>Cargando detalle...</div>;
-  if (!vacante) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--ink)' }}>Vacante no encontrada</div>;
+  if (isLoading) return <Cargando texto="Cargando detalle..." />;
+  if (errorCarga) return <EstadoError mensaje="No se pudo cargar la vacante. Revisa tu conexión e inténtalo de nuevo." onReintentar={() => setReloadKey((k) => k + 1)} />;
+  if (!vacante) return <EstadoVacio mensaje="Vacante no encontrada" />;
 
   const fechaPublicacion = new Date(vacante.created_at).toLocaleDateString('es-ES');
   const estadoUI = ['PUBLICADO', 'PUBLICADA', 'ACTIVA'].includes(String(vacante.estado).toUpperCase()) ? 'ACTIVA' : vacante.estado;
 
   return (
-    <div style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
+    <div className="p-4 md:p-8 overflow-x-hidden" style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         
-        <Link href="/empresa/mis-vacantes" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#4b5563', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
+        <Link href="/empresa/mis-vacantes" className="min-h-11 md:min-h-0" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#4b5563', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
           <ArrowLeft size={16} /> Volver a Mis vacantes
         </Link>
 
-        <div style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', padding: '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-            <div style={{ padding: '0.6rem', backgroundColor: '#fef3c7', borderRadius: '0.5rem', color: '#b45309' }}>
+        <div className="px-4 py-4 md:px-8 md:py-6" style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', minWidth: 0 }}>
+            <div style={{ flexShrink: 0, padding: '0.6rem', backgroundColor: '#fef3c7', borderRadius: '0.5rem', color: '#b45309' }}>
               <Briefcase size={24} />
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', margin: 0 }}>{vacante.titulo}</h1>
+              <div className="flex-wrap md:flex-nowrap" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem 0.75rem', marginBottom: '0.25rem' }}>
+                <h1 style={{ fontSize: 'clamp(1.25rem, 5.5vw, 1.5rem)', fontWeight: '800', color: '#111827', margin: 0, overflowWrap: 'anywhere' }}>{vacante.titulo}</h1>
                 <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '0.2rem 0.6rem', borderRadius: '99px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {estadoUI}
                 </span>
@@ -74,12 +83,13 @@ export default function VacanteDetallePage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button style={{ padding: '0.5rem 1rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#374151', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <button className="min-h-11 w-full justify-center sm:w-auto md:min-h-0" style={{ padding: '0.5rem 1rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#374151', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
               <Pause size={16} /> Pausar vacante
             </button>
             <button 
               onClick={() => router.push(`/empresa/mis-vacantes/${id}/editar`)}
+              className="min-h-11 w-full justify-center sm:w-auto md:min-h-0"
               style={{ padding: '0.5rem 1rem', border: 'none', backgroundColor: 'var(--flame)', color: '#fff', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(255,177,98,0.3)' }}
             >
               <Pencil size={16} /> Editar vacante
@@ -87,12 +97,12 @@ export default function VacanteDetallePage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[2fr_1fr]">
           
-          <div style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', padding: '2.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+          <div className="min-w-0 p-5 md:p-10" style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
             
             <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#111827', marginBottom: '1rem' }}>Propósito del Rol</h2>
-            <p style={{ color: '#374151', lineHeight: 1.7, marginBottom: '2rem', fontWeight: 500, fontSize: '0.95rem' }}>
+            <p style={{ color: '#374151', lineHeight: 1.7, marginBottom: '2rem', fontWeight: 500, fontSize: '0.95rem', overflowWrap: 'anywhere' }}>
               {vacante.descripcion_tecnica || 'Buscamos un Desarrollador Backend Semi-Senior para integrarse al squad de Core Payments. Tu principal reto consistirá en diseñar, escalar y optimizar microservicios de alto rendimiento que procesan miles de transacciones financieras diarias en tiempo real, garantizando resiliencia y estricta integridad de datos.'}
             </p>
 
@@ -115,7 +125,7 @@ export default function VacanteDetallePage() {
 
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="min-w-0" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             <div style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', padding: '1.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#111827', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -184,4 +194,4 @@ export default function VacanteDetallePage() {
       </div>
     </div>
   );
-}
+}
