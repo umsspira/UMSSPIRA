@@ -126,6 +126,33 @@ describe('getAffinityVector', () => {
     );
   });
 
+  it('ignora el mock en un build de producción aunque la bandera esté activa', async () => {
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'true';
+    await setTestAccessToken();
+
+    const payload = buildAffinityVectorResponse({
+      graduateId: 'produccion-sin-mock',
+      calculatedAt: '2026-09-28T12:00:00.000Z',
+      areas: [],
+    });
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: payload }),
+    });
+
+    const { getAffinityVector } = await import('./affinity-service');
+    const result = await getAffinityVector();
+
+    expect(result.graduateId).toBe('produccion-sin-mock');
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/radar'),
+      expect.anything(),
+    );
+  });
+
   it('lanza error con el estado HTTP cuando el backend responde con fallo', async () => {
     process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
     await setTestAccessToken();
@@ -146,56 +173,6 @@ describe('getAffinityVector', () => {
     await expect(getAffinityVector()).rejects.toMatchObject({
       status: 500,
     });
-  });
-});
-
-describe('saveAffinityConfig', () => {
-  const originalEnv = process.env;
-
-  beforeEach(async () => {
-    jest.resetModules();
-    process.env = { ...originalEnv };
-    await resetTestSession();
-  });
-
-  afterEach(async () => {
-    process.env = originalEnv;
-    await resetTestSession();
-    global.fetch = originalFetch;
-  });
-
-  it('guarda la configuraciÃ³n exitosamente con mock', async () => {
-    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'true';
-
-    const { saveAffinityConfig } = await import('./affinity-service');
-
-    await expect(
-      saveAffinityConfig({
-        axes: [{ area: 'software-development', weight: 3 }],
-      }),
-    ).resolves.toBeUndefined();
-  });
-
-  it('envÃ­a la configuraciÃ³n al endpoint real cuando el mock estÃ¡ desactivado', async () => {
-    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
-    await setTestAccessToken();
-
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ data: {} }),
-    });
-
-    const { saveAffinityConfig } = await import('./affinity-service');
-
-    await saveAffinityConfig({
-      axes: [{ area: 'software-development', weight: 3 }],
-    });
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/affinity/config'),
-      expect.objectContaining({ method: 'POST' }),
-    );
   });
 });
 
@@ -510,7 +487,6 @@ describe('convivencia con la Ã©pica', () => {
 
     expect(vector.areas.map((item) => item.area)).toEqual(AREAS_ORDER);
     expect(typeof service.getAffinityConfig).toBe('function');
-    expect(typeof service.saveAffinityConfig).toBe('function');
     expect(typeof service.recalculateAffinity).toBe('function');
   });
 });

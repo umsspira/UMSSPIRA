@@ -840,6 +840,18 @@ describe('GraduateAffinityView', () => {
     expect(screen.queryByRole('button', { name: /Simular Actualización/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Simular Timeout/i)).not.toBeInTheDocument();
   });
+
+  it('ignora los controles de simulación en un build de producción aunque la bandera esté activa', async () => {
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS = 'true';
+
+    render(<GraduateAffinityView />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.queryByRole('button', { name: /Simular Actualización/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Simular Timeout/i)).not.toBeInTheDocument();
+  });
    it('muestra el aviso de demostración cuando el modo demostración está activo', async () => {
     render(<GraduateAffinityView showDemoNotice />);
 

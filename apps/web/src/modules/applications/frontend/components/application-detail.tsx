@@ -30,43 +30,6 @@ export type Application = {
   checklist: ChecklistItem[];
 };
 
-// TODO(fase 2): borrar este mock cuando exista el endpoint real
-export const MOCK_APPLICATION: Application = {
-  id: "app-001",
-  code: "REG-2024-8841B",
-  status: "PENDIENTE",
-  firstName: "Juan Carlos",
-  lastName: "Pérez Mamani",
-  ci: "6842109 CB",
-  segipValidated: true,
-  institutionalEmail: "carlos.perez.m@correo.umss.edu.bo",
-  phone: "+591 70745821",
-  sisCode: "201804921",
-  career: "Licenciatura en Ingeniería de Sistemas — Fac. Ciencias y Tecnología",
-  graduationYear: "Gestión 2023 (II/2023)",
-  submittedAt: new Date(Date.now() - 52 * 36e5).toISOString(), // hace 52 h
-  procedureType:
-    "Título en Provisión Nacional • Resolución Rectoral No. 1048/2023",
-  procedureMode: "Original",
-  documentName: "titulo_academico.pdf",
-  documentUrl: "https://example.com/titulo_academico.pdf",
-  checklist: [
-    {
-      label: "Identidad y Cédula de Identidad cotejada con padrón SEGIP",
-      checked: true,
-    },
-    {
-      label: "Código SIS corresponde a la Facultad de Ciencias y Tecnología",
-      checked: true,
-    },
-    {
-      label: "Resolución rectoral de defensa de grado homologada (Pendiente)",
-      checked: false,
-    },
-  ],
-};
-
-
 export const STATUS_LABEL: Record<string, string> = {
   PENDIENTE: "Pendiente de validación",
   PENDING: "Pendiente de validación",

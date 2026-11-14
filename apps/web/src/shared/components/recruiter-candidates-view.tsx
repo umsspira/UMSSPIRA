@@ -1,22 +1,37 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { NlpSearch, type SearchCandidateResult } from '@/shared/components/nlp-search';
 import { CandidateCard } from '@/shared/components/candidate-card';
 import { EvidenceBreakdown } from '@/shared/components/evidence-breakdown';
 import { CandidatesEmptyState } from '@/shared/components/candidates-empty-state';
 import { useCarouselPagination } from '@/shared/hooks/use-carousel-pagination';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { rankCandidatesByQuery } from '@/shared/utils/candidate-search';
 
-// TODO: [Tarea #32] - Reemplazar este mock estático cuando se conecte el cálculo de afinidad real de la base de datos (Épica 2 / Épica 4)
+// Fixture de demostración. No se usa como dato operativo: la vista solo lo
+// muestra cuando la persona pide explícitamente ver la demostración.
+// Dependencia real: endpoint de candidatos con afinidad de la Épica 4,
+// coordinado con el contrato de Radar de la Épica 3.
 import candidatesData from '@/shared/mocks/candidates-mock.json';
 
-export const RecruiterCandidatesView: React.FC = () => {
+export interface RecruiterCandidatesViewProps {
+  // Permite abrir la demostración de forma explícita desde pruebas o demos.
+  initialDemoMode?: boolean;
+}
+
+const DEMO_CANDIDATES = candidatesData.candidates as SearchCandidateResult[];
+
+export const RecruiterCandidatesView: React.FC<RecruiterCandidatesViewProps> = ({
+  initialDemoMode = false,
+}) => {
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(initialDemoMode);
   const [candidates, setCandidates] = useState<SearchCandidateResult[]>(
-    candidatesData.candidates as SearchCandidateResult[]
+    initialDemoMode ? DEMO_CANDIDATES : [],
   );
   const [selectedGraduateId, setSelectedGraduateId] = useState<string>(
-    candidatesData.candidates[0]?.graduateId ?? ''
+    initialDemoMode ? DEMO_CANDIDATES[0]?.graduateId ?? '' : '',
   );
   const [, setSearchQuery] = useState<string>('');
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -29,9 +44,15 @@ export const RecruiterCandidatesView: React.FC = () => {
   const selectedCandidate: SearchCandidateResult | undefined =
     candidates.find((c) => c.graduateId === selectedGraduateId) ?? candidates[0];
 
+  const enableDemo = () => {
+    setCandidates(DEMO_CANDIDATES);
+    setSelectedGraduateId(DEMO_CANDIDATES[0]?.graduateId ?? '');
+    resetPagination();
+    setIsDemoMode(true);
+  };
+
   // Ajustes: Reiniciar paginación a 0 y seleccionar el primer resultado del buscador
   const handleSearchCompleted = (results: SearchCandidateResult[], query: string) => {
-    // TODO: [Tarea #32] - Aquí se inyectarán los resultados filtrados provenientes del backend
     setCandidates(results);
     setSearchQuery(query);
     resetPagination(); // Forzar el carrusel a volver a la página 1 (Índice 0)
@@ -41,14 +62,65 @@ export const RecruiterCandidatesView: React.FC = () => {
     }
   };
 
+  if (!isDemoMode) {
+    return (
+      <section className="space-y-6 rounded-2xl border border-amber-300 bg-amber-50 p-6 sm:p-8">
+        <div>
+          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white text-abyssal-blue text-xs font-bold uppercase tracking-wider mb-2">
+            <span>Búsqueda de talento y afinidad</span>
+          </div>
+          <h2 className="text-2xl font-black text-abyssal-blue tracking-tight">
+            Esta vista aún no está disponible
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm text-slate-700">
+            La comparación de titulados por afinidad necesita un endpoint de candidatos
+            que todavía no existe. El contrato actual de Radar solo expone el perfil del
+            titulado autenticado y el rol empresa no tiene permiso para consultarlo.
+          </p>
+          <p className="mt-3 max-w-2xl text-sm text-slate-700">
+            Dependencia: Épica 4 (contrato de candidatos) en coordinación con Épica 3.
+            No se muestran datos de ejemplo como si fueran postulaciones reales.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={enableDemo}
+            className="inline-flex items-center justify-center rounded-lg border border-amber-400 bg-white px-5 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+          >
+            Ver demostración con datos de ejemplo
+          </button>
+          <Link
+            href="/companies"
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-burning-flame transition hover:opacity-80"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Volver a mi perfil
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="space-y-10 animate-fadeIn">
+      <div
+        role="status"
+        data-testid="recruiter-demo-notice"
+        className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] text-amber-900"
+      >
+        Demostración: los candidatos de esta pantalla son datos de ejemplo y no
+        corresponden a postulaciones reales.
+      </div>
+
       <section>
         <NlpSearch
           onSearchCompleted={handleSearchCompleted}
           isSearching={isSearching}
           setIsSearching={setIsSearching}
-          totalCandidates={candidatesData.candidates.length}
+          totalCandidates={candidates.length}
+          searchCandidates={(query) => rankCandidatesByQuery(DEMO_CANDIDATES, query)}
         />
       </section>
 
