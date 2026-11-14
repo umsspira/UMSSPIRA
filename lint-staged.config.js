@@ -10,7 +10,7 @@ module.exports = {
     });
     return `pnpm --filter web exec next lint ${files.join(' ')}`;
   },
-  
+
   // Configuración normal para NestJS
   // lint-staged añade y escapa las rutas automáticamente, incluidos los espacios.
   'apps/api/**/*.ts': 'pnpm --filter api exec eslint --fix'
