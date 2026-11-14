@@ -124,3 +124,38 @@ function getHandledUrl(request) {
   if (url.pathname !== '/portal' && !url.pathname.startsWith('/portal/') && !url.pathname.startsWith('/_next/static/') && !url.pathname.startsWith('/_next/image') && !url.pathname.startsWith('/icons/') && url.pathname !== '/manifest.webmanifest' && url.pathname !== '/offline') return null;
   return url;
 }
+
+// --- NAVIGATION HANDLER: la lógica clave para el modo offline ---
+async function handleNavigation(request) {
+  const canCache = isSafeOfflineRoute(request);
+
+  try {
+    // 1. Intenta red primero
+    const response = await fetch(request);
+    if (canCache && canStoreNavigationResponse(response)) {
+      const cache = await caches.open(ROUTES_CACHE);
+      await cache.put(request, response.clone());
+      await trimCache(ROUTES_CACHE, 20);
+    }
+    return response;
+  } catch (e) {
+    // 2. Falló la red. Buscar en caché de rutas visitadas
+    if (canCache) {
+      const cache = await caches.open(ROUTES_CACHE);
+      const cachedPage = await cache.match(request);
+      if (cachedPage) return cachedPage;
+      if (new URL(request.url).pathname === '/portal') {
+        const coreCache = await caches.open(CACHE_NAME);
+        const corePage = await coreCache.match('/portal');
+        if (corePage) return corePage;
+      }
+    }
+
+    // 3. Si no está en caché, SIEMPRE mostrar /offline
+    const offlinePage = await caches.match('/offline');
+    if (offlinePage) return offlinePage;
+
+    // 4. Fallback final (poco probable que ocurra si el install funcionó)
+    return new Response('Sin conexión. Reintenta más tarde.', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+  }
+}
