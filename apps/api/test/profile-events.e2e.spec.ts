@@ -76,6 +76,7 @@ const profile = {
   education: [],
   experience: [],
   certifications: [],
+  projects: [],
   description: { text: '', updatedAt: null },
 };
 
