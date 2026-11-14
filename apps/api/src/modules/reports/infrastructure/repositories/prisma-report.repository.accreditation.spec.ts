@@ -261,14 +261,14 @@ describe('GetAccreditationDashboardUseCase (CA-10)', () => {
     });
   });
 
-  it('rechaza una carrera que no es del administrador', () => {
+  it('rechaza una carrera que no es del administrador', async () => {
     const accreditationDashboard = jest.fn();
-    expect(() =>
+    await expect(
       new GetAccreditationDashboardUseCase({ accreditationDashboard } as never).execute(
         actor(['career-1']),
         'career-2',
       ),
-    ).toThrow(BusinessRuleError);
+    ).rejects.toBeInstanceOf(BusinessRuleError);
     expect(accreditationDashboard).not.toHaveBeenCalled();
   });
 });
