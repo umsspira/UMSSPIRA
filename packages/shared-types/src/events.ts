@@ -129,3 +129,25 @@ export interface MyEventRegistrationItem {
     status: EventStatus;
   };
 }
+
+export interface EventPassDto {
+  id: string;
+  registrationId: string;
+  eventId: string;
+  qrCodeData?: string;
+  qrToken?: string;      // Añadido para solucionar el error actual
+  status: string;
+  issuedAt: string;
+  isValidForAccess?: boolean;
+  eventDetails?: {
+    id: string;
+    title: string;
+    name?: string;
+    userName?: string;
+    dateTime?: string;
+    startDate: string;
+    endDate: string;
+    location: string | null;
+    status: string;
+  };
+}

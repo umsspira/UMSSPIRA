@@ -15,7 +15,9 @@ export const metadata: Metadata = { title: "Bolsa de trabajo | UMSSPIRA" };
 
 export default function JobPostingsPage({
   searchParams,
-}: { searchParams?: ModeSearchParams } = {}) {
+}: {
+  searchParams?: ModeSearchParams;
+}) {
   const scenario = resolveDemoScenario(searchParams?.hu8Demo);
   if (scenario) return <DemoJobsPage key={scenario} scenario={scenario} />;
 

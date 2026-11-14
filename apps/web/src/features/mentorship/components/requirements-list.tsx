@@ -1,5 +1,5 @@
 ﻿import { CheckIcon, ClockIcon, ListChecksIcon } from 'lucide-react';
-import type { Requirements } from '@umsspira/shared-types';
+import type { MentorRequirements as Requirements } from '@umsspira/shared-types';
 import { activationConditions, getActivationEligibility } from '../model/activation-conditions';
 
 export function RequirementsList({ requirements }: { requirements: Requirements | null }) {

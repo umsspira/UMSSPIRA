@@ -43,14 +43,17 @@ export class ListUserPassesService {
         status: effectiveStatus.status,
         isValidForAccess: effectiveStatus.isValid,
         issuedAt: pase.fecha_generacion.toISOString(),
-        expiresAt: pase.fecha_expiracion ? pase.fecha_expiracion.toISOString() : null,
+        expiresAt: pase.fecha_expiracion
+          ? pase.fecha_expiracion.toISOString()
+          : null,
         // Agregamos esto para que el frontend dibuje la tarjeta completa:
         eventDetails: {
           name: pase.inscripcion?.evento?.titulo ?? 'Evento UMSSPIRA',
-          userName: 'Titulado', 
+          userName: 'Titulado',
           dateTime: pase.inscripcion?.evento?.fecha_inicio?.toISOString() ?? '',
-          location: pase.inscripcion?.evento?.ubicacion ?? 'Ubicación por definir'
-        }
+          location:
+            pase.inscripcion?.evento?.ubicacion ?? 'Ubicación por definir',
+        },
       };
     });
   }

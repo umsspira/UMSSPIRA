@@ -1,5 +1,5 @@
 import { BadgeCheckIcon, type LucideIcon } from 'lucide-react';
-import type { ConditionId, Requirements } from '@umsspira/shared-types';
+import type { ConditionId, MentorRequirements as Requirements } from '@umsspira/shared-types';
 
 interface ActivationCondition {
   id: ConditionId;

@@ -8,12 +8,14 @@ import { PrismaService } from '../../../shared/infrastructure/database/prisma.se
 import { EventPassRules } from '../domain/event-pass.rules';
 import type { EventPassDto } from '@umsspira/shared-types';
 
-
 @Injectable()
 export class GenerateEventPassService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(inscripcionId: string, usuarioTitularId: string): Promise<EventPassDto> {
+  async execute(
+    inscripcionId: string,
+    usuarioTitularId: string,
+  ): Promise<EventPassDto> {
     return this.prisma.$transaction(
       async (tx) => {
         // Serializar generación y cancelación evita crear un pase vigente tras cancelar.
@@ -24,11 +26,15 @@ export class GenerateEventPassService {
         });
 
         if (!inscripcion || !inscripcion.evento) {
-          throw new NotFoundException('No se encontró la inscripción o el evento.');
+          throw new NotFoundException(
+            'No se encontró la inscripción o el evento.',
+          );
         }
 
         if (inscripcion.id_usuario !== usuarioTitularId) {
-          throw new ForbiddenException('No tienes permiso para acceder a este pase.');
+          throw new ForbiddenException(
+            'No tienes permiso para acceder a este pase.',
+          );
         }
 
         const canGenerate = EventPassRules.canGeneratePass(
@@ -37,7 +43,9 @@ export class GenerateEventPassService {
         );
 
         if (!canGenerate) {
-          throw new BadRequestException('El estado actual no permite generar un pase QR.');
+          throw new BadRequestException(
+            'El estado actual no permite generar un pase QR.',
+          );
         }
 
         // Si ya existe un pase, lo devuelve sin modificarlo. Si no, lo crea.
@@ -68,7 +76,9 @@ export class GenerateEventPassService {
           status: effectiveStatus.status,
           isValidForAccess: effectiveStatus.isValid,
           issuedAt: pase.fecha_generacion.toISOString(),
-          expiresAt: pase.fecha_expiracion ? pase.fecha_expiracion.toISOString() : null,
+          expiresAt: pase.fecha_expiracion
+            ? pase.fecha_expiracion.toISOString()
+            : null,
         };
       },
       { timeout: 15000 },

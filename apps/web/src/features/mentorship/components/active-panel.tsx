@@ -1,5 +1,5 @@
 ﻿import Link from 'next/link';
-import type { Requirements } from '@umsspira/shared-types';
+import type { MentorRequirements as Requirements } from '@umsspira/shared-types';
 import { ArrowLeftIcon, ArrowRightIcon, AwardIcon, CirclePauseIcon, InboxIcon } from 'lucide-react';
 import { ApprovedChip } from './approved-chip';
 import { StatusBadge } from './status-badge';

@@ -1,6 +1,6 @@
 ﻿import Link from 'next/link';
 import { ArrowLeftIcon, ArrowRightIcon, GraduationCapIcon, LockIcon, ShieldCheckIcon, BrainCogIcon, MessagesSquareIcon, CalendarDaysIcon } from 'lucide-react';
-import type { Requirements } from '@umsspira/shared-types';
+import type { MentorRequirements as Requirements } from '@umsspira/shared-types';
 import { getActivationEligibility } from '../model/activation-conditions';
 import { ApprovedChip } from './approved-chip';
 import { StatusBadge } from './status-badge';

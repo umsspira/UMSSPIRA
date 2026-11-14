@@ -1,7 +1,5 @@
-
-import type { EventPassStatus } from '@umsspira/shared-types'; // Ajusta la ruta de importación si es necesario
+import type { EventPassStatus } from '@umsspira/shared-types';
 import { randomBytes } from 'crypto';
-
 
 export class EventPassRules {
   /**
@@ -34,8 +32,7 @@ export class EventPassRules {
     estadoEvento: string,
     fechaFinEvento: Date | null,
     now: Date = new Date(),
-  ): { status: EventPassStatus; isValid: boolean } { // <-- Devolvemos el tipo estricto
-    
+  ): { status: EventPassStatus; isValid: boolean } {
     // CA 6: Inscripción cancelada o evento cancelado invalidan el pase
     if (
       estadoGuardado === 'INVALIDADO' ||

@@ -30,3 +30,12 @@ apps/api/.claude/
 apps/api/.windsurf/
 apps/api/skills-lock.json
 holaaa
+
+# Variables de entorno y credenciales
+.env
+.env.*
+!.env.example
+
+# Certificados de seguridad
+env.supabase-ca.crt
+*.crt
