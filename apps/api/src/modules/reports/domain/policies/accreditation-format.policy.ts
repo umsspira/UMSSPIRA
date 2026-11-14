@@ -22,6 +22,19 @@ export function periodLabel(period: AccreditationPeriod): string {
   );
 }
 
+/**
+ * Rango de fechas de envío de un semestre «1/2026» o «2/2026» en hora de Bolivia (UTC-4):
+ * el semestre 1 va de enero a junio y el 2 de julio a diciembre (HU-003 CA-04).
+ */
+export function semesterRange(semester: string): { gte: Date; lt: Date } {
+  const [term, year] = semester.split('/').map(Number);
+  const startMonth = term === 1 ? 0 : 6;
+  return {
+    gte: new Date(Date.UTC(year, startMonth, 1, 4)),
+    lt: new Date(Date.UTC(term === 1 ? year : year + 1, term === 1 ? 6 : 0, 1, 4)),
+  };
+}
+
 export function percentLabel(value: number): string {
   return Math.round(value) + ' %';
 }

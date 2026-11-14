@@ -30,8 +30,8 @@ export class AccreditationReportDataReader implements AccreditationReportReader 
     filter: AccreditationFilter,
   ): Promise<AccreditationReport> {
     const [dashboard, heatmap, careers] = await Promise.all([
-      this.repository.accreditationDashboard(careerIds),
-      this.repository.competencyHeatmap(careerIds),
+      this.repository.accreditationDashboard(careerIds, filter),
+      this.repository.competencyHeatmap(careerIds, filter),
       this.prisma.carrera.findMany({
         where: { id: { in: [...careerIds] } },
         select: { nombre: true },

@@ -7,7 +7,9 @@ import {
   monthsLabel,
   percentLabel,
   periodLabel,
+  semesterRange,
 } from '../src/modules/reports/domain/policies/accreditation-format.policy';
+import { AccreditationReportDataReader } from '../src/modules/reports/infrastructure/repositories/accreditation-report.reader';
 import {
   AccreditationPdfWriter,
   accreditationDefinition,
@@ -327,5 +329,45 @@ describe('Lector del reporte ejecutivo (T1.1 + T2.1)', () => {
     const texto = JSON.stringify(accreditationDefinition(result).content);
     expect(texto).toContain('Sin datos suficientes');
     expect(texto).toContain('2023');
+  });
+});
+
+describe('Filtro aplicado en el reporte ejecutivo (HU-004 CA-04)', () => {
+  it('el semestre 1 va de enero a junio y el 2 de julio a diciembre, en hora de Bolivia', () => {
+    expect(semesterRange('1/2026')).toEqual({
+      gte: new Date('2026-01-01T04:00:00Z'),
+      lt: new Date('2026-07-01T04:00:00Z'),
+    });
+    expect(semesterRange('2/2026')).toEqual({
+      gte: new Date('2026-07-01T04:00:00Z'),
+      lt: new Date('2027-01-01T04:00:00Z'),
+    });
+  });
+
+  it('el lector pide los indicadores y el mapa con el filtro aplicado', async () => {
+    const repository = {
+      accreditationDashboard: jest.fn().mockResolvedValue({
+        totalResponses: 0,
+        employedGraduates: 0,
+        employedPercentage: 0,
+        averageInsertionMonths: null,
+        salaryRanges: {},
+        employabilityByCohort: [],
+      }),
+      competencyHeatmap: jest
+        .fn()
+        .mockResolvedValue({ areas: [], cohorts: [], cells: [], updatedAt: null }),
+    };
+    const prisma = { carrera: { findMany: jest.fn().mockResolvedValue([{ nombre: 'Sistemas' }]) } };
+    const filter = { cohort: 2023, semester: '1/2026' };
+
+    const result = await new AccreditationReportDataReader(
+      repository as never,
+      prisma as never,
+    ).read(['c1'], filter);
+
+    expect(repository.accreditationDashboard).toHaveBeenCalledWith(['c1'], filter);
+    expect(repository.competencyHeatmap).toHaveBeenCalledWith(['c1'], filter);
+    expect(result.period).toEqual({ cohort: 2023, semester: '1/2026' });
   });
 });

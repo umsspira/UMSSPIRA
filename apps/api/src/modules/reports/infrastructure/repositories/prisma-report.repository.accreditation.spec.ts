@@ -192,3 +192,30 @@ describe('GetAccreditationDashboardUseCase (CA-10)', () => {
     expect(accreditationDashboard).not.toHaveBeenCalled();
   });
 });
+
+describe('Filtros de cohorte y semestre en los indicadores (HU-003 / HU-004 CA-04)', () => {
+  it('con una cohorte elegida solo cuenta a los titulados de esa cohorte', async () => {
+    const { repository, prisma } = repositoryWith({});
+    await repository.accreditationDashboard(['career-1'], { cohort: 2021 });
+
+    expect(prisma.titulado.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id_carrera: { in: ['career-1'] }, anio_egreso: 2021 } }),
+    );
+  });
+
+  it('con un semestre elegido solo cuenta las encuestas enviadas en ese semestre', async () => {
+    const { repository, prisma } = repositoryWith({ graduates: graduates(2021, 1, 'g') });
+    await repository.accreditationDashboard(['career-1'], { semester: '2/2026' });
+
+    expect(prisma.respuestaEncuesta.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          fechaEnvio: {
+            gte: new Date('2026-07-01T04:00:00Z'),
+            lt: new Date('2027-01-01T04:00:00Z'),
+          },
+        }),
+      }),
+    );
+  });
+});
