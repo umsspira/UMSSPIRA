@@ -38,3 +38,16 @@ function canStoreNavigationResponse(response) {
   if (response.headers.has('set-cookie')) return false;
   return true;
 }
+
+async function precacheShellAssets(staticCache) {
+  try {
+    const response = await fetch('/portal');
+    if (!response.ok) return;
+    const html = await response.text();
+    const urls = [...new Set(html.match(/\/_next\/static\/[^"'\s)\\]+/g) || [])];
+    await Promise.allSettled(urls.map(async (url) => {
+      const res = await fetch(url);
+      if (isCacheable(res)) await staticCache.put(url, res);
+    }));
+  } catch (e) { /* silencioso */ }
+}
