@@ -6,7 +6,7 @@ import { useRegistrationStore } from '../store';
 import { readApiError } from '@/shared/services/api-contract';
 import { FileText, ImageIcon } from 'lucide-react';
 import type { RegistrationDocument } from '../store';
-import { formatFileSize } from '@/modules/documents/frontend/validation/document-file';
+import { formatFileSize } from '@/modules/documents/frontend/lib/format-file-size';
 
 const InstitutionalPdfPreview = dynamic(
   () => import('./institutional-pdf-preview').then((module) => module.InstitutionalPdfPreview),

@@ -61,6 +61,22 @@ describe('DocumentPreview', () => {
     ).toBeInTheDocument();
   });
 
+  it('muestra archivos menores a 1 MB en KB con precisión decimal', () => {
+    const file = buildFile('constancia.pdf', 'application/pdf', 512);
+
+    render(
+      <DocumentPreview
+        file={file}
+        previewUrl="blob:pdf"
+        previewKind="pdf"
+        onReplace={jest.fn()}
+        onRemove={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('0,5 KB · Documento PDF')).toBeInTheDocument();
+  });
+
   it('permite cambiar el archivo con el botón "Cambiar archivo"', () => {
     const onReplace = jest.fn();
     const file = buildFile('titulo.pdf', 'application/pdf');
