@@ -549,12 +549,32 @@
 .mentor-availability-schedule-heading > div { flex: 1; }
 .mentor-availability-schedule h2 { color: var(--ink); font-size: .75rem; font-weight: 700; }
 .mentor-availability-schedule p { margin-top: .15rem; color: var(--ink-70); font-size: .625rem; line-height: 1rem; }
-.mentor-availability-coming-soon { flex: 0 0 auto; border-radius: 999px; background: rgb(242 166 90 / 18%); padding: .2rem .5rem; color: #a14c22; font-size: .5625rem; font-weight: 700; }
-.mentor-availability-week { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; margin-top: .75rem; }
-.mentor-availability-week > div { display: flex; min-height: 2.4rem; flex-direction: column; justify-content: center; gap: .15rem; border: 1px solid var(--oatmeal-70); border-radius: .35rem; background: rgb(255 255 255 / 65%); padding: .35rem .5rem; color: #9a9a96; }
-.mentor-availability-week strong { font-size: .5625rem; font-weight: 600; }
-.mentor-availability-week span { display: inline-flex; align-items: center; gap: .2rem; font-size: .5rem; }
-.mentor-availability-week svg { width: .6rem; height: .6rem; }
+/* HU 6.18 — Horarios semanales */
+.mentor-schedule-toggle { display: inline-flex; flex: 0 0 auto; align-items: center; gap: .35rem; border: 1px solid var(--oatmeal-70); border-radius: .4rem; background: white; padding: .4rem .65rem; color: var(--ink); font-size: .6875rem; font-weight: 600; cursor: pointer; }
+.mentor-schedule-toggle:hover { background: var(--palladian-50); }
+.mentor-schedule-toggle:focus-visible, .mentor-schedule-chip button:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.mentor-schedule-toggle svg { width: .85rem; height: .85rem; transition: transform .15s ease; }
+.mentor-schedule-toggle svg.is-open { transform: rotate(180deg); }
+.mentor-schedule-panel { margin-top: .85rem; border-top: 1px solid var(--oatmeal-70); padding-top: .85rem; }
+.mentor-schedule-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; align-items: end; }
+.mentor-schedule-field { display: flex; min-width: 0; flex-direction: column; gap: .3rem; color: var(--ink-70); font-size: .625rem; font-weight: 600; }
+.mentor-schedule-field select, .mentor-schedule-field input { width: 100%; min-height: 2.4rem; border: 1px solid var(--oatmeal-70); border-radius: .4rem; background: white; padding: .4rem .6rem; color: var(--ink); font: inherit; font-size: .75rem; font-weight: 500; }
+.mentor-schedule-field select:focus-visible, .mentor-schedule-field input:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
+.mentor-schedule-field input[aria-invalid='true'] { border-color: #b13b31; }
+.mentor-schedule-add.mentor-button { min-height: 2.4rem; justify-content: center; font-size: .6875rem; }
+.mentor-availability-schedule p.mentor-schedule-error { margin-top: .5rem; color: #b13b31; font-size: .6875rem; font-weight: 600; }
+.mentor-availability-schedule p.mentor-schedule-hint { margin-top: .5rem; }
+.mentor-schedule-list { margin-top: .85rem; }
+.mentor-schedule-list h3 { margin-bottom: .4rem; color: var(--ink-70); font-size: .625rem; font-weight: 600; }
+.mentor-schedule-list > ul { display: flex; flex-direction: column; gap: .5rem; border: 1px solid var(--oatmeal-70); border-radius: .45rem; background: white; padding: .65rem .75rem; }
+.mentor-schedule-day { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
+.mentor-schedule-day > strong { min-width: 5rem; color: var(--ink); font-size: .6875rem; font-weight: 700; }
+.mentor-schedule-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.mentor-schedule-chip { display: inline-flex; align-items: center; gap: .3rem; border: 1px solid var(--oatmeal-70); border-radius: .35rem; background: var(--palladian-50); padding: .2rem .25rem .2rem .5rem; color: var(--ink); font-size: .6875rem; font-variant-numeric: tabular-nums; }
+.mentor-schedule-chip button { display: inline-flex; width: 1.25rem; height: 1.25rem; align-items: center; justify-content: center; border: 0; border-radius: .25rem; background: transparent; color: var(--ink-70); cursor: pointer; }
+.mentor-schedule-chip button:hover:not(:disabled) { background: var(--oatmeal-70); color: var(--ink); }
+.mentor-schedule-chip button svg { width: .7rem; height: .7rem; }
+.mentor-availability-schedule p.mentor-schedule-empty { border: 1px dashed var(--oatmeal-70); border-radius: .45rem; background: white; padding: .75rem; }
 
 .mentor-availability-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem; border-top: 1px solid var(--oatmeal-70); padding: .85rem 1rem; }
 .mentor-availability-back { display: inline-flex; align-items: center; gap: .35rem; color: var(--navy); font-size: .6875rem; font-weight: 600; }
@@ -580,7 +600,7 @@
   .mentor-availability-options { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; padding: 0 1.5rem 1.25rem; }
   .mentor-availability-section-heading { padding: 1.25rem 1.5rem .75rem; }
   .mentor-availability-schedule { margin: 0 1.5rem 1.25rem; padding: 1rem; }
-  .mentor-availability-week { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .mentor-schedule-form { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
   .mentor-availability-actions { padding: 1rem 1.5rem; }
 }
 
@@ -589,7 +609,8 @@
   .mentor-availability-action-buttons { justify-content: stretch; }
   .mentor-availability-action-buttons .mentor-button { flex: 1; }
   .mentor-availability-back { min-height: 2.5rem; }
-  .mentor-availability-coming-soon { max-width: 6rem; }
+  .mentor-availability-schedule-heading { flex-wrap: wrap; }
+  .mentor-schedule-toggle { width: 100%; justify-content: center; }
 }
 /* ==========================================================================
    HU-6.5 — Información del perfil de mentor

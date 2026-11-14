@@ -6,11 +6,9 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
-  CalendarDaysIcon,
   CheckCircle2Icon,
   CirclePauseIcon,
   CircleSlash2Icon,
-  Clock3Icon,
   InfoIcon,
   LoaderCircleIcon,
   XIcon,
@@ -23,6 +21,9 @@ import {
   type MentorAvailabilityStatus,
   updateMentorAvailability,
 } from '../services/mentor-availability-api';
+import { getMentorSchedule, MentorScheduleError, saveMentorSchedule } from '../services/mentor-schedule-api';
+import { isScheduleDirty, type ScheduleSlot } from '../model/mentor-schedule';
+import { MentorWeeklySchedule } from './mentor-weekly-schedule';
 
 const options: {
   status: MentorAvailabilityStatus;
@@ -84,22 +85,29 @@ export function MentorAvailabilityPage() {
   const [banner, setBanner] = useState('');
   const [toast, setToast] = useState('');
   const [forbidden, setForbidden] = useState(false);
+  const [savedSchedule, setSavedSchedule] = useState<ScheduleSlot[]>([]);
+  const [draftSchedule, setDraftSchedule] = useState<ScheduleSlot[]>([]);
   const busy = useRef(false);
-  const dirty = selectedStatus !== savedStatus;
+  const statusDirty = selectedStatus !== savedStatus;
+  const scheduleDirty = isScheduleDirty(savedSchedule, draftSchedule);
+  const dirty = statusDirty || scheduleDirty;
 
   const loadAvailability = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
     try {
-      const state = await getMentorAvailability(signal);
+      const [state, weekly] = await Promise.all([getMentorAvailability(signal), getMentorSchedule(signal)]);
       if (signal?.aborted) return;
       setSavedStatus(state.availabilityStatus);
       setSelectedStatus(state.availabilityStatus);
+      setSavedSchedule(weekly.schedule);
+      setDraftSchedule(weekly.schedule);
       setForbidden(false);
       setLoadFailed(false);
     } catch (reason) {
       if (signal?.aborted) return;
-      const denied = reason instanceof MentorAvailabilityError && reason.status === 403;
+      const denied = (reason instanceof MentorAvailabilityError || reason instanceof MentorScheduleError)
+        && reason.status === 403;
       setForbidden(denied);
       setLoadFailed(true);
       setError(reason instanceof Error ? reason.message : 'No se pudo cargar la disponibilidad.');
@@ -150,7 +158,7 @@ export function MentorAvailabilityPage() {
   }
 
   async function save() {
-    if (busy.current || !selectedStatus || !dirty || loading || forbidden) return;
+    if (busy.current || !dirty || loading || forbidden || (statusDirty && !selectedStatus)) return;
     busy.current = true;
     const startedAt = Date.now();
     setSaving(true);
@@ -160,18 +168,28 @@ export function MentorAvailabilityPage() {
     setSavedFeedback(false);
 
     try {
-      const state = await updateMentorAvailability(selectedStatus);
-      setSavedStatus(state.availabilityStatus);
-      setSelectedStatus(state.availabilityStatus);
-      setBanner(successMessages[state.availabilityStatus ?? selectedStatus]);
-      if (selectedStatus === 'NO_DISPONIBLE') setToast('Disponibilidad actualizada con éxito');
+      // Se guarda solo lo que cambió: el horario semanal (HU 6.18) y/o el estado.
+      if (scheduleDirty) {
+        const weekly = await saveMentorSchedule(draftSchedule);
+        setSavedSchedule(weekly.schedule);
+        setDraftSchedule(weekly.schedule);
+        setToast('Horarios guardados');
+      }
+      if (statusDirty && selectedStatus) {
+        const state = await updateMentorAvailability(selectedStatus);
+        setSavedStatus(state.availabilityStatus);
+        setSelectedStatus(state.availabilityStatus);
+        setBanner(successMessages[state.availabilityStatus ?? selectedStatus]);
+        if (selectedStatus === 'NO_DISPONIBLE') setToast('Disponibilidad actualizada con éxito');
+      }
       setSavedFeedback(true);
       window.setTimeout(() => setSavedFeedback(false), 1800);
     } catch (reason) {
       setError(reason instanceof Error
         ? reason.message
         : 'No se pudo actualizar la disponibilidad. Inténtalo de nuevo.');
-      if (reason instanceof MentorAvailabilityError && reason.status === 403) setForbidden(true);
+      if ((reason instanceof MentorAvailabilityError || reason instanceof MentorScheduleError)
+        && reason.status === 403) setForbidden(true);
     } finally {
       const remaining = 1000 - (Date.now() - startedAt);
       if (remaining > 0) await wait(remaining);
@@ -183,6 +201,7 @@ export function MentorAvailabilityPage() {
   function discard() {
     if (busy.current) return;
     setSelectedStatus(savedStatus);
+    setDraftSchedule(savedSchedule);
     setError('');
     setBanner('');
     setToast('');
@@ -227,7 +246,7 @@ export function MentorAvailabilityPage() {
 
       <div className="mentor-availability-section-heading">
         <h2 id="mentor-availability-heading">Estado de disponibilidad</h2>
-        <span><i aria-hidden="true" />{loadFailed ? 'Estado no disponible' : selectedStatus ? dirty ? 'Cambio pendiente de guardar' : 'Estado guardado' : 'Selecciona una opción'}</span>
+        <span><i aria-hidden="true" />{loadFailed ? 'Estado no disponible' : selectedStatus ? statusDirty ? 'Cambio pendiente de guardar' : 'Estado guardado' : 'Selecciona una opción'}</span>
       </div>
 
       {loading ? <p className="mentor-availability-loading" role="status"><LoaderCircleIcon aria-hidden="true" /> Cargando disponibilidad…</p> : (
@@ -249,16 +268,7 @@ export function MentorAvailabilityPage() {
         </div>
       )}
 
-      <section className="mentor-availability-schedule" aria-labelledby="mentor-availability-schedule-title">
-        <div className="mentor-availability-schedule-heading">
-          <span className="mentor-availability-schedule-icon"><CalendarDaysIcon aria-hidden="true" /></span>
-          <div><h2 id="mentor-availability-schedule-title">Horarios y calendario semanal</h2><p>Más adelante podrás configurar días y horarios específicos para tus mentorías.</p></div>
-          <span className="mentor-availability-coming-soon">Próximamente</span>
-        </div>
-        <div className="mentor-availability-week" aria-label="Vista previa de la configuración semanal, próximamente">
-          {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(day => <div key={day} aria-disabled="true"><strong>{day}</strong><span><Clock3Icon aria-hidden="true" /> Próximamente</span></div>)}
-        </div>
-      </section>
+      {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} />}
 
       <div className="mentor-availability-actions">
         <Link href="/mentorship/profile" className="mentor-availability-back" onClick={event => {
@@ -269,12 +279,12 @@ export function MentorAvailabilityPage() {
         }}><ArrowLeftIcon aria-hidden="true" /> Volver a Mi perfil de mentor</Link>
         <div className="mentor-availability-action-buttons">
           {dirty && <SecondaryButton onClick={discard} disabled={saving}>Descartar cambios</SecondaryButton>}
-          <PrimaryButton onClick={() => void save()} disabled={!dirty || !selectedStatus || loading || loadFailed || saving} loading={saving} loadingLabel="Guardando…" iconRight={savedFeedback ? CheckCircle2Icon : ArrowRightIcon} className={`mentor-availability-save${savedFeedback ? ' is-saved' : ''}`}>
+          <PrimaryButton onClick={() => void save()} disabled={!dirty || loading || loadFailed || saving} loading={saving} loadingLabel="Guardando…" iconRight={savedFeedback ? CheckCircle2Icon : ArrowRightIcon} className={`mentor-availability-save${savedFeedback ? ' is-saved' : ''}`}>
             {savedFeedback ? '¡Guardado!' : 'Guardar disponibilidad'}
           </PrimaryButton>
         </div>
       </div>
-      {!selectedStatus && !loading && !loadFailed && <p className="mentor-availability-help">Selecciona un estado para habilitar el guardado.</p>}
+      {!selectedStatus && !scheduleDirty && !loading && !loadFailed && <p className="mentor-availability-help">Selecciona un estado para habilitar el guardado.</p>}
       {dirty && <p className="mentor-availability-help">Tienes cambios sin guardar.</p>}
     </section>
 

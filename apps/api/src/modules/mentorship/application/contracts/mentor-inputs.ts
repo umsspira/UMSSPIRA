@@ -23,3 +23,7 @@ export interface MentorInterestsInput {
 export interface MentorAvailabilityInput {
   availabilityStatus: 'DISPONIBLE' | 'EN_PAUSA' | 'NO_DISPONIBLE';
 }
+
+export interface MentorScheduleInput {
+  schedule: { weekday: number; start: string; end: string }[];
+}

@@ -66,6 +66,11 @@ export interface MentorSchedule {
   end: string;
 }
 
+export interface MentorWeeklySchedule {
+  schedule: MentorSchedule[];
+  updatedAt: Date | null;
+}
+
 export interface MentorBooking {
   date: string;
   start: string;
