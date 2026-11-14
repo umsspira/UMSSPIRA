@@ -60,7 +60,16 @@ export class IndexacionVacantesService {
         });
       } catch (error) {
         // Evita fallar si otra instancia creó el índice entre exists y create.
-        if (error?.meta?.body?.error?.type !== 'resource_already_exists_exception') {
+        const tipoError =
+          error && typeof error === 'object'
+            ? (
+                error as {
+                  meta?: { body?: { error?: { type?: string } } };
+                }
+              ).meta?.body?.error?.type
+            : undefined;
+
+        if (tipoError !== 'resource_already_exists_exception') {
           throw error;
         }
       }
