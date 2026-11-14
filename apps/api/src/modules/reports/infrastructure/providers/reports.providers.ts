@@ -25,6 +25,10 @@ import {
   type AccreditationReportReader,
   type AccreditationReportWriter,
 } from '../../application/ports/accreditation-report.port';
+import {
+  ACCREDITATION_CACHE,
+  type AccreditationCachePort,
+} from '../../application/ports/accreditation-cache.port';
 import { AccreditationReportDataReader } from '../repositories/accreditation-report.reader';
 import { AccreditationPdfWriter } from '../exporters/accreditation-pdf.writer';
 
@@ -67,8 +71,9 @@ export const reportsProviders: Provider[] = [
   },
   {
     provide: GetAccreditationDashboardUseCase,
-    inject: [REPORT_REPOSITORY],
-    useFactory: (repository: ReportRepository) => new GetAccreditationDashboardUseCase(repository),
+    inject: [REPORT_REPOSITORY, ACCREDITATION_CACHE],
+    useFactory: (repository: ReportRepository, cache: AccreditationCachePort) =>
+      new GetAccreditationDashboardUseCase(repository, cache),
   },
   { provide: ACCREDITATION_REPORT_READER, useClass: AccreditationReportDataReader },
   { provide: ACCREDITATION_PDF_WRITER, useClass: AccreditationPdfWriter },

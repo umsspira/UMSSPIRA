@@ -191,9 +191,7 @@ export class PrismaReportRepository implements ReportRepository {
 
       totalResponses += 1;
 
-      const normalized = response.condicionLaboral.trim().toLowerCase();
-
-      const employed = normalized === 'true' || normalized === 'trabaja';
+      const employed = response.condicionLaboral;
 
       if (graduate.anio_egreso !== null) {
         const cohort = graduate.anio_egreso;

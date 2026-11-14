@@ -164,7 +164,7 @@ type EmploymentResponse = Omit<
 
 const responseScenarios: Array<EmploymentResponse | null> = [
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de datos',
     empresa: 'Andes Analytics',
     area: 'Tecnología',
@@ -173,7 +173,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador backend',
     empresa: 'Quarksoft Bolivia',
     area: 'Desarrollo de software',
@@ -182,7 +182,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '2',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Ingeniera de soporte',
     empresa: 'Cooperativa San Martín',
     area: 'Tecnología',
@@ -192,7 +192,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador frontend',
     empresa: 'Nube Andina',
     area: 'Desarrollo de software',
@@ -201,7 +201,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Asistente de proyectos',
     empresa: 'Constructora Tunari',
     area: 'Gestión de proyectos',
@@ -210,7 +210,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '15',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Administradora de bases de datos',
     empresa: 'DataSur',
     area: 'Tecnología',
@@ -220,7 +220,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de calidad de software',
     empresa: 'Soluciones Kuntur',
     area: 'Desarrollo de software',
@@ -229,7 +229,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Consultor independiente',
     empresa: 'Servicios profesionales propios',
     area: 'Consultoría tecnológica',
@@ -238,7 +238,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '2',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Especialista de redes',
     empresa: 'Telecom Valle',
     area: 'Infraestructura',
@@ -248,7 +248,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrolladora móvil',
     empresa: 'Yungas Digital',
     area: 'Desarrollo de software',
@@ -257,7 +257,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Técnico de soporte',
     empresa: 'Universidad del Valle Central',
     area: 'Soporte técnico',
@@ -266,7 +266,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '9',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de seguridad informática',
     empresa: 'Bóveda Ciberseguridad',
     area: 'Seguridad informática',
@@ -276,7 +276,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Asistente de análisis de negocio',
     empresa: 'Banco Metropolitano',
     area: 'Análisis de negocio',
@@ -285,7 +285,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador de aplicaciones',
     empresa: 'Pacha Labs',
     area: 'Desarrollo de software',
@@ -294,7 +294,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '9',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Coordinadora de proyectos',
     empresa: 'Fundación Horizonte',
     area: 'Gestión de proyectos',
@@ -304,7 +304,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Ingeniero de infraestructura cloud',
     empresa: 'Altura Cloud',
     area: 'Infraestructura',
@@ -313,7 +313,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de inteligencia de negocios',
     empresa: 'Mercado Andino',
     area: 'Análisis de datos',
@@ -322,7 +322,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '2',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Soporte de aplicaciones',
     empresa: 'Clínica Los Álamos',
     area: 'Soporte técnico',
@@ -332,7 +332,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrolladora full stack',
     empresa: 'Chaski Tecnología',
     area: 'Desarrollo de software',
@@ -341,7 +341,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Administrador de sistemas',
     empresa: 'Servicios Mineros del Sur',
     area: 'Infraestructura',
@@ -350,7 +350,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '15',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Consultora de transformación digital',
     empresa: 'Independiente',
     area: 'Consultoría tecnológica',
@@ -360,7 +360,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de infraestructura',
     empresa: 'Redes del Centro',
     area: 'Infraestructura',
@@ -369,7 +369,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '9',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador de software',
     empresa: 'Cóndor Sistemas',
     area: 'Desarrollo de software',
@@ -378,7 +378,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '2',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Especialista de datos',
     empresa: 'Observatorio Económico Andino',
     area: 'Análisis de datos',
@@ -388,7 +388,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Líder técnica de proyectos',
     empresa: 'Innovación Cercado',
     area: 'Gestión de proyectos',
@@ -397,7 +397,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '9',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de soporte TI',
     empresa: 'Caja Popular Cochabamba',
     area: 'Soporte técnico',
@@ -406,7 +406,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador de soluciones cloud',
     empresa: 'Inti Digital',
     area: 'Infraestructura',
@@ -416,7 +416,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de procesos',
     empresa: 'Logística Cordillera',
     area: 'Análisis de negocio',
@@ -425,7 +425,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '15',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrolladora de software',
     empresa: 'Wara Tech',
     area: 'Desarrollo de software',
@@ -434,7 +434,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Asistente de seguridad informática',
     empresa: 'Red Segura Bolivia',
     area: 'Seguridad informática',
@@ -453,7 +453,7 @@ const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios
       throw new Error(`Falta el titulado de demostración para la respuesta ${index + 1}`);
     }
     return {
-      ...(scenario ?? { condicionLaboral: 'false' }),
+      ...(scenario ?? { condicionLaboral: false }),
       id: demoId('99200000', index + 1),
       idEncuesta: DEMO_SURVEY_ID,
       idTitulado,

@@ -1,6 +1,7 @@
 /// <reference types="jest" />
 import { PrismaSurveyRepository } from './prisma-survey.repository';
 import type { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import type { AccreditationCache } from '../../../reports/infrastructure/cache/accreditation-cache';
 
 describe('PrismaSurveyRepository', () => {
   let repository: PrismaSurveyRepository;
@@ -32,7 +33,7 @@ describe('PrismaSurveyRepository', () => {
   });
 
   describe('save', () => {
-    it('persiste la respuesta convirtiendo condicionLaboral a string', async () => {
+    it('persiste la respuesta con condicionLaboral booleano', async () => {
       prisma.respuestaEncuesta.create.mockResolvedValue({ id: 'resp-1' });
 
       const input = {
@@ -53,7 +54,7 @@ describe('PrismaSurveyRepository', () => {
         data: {
           idEncuesta: 'enc-1',
           idTitulado: 'tit-1',
-          condicionLaboral: 'true',
+          condicionLaboral: true,
           cargo: 'Desarrollador',
           empresa: 'Empresa Test',
           area: 'Tecnología',
@@ -63,6 +64,33 @@ describe('PrismaSurveyRepository', () => {
         },
       });
       expect(result).toEqual({ id: 'resp-1' });
+    });
+
+    it('invalida el tablero de la carrera al enviar una encuesta', async () => {
+      const invalidateAccreditationDashboardCache = jest.fn();
+      const cache = {
+        invalidateAccreditationDashboardCache,
+      } as unknown as AccreditationCache;
+      prisma.respuestaEncuesta.create.mockResolvedValue({ id: 'resp-1' });
+      prisma.titulado.findUnique.mockResolvedValue({ id_carrera: 'career-1' });
+      repository = new PrismaSurveyRepository(
+        prisma as unknown as PrismaService,
+        cache,
+      );
+
+      await repository.save({
+        idEncuesta: 'enc-1',
+        idTitulado: 'tit-1',
+        condicionLaboral: true,
+        cargo: 'Desarrollador',
+        empresa: 'Empresa Test',
+        area: 'Tecnología',
+        modalidad: 'Remoto',
+        salarioMensual: '5.001–8.000',
+        tiempoInsercion: '6',
+      });
+
+      expect(invalidateAccreditationDashboardCache).toHaveBeenCalledWith('career-1');
     });
   });
 

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import { AccreditationCache } from '../../../reports/infrastructure/cache/accreditation-cache';
 import type { SubmitSurveyInput } from '../../application/contracts/submit-survey.input';
 import type {
   SurveyAdminInput,
@@ -17,14 +18,17 @@ const ACTIVE_SURVEY_STATUSES = ['PUBLICADA'];
 
 @Injectable()
 export class PrismaSurveyRepository implements SurveyRepositoryPort {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accreditationCache?: AccreditationCache,
+  ) {}
 
   async save(data: SubmitSurveyInput) {
-    return this.prisma.respuestaEncuesta.create({
+    const saved = await this.prisma.respuestaEncuesta.create({
       data: {
         idEncuesta: data.idEncuesta,
         idTitulado: data.idTitulado,
-        condicionLaboral: String(data.condicionLaboral),
+        condicionLaboral: data.condicionLaboral,
         cargo: data.cargo,
         empresa: data.empresa,
         area: data.area,
@@ -33,6 +37,19 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
         tiempoInsercion: data.tiempoInsercion,
       },
     });
+
+    if (this.accreditationCache) {
+      const graduate = await this.prisma.titulado.findUnique({
+        where: { id: data.idTitulado },
+        select: { id_carrera: true },
+      });
+
+      if (graduate?.id_carrera) {
+        await this.accreditationCache.invalidateAccreditationDashboardCache(graduate.id_carrera);
+      }
+    }
+
+    return saved;
   }
 
   async findActiveSurveyByCareer(
@@ -332,8 +349,7 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     let trabajan = 0;
     let noTrabajan = 0;
     for (const group of condicionGroups) {
-      const normalized = group.condicionLaboral.trim().toLowerCase();
-      if (normalized === 'trabaja' || normalized === 'true') {
+      if (group.condicionLaboral) {
         trabajan += group._count._all;
       } else {
         noTrabajan += group._count._all;
@@ -362,11 +378,7 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     }
 
     const respuestas = rawRespuestas.map((item) => {
-      const normalized = item.condicionLaboral.trim().toLowerCase();
-      const condicionLaboral =
-        normalized === 'trabaja' || normalized === 'true'
-          ? 'Trabaja'
-          : 'No trabaja';
+      const condicionLaboral = item.condicionLaboral ? 'Trabaja' : 'No trabaja';
 
       return {
         id: item.id,

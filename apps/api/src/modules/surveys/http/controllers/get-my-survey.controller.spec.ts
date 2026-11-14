@@ -55,7 +55,7 @@ describe('GetMySurveyController', () => {
       id: 'survey-active-1',
     });
     prisma.respuestaEncuesta.findUnique.mockResolvedValue({
-      condicionLaboral: 'true',
+      condicionLaboral: true,
       cargo: 'Tech Lead',
       empresa: 'UMSS Corp',
       area: 'Desarrollo',
