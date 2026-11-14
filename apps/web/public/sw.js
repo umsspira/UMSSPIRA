@@ -1,5 +1,4 @@
-
-const VERSION = 'v1.0.0';
+const VERSION = 'v2.0.0';
 
 const CACHE_NAME = `umsspira-core-portal-${VERSION}`;
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
@@ -23,14 +22,6 @@ try { if (typeof importScripts === 'function') importScripts('/sw-extensions.js'
 const PRIVATE_ROUTE_PREFIXES = ['/portal/mensajes', '/portal/perfil', '/portal/configuracion', '/portal/admin', '/portal/notificaciones', '/portal/administracion', '/api', '/auth'];
 function isPrivateRoute(pathname) { return PRIVATE_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)); }
 
-const OFFLINE_ALLOWED_ROUTES = ['/portal', '/portal/eventos', '/portal/empleos', '/portal/beneficios', '/portal/comunidad'];
-function isSafeOfflineRoute(request) {
-  if (request.method !== 'GET' || request.mode !== 'navigate') return false;
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin || isPrivateRoute(url.pathname) || request.headers.get('Authorization') || url.search) return false;
-  return OFFLINE_ALLOWED_ROUTES.includes(url.pathname.replace(/\/$/, '') || '/');
-}
-
 function isCacheable(response) { return response && response.ok && (response.type === 'basic' || response.type === 'default'); }
 function canStoreNavigationResponse(response) {
   if (!isCacheable(response) || response.redirected) return false;
@@ -40,64 +31,55 @@ function canStoreNavigationResponse(response) {
   return true;
 }
 
-async function precacheShellAssets(staticCache) {
-  try {
-    const response = await fetch('/portal');
-    if (!response.ok) return;
-    const html = await response.text();
-    const urls = [...new Set(html.match(/\/_next\/static\/[^"'\s)\\]+/g) || [])];
-    await Promise.allSettled(urls.map(async (url) => {
+// Extrae y guarda los CSS/JS incrustados en el HTML
+async function cacheAssetsFromHtml(html, cache) {
+  const urls = [...new Set(html.match(/\/_next\/static\/[^"'\s)\\]+/g) || [])];
+  await Promise.allSettled(urls.map(async (url) => {
+    try {
       const res = await fetch(url);
-      if (isCacheable(res)) await staticCache.put(url, res);
-    }));
-  } catch (e) { /* silencioso */ }
+      if (isCacheable(res)) await cache.put(url, res);
+    } catch (e) {}
+  }));
 }
 
-// --- INSTALL: aquí aseguramos que /offline se guarde SÍ o SÍ ---
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const staticCache = await caches.open(STATIC_CACHE);
     
-    // 1. Precachear /offline (CRÍTICO para que el modo avión muestre la página)
+    // 1. Precachear la página offline con todos sus estilos
     try {
-      await staticCache.add('/offline');
-      console.log('[SW] /offline precacheado correctamente');
-    } catch (e) {
-      console.error('[SW] No se pudo precachear /offline', e);
-    }
+      const offlineRes = await fetch('/offline');
+      if (offlineRes.ok) {
+        await staticCache.put('/offline', offlineRes.clone());
+        const html = await offlineRes.text();
+        await cacheAssetsFromHtml(html, staticCache);
+      }
+    } catch (e) { console.error('[SW] Error /offline', e); }
 
-    // 2. Precachear el resto de URLs
-    await Promise.allSettled(PRECACHE_URLS.map(async (url) => {
-      try {
-        const response = await fetch(url);
-        if (isCacheable(response)) await staticCache.put(url, response);
-      } catch (e) {}
-    }));
+    // 2. Precachear el portal
+    try {
+      const portalReq = new Request('/portal', { cache: 'no-store' });
+      const portalRes = await fetch(portalReq);
+      if (canStoreNavigationResponse(portalRes)) {
+        const coreCache = await caches.open(CACHE_NAME);
+        await coreCache.put('/portal', portalRes.clone());
+        const html = await portalRes.text();
+        await cacheAssetsFromHtml(html, staticCache);
+      }
+    } catch (e) {}
 
-    // 3. Precachear iconos
-    const assetsCache = await caches.open(ASSETS_CACHE);
+    // 3. Iconos y recursos
     await Promise.allSettled(PRECACHE_ICONS.map(async (url) => {
       try {
         const response = await fetch(url);
-        if (isCacheable(response)) await assetsCache.put(url, response);
-      } catch (e) {}
-    }));
-
-    // 4. Precachear assets del shell (/portal)
-    await precacheShellAssets(staticCache);
-
-    // 5. Precachear /portal en la caché principal
-    const coreCache = await caches.open(CACHE_NAME);
-    await Promise.allSettled(CORE_ASSETS.map(async (url) => {
-      try {
-        const request = new Request(url, { credentials: 'omit', cache: 'no-store' });
-        const response = await fetch(request);
-        const pathname = new URL(url, self.location.origin).pathname;
-        if (OFFLINE_ALLOWED_ROUTES.includes(pathname) && !isPrivateRoute(pathname) && canStoreNavigationResponse(response)) {
-          await coreCache.put(url, response.clone());
+        if (isCacheable(response)) {
+          const assetsCache = await caches.open(ASSETS_CACHE);
+          await assetsCache.put(url, response);
         }
       } catch (e) {}
     }));
+
+    self.skipWaiting(); // Forzar activación inmediata
   })());
 });
 
@@ -120,57 +102,42 @@ function getHandledUrl(request) {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return null;
   if (['/api/', '/auth/'].some(p => url.pathname.startsWith(p)) || url.pathname.includes('webpack-hmr') || url.pathname === '/sw.js' || url.pathname === '/sw-extensions.js') return null;
-  if (request.mode === 'navigate' && url.pathname !== '/portal' && !url.pathname.startsWith('/portal/') && url.pathname !== '/offline') return null;
   if (request.headers.get('Authorization')) return null;
-  if (url.pathname !== '/portal' && !url.pathname.startsWith('/portal/') && !url.pathname.startsWith('/_next/static/') && !url.pathname.startsWith('/_next/image') && !url.pathname.startsWith('/icons/') && url.pathname !== '/manifest.webmanifest' && url.pathname !== '/offline') return null;
   return url;
 }
 
-// --- NAVIGATION HANDLER: la lógica clave para el modo offline ---
+// Lógica central de navegación
 async function handleNavigation(request) {
-  const canCache = isSafeOfflineRoute(request);
-
+  const url = new URL(request.url);
+  
   try {
-    // 1. Intenta red primero
+    // 1. Intentar red primero (si hay internet)
     const response = await fetch(request);
-    if (canCache && canStoreNavigationResponse(response)) {
+    if (canStoreNavigationResponse(response)) {
       const cache = await caches.open(ROUTES_CACHE);
       await cache.put(request, response.clone());
       await trimCache(ROUTES_CACHE, 20);
     }
     return response;
   } catch (e) {
-    // 2. Falló la red. Buscar en caché de rutas visitadas
-    if (canCache) {
-      const cache = await caches.open(ROUTES_CACHE);
-      const cachedPage = await cache.match(request);
-      if (cachedPage) return cachedPage;
-      if (new URL(request.url).pathname === '/portal') {
-        const coreCache = await caches.open(CACHE_NAME);
-        const corePage = await coreCache.match('/portal');
-        if (corePage) return corePage;
-      }
+    // 2. 🚨 MODO AVIÓN (Falló la red)
+    
+    // Si el usuario está intentando ir al inicio, le mostramos el portal si lo tiene guardado
+    if (url.pathname === '/portal' || url.pathname === '/') {
+      const coreCache = await caches.open(CACHE_NAME);
+      const corePage = await coreCache.match('/portal');
+      if (corePage) return corePage;
     }
 
-    // 3. Si no está en caché, SIEMPRE mostrar /offline
-    const offlinePage = await caches.match('/offline');
+    // 3. Si es cualquier otra ruta (o si el portal falló), devolvemos SIEMPRE /offline.
+    // Esto evita que Next.js muestre el dinosaurio o una pantalla en blanco.
+    const staticCache = await caches.open(STATIC_CACHE);
+    const offlinePage = await staticCache.match('/offline');
     if (offlinePage) return offlinePage;
 
-    // 4. Fallback final (poco probable que ocurra si el install funcionó)
+    // 4. Fallback de emergencia
     return new Response('Sin conexión. Reintenta más tarde.', { status: 503, headers: { 'Content-Type': 'text/plain' } });
   }
-}
-
-async function saveProfile(name) {
-  if (!PROFILES[name]) return;
-  const cache = await caches.open(CONFIG_CACHE);
-  await cache.put(PROFILE_KEY, new Response(name));
-}
-
-async function loadProfile() {
-  const cache = await caches.open(CONFIG_CACHE);
-  const response = await cache.match(PROFILE_KEY);
-  return response ? await response.text() : DEFAULT_PROFILE;
 }
 
 async function networkFirst(request, cacheName) {
@@ -210,18 +177,36 @@ async function staleWhileRevalidate(request, cacheName, maxEntries) {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  
+  // Manejo especial para navegación (recargas o cambio de página)
+  if (request.mode === 'navigate') {
+    event.respondWith(handleNavigation(request));
+    return;
+  }
+
+  // Extensiones personalizadas
   for (const route of EXT.routes) {
     try { if (route.match(new URL(request.url), request)) { event.respondWith(route.handle(event)); return; } } catch (e) {}
   }
+  
   const url = getHandledUrl(request);
   if (!url) return;
-  if (request.mode === 'navigate') { event.respondWith(handleNavigation(request)); return; }
+
   if (isPrivateRoute(url.pathname) || request.headers.has('RSC') || request.headers.has('Next-Router-State-Tree') || url.searchParams.has('_rsc')) return;
-  if (url.pathname.startsWith('/_next/static/')) { event.respondWith(IS_LOCALHOST ? networkFirst(request, STATIC_CACHE) : cacheFirst(request, STATIC_CACHE)); return; }
+  
+  // Archivos estáticos
+  if (url.pathname.startsWith('/_next/static/')) { 
+    event.respondWith(cacheFirst(request, STATIC_CACHE)); 
+    return; 
+  }
+  
+  // Imágenes
   if (request.destination === 'image' || request.destination === 'font' || url.pathname.startsWith('/_next/image')) {
-    event.respondWith(loadProfile().then((profile) => staleWhileRevalidate(request, ASSETS_CACHE, PROFILES[profile]?.maxAssets || 80)));
+    event.respondWith(staleWhileRevalidate(request, ASSETS_CACHE, 80));
     return;
   }
+  
+  // Manifest e íconos
   if (url.pathname === '/manifest.webmanifest' || url.pathname.startsWith('/icons/')) {
     event.respondWith(networkFirst(request, CACHE_NAME).catch(async () => {
       const cached = await caches.match(request);
@@ -230,12 +215,11 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// --- MESSAGE: aquí está la actualización REAL de caché ---
+// Mensajes (Actualizar Caché)
 self.addEventListener('message', (event) => {
   const data = event.data;
   if (!data) return;
   if (data.type === 'SKIP_WAITING') { self.skipWaiting(); return; }
-  if (data.type === 'SET_DEVICE_PROFILE') { event.waitUntil(saveProfile(data.profile)); return; }
   if (data.type === 'UPDATE_CACHE') {
     event.waitUntil((async () => {
       try {
@@ -245,31 +229,20 @@ self.addEventListener('message', (event) => {
         };
         await sendLog('Iniciando actualización de caché...');
         
-        await sendLog('Descargando página offline...');
         const staticCache = await caches.open(STATIC_CACHE);
-        await staticCache.add('/offline').catch(() => {});
+        const offlineRes = await fetch('/offline');
+        if (offlineRes.ok) {
+          await staticCache.put('/offline', offlineRes.clone());
+          const html = await offlineRes.text();
+          await cacheAssetsFromHtml(html, staticCache);
+        }
 
-        await sendLog('Descargando recursos del portal...');
-        await precacheShellAssets(staticCache);
-        
-        await sendLog('Descargando iconos...');
-        const assetsCache = await caches.open(ASSETS_CACHE);
-        await Promise.allSettled(PRECACHE_ICONS.map(async (url) => {
-          const response = await fetch(url, { cache: 'no-store' });
-          if (isCacheable(response)) await assetsCache.put(url, response);
-        }));
-
-        await sendLog('Proceso completado con éxito.');
         const clients = await self.clients.matchAll();
         clients.forEach((client) => client.postMessage({ type: 'CACHE_UPDATED' }));
       } catch (error) {
         console.error('Error actualizando la caché manualmente:', error);
-        const clients = await self.clients.matchAll();
-        clients.forEach((client) => client.postMessage({ type: 'SW_LOG', message: '❌ Error en la actualización.' }));
       }
     })());
     return;
   }
-  const handler = EXT.messages[data.type];
-  if (typeof handler === 'function') handler(event);
 });
