@@ -21,3 +21,11 @@ try { if (typeof importScripts === 'function') importScripts('/sw-extensions.js'
 
 const PRIVATE_ROUTE_PREFIXES = ['/portal/mensajes', '/portal/perfil', '/portal/configuracion', '/portal/admin', '/portal/notificaciones', '/portal/administracion', '/api', '/auth'];
 function isPrivateRoute(pathname) { return PRIVATE_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)); }
+
+const OFFLINE_ALLOWED_ROUTES = ['/portal', '/portal/eventos', '/portal/empleos', '/portal/beneficios', '/portal/comunidad'];
+function isSafeOfflineRoute(request) {
+  if (request.method !== 'GET' || request.mode !== 'navigate') return false;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin || isPrivateRoute(url.pathname) || request.headers.get('Authorization') || url.search) return false;
+  return OFFLINE_ALLOWED_ROUTES.includes(url.pathname.replace(/\/$/, '') || '/');
+}
