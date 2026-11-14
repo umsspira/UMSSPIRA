@@ -22,6 +22,8 @@ import { AddMentorInterestsController } from './http/controllers/add-mentor-inte
 import { RemoveMentorInterestController } from './http/controllers/remove-mentor-interest.controller';
 import { GetMentorAvailabilityController } from './http/controllers/get-mentor-availability.controller';
 import { SetMentorAvailabilityController } from './http/controllers/set-mentor-availability.controller';
+import { GetMentorScheduleController } from './http/controllers/get-mentor-schedule.controller';
+import { SetMentorScheduleController } from './http/controllers/set-mentor-schedule.controller';
 import { CreateMentorshipRequestController } from './http/controllers/create-mentorship-request.controller';
 import { ListReceivedMentorshipRequestsController } from './http/controllers/list-received-mentorship-requests.controller';
 import { GetReceivedMentorshipRequestController } from './http/controllers/get-received-mentorship-request.controller';
@@ -57,6 +59,8 @@ import { DeleteCustomInterestController } from './http/controllers/delete-custom
     DeleteCustomInterestController,
     GetMentorAvailabilityController,
     SetMentorAvailabilityController,
+    GetMentorScheduleController,
+    SetMentorScheduleController,
     CreateMentorshipRequestController,
     ListReceivedMentorshipRequestsController,
     GetReceivedMentorshipRequestController,

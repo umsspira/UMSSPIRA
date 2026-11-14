@@ -15,6 +15,11 @@ import {
 } from '../../application/ports/mentor-availability-repository.port';
 import { PrismaMentorAvailabilityRepository } from '../repositories/prisma-mentor-availability.repository';
 import {
+  MENTOR_SCHEDULE_REPOSITORY,
+  type MentorScheduleRepository,
+} from '../../application/ports/mentor-schedule-repository.port';
+import { PrismaMentorScheduleRepository } from '../repositories/prisma-mentor-schedule.repository';
+import {
   MENTORSHIP_REQUEST_REPOSITORY,
   type MentorshipRequestRepository,
 } from '../../application/ports/mentorship-request-repository.port';
@@ -38,6 +43,8 @@ import { AddMentorInterestsUseCase } from '../../application/use-cases/add-mento
 import { RemoveMentorInterestUseCase } from '../../application/use-cases/remove-mentor-interest.use-case';
 import { GetMentorAvailabilityUseCase } from '../../application/use-cases/get-mentor-availability.use-case';
 import { SetMentorAvailabilityUseCase } from '../../application/use-cases/set-mentor-availability.use-case';
+import { GetMentorScheduleUseCase } from '../../application/use-cases/get-mentor-schedule.use-case';
+import { SetMentorScheduleUseCase } from '../../application/use-cases/set-mentor-schedule.use-case';
 import { CreateMentorshipRequestUseCase } from '../../application/use-cases/create-mentorship-request.use-case';
 import { ListReceivedMentorshipRequestsUseCase } from '../../application/use-cases/list-received-mentorship-requests.use-case';
 import { GetReceivedMentorshipRequestUseCase } from '../../application/use-cases/get-received-mentorship-request.use-case';
@@ -54,6 +61,8 @@ export const mentorshipProviders: Provider[] = [
   { provide: MENTOR_CATALOG_REPOSITORY, useExisting: PrismaMentorCatalogRepository },
   PrismaMentorAvailabilityRepository,
   { provide: MENTOR_AVAILABILITY_REPOSITORY, useExisting: PrismaMentorAvailabilityRepository },
+  PrismaMentorScheduleRepository,
+  { provide: MENTOR_SCHEDULE_REPOSITORY, useExisting: PrismaMentorScheduleRepository },
   PrismaMentorshipRequestRepository,
   { provide: MENTORSHIP_REQUEST_REPOSITORY, useExisting: PrismaMentorshipRequestRepository },
   {
@@ -173,6 +182,16 @@ export const mentorshipProviders: Provider[] = [
     inject: [MENTOR_AVAILABILITY_REPOSITORY],
     useFactory: (repository: MentorAvailabilityRepository) =>
       new SetMentorAvailabilityUseCase(repository),
+  },
+  {
+    provide: GetMentorScheduleUseCase,
+    inject: [MENTOR_SCHEDULE_REPOSITORY],
+    useFactory: (repository: MentorScheduleRepository) => new GetMentorScheduleUseCase(repository),
+  },
+  {
+    provide: SetMentorScheduleUseCase,
+    inject: [MENTOR_SCHEDULE_REPOSITORY],
+    useFactory: (repository: MentorScheduleRepository) => new SetMentorScheduleUseCase(repository),
   },
   {
     provide: CreateMentorshipRequestUseCase,

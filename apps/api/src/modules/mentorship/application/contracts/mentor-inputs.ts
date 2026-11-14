@@ -33,3 +33,6 @@ export interface UpdateCustomInterestInput {
   texto: string;
 }
 
+export interface MentorScheduleInput {
+  schedule: { weekday: number; start: string; end: string }[];
+}

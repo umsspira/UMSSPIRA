@@ -30,9 +30,8 @@
 .mentor-request-main { min-width: 0; }
 .mentor-request-aside { order: -1; min-width: 0; }
 .mentor-request-profile { display: grid; gap: 1rem; border: 1px solid var(--oatmeal-70); border-radius: .75rem; padding: 1rem; }
-.mentor-request-profile-photo { display: flex; align-items: center; justify-content: center; min-height: 14rem; overflow: hidden; border-radius: .75rem; background: var(--palladian); color: var(--navy); }
-.mentor-request-profile-photo img { width: 100%; height: 100%; min-height: 14rem; object-fit: cover; }
-.mentor-request-profile-photo span { font-size: 4rem; font-weight: 700; }
+.mentor-request-profile-photo { display: flex; width: 4rem; height: 4rem; flex: 0 0 4rem; aspect-ratio: 1; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: var(--ink); color: white; }
+.mentor-request-profile-photo span { font-size: 1.125rem; font-weight: 700; }
 .mentor-request-profile-data { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; min-width: 0; }
 .mentor-request-profile-data h2 { margin: 0; color: var(--ink); font-size: 1.25rem; }
 .mentor-request-profile-data p { margin: 0; color: var(--ink-75); font-size: .8125rem; line-height: 1.3rem; }
@@ -97,11 +96,6 @@
 .mentor-request-summary dt svg { width: .85rem; height: .85rem; }
 .mentor-request-summary dd { margin: 0; color: var(--ink); font-size: .875rem; overflow-wrap: anywhere; }
 .mentor-request-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; }
-
-@media (min-width: 640px) {
-  .mentor-request-profile-photo,
-  .mentor-request-profile-photo img { min-height: 16rem; }
-}
 
 @media (min-width: 960px) {
   .mentor-request-layout { grid-template-columns: 2fr 1fr; align-items: start; }

@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { ArrowRightIcon } from 'lucide-react';
-import { useState } from 'react';
 import { mentorInitials, mentorProfileHref, type DirectoryMentor } from '../../model/mentor-directory';
 
 function uniqueInterests(interests: DirectoryMentor['interests'] | null) {
@@ -18,7 +17,6 @@ function uniqueInterests(interests: DirectoryMentor['interests'] | null) {
 }
 
 export function MentorDirectoryCard({ mentor }: { mentor: DirectoryMentor }) {
-  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
   const interests = uniqueInterests(mentor.interests);
   const visibleInterests = interests.slice(0, 3);
   const remainingInterests = interests.slice(3);
@@ -29,11 +27,7 @@ export function MentorDirectoryCard({ mentor }: { mentor: DirectoryMentor }) {
   return <article className="directory-card" aria-label={`Mentor: ${mentor.name}`}>
     <header className="directory-card-heading">
       <div className="directory-avatar" role="img" aria-label={`Avatar de ${mentor.name}`}>
-        {mentor.photoUrl && failedPhoto !== mentor.photoUrl
-          // Public photos have arbitrary hosts; preserve a fallback without enabling an unrestricted image proxy.
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={mentor.photoUrl} alt="" width={48} height={48} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailedPhoto(mentor.photoUrl)} />
-          : <span className="directory-avatar-initials" aria-hidden="true">{mentorInitials(mentor.name)}</span>}
+        <span className="directory-avatar-initials" aria-hidden="true">{mentorInitials(mentor.name)}</span>
       </div>
       <div><h2 title={mentor.name}>{mentor.name}</h2>{mentor.profession && <p title={mentor.profession}>{mentor.profession}</p>}</div>
     </header>
