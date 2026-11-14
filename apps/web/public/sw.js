@@ -18,3 +18,6 @@ const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hos
 
 const EXT = (self.UMSSPIRA_SW = { routes: [], messages: {} });
 try { if (typeof importScripts === 'function') importScripts('/sw-extensions.js'); } catch (e) { console.warn(e); }
+
+const PRIVATE_ROUTE_PREFIXES = ['/portal/mensajes', '/portal/perfil', '/portal/configuracion', '/portal/admin', '/portal/notificaciones', '/portal/administracion', '/api', '/auth'];
+function isPrivateRoute(pathname) { return PRIVATE_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)); }
