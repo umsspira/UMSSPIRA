@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { KpiCard } from '../../../modules/reports/components/kpi-card';
 import { GraduatesTable } from '../../../modules/reports/components/graduates-table';
 import { EmptyState } from '../../../modules/reports/components/empty-state';
@@ -158,6 +159,12 @@ export default function ReportsPage() {
         >
           Titulados
         </button>
+        <Link
+          href="/reports/acreditacion"
+          className="border-b-2 border-transparent px-5 py-2.5 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-700"
+        >
+          Tablero de acreditación
+        </Link>
       </nav>
 
       {/* Pestaña: Dashboard (KPIs e Indicadores) */}

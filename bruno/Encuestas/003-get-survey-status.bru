@@ -1,0 +1,30 @@
+meta {
+  name: Consultar estado de la encuesta
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/surveys/status
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("indica si el titulado ya envió la encuesta", function () {
+    const body = res.getBody();
+    expect(body?.data?.submitted).to.be.a("boolean");
+  });
+}
+
+docs {
+  Usa el token de un titulado. Después de «Enviar encuesta», submitted debe ser true.
+}

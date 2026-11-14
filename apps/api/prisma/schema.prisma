@@ -277,13 +277,6 @@ model Reporte {
 }
 
 model Encuesta {
-  condicion_laboral Boolean?
-  cargo             String?   @db.VarChar(150)
-  empresa           String?   @db.VarChar(200)
-  area              String?   @db.VarChar(150)
-  modalidad         String?   @db.VarChar(20)
-  salario_mensual   String?   @db.VarChar(30)
-  tiempo_insercion  String?   @db.VarChar(40)
   id_administrador  String?   @db.Uuid
   id_carrera        String?   @db.Uuid
   titulo            String?   @db.VarChar
@@ -297,6 +290,8 @@ model Encuesta {
 
   administrador_de_carrera AdministradorDeCarrera? @relation("encuesta_id_administrador_administrador_de_carrera", fields: [id_administrador], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "encuesta_id_administrador_fkey")
   carrera                  Carrera?                @relation("encuesta_id_carrera_carrera", fields: [id_carrera], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "encuesta_id_carrera_fkey")
+
+  respuesta_encuesta_registros RespuestaEncuesta[] @relation("respuesta_encuesta_id_encuesta_encuesta")
 
   @@map("encuesta")
 }
@@ -407,6 +402,7 @@ model Titulado {
   certificacion_registros            Certificacion[]         @relation("certificacion_id_titulado_titulado")
   perfil_area_registros              PerfilArea[]            @relation("perfil_area_id_titulado_titulado")
   solicitud_registros                Solicitud[]             @relation("solicitud_titulado")
+  respuesta_encuesta_registros       RespuestaEncuesta[]     @relation("respuesta_encuesta_id_titulado_titulado")
   calculo_radar_registros            CalculoRadar[]
   palabra_clave_no_mapeada_registros PalabraClaveNoMapeada[]
 
@@ -1256,20 +1252,26 @@ model MensajeEstado {
   @@map("mensaje_estado")
 }
 
-model RespuestaEncuesta {  
-  id               String   @id @default(uuid()) @db.Uuid
-  idEncuesta       String   @map("id_encuesta") @db.Uuid
-  idTitulado       String   @map("id_titulado") @db.Uuid
-  condicionLaboral String   @map("condicion_laboral")
-  cargo            String?  @db.VarChar(150)
-  empresa          String?  @db.VarChar(200)
-  area             String?  @db.VarChar(150)
-  modalidad        String?
-  salarioMensual   String?  @map("salario_mensual") @db.VarChar(30)
-  tiempoInsercion  String?  @map("tiempo_insercion") @db.VarChar(40)
-  fechaEnvio       DateTime @default(now()) @map("fecha_envio")
+model RespuestaEncuesta {
+  id                 String   @id @default(uuid()) @db.Uuid
+  idEncuesta         String   @map("id_encuesta") @db.Uuid
+  idTitulado         String   @map("id_titulado") @db.Uuid
+  condicionLaboral   Boolean  @map("condicion_laboral")
+  cargo              String?  @db.VarChar(150)
+  empresa            String?  @db.VarChar(200)
+  area               String?  @db.VarChar(150)
+  modalidad          String?
+  salarioMensual     String?  @map("salario_mensual") @db.VarChar(30)
+  tiempoInsercion    String?  @map("tiempo_insercion") @db.VarChar(40)
+  fechaEnvio         DateTime @default(now()) @map("fecha_envio")
+  edicionUsada       Boolean  @default(false) @map("edicion_usada")
+  fechaActualizacion DateTime @default(now()) @updatedAt @map("fecha_actualizacion")
+
+  encuesta Encuesta @relation("respuesta_encuesta_id_encuesta_encuesta", fields: [idEncuesta], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "respuesta_encuesta_id_encuesta_fkey")
+  titulado Titulado @relation("respuesta_encuesta_id_titulado_titulado", fields: [idTitulado], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "respuesta_encuesta_id_titulado_fkey")
 
   @@unique([idEncuesta, idTitulado], name: "uq_respuesta_encuesta_titulado")
+  @@index([fechaEnvio], map: "idx_respuesta_encuesta_fecha_envio")
   @@map("respuesta_encuesta")
 }
 

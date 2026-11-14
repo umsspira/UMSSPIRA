@@ -14,6 +14,10 @@ export const DEMO_CAREER_ID = '10000000-0000-4000-8000-000000000001';
 export const DEMO_GRADUATE_ID = '10000000-0000-4000-8000-000000000002';
 export const DEMO_COMPANY_ID = '10000000-0000-4000-8000-000000000003';
 export const DEMO_ADMIN_ASSIGNMENT_ID = '10000000-0000-4000-8000-000000000004';
+export const DEMO_INFORMATICS_CAREER_ID = '10000000-0000-4000-8000-000000000002';
+export const DEMO_INFORMATICS_ADMIN_ASSIGNMENT_ID = '10000000-0000-4000-8000-000000000005';
+export const DEMO_INFORMATICS_QA_ADMIN_ID = '20000000-0000-4000-8000-000000000004';
+export const DEMO_INFORMATICS_QA_ADMIN_ASSIGNMENT_ID = '10000000-0000-4000-8000-000000000006';
 
 export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   {
@@ -41,5 +45,14 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     name: 'Empresa de demostración',
     role: 'empresa',
     profileId: DEMO_COMPANY_ID,
+  },
+  {
+    id: DEMO_INFORMATICS_QA_ADMIN_ID,
+    email: 'admin.informatica@umss.edu.bo',
+    password: 'admininformatica1234',
+    name: 'Administrador de Ingeniería Informática',
+    role: 'administrador',
+    profileId: DEMO_INFORMATICS_QA_ADMIN_ASSIGNMENT_ID,
+    careerId: DEMO_INFORMATICS_CAREER_ID,
   },
 ];

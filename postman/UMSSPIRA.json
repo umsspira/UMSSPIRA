@@ -3896,6 +3896,74 @@
               "variable": []
             }
           }
+        },
+        {
+          "name": "Descargar reporte ejecutivo de acreditación PDF",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"devuelve un PDF\", () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/pdf');",
+                  "});",
+                  "pm.test(\"nombre acreditacion-<carrera>-<fecha>.pdf\", () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Disposition')).to.match(/acreditacion-[a-z0-9-]+-\\d{4}-\\d{2}-\\d{2}\\.pdf/);",
+                  "});",
+                  "pm.test(\"sin caché\", () => {",
+                  "  pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": {
+                "key": "token",
+                "value": "{{accessToken}}",
+                "type": "string"
+              }
+            },
+            "description": "HU-004 (T4.1): reporte ejecutivo del tablero de acreditación en PDF A4, con carrera, periodo, fecha de emisión, indicadores, empleabilidad por cohorte y mapa de calor. Solo carreras del administrador. Filtros opcionales: cohorte=2023 y semestre=1-2026. Si el periodo no tiene respuestas responde 404 con error.code ACCREDITATION_EMPTY_PERIOD.\n\nPermiso: reportes:read.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/accreditation/pdf",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "accreditation",
+                "pdf"
+              ],
+              "query": [
+                {
+                  "key": "careerId",
+                  "value": "{{careerId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "cohorte",
+                  "value": "2023",
+                  "disabled": true
+                },
+                {
+                  "key": "semestre",
+                  "value": "1-2026",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            }
+          }
         }
       ]
     },

@@ -16,6 +16,21 @@ import { ListReportGraduatesUseCase } from '../../application/use-cases/list-rep
 import { GetGraduateReportUseCase } from '../../application/use-cases/get-graduate-report.use-case';
 import { ExportReportCsvUseCase } from '../../application/use-cases/export-report-csv.use-case';
 import { ExportReportPdfUseCase } from '../../application/use-cases/export-report-pdf.use-case';
+import { GetCompetencyHeatmapUseCase } from '../../application/use-cases/get-competency-heatmap.use-case';
+import { GetAccreditationDashboardUseCase } from '../../application/use-cases/get-accreditation-dashboard.use-case';
+import { ExportAccreditationPdfUseCase } from '../../application/use-cases/export-accreditation-pdf.use-case';
+import {
+  ACCREDITATION_PDF_WRITER,
+  ACCREDITATION_REPORT_READER,
+  type AccreditationReportReader,
+  type AccreditationReportWriter,
+} from '../../application/ports/accreditation-report.port';
+import {
+  ACCREDITATION_CACHE,
+  type AccreditationCachePort,
+} from '../../application/ports/accreditation-cache.port';
+import { AccreditationReportDataReader } from '../repositories/accreditation-report.reader';
+import { AccreditationPdfWriter } from '../exporters/accreditation-pdf.writer';
 
 export const reportsProviders: Provider[] = [
   PrismaReportRepository,
@@ -48,5 +63,24 @@ export const reportsProviders: Provider[] = [
     inject: [GetGraduateReportUseCase, REPORT_PDF_WRITER],
     useFactory: (reader: GetGraduateReportUseCase, writer: ReportWriter) =>
       new ExportReportPdfUseCase(reader, writer),
+  },
+  {
+    provide: GetCompetencyHeatmapUseCase,
+    inject: [REPORT_REPOSITORY],
+    useFactory: (repository: ReportRepository) => new GetCompetencyHeatmapUseCase(repository),
+  },
+  {
+    provide: GetAccreditationDashboardUseCase,
+    inject: [REPORT_REPOSITORY, ACCREDITATION_CACHE],
+    useFactory: (repository: ReportRepository, cache: AccreditationCachePort) =>
+      new GetAccreditationDashboardUseCase(repository, cache),
+  },
+  { provide: ACCREDITATION_REPORT_READER, useClass: AccreditationReportDataReader },
+  { provide: ACCREDITATION_PDF_WRITER, useClass: AccreditationPdfWriter },
+  {
+    provide: ExportAccreditationPdfUseCase,
+    inject: [ACCREDITATION_REPORT_READER, ACCREDITATION_PDF_WRITER],
+    useFactory: (reader: AccreditationReportReader, writer: AccreditationReportWriter) =>
+      new ExportAccreditationPdfUseCase(reader, writer),
   },
 ];
