@@ -16,6 +16,7 @@ import { VacancyHeader } from "@/shared/components/vacancy-header";
 import { StatusBadge } from "@/shared/components/status-badge";
 import { clampForDisplay, formatMatch, hasMatch, listBarColor } from "@/shared/utils/match-format";
 import { formatDate, getInitials } from "@/shared/utils/format";
+import { Cargando, EstadoError, EstadoVacio } from "../../../_components/estado-pantalla";
 
 export default function CandidatesPage() {
   const params = useParams();
@@ -90,12 +91,12 @@ export default function CandidatesPage() {
       <div className="space-y-2">
         <button
           onClick={() => router.push("/empresa/mis-vacantes")}
-          className="text-sm font-semibold text-[#1B2632] hover:underline flex items-center gap-1"
+          className="min-h-11 md:min-h-0 text-sm font-semibold text-[#1B2632] hover:underline flex items-center gap-1"
         >
           ← Volver
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-[#1B2632]">Postulantes</h1>
+          <h1 className="text-2xl font-bold text-[#1B2632] break-words">Postulantes</h1>
           <p className="text-sm text-gray-500">
             Revisa los postulantes de la vacante y encuentra el mejor talento.
           </p>
@@ -104,46 +105,35 @@ export default function CandidatesPage() {
 
       {vacancy && <VacancyHeader vacancy={vacancy} />}
 
-      {/* CA-06: estado de carga */}
-      {loading && (
-        <div className="p-8 text-center text-[#1B2632] font-medium" role="status">
-          Cargando candidatos...
-        </div>
-      )}
+      {/* CA-08: estado de carga */}
+      {loading && <Cargando texto="Cargando candidatos..." />}
 
-      {/* CA-08 / CA-09: error de conexión o del servidor */}
+      {/* CA-21: error con "Reintentar" */}
       {!loading && error && (
-        <div className="p-8 max-w-xl mx-auto text-center space-y-4" role="alert">
-          <p className="text-[#A35139] font-semibold">{MATCH_ENGINE_ERROR_MESSAGE}</p>
-          <button
-            onClick={() => setReloadKey((k) => k + 1)}
-            className="px-4 py-2 text-xs font-bold text-white bg-[#1B2632] rounded-lg hover:bg-opacity-90"
-          >
-            Reintentar
-          </button>
-        </div>
+        <EstadoError
+          mensaje={MATCH_ENGINE_ERROR_MESSAGE}
+          onReintentar={() => setReloadKey((k) => k + 1)}
+        />
       )}
 
-      {/* CA-07: la vacante no tiene postulantes */}
+      {/* CA-20: la vacante no tiene postulantes */}
       {!loading && !error && applicants.length === 0 && (
-        <div className="p-8 text-center text-gray-500">
-          No existen postulantes para esta vacante.
-        </div>
+        <EstadoVacio mensaje="No existen postulantes para esta vacante." />
       )}
 
       {!loading && !error && applicants.length > 0 && (
         <>
           {/* Filtros */}
-          <div className="bg-white p-5 rounded-xl border border-[#EEE9DF] shadow-sm space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-6 items-end">
-              <MatchSlider value={minMatch} onChange={setMinMatch} />
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#EEE9DF] shadow-sm space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-4 md:gap-6 items-end">
+              <div className="min-w-0"><MatchSlider value={minMatch} onChange={setMinMatch} /></div>
 
               <div className="space-y-1">
                 <label className="text-sm font-medium text-[#1B2632]">Estado del postulante</label>
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]"
+                  className="w-full min-h-11 md:min-h-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]"
                 >
                   <option value="Todos">Todos</option>
                   {APPLICANT_STATUSES.map((s) => (
@@ -159,7 +149,7 @@ export default function CandidatesPage() {
                 <select
                   value={selectedLevel}
                   onChange={(e) => setSelectedLevel(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]"
+                  className="w-full min-h-11 md:min-h-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]"
                 >
                   <option value="Todos">Todos</option>
                   {EXPERIENCE_LEVELS.map((l) => (
@@ -177,11 +167,11 @@ export default function CandidatesPage() {
                 placeholder="Buscar candidato"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:max-w-md px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]"
+                className="w-full sm:max-w-md min-h-11 md:min-h-0 px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]"
               />
               <button
                 onClick={handleClearFilters}
-                className="px-4 py-2 text-xs font-semibold text-[#1B2632] border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="w-full sm:w-auto min-h-11 md:min-h-0 px-4 py-2 text-xs font-semibold text-[#1B2632] border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Limpiar filtros
               </button>
@@ -197,11 +187,70 @@ export default function CandidatesPage() {
             </p>
 
             {filteredApplicants.length === 0 ? (
-              <div className="bg-white p-8 rounded-xl text-center border border-[#EEE9DF] text-gray-500">
-                Ningún postulante cumple con los filtros aplicados.
+              <div className="bg-white rounded-xl border border-[#EEE9DF]">
+                <EstadoVacio mensaje="Ningún postulante cumple con los filtros aplicados." />
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-[#EEE9DF] shadow-sm overflow-x-auto">
+              <>
+              {/* CA-03 / CA-12: en móvil cada fila es una tarjeta */}
+              <ul className="md:hidden space-y-3">
+                {pageApplicants.map((applicant) => (
+                  <li
+                    key={applicant.id}
+                    className="bg-white rounded-xl border border-[#EEE9DF] shadow-sm p-4 space-y-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-[#EEE9DF] text-[#1B2632] text-xs font-bold flex items-center justify-center shrink-0">
+                        {getInitials(applicant.name)}
+                      </div>
+                      <span className="font-semibold text-[#1B2632] min-w-0 break-words [overflow-wrap:anywhere]">
+                        {applicant.name}
+                      </span>
+                    </div>
+
+                    {hasMatch(applicant.matchPercentage) ? (
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${listBarColor(applicant.matchPercentage)}`}
+                            style={{ width: `${clampForDisplay(applicant.matchPercentage)}%` }}
+                          />
+                        </div>
+                        <span className="font-bold text-[#1B2632] w-12 text-right text-sm">
+                          {formatMatch(applicant.matchPercentage)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500">{formatMatch(null)}</span>
+                    )}
+
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-[#1B2632]">
+                      <div className="min-w-0">
+                        <dt className="text-xs font-bold text-gray-500">Nivel</dt>
+                        <dd className="break-words">{applicant.experienceLevel}</dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-xs font-bold text-gray-500">Estado</dt>
+                        <dd><StatusBadge status={applicant.status} /></dd>
+                      </div>
+                      <div className="min-w-0 col-span-2">
+                        <dt className="text-xs font-bold text-gray-500">Fecha de postulación</dt>
+                        <dd>{formatDate(applicant.appliedAt)}</dd>
+                      </div>
+                    </dl>
+
+                    <Link
+                      href={`/empresa/mis-vacantes/${vacancyId}/candidatos/${applicant.id}`}
+                      className="flex min-h-11 md:min-h-0 w-full items-center justify-center rounded-lg border border-gray-300 text-sm font-bold text-[#1B2632] hover:bg-gray-50"
+                    >
+                      Ver detalle
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Escritorio: tabla original sin cambios */}
+              <div className="hidden md:block bg-white rounded-xl border border-[#EEE9DF] shadow-sm overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   {/* BUG-05-05: encabezados en negrita y color oscuro, como el mockup */}
                   <thead className="text-xs text-[#1B2632] border-b border-[#EEE9DF]">
@@ -219,7 +268,7 @@ export default function CandidatesPage() {
                       <tr key={applicant.id} className="border-b border-[#EEE9DF] last:border-0">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-[#EEE9DF] text-[#1B2632] text-xs font-bold flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 md:w-9 md:h-9 rounded-full bg-[#EEE9DF] text-[#1B2632] text-xs font-bold flex items-center justify-center shrink-0">
                               {getInitials(applicant.name)}
                             </div>
                             <span className="font-semibold text-[#1B2632]">{applicant.name}</span>
@@ -288,15 +337,16 @@ export default function CandidatesPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
             {totalPages > 1 && (
-              <nav className="flex items-center justify-center gap-1 pt-2" aria-label="Paginación de postulantes">
+              <nav className="flex flex-wrap items-center justify-center gap-1 pt-2" aria-label="Paginación de postulantes">
                 <button
                   type="button"
                   onClick={() => setPage(currentPage - 1)}
                   disabled={currentPage === 1}
                   aria-label="Página anterior"
-                  className="w-9 h-9 rounded-md border border-[#EEE9DF] bg-white text-[#1B2632] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="w-10 h-10 md:w-9 md:h-9 rounded-md border border-[#EEE9DF] bg-white text-[#1B2632] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
                   ‹
                 </button>
@@ -307,7 +357,7 @@ export default function CandidatesPage() {
                     onClick={() => setPage(n)}
                     aria-label={`Página ${n}`}
                     aria-current={n === currentPage ? "page" : undefined}
-                    className={`w-9 h-9 rounded-md text-sm font-semibold border ${
+                    className={`w-10 h-10 md:w-9 md:h-9 rounded-md text-sm font-semibold border ${
                       n === currentPage
                         ? "bg-[#1B2632] text-white border-[#1B2632]"
                         : "bg-white text-[#1B2632] border-[#EEE9DF] hover:bg-gray-50"
@@ -321,7 +371,7 @@ export default function CandidatesPage() {
                   onClick={() => setPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
                   aria-label="Página siguiente"
-                  className="w-9 h-9 rounded-md border border-[#EEE9DF] bg-white text-[#1B2632] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="w-10 h-10 md:w-9 md:h-9 rounded-md border border-[#EEE9DF] bg-white text-[#1B2632] font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
                   ›
                 </button>
@@ -332,4 +382,4 @@ export default function CandidatesPage() {
       )}
     </div>
   );
-}
+}

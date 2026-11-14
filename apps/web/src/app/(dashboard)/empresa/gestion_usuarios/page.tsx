@@ -25,6 +25,7 @@ import {
   type RolEmpresa,
   type EstadoUsuarioEmpresa,
 } from "@/shared/services/company-users";
+import { Cargando, EstadoError, EstadoVacio } from "../_components/estado-pantalla";
 
 // Formatear la fecha de vencimiento.
 function formatearFecha(fecha?: string | null): string {
@@ -86,6 +87,9 @@ function estaVencida(u: UsuarioEmpresa): boolean {
 export default function GestionUsuariosPage() {
   const [usuarios, setUsuarios] = useState<UsuarioEmpresa[]>([]);
   const [cargando, setCargando] = useState(true);
+  // HU-03 CA-21: error de carga con "Reintentar"
+  const [errorCarga, setErrorCarga] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [procesando, setProcesando] = useState(false);
 
   const [busqueda, setBusqueda] = useState("");
@@ -139,13 +143,17 @@ export default function GestionUsuariosPage() {
   useEffect(() => {
     let activo = true;
 
+    setCargando(true);
+    setErrorCarga("");
+
     obtenerUsuariosEmpresa()
       .then((datos) => {
         if (activo) setUsuarios(datos);
       })
       .catch((e: unknown) => {
+        // HU-03 CA-21: mensaje de error con "Reintentar"
         if (activo) {
-          setError(
+          setErrorCarga(
             e instanceof Error
               ? e.message
               : "Error al cargar usuarios"
@@ -159,7 +167,7 @@ export default function GestionUsuariosPage() {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const estadoVisible = (u: UsuarioEmpresa): EstadoUsuarioEmpresa =>
     estaVencida(u) ? "Vencida" : u.estado;
@@ -559,6 +567,15 @@ export default function GestionUsuariosPage() {
                       Cargando usuarios...
                     </td>
                   </tr>
+                ) : errorCarga ? (
+                  <tr>
+                    <td colSpan={5} className="p-6">
+                      <EstadoError
+                        mensaje={errorCarga}
+                        onReintentar={() => setReloadKey((k) => k + 1)}
+                      />
+                    </td>
+                  </tr>
                 ) : filtrados.length === 0 ? (
                   <tr>
                     <td
@@ -716,13 +733,14 @@ export default function GestionUsuariosPage() {
           {/* TARJETAS PARA CELULAR */}
           <div className="space-y-4 p-4 md:hidden">
             {cargando ? (
-              <div className="flex justify-center p-6">
-                <Loader2 className="animate-spin" />
-              </div>
+              <Cargando texto="Cargando usuarios..." />
+            ) : errorCarga ? (
+              <EstadoError
+                mensaje={errorCarga}
+                onReintentar={() => setReloadKey((k) => k + 1)}
+              />
             ) : filtrados.length === 0 ? (
-              <p className="py-6 text-center text-sm text-gray-500">
-                No se encontraron usuarios.
-              </p>
+              <EstadoVacio mensaje="No se encontraron usuarios." />
             ) : (
               filtrados.map((u) => {
                 const estado = estadoVisible(u);
