@@ -13,20 +13,25 @@
 
 const PUSH_DEFAULT_TITLE = 'UMSSPIRA';
 const PUSH_DEFAULT_ICON = '/icons/icon-192.png';
-
 const PUSH_HOME = '/portal';
+
+self.UMSSPIRA_SW = self.UMSSPIRA_SW || { routes: [], messages: {} };
+self.UMSSPIRA_SW.routes = self.UMSSPIRA_SW.routes || [];
 
 // Normaliza una ruta a una URL absoluta del mismo origen.
 // Si el destino es externo o inválido, cae a la portada del portal.
 function toInternalPushUrl(value) {
+  const fallback = new URL(PUSH_HOME, self.location.origin).href;
+  if (typeof value !== 'string' || value.trim().length === 0) return fallback;
+
   try {
     const destination = new URL(value, self.location.origin);
     if (destination.origin !== self.location.origin) {
-      return new URL(PUSH_HOME, self.location.origin).href;
+      return fallback;
     }
     return destination.href;
   } catch {
-    return new URL(PUSH_HOME, self.location.origin).href;
+    return fallback;
   }
 }
 
@@ -34,7 +39,7 @@ function toInternalPushUrl(value) {
 // Acepta una `url` interna provista por el servidor o un `eventId` para
 // armar el detalle del evento. Siempre devuelve una URL del mismo origen.
 function resolveNotificationTarget(data) {
-  if (!data || typeof data !== 'object') return toInternalPushUrl('/portal');
+  if (!data || typeof data !== 'object') return toInternalPushUrl(PUSH_HOME);
 
   if (typeof data.url === 'string' && data.url.length > 0) {
     return toInternalPushUrl(data.url);
@@ -44,7 +49,7 @@ function resolveNotificationTarget(data) {
     return toInternalPushUrl(`/portal/eventos/${encodeURIComponent(data.eventId.trim())}`);
   }
 
-  return toInternalPushUrl('/portal');
+  return toInternalPushUrl(PUSH_HOME);
 }
 
 function parsePushPayload(event) {
@@ -79,11 +84,18 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = resolveNotificationTarget(event.notification.data);
+  const url = resolveNotificationTarget(event.notification && event.notification.data);
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
-      // Reutiliza una ventana de la app si ya está abierta.
+      // 1. Si ya hay una ventana en la misma URL exacta, enfocarla directamente
+      const exact = clients.find((client) => client.url === url);
+      if (exact && typeof exact.focus === 'function') {
+        await exact.focus();
+        return;
+      }
+
+      // 2. Reutiliza una ventana de la app si ya está abierta en el mismo origen
       const existing = clients.find((client) => {
         try {
           return new URL(client.url).origin === self.location.origin;
@@ -101,14 +113,16 @@ self.addEventListener('notificationclick', (event) => {
             if (typeof target.focus === 'function') await target.focus();
             return;
           }
-          if (typeof existing.focus === 'function') await existing.focus();
-          return;
+          if (typeof existing.focus === 'function') {
+            await existing.focus();
+            return;
+          }
         } catch {
           // Si la ventana existente no se puede navegar, se abre una nueva.
         }
       }
 
-      // Sin ventana reutilizable (o si falló), abre una nueva en el destino.
+      // 3. Sin ventana reutilizable (o si falló), abre una nueva en el destino.
       if (typeof self.clients.openWindow === 'function') {
         await self.clients.openWindow(url);
       }

@@ -150,7 +150,7 @@ export function EventScannerCamera({
           setEnabled((value) => !value);
         }}
       >
-        {enabled ? 'Detener cámara' : startLabel}
+        {startLabel}
     </button>
   );
 
@@ -162,7 +162,7 @@ export function EventScannerCamera({
       </div>
       <p role="status">{enabled ? ready ? 'Ubica el QR dentro del marco' : 'Abriendo cámara…' : inactiveMessage}</p>
       {error ? <p role="alert">{error}</p> : null}
-      {actionContainer ? createPortal(cameraAction, actionContainer) : cameraAction}
+      {!enabled && !disabled ? (actionContainer ? createPortal(cameraAction, actionContainer) : cameraAction) : null}
     </section>
   );
 }

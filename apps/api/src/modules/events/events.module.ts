@@ -31,10 +31,14 @@ import { CancelPublishedEventController } from './http/controllers/cancel-publis
 import { CancelEventRegistrationController } from './http/controllers/cancel-event-registration.controller';
 import { ValidateAttendancePassController } from './http/controllers/validate-attendance-pass.controller';
 import { ValidateAttendancePassService } from './application/validate-attendance-pass.service';
+import { CertificateTemplateController } from './http/controllers/certificate-template.controller';
+import { certificateTemplatesProviders } from './infrastructure/providers/certificate-templates.providers';
+
 
 @Module({
   imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [
+    CertificateTemplateController,
     GetEventCatalogController,
     ListMyEventRegistrationsController,
     ListOwnedEventsController,
@@ -62,6 +66,7 @@ import { ValidateAttendancePassService } from './application/validate-attendance
   providers: [
     ScheduledEventPublicationWorker,
     ...eventsProviders,
+    ...certificateTemplatesProviders,
     OptionalAuthenticationGuard,
     GenerateEventPassService,
     ListUserPassesService,
