@@ -1,6 +1,25 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { AffinityAreaExplanation } from '@umsspira/shared-types';
 import RadarInspection, { type AreaData } from './radar-inspection';
+
+const explanationFixture: AffinityAreaExplanation = {
+  cause: 'profile',
+  changes: [
+    {
+      keyword: 'AWS',
+      previousPoints: 0,
+      currentPoints: 10,
+      deltaPercentagePoints: 25,
+    },
+    {
+      keyword: 'Solutions Architect',
+      previousPoints: 0,
+      currentPoints: 4,
+      deltaPercentagePoints: 10,
+    },
+  ],
+};
 
 const inspectionFixture: AreaData[] = [
   {
@@ -199,7 +218,7 @@ describe('Información real sin vinculación de respaldos', () => {
       topKeywords: [{keyword: 'typescript', frequency: 2, weight: 5, points: 10, percentage: 25}],
     }]} />);
     expect(screen.getByText('35%')).toBeInTheDocument();
-    expect(screen.getByText('typescript')).toBeInTheDocument();
+    expect(screen.getAllByText('typescript')).toHaveLength(1);
     expect(screen.getByText(/No se recibió información de respaldos/)).toBeInTheDocument();
     expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
     expect(screen.getByText(/título e institución.*cargo y empresa.*nombre y entidad emisora.*descripción profesional.*nombre, descripción y tecnologías de los proyectos/)).toBeInTheDocument();
@@ -261,7 +280,85 @@ describe('T11.5 · Revisión contra la tabla de fuentes y cierre de F-10 y F-05'
     ).toBeInTheDocument();
 
     const text = container.textContent ?? '';
-    expect(text).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+    const hasEmoji = Array.from(text).some((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint >= 0x1f300 && codePoint <= 0x1faff;
+    });
+    expect(hasEmoji).toBe(false);
     expect(text).not.toMatch(/certificaciones validadas|electivas aprobadas|CV|foto de perfil/i);
+  });
+});
+
+describe('T13.5 · bloque de explicación dentro del panel de inspección', () => {
+  const areasWithExplanation: AreaData[] = [
+    {
+      area: 'cloud-devops',
+      affinity: 35,
+      previousAffinity: 0,
+      explanation: explanationFixture,
+    },
+  ];
+
+  it('muestra el bloque solo para el área seleccionada', () => {
+    const { rerender } = render(
+      <RadarInspection
+        selectedAreaId={null}
+        onSelectArea={jest.fn()}
+        areas={areasWithExplanation}
+      />,
+    );
+
+    expect(screen.queryByText('¿Por qué cambió?')).not.toBeInTheDocument();
+
+    rerender(
+      <RadarInspection
+        selectedAreaId="cloud-devops"
+        onSelectArea={jest.fn()}
+        areas={areasWithExplanation}
+      />,
+    );
+
+    expect(screen.getByText('¿Por qué cambió?')).toBeInTheDocument();
+    expect(screen.getByText('+25 puntos porcentuales')).toBeInTheDocument();
+  });
+
+  it('no muestra el bloque cuando el área no tiene explicación', () => {
+    render(
+      <RadarInspection
+        selectedAreaId="cloud-devops"
+        onSelectArea={jest.fn()}
+        areas={[{ area: 'cloud-devops', affinity: 35, previousAffinity: 0 }]}
+      />,
+    );
+
+    expect(screen.queryByText('¿Por qué cambió?')).not.toBeInTheDocument();
+  });
+
+  it('refleja los estados de carga y error del panel', () => {
+    const { rerender } = render(
+      <RadarInspection
+        selectedAreaId="cloud-devops"
+        onSelectArea={jest.fn()}
+        areas={areasWithExplanation}
+        isExplanationLoading
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Cargando la explicación de los cambios',
+    );
+
+    rerender(
+      <RadarInspection
+        selectedAreaId="cloud-devops"
+        onSelectArea={jest.fn()}
+        areas={areasWithExplanation}
+        hasExplanationError
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No se pudo cargar la explicación de los cambios de esta área.',
+    );
   });
 });

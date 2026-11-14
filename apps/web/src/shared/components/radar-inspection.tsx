@@ -6,7 +6,8 @@ import { formatPercentage } from "@/shared/utils/percentage";
 import { InfluentialKeywords } from './affinity-influential-keywords';
 import { calculateVariation } from "@/shared/utils/affinity-variation";
 import { VariationIndicator } from "./variation-indicator";
-import type { AffinityKeywordContribution } from "@umsspira/shared-types";
+import { ChangeExplanation } from './change-explanation';
+import type { AffinityAreaExplanation, AffinityKeywordContribution } from "@umsspira/shared-types";
 
 // 1. Tipado estricto de la evidencia tal como viene en el JSON
 export interface EvidenceItem {
@@ -21,7 +22,7 @@ export interface AreaData {
   previousAffinity?: number | null;
   evidence?: EvidenceItem[];
   topKeywords?: AffinityKeywordContribution[];
-
+  explanation?: AffinityAreaExplanation | null;
 }
 
 interface RadarInspectionProps {
@@ -29,6 +30,9 @@ interface RadarInspectionProps {
   onSelectArea: (id: string | null) => void;
   areas?: AreaData[];
   certificationsPanel?: React.ReactNode;
+  isExplanationLoading?: boolean;
+  hasExplanationError?: boolean;
+  onRetryExplanation?: () => void;
 }
 
 // 2. Diccionario de ids a los nombres oficiales de shared-types (CA-HU7-22)
@@ -52,6 +56,9 @@ export default function RadarInspection({
   onSelectArea,
   areas = [],
   certificationsPanel,
+  isExplanationLoading = false,
+  hasExplanationError = false,
+  onRetryExplanation,
 }: RadarInspectionProps) {
 
   // 3. Estado vacío actualizado: SOLO muestra el mensaje, sin botón "Completar perfil"
@@ -184,6 +191,15 @@ export default function RadarInspection({
             </div>
             
             {selectedArea.affinity === 0 && <p className="text-sm text-gray-500">No se detectaron aportes para esta área en el cálculo mostrado.</p>}
+            <ChangeExplanation
+              areaLabel={AREA_NAMES_MAP[selectedArea.area] || selectedArea.area}
+              affinity={selectedArea.affinity}
+              previousAffinity={selectedArea.previousAffinity ?? null}
+              explanation={selectedArea.explanation}
+              isLoading={isExplanationLoading}
+              hasError={hasExplanationError}
+              onRetry={onRetryExplanation}
+            />
             {certificationsPanel ?? <>
             {certifications.length === 0 && projects.length === 0 && (
               <p className="text-sm text-gray-500">
