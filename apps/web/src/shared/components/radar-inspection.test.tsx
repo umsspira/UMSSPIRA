@@ -219,3 +219,49 @@ it('un 0 % describe los aportes detectados, sin afirmar que no existen certifica
   expect(screen.getByText(/No se detectaron aportes para esta área/)).toBeInTheDocument();
   expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
 });
+
+describe('T11.5 · Revisión contra la tabla de fuentes y cierre de F-10 y F-05', () => {
+  it('incluye las fuentes reales, avisos de interpretación, información guardada y negaciones sin emojis ni campos no analizados', () => {
+    const { container } = render(
+      <RadarInspection
+        selectedAreaId="software-development"
+        onSelectArea={jest.fn()}
+        areas={[
+          {
+            area: 'software-development',
+            affinity: 35,
+            topKeywords: [
+              { keyword: 'typescript', frequency: 2, weight: 5, points: 10, percentage: 25 },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        /título e institución de formación, cargo y empresa de experiencia laboral, nombre y entidad emisora de certificaciones, descripción profesional, y nombre, descripción y tecnologías de los proyectos/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Las fechas, los archivos adjuntos y los enlaces de los proyectos quedan fuera del cálculo/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no mide ni certifica tu nivel de competencia/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Solo se utiliza la información guardada en tu perfil\. Los cambios que aún no hayas guardado no se incluyen en el cálculo/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/El sistema no interpreta negaciones/i),
+    ).toBeInTheDocument();
+
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+    expect(text).not.toMatch(/certificaciones validadas|electivas aprobadas|CV|foto de perfil/i);
+  });
+});
