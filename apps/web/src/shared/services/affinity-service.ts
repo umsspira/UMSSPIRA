@@ -1,0 +1,228 @@
+import type { RadarCertificationEvidenceResponse } from '@umsspira/shared-types';
+
+import {
+  AFFINITY_AREAS,
+  type AffinityArea,
+  type AffinityVectorResponse,
+  RADAR_AREA_IDS,
+  type AffinityKeywordContribution,
+} from '@umsspira/shared-types/src/affinity';
+
+import { ApiError, apiClient, apiFetch } from './api-client';
+
+import affinityVectorMock from '../mocks/affinity-vector-mock.json';
+import affinityConfigMock from '../mocks/affinity-config-mock.json';
+import affinitySnapshotsMock from '../mocks/affinity-snapshots-mock.json';
+
+const AREA_BY_ID = Object.fromEntries(
+  Object.entries(RADAR_AREA_IDS).map(([area, id]) => [id, area]),
+) as Record<string, AffinityArea>;
+
+const AFFINITY_ENDPOINT = '/api/v1/radar';
+const RADAR_RECALCULATE_ENDPOINT = '/api/v1/radar/recalculate';
+const AFFINITY_CONFIG_ENDPOINT = '/affinity/config';
+
+interface RadarApiArea {
+  area: string;
+  affinity: number;
+  previousAffinity?: number | null;
+  weighting?: number | null;
+  topKeywords?: AffinityKeywordContribution[];
+}
+
+interface RadarApiResponse {
+  graduateId: string;
+  calculatedAt: string;
+  hasLaborHistory?: boolean;
+  status?: 'ok' | 'empty';
+  algorithmVersion?: string;
+  hasPendingChanges?: boolean;
+  recalculated?: boolean;
+  processingMs?: number;
+  unmappedKeywords?: unknown[];
+  areas: RadarApiArea[];
+}
+
+function normalizeArea(area: string): AffinityArea | undefined {
+  if (AFFINITY_AREAS.includes(area as AffinityArea)) {
+    return area as AffinityArea;
+  }
+
+  return AREA_BY_ID[area];
+}
+
+function adaptRadarResponse(
+  response: RadarApiResponse,
+): AffinityVectorResponse {
+  const areas = response.areas
+    .map((area) => {
+      const normalizedArea = normalizeArea(area.area);
+
+      if (!normalizedArea) {
+        return undefined;
+      }
+
+      return {
+        area: normalizedArea,
+        affinity: area.affinity,
+        previousAffinity: area.previousAffinity ?? null,
+        weighting: area.weighting ?? null,
+        topKeywords: area.topKeywords ?? [],
+        keywords: (area.topKeywords ?? []).map((keyword) =>
+          typeof keyword === 'string' ? keyword : keyword.keyword,
+        ),
+        evidence: [],
+      };
+    })
+    .filter((area) => area !== undefined)
+    .sort(
+      (a, b) =>
+        AFFINITY_AREAS.indexOf(a.area) -
+        AFFINITY_AREAS.indexOf(b.area),
+    );
+
+  return {
+    ...response,
+    areas,
+  } as AffinityVectorResponse;
+}
+
+export const RECALCULATE_TIMEOUT_MS = 7000;
+
+const USE_AFFINITY_MOCK =
+  process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK === 'true';
+
+let snapshotIndex = 0;
+
+export interface AffinityAxisConfig {
+  area: AffinityArea;
+  weight: number | null;
+}
+
+export interface AffinityConfigPayload {
+  axes: AffinityAxisConfig[];
+}
+
+function orderConfigAxes(
+  payload: AffinityConfigPayload,
+): AffinityConfigPayload {
+  const positionByArea = new Map<string, number>(
+    AFFINITY_AREAS.map((area, index) => [area, index]),
+  );
+
+  const axes = payload.axes
+    .filter((axis) => positionByArea.has(axis.area))
+    .sort(
+      (a, b) =>
+        (positionByArea.get(a.area) ?? 0) -
+        (positionByArea.get(b.area) ?? 0),
+    );
+
+  return { axes };
+}
+
+export async function getAffinityVector(): Promise<AffinityVectorResponse> {
+  if (USE_AFFINITY_MOCK) {
+    return affinityVectorMock as AffinityVectorResponse;
+  }
+
+  const response = await requestRadar(AFFINITY_ENDPOINT);
+
+  return adaptRadarResponse(response);
+}
+
+export async function calculateAffinityVector(): Promise<AffinityVectorResponse> {
+  if (USE_AFFINITY_MOCK) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    return {
+      ...affinityVectorMock,
+      calculatedAt: new Date().toISOString(),
+    } as AffinityVectorResponse;
+  }
+
+  return recalculateAffinity();
+}
+
+export async function getAffinityConfig(): Promise<AffinityConfigPayload> {
+  const payload = USE_AFFINITY_MOCK
+    ? (affinityConfigMock as AffinityConfigPayload)
+    : {
+        axes: (await getAffinityVector()).areas.map(({ area, weighting }) => ({
+          area,
+          weight: weighting ?? null,
+        })),
+      };
+
+  return orderConfigAxes(payload);
+}
+
+export async function saveAffinityConfig(
+  config: AffinityConfigPayload,
+): Promise<void> {
+  if (USE_AFFINITY_MOCK) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return;
+  }
+
+  await apiClient.post<void>(AFFINITY_CONFIG_ENDPOINT, config);
+}
+
+export async function recalculateAffinity(): Promise<AffinityVectorResponse> {
+  if (USE_AFFINITY_MOCK) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const snapshot = affinitySnapshotsMock[snapshotIndex];
+
+    snapshotIndex =
+      (snapshotIndex + 1) % affinitySnapshotsMock.length;
+
+    return {
+      ...snapshot,
+      calculatedAt: new Date().toISOString(),
+    } as AffinityVectorResponse;
+  }
+
+  return adaptRadarResponse(
+    await requestRadar(RADAR_RECALCULATE_ENDPOINT, { method: 'POST' }),
+  );
+}
+
+// El límite incluye autenticación, respuesta y lectura del cuerpo.
+async function requestRadar<T = RadarApiResponse>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error('No se pudo actualizar tu radar'));
+    }, RECALCULATE_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([
+      apiFetch<T>(endpoint, { ...options, signal: controller.signal }),
+      timeout,
+    ]);
+  } catch (error) {
+    if (controller.signal.aborted ||
+      (error instanceof ApiError && error.status === 0)) {
+      throw new Error('No se pudo actualizar tu radar');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId!);
+  }
+}
+
+
+export async function getAreaCertifications(area: AffinityArea): Promise<RadarCertificationEvidenceResponse> {
+  const result = await requestRadar<RadarCertificationEvidenceResponse>(`/api/v1/radar/certifications/${encodeURIComponent(area)}`);
+  if (result.area !== area || result.source !== 'current-profile' || !Array.isArray(result.certifications)) {
+    throw new Error('Respuesta de certificaciones no válida');
+  }
+  return result;
+}

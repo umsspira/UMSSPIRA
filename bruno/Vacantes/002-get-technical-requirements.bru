@@ -1,0 +1,21 @@
+meta {
+  name: Obtener requisitos técnicos
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/job-postings/{{vacancyId}}/technical-requirements
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Recupera la lista de requisitos técnicos de la vacante. El token debe tener el permiso vacantes:create y alcance sobre la empresa propietaria.
+
+  La tabla requerida aún no se ha aplicado; mientras tanto, la API responde 503 TECHNICAL_REQUIREMENTS_UNAVAILABLE.
+}

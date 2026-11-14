@@ -1,0 +1,44 @@
+meta {
+  name: Guardar requisitos técnicos
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/v1/job-postings/{{vacancyId}}/technical-requirements
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "requisitos": [
+      {
+        "competenciaTecnica": "SQL",
+        "nivelEsperado": "AVANZADO",
+        "tipo": "OBLIGATORIO",
+        "descripcion": "Consultas y optimización"
+      },
+      {
+        "competenciaTecnica": "Power BI",
+        "nivelEsperado": "INTERMEDIO",
+        "tipo": "DESEABLE",
+        "descripcion": ""
+      }
+    ]
+  }
+}
+
+docs {
+  Reemplaza la lista completa de la vacante. Enviar "requisitos": [] quita todos los requisitos. El token debe tener el permiso vacantes:create y alcance sobre la empresa propietaria.
+
+  La tabla requerida aún no se ha aplicado; mientras tanto, la API responde 503 TECHNICAL_REQUIREMENTS_UNAVAILABLE.
+}
