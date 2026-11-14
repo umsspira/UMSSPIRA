@@ -6,13 +6,14 @@ export const ACCREDITATION_SALARY_RANGES = [
   '12.001–21.000',
 ] as const;
 
-export type AccreditationSalaryRange =
-  (typeof ACCREDITATION_SALARY_RANGES)[number];
+export type AccreditationSalaryRange = (typeof ACCREDITATION_SALARY_RANGES)[number];
 
 export interface AccreditationCohort {
   cohort: number;
   status: 'ok' | 'insufficient';
+  /** Solo en cohortes con 5 respuestas o más (HU-001 CA-04). */
   totalResponses?: number;
+  employedGraduates?: number;
   employedPercentage?: number;
 }
 

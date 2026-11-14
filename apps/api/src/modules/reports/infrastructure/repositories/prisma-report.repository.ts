@@ -9,21 +9,19 @@ import type {
   ReportFilter,
 } from '../../application/contracts/report-inputs';
 import { reportInclude, toGraduateReport } from '../translators/report.translator';
+import { AFFINITY_AREAS, AFFINITY_AREA_LABELS, RADAR_AREA_IDS } from '@umsspira/shared-types';
 import {
-  AFFINITY_AREAS,
-  AFFINITY_AREA_LABELS,
-  RADAR_AREA_IDS,
-} from '@umsspira/shared-types';
-import { ACCREDITATION_SALARY_RANGES, type AccreditationDashboard, type AccreditationSalaryRange } from '../../application/contracts/accreditation-dashboard';
+  ACCREDITATION_SALARY_RANGES,
+  type AccreditationDashboard,
+  type AccreditationSalaryRange,
+} from '../../application/contracts/accreditation-dashboard';
 
 export const MAX_EXPORT_ROWS = 10000;
 
 @Injectable()
 export class PrismaReportRepository implements ReportRepository {
   constructor(private readonly prisma: PrismaService) {}
-async accreditationDashboard(
-    careerIds: readonly string[],
-  ): Promise<AccreditationDashboard> {
+  async accreditationDashboard(careerIds: readonly string[]): Promise<AccreditationDashboard> {
     const salaryRanges = Object.fromEntries(
       ACCREDITATION_SALARY_RANGES.map((range) => [range, 0]),
     ) as Record<AccreditationSalaryRange, number>;
@@ -41,7 +39,7 @@ async accreditationDashboard(
       return empty();
     }
 
-    // Seleccionar la encuesta más reciente de cada carrera.
+    // Encuestas de las carreras permitidas, de la más reciente a la más antigua.
     const surveys = await this.prisma.encuesta.findMany({
       where: {
         id_carrera: { in: [...careerIds] },
@@ -50,23 +48,26 @@ async accreditationDashboard(
         id: true,
         id_carrera: true,
       },
-      orderBy: [
-        { fecha_creacion: 'desc' },
-        { id: 'desc' },
-      ],
+      orderBy: [{ fecha_creacion: 'desc' }, { id: 'desc' }],
     });
+
+    // Una encuesta nueva queda en BORRADOR y sin respuestas (T5.1): se toma la más
+    // reciente de cada carrera que ya tenga respuestas, para que el tablero no quede en 0.
+    const answeredSurveys = await this.prisma.respuestaEncuesta.groupBy({
+      by: ['idEncuesta'],
+      where: { idEncuesta: { in: surveys.map((survey) => survey.id) } },
+    });
+    const answered = new Set(answeredSurveys.map((group) => group.idEncuesta));
 
     const latestSurveyByCareer = new Map<string, string>();
 
     for (const survey of surveys) {
       if (
         survey.id_carrera &&
+        answered.has(survey.id) &&
         !latestSurveyByCareer.has(survey.id_carrera)
       ) {
-        latestSurveyByCareer.set(
-          survey.id_carrera,
-          survey.id,
-        );
+        latestSurveyByCareer.set(survey.id_carrera, survey.id);
       }
     }
 
@@ -86,9 +87,7 @@ async accreditationDashboard(
       },
     });
 
-    const graduateById = new Map(
-      graduates.map((graduate) => [graduate.id, graduate]),
-    );
+    const graduateById = new Map(graduates.map((graduate) => [graduate.id, graduate]));
 
     if (graduateById.size === 0) {
       return empty();
@@ -112,17 +111,11 @@ async accreditationDashboard(
         tiempoInsercion: true,
         fechaEnvio: true,
       },
-      orderBy: [
-        { fechaEnvio: 'desc' },
-        { id: 'desc' },
-      ],
+      orderBy: [{ fechaEnvio: 'desc' }, { id: 'desc' }],
     });
 
     // Una sola respuesta válida por titulado.
-    const latestResponses = new Map<
-      string,
-      (typeof responses)[number]
-    >();
+    const latestResponses = new Map<string, (typeof responses)[number]>();
 
     for (const response of responses) {
       const graduate = graduateById.get(response.idTitulado);
@@ -131,10 +124,7 @@ async accreditationDashboard(
         continue;
       }
 
-      if (
-        latestSurveyByCareer.get(graduate.id_carrera) !==
-        response.idEncuesta
-      ) {
+      if (latestSurveyByCareer.get(graduate.id_carrera) !== response.idEncuesta) {
         continue;
       }
 
@@ -148,21 +138,14 @@ async accreditationDashboard(
     let insertionTotal = 0;
     let insertionCount = 0;
 
-    const cohorts = new Map<
-      number,
-      { total: number; employed: number }
-    >();
+    const cohorts = new Map<number, { total: number; employed: number }>();
 
     for (const response of latestResponses.values()) {
       const graduate = graduateById.get(response.idTitulado)!;
 
-      const normalized = response.condicionLaboral
-        .trim()
-        .toLowerCase();
+      const normalized = response.condicionLaboral.trim().toLowerCase();
 
-      const employed =
-        normalized === 'true' ||
-        normalized === 'trabaja';
+      const employed = normalized === 'true' || normalized === 'trabaja';
 
       if (graduate.anio_egreso !== null) {
         const cohort = graduate.anio_egreso;
@@ -187,18 +170,10 @@ async accreditationDashboard(
 
       employedGraduates += 1;
 
-      const salary = response.salarioMensual
-        ?.trim()
-        .replace(/-/g, '–') as
-          | AccreditationSalaryRange
-          | undefined;
+      const salary = response.salarioMensual?.trim().replace(/-/g, '–') as
+        AccreditationSalaryRange | undefined;
 
-      if (
-        salary &&
-        ACCREDITATION_SALARY_RANGES.some(
-          (range) => range === salary,
-        )
-      ) {
+      if (salary && ACCREDITATION_SALARY_RANGES.some((range) => range === salary)) {
         salaryRanges[salary] += 1;
       }
 
@@ -228,9 +203,8 @@ async accreditationDashboard(
           cohort,
           status: 'ok' as const,
           totalResponses: values.total,
-          employedPercentage: Math.round(
-            (values.employed / values.total) * 100,
-          ),
+          employedGraduates: values.employed,
+          employedPercentage: Math.round((values.employed / values.total) * 100),
         };
       });
 
@@ -238,17 +212,9 @@ async accreditationDashboard(
       totalResponses,
       employedGraduates,
       employedPercentage:
-        totalResponses > 0
-          ? Math.round(
-              (employedGraduates / totalResponses) * 100,
-            )
-          : 0,
+        totalResponses > 0 ? Math.round((employedGraduates / totalResponses) * 100) : 0,
       averageInsertionMonths:
-        insertionCount > 0
-          ? Number(
-              (insertionTotal / insertionCount).toFixed(1),
-            )
-          : null,
+        insertionCount > 0 ? Number((insertionTotal / insertionCount).toFixed(1)) : null,
       salaryRanges,
       employabilityByCohort,
     };
@@ -351,8 +317,12 @@ async accreditationDashboard(
           areaId: area.id,
           areaName: area.name,
         };
-        if (graduateCount === 0) {return { ...base, status: 'no-data' as const };}
-        if (graduateCount < 5) {return { ...base, status: 'insufficient' as const };}
+        if (graduateCount === 0) {
+          return { ...base, status: 'no-data' as const };
+        }
+        if (graduateCount < 5) {
+          return { ...base, status: 'insufficient' as const };
+        }
         return {
           ...base,
           status: 'ok' as const,
