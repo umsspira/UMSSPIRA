@@ -516,6 +516,7 @@ describe('convivencia con la Ã©pica', () => {
 });
 
 describe('getAreaCertifications', () => {
+  const originalMockFlag = process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK;
   beforeEach(async () => {
     jest.resetModules();
     await setTestAccessToken();
@@ -523,9 +524,23 @@ describe('getAreaCertifications', () => {
   afterEach(async () => {
     await resetTestSession();
     global.fetch = originalFetch;
+    if (originalMockFlag === undefined) delete process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK;
+    else process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = originalMockFlag;
   });
   it('consulta el endpoint de certificaciones y conserva una lista vacía válida', async () => {
     const payload = { area: 'cloud-devops', source: 'current-profile', certifications: [] };
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: payload }) });
+    const { getAreaCertifications } = await import('./affinity-service');
+    await expect(getAreaCertifications('cloud-devops')).resolves.toEqual(payload);
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/v1/radar/certifications/cloud-devops'), expect.any(Object));
+  });
+  it('con la bandera de mock apagada usa certificaciones reales del endpoint', async () => {
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
+    const payload = {
+      area: 'cloud-devops', source: 'current-profile', certifications: [
+        { id: 'real-cert', title: 'AWS Solutions Architect', issuer: 'Amazon', issuedYear: 2026, hasBackup: true, matchedKeywords: ['aws'] },
+      ],
+    };
     global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: payload }) });
     const { getAreaCertifications } = await import('./affinity-service');
     await expect(getAreaCertifications('cloud-devops')).resolves.toEqual(payload);
