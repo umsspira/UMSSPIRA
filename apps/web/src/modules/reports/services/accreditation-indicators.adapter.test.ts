@@ -70,3 +70,13 @@ describe('cohortes para el gráfico «Empleabilidad por cohorte»', () => {
     expect(mapAccreditationResponse({ data: {} }).cohorts).toEqual([]);
   });
 });
+
+describe('filtros de la T3.1', () => {
+  it('lee los años y semestres disponibles', () => {
+    const result = mapAccreditationResponse({
+      data: { availableCohorts: [2021, 2022], availableSemesters: ['2/2026', '1/2026'] },
+    });
+    expect(result.availableCohorts).toEqual(['2021', '2022']);
+    expect(result.availableSemesters).toEqual(['2/2026', '1/2026']);
+  });
+});

@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { ConnectedCompetencyHeatmap } from '@/modules/reports/components/competency-heatmap';
-import { loadCompetencyHeatmap } from '@/modules/reports/services/competency-heatmap.adapter';
+import { loadCompetencyHeatmapForCohort } from '@/modules/reports/services/competency-heatmap.adapter';
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 import { ConnectedAccreditationIndicators } from '@/modules/reports/components/connected-accreditation-indicators';
@@ -17,6 +17,8 @@ import { useAccreditationFilters } from '@/modules/reports/accreditation/hooks/u
  */
 function AccreditationDashboard({ careerName }: { careerName: string }) {
   const filtersState = useAccreditationFilters();
+  const { cohort } = filtersState.filters;
+  const loadHeatmap = useMemo(() => loadCompetencyHeatmapForCohort(cohort), [cohort]);
   return (
     <div className="min-w-0 space-y-6">
       <ConnectedAccreditationIndicators
@@ -25,7 +27,8 @@ function AccreditationDashboard({ careerName }: { careerName: string }) {
         filtersState={filtersState}
       />
       <SemesterHeatmapNote visible={filtersState.isSemesterActive} />
-      <ConnectedCompetencyHeatmap careerName={careerName} load={loadCompetencyHeatmap} />
+      {/* key: al cambiar la cohorte el mapa se vuelve a pedir con una sola fila (HU-003 CA-03). */}
+      <ConnectedCompetencyHeatmap key={cohort || 'todas'} careerName={careerName} load={loadHeatmap} />
     </div>
   );
 }

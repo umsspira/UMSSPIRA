@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SessionError } from '@/shared/services/auth-session';
 import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 import type { AccreditationExportFilters } from '../accreditation/services/accreditation-export.service';
@@ -16,15 +16,12 @@ import { AcreditacionHeader } from './acreditacion-header';
 import { AcreditacionKpis } from './acreditacion-kpis';
 import { AcreditacionSalaryBlock } from './acreditacion-salary-block';
 
-/**
- * Semestres con encuestas enviadas: los devuelve la T3.1 (filtros en el backend).
- * Mientras tanto el selector «Semestre» solo ofrece «Todos».
- */
-const SEMESTERS: string[] = [];
-
 interface Props {
   careerName: string;
-  load: (signal: AbortSignal) => Promise<AccreditationIndicators>;
+  load: (
+    signal: AbortSignal,
+    filters: AccreditationExportFilters,
+  ) => Promise<AccreditationIndicators>;
   /** Filtros de la T3.2 guardados en la URL (HU-003). */
   filtersState: ReturnType<typeof useAccreditationFilters>;
 }
@@ -32,6 +29,12 @@ interface Props {
 export function ConnectedAccreditationIndicators({ careerName, load, filtersState }: Props) {
   const { filters, setCohort, setSemester, clearFilters, hasActiveFilters } = filtersState;
   const exportFilters: AccreditationExportFilters = filters;
+  // Al cambiar un filtro se vuelve a pedir el tablero con ese filtro (HU-003 CA-03 y CA-04).
+  const { cohort, semester } = filters;
+  const loadFiltered = useCallback(
+    (signal: AbortSignal) => load(signal, { cohort, semester }),
+    [load, cohort, semester],
+  );
   const [data, setData] = useState<AccreditationIndicators | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -42,7 +45,7 @@ export function ConnectedAccreditationIndicators({ careerName, load, filtersStat
     setData(null);
     setError(null);
 
-    load(controller.signal)
+    loadFiltered(controller.signal)
       .then((result) => {
         if (active) setData(result);
       })
@@ -59,7 +62,7 @@ export function ConnectedAccreditationIndicators({ careerName, load, filtersStat
       active = false;
       controller.abort();
     };
-  }, [load, attempt]);
+  }, [loadFiltered, attempt]);
 
   return (
     <div className="min-w-0 space-y-4">
@@ -87,8 +90,12 @@ export function ConnectedAccreditationIndicators({ careerName, load, filtersStat
       ) : (
         <>
           <AccreditationFilters
-            cohorts={data.cohorts.map((item) => String(item.cohort))}
-            semesters={SEMESTERS}
+            cohorts={
+              data.availableCohorts.length > 0
+                ? data.availableCohorts
+                : data.cohorts.map((item) => String(item.cohort))
+            }
+            semesters={data.availableSemesters}
             value={filters}
             onCohortChange={setCohort}
             onSemesterChange={setSemester}

@@ -18,6 +18,8 @@ const data: AccreditationIndicators = {
     { cohort: 2019, responses: 6, employed: 4 },
     { cohort: 2023, responses: 0, employed: 0 },
   ],
+  availableCohorts: ['2019', '2023'],
+  availableSemesters: ['2/2026', '1/2026'],
 };
 
 function filtersState(cohort = '', semester = '') {
@@ -63,5 +65,20 @@ describe('Tablero de acreditación (T1.3)', () => {
       await screen.findByText('No hay información para el periodo seleccionado'),
     ).toBeInTheDocument();
     expect(screen.queryByText('Total de respuestas')).not.toBeInTheDocument();
+  });
+
+  it('pide el tablero con los filtros elegidos y ofrece todos los semestres (HU-003 CA-02 y CA-03)', async () => {
+    const load = jest.fn().mockResolvedValue(data);
+    render(
+      <ConnectedAccreditationIndicators
+        careerName="Ingeniería de Sistemas"
+        load={load}
+        filtersState={filtersState('2019', '1/2026')}
+      />,
+    );
+
+    expect(await screen.findByRole('option', { name: '2/2026' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '1/2026' })).toBeInTheDocument();
+    expect(load).toHaveBeenCalledWith(expect.anything(), { cohort: '2019', semester: '1/2026' });
   });
 });

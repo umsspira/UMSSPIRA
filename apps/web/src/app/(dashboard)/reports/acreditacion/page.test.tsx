@@ -23,6 +23,7 @@ jest.mock('@/modules/auth/frontend/services/session-expired', () => ({
 
 jest.mock('@/modules/reports/services/competency-heatmap.adapter', () => ({
   loadCompetencyHeatmap: jest.fn(),
+  loadCompetencyHeatmapForCohort: jest.fn(() => jest.fn()),
 }));
 
 jest.mock('@/modules/reports/components/competency-heatmap', () => ({

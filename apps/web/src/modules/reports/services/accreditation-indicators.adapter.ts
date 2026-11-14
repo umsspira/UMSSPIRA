@@ -1,5 +1,9 @@
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import type { CohortEmployabilityData } from '../accreditation/components/cohort-employability-chart';
+import {
+  buildExportQuery,
+  type AccreditationExportFilters,
+} from '../accreditation/services/accreditation-export.service';
 import type { AccreditationIndicators, SalaryRangeCount } from '../types/acreditacion.types';
 
 const SALARY_RANGES = ['0–2.999', '3.000–5.000', '5.001–8.000', '8.001–12.000', '12.001–21.000'];
@@ -45,6 +49,12 @@ function toCohorts(raw: unknown): CohortEmployabilityData[] {
     );
 }
 
+function toTextList(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((item) => typeof item === 'number' || typeof item === 'string').map(String)
+    : [];
+}
+
 export function mapAccreditationResponse(body: unknown): AccreditationIndicators {
   const data = (typeof body === 'object' && body !== null && 'data' in body
     ? (body as { data?: Record<string, unknown> }).data
@@ -58,13 +68,21 @@ export function mapAccreditationResponse(body: unknown): AccreditationIndicators
     averageInsertionMonths: months === null || months === undefined ? null : toNumber(months),
     salaryRanges: toSalaryRanges(data.salaryRanges),
     cohorts: toCohorts(data.employabilityByCohort),
+    availableCohorts: toTextList(data.availableCohorts),
+    availableSemesters: toTextList(data.availableSemesters),
   };
 }
 
+/** Indicadores con los filtros aplicados: ?cohorte=2023&semestre=1-2026 (T3.1). */
 export async function loadAccreditationIndicators(
   signal: AbortSignal,
+  filters: AccreditationExportFilters = { cohort: '', semester: '' },
 ): Promise<AccreditationIndicators> {
-  const response = await authenticatedFetch(ENDPOINT, { cache: 'no-store', signal });
+  const query = buildExportQuery(filters);
+  const response = await authenticatedFetch(query ? `${ENDPOINT}?${query}` : ENDPOINT, {
+    cache: 'no-store',
+    signal,
+  });
   if (response.status === 401) throw new SessionError(401, 'Su sesión ha expirado');
   if (!response.ok) throw new Error('No se pudieron cargar los indicadores.');
   return mapAccreditationResponse(await response.json());
