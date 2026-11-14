@@ -66,7 +66,7 @@ describe('Seed QA de la segunda carrera', () => {
 
     const responsesByCondition = qaSecondCareerResponses.reduce(
       (counts, response) => {
-        counts[response.condicionLaboral] += 1;
+        counts[String(response.condicionLaboral)] += 1;
         return counts;
       },
       { true: 0, false: 0 } as Record<string, number>,
@@ -91,7 +91,7 @@ describe('Seed QA de la segunda carrera', () => {
     });
     expect(
       qaSecondCareerResponses
-        .filter(({ condicionLaboral }) => condicionLaboral === 'false')
+        .filter(({ condicionLaboral }) => condicionLaboral === false)
         .every(
           (response) =>
             response.cargo === undefined &&

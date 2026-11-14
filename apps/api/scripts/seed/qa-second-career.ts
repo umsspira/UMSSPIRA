@@ -115,9 +115,9 @@ export const qaSecondCareerResponses: Prisma.RespuestaEncuestaCreateManyInput[] 
     const employedSequence =
       index - [...unemployedIndexes].filter((unemployedIndex) => unemployedIndex < index).length;
     const scenario: EmploymentResponse = isUnemployed
-      ? { condicionLaboral: 'false' }
+      ? { condicionLaboral: false }
       : {
-          condicionLaboral: 'true',
+          condicionLaboral: true,
           cargo: jobTitles[employedSequence % jobTitles.length],
           empresa: companies[employedSequence % companies.length],
           area: employmentAreas[employedSequence % employmentAreas.length],
