@@ -19,7 +19,7 @@ export class ResendCompanyInvitationUseCase {
     private readonly composeMail: InvitationMailComposer,
     private readonly webUrl: string,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) { }
 
   async execute(actor: ActorContext, invitationId: string): Promise<ResentCompanyInvitation> {
     const invitation = await this.repository.findById(invitationId);
@@ -32,7 +32,12 @@ export class ResendCompanyInvitationUseCase {
     if (availability === 'used') {
       throw new InvitationAlreadyUsedError();
     }
+
     if (availability === 'cancelled') {
+      throw new InvitationNotFoundError();
+    }
+    // HU-02: Solo permitir reenviar invitaciones vencidas
+    if (availability !== 'expired') {
       throw new InvitationNotFoundError();
     }
     const [emailInUse] = await this.repository.findEmailsWithAccount([invitation.email]);

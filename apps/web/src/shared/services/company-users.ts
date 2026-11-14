@@ -7,6 +7,7 @@ export type RolEmpresa =
 
 export type EstadoUsuarioEmpresa =
   | "Pendiente"
+  | "Vencida"
   | "Activo"
   | "Inactivo";
 
@@ -18,6 +19,7 @@ export interface UsuarioEmpresa {
   estado: EstadoUsuarioEmpresa;
   id_usuario: string | null;
   esTitular?: boolean;
+  expira_en?: string | null;
 }
 
 // Obtiene la ruta correspondiente a la empresa autenticada.
@@ -90,4 +92,25 @@ export async function cancelarInvitacionEmpresa(invitacionId: string): Promise<v
   await apiFetch<{ message: string }>(`${ruta}/invitations/${invitacionId}`, {
     method: "DELETE",
   });
+}
+
+export interface ResultadoReenvio {
+  id: string;
+  correo: string;
+  estado: "Pendiente";
+  expira_en: string;
+  mensaje: string;
+}
+
+export async function reenviarInvitacionEmpresa(
+  invitacionId: string
+): Promise<ResultadoReenvio> {
+  const ruta = await obtenerRutaBase();
+
+  return apiFetch<ResultadoReenvio>(
+    `${ruta}/invitations/${invitacionId}/resend`,
+    {
+      method: "POST",
+    }
+  );
 }

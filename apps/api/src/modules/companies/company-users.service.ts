@@ -203,6 +203,34 @@ export class CompanyUsersService {
     return usuarios;
   }
 
+  async verificarInvitacionVencida(
+    actor: ActorContext,
+    companyId: string,
+    invitationId: string,
+  ): Promise<void> {
+    await this.verificarAdministrador(actor, companyId);
+
+    const invitaciones = await this.prisma.$queryRaw<
+      { id: string }[]
+    >`
+    SELECT id
+    FROM empresa_invitacion
+    WHERE id = ${invitationId}::uuid
+      AND id_empresa = ${companyId}::uuid
+      AND estado IN ('pendiente', 'vencida')
+      AND aceptado_en IS NULL
+      AND expira_en <= NOW()
+    LIMIT 1
+  `;
+
+    if (invitaciones.length === 0) {
+      throw new BadRequestException(
+        'La invitación ya no está vencida o no pertenece a esta empresa',
+      );
+    }
+  }
+
+
   // ACTUALIZAR ROL O ESTADO
   async actualizarUsuario(
     actor: ActorContext,

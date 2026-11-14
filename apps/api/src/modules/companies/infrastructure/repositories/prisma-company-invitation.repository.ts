@@ -41,7 +41,7 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
   constructor(
     private readonly prisma: PrismaService,
     @Inject(REGISTRATION_SECURITY) private readonly security: RegistrationSecurity,
-  ) {}
+  ) { }
 
   async findByTokenHash(tokenHash: string): Promise<CompanyInvitation | null> {
     const record = await this.prisma.empresaInvitacion.findUnique({
@@ -208,11 +208,11 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
       empresa_invitacion_registros: { some: {} },
       ...(search
         ? {
-            OR: [
-              { razon_social: { contains: search, mode: 'insensitive' as const } },
-              { nit: { contains: search } },
-            ],
-          }
+          OR: [
+            { razon_social: { contains: search, mode: 'insensitive' as const } },
+            { nit: { contains: search } },
+          ],
+        }
         : {}),
     };
     const [total, records] = await this.prisma.$transaction([
@@ -252,16 +252,16 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
       invitations: company.empresa_invitacion_registros.flatMap((invitation) =>
         isCompanyRole(invitation.rol) && isInvitationStatus(invitation.estado)
           ? [
-              {
-                id: invitation.id,
-                email: invitation.correo,
-                role: invitation.rol,
-                status: invitation.estado,
-                createdAt: invitation.creado_en,
-                expiresAt: invitation.expira_en,
-                acceptedAt: invitation.aceptado_en,
-              },
-            ]
+            {
+              id: invitation.id,
+              email: invitation.correo,
+              role: invitation.rol,
+              status: invitation.estado,
+              createdAt: invitation.creado_en,
+              expiresAt: invitation.expira_en,
+              acceptedAt: invitation.aceptado_en,
+            },
+          ]
           : [],
       ),
     }));
@@ -274,8 +274,10 @@ export class PrismaCompanyInvitationRepository implements CompanyInvitationRepos
       const cancelled = await tx.empresaInvitacion.updateMany({
         where: {
           id: input.previousId,
+          id_empresa: input.companyId,
           estado: { in: ['pendiente', 'vencida'] },
           aceptado_en: null,
+          expira_en: { lte: input.createdAt },
         },
         data: { estado: 'cancelada' },
       });
