@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
 import { ProfileRecordsTable } from '@/modules/profile/components/profile-records-table';
-import { PROFILE_RECORDS_MOCK, SECTION_LABELS } from '@/modules/profile/data/profile-records-data';
+import { EMPTY_PROFILE_RECORDS, SECTION_LABELS } from '@/modules/profile/data/profile-records-data';
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useOptionalProfileStore } from '@/modules/profile/state/profile-store';
 import type {
@@ -29,7 +29,7 @@ type ProfileRecordsManagerProps = {
 };
 
 export function ProfileRecordsManager({
-  initialRecords = PROFILE_RECORDS_MOCK,
+  initialRecords = EMPTY_PROFILE_RECORDS,
   initialSection = 'education',
 }: ProfileRecordsManagerProps) {
   // Dentro de las pantallas del perfil usa el estado compartido; sin proveedor (pruebas) usa su propio estado
@@ -115,7 +115,13 @@ export function ProfileRecordsManager({
               type="button"
               role="tab"
               aria-selected={isActive}
-              onClick={() => setActiveSection(section)}
+              onClick={() => {
+                setActiveSection(section);
+                // La pestaña queda en la URL para que al recargar se conserve (BUG HU9-01)
+                const params = new URLSearchParams(window.location.search);
+                params.set('seccion', section);
+                window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params}`);
+              }}
               className={cn(
                 '-mb-px whitespace-nowrap border-b-2 pb-2.5 text-sm transition',
                 isActive

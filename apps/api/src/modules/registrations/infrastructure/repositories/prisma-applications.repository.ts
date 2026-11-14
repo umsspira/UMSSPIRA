@@ -229,7 +229,7 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
 async find(actor: ActorContext, id: string) {
   const row = await this.prisma.solicitud.findFirst({
     where: scopedApplication(actor, id),
-    include: applicationInclude,
+    include: { ...applicationInclude, documento_respaldo: { select: { ruta_storage: true } } },
   });
 
   if (!row) {
@@ -241,6 +241,16 @@ async find(actor: ActorContext, id: string) {
   }
 
   const application = toApplication(row);
+  const currentPath = row.documento_respaldo?.ruta_storage;
+  if (currentPath) {
+    const currentFile = await this.prisma.archivoRegistro.findUnique({
+      where: { id: currentPath },
+      select: { id: true, nombre: true, mime: true },
+    });
+    application.documentPath = currentFile?.id ?? null;
+    application.documentName = currentFile?.nombre ?? '';
+    application.documentFormat = currentFile?.mime ?? '';
+  }
   application.reviewSummary = await applicationReviewSummary(this.prisma, id);
   application.currentReviewer = { name: actor.name, email: actor.email };
 
@@ -306,9 +316,16 @@ async find(actor: ActorContext, id: string) {
   }
   
   async document(actor: ActorContext, id: string) {
-    const row = await this.prisma.archivoRegistro.findFirst({
-      where: { borrador: { solicitud: { is: scopedApplication(actor, id) } } },
+    const application = await this.prisma.solicitud.findFirst({
+      where: scopedApplication(actor, id),
+      select: { documento_respaldo: { select: { ruta_storage: true } } },
     });
+    const path = application?.documento_respaldo?.ruta_storage;
+    const row = !application ? null : path
+      ? await this.prisma.archivoRegistro.findUnique({ where: { id: path } })
+      : await this.prisma.archivoRegistro.findFirst({
+          where: { borrador: { solicitud: { is: scopedApplication(actor, id) } } },
+        });
     if (!row) {
       throw new BusinessRuleError('missing', 'DOCUMENT_NOT_FOUND', 'No se encontró el respaldo');
     }

@@ -48,6 +48,19 @@ export function sanitizeSensitive(raw: unknown): Pick<SurveyDraft, 'salario_mens
   return { salario_mensual: text(data.salario_mensual, 30), tiempo_insercion: tiempo };
 }
 
+// QA Bug 2: hay contenido del usuario más allá de la condición laboral.
+export function hasDraftContent(values: SurveyDraft): boolean {
+  if (values.workCondition !== 'works') return false;
+  return Boolean(
+    values.cargo?.trim() ||
+      values.empresa?.trim() ||
+      values.area?.trim() ||
+      values.modalidad ||
+      values.salario_mensual ||
+      values.tiempo_insercion,
+  );
+}
+
 function readDraft(userId: string): SurveyDraft | null {
   try {
     const stored = window.localStorage.getItem(buildKey(userId));
@@ -114,7 +127,13 @@ export function useSurveyDraft(userId: string | undefined) {
         } else {
           window.sessionStorage.removeItem(buildSessionKey(userId));
         }
-        setStatus('saved');
+        // QA Bug 2: el aviso «guardado» solo aparece si el titulado ya escribió algo.
+        // Si venía un «Borrador recuperado», ese aviso se conserva.
+        if (hasDraftContent(values)) {
+          setStatus('saved');
+        } else {
+          setStatus((current) => (current === 'recovered' ? current : 'idle'));
+        }
       } catch {
         /* storage lleno o bloqueado */
       }

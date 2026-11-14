@@ -10,6 +10,7 @@ import {
 import { GraduateAffinityView } from './graduate-affinity-view';
 import * as affinityService from '../services/affinity-service';
 import { DEBOUNCE_MS } from '../hooks/use-debounced-batch';
+import { markPendingProfileChanges, hasPendingProfileChanges } from '../services/pending-profile-changes';
 
 const mockPush = jest.fn();
 
@@ -171,16 +172,16 @@ const getSummaryPanel = async (): Promise<HTMLElement> => {
   return panel as HTMLElement;
 };
 
-const openSimulationModal = () => {
+const openSimulationModal = async () => {
   fireEvent.click(
-    screen.getByRole('button', {
+    await screen.findByRole('button', {
       name: /simular actualización del radar/i,
     })
   );
 };
 
 const clickSimulateProfileChange = async () => {
-  openSimulationModal();
+  await openSimulationModal();
 
   const dialog = screen.getByRole('dialog');
   const simulateButton = within(dialog).getByRole('button', {
@@ -207,6 +208,8 @@ describe('GraduateAffinityView', () => {
       ...originalEnv,
       NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS: 'true',
     };
+    window.sessionStorage.clear();
+    (affinityService.getAreaCertifications as jest.Mock).mockReset().mockImplementation(async area => ({ area, source: 'current-profile', certifications: [] }));
     jest.clearAllMocks();
     mockGetAffinityVector.mockReset();
     mockGetAffinityConfig.mockReset();
@@ -267,7 +270,7 @@ describe('GraduateAffinityView', () => {
       expect(mockGetAffinityVector).toHaveBeenCalled();
     });
 
-    openSimulationModal();
+    await openSimulationModal();
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
@@ -372,12 +375,13 @@ describe('GraduateAffinityView', () => {
     expect(screen.getByText('71%')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Haz clic en un área para inspeccionar sus respaldos'
+        'Haz clic en un área para ver sus palabras clave'
       )
     ).toBeInTheDocument();
   });
 
-  it('al seleccionar Cloud muestra las evidencias del vector cargado', async () => {
+  it('al seleccionar Cloud consulta sus certificaciones relacionadas', async () => {
+    (affinityService.getAreaCertifications as jest.Mock).mockResolvedValueOnce({ area: 'cloud-devops', source: 'current-profile', certifications: [{ id: 'cloud-cert', title: 'AWS Certified Cloud Practitioner', issuer: 'Amazon', issuedYear: 2026, hasBackup: false, matchedKeywords: ['aws'] }] });
     render(<GraduateAffinityView />);
 
     await screen.findByText('Resumen de tu afinidad');
@@ -393,7 +397,7 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('AWS Certified Cloud Practitioner')
+      await screen.findByText('AWS Certified Cloud Practitioner')
     ).toBeInTheDocument();
 
     expect(
@@ -401,7 +405,8 @@ describe('GraduateAffinityView', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('al seleccionar Ciberseguridad muestra sus evidencias', async () => {
+  it('al seleccionar Ciberseguridad consulta sus certificaciones sin inventar proyectos', async () => {
+    (affinityService.getAreaCertifications as jest.Mock).mockResolvedValueOnce({ area: 'cybersecurity-networks', source: 'current-profile', certifications: [{ id: 'cyber-cert', title: 'Cisco Certified Network Associate (CCNA)', issuer: 'Cisco', issuedYear: 2026, hasBackup: false, matchedKeywords: ['redes'] }] });
     render(<GraduateAffinityView />);
 
     await screen.findByText('Resumen de tu afinidad');
@@ -417,12 +422,12 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('Cisco Certified Network Associate (CCNA)')
+      await screen.findByText('Cisco Certified Network Associate (CCNA)')
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('Configuración de Firewalls y Políticas SecOps')
-    ).toBeInTheDocument();
+      screen.queryByText('Configuración de Firewalls y Políticas SecOps')
+    ).not.toBeInTheDocument();
   });
 
   it('volver al resumen deselecciona el área', async () => {
@@ -1017,5 +1022,106 @@ describe('GraduateAffinityView', () => {
         JSON.stringify(['cloud-devops']),
       );
     });
+  });
+
+  it('QA HU7: reintenta GET tras 503 inicial, conserva el error durante la carga y evita doble envio', async () => {
+    mockGetAffinityVector.mockRejectedValueOnce(Object.assign(new Error('Diccionario no disponible'), { status: 503 }));
+    render(<GraduateAffinityView />);
+    expect(await screen.findByText('No se pudo actualizar tu radar')).toBeInTheDocument();
+    let resolve!: (value: ReturnType<typeof makeVector>) => void;
+    mockGetAffinityVector.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+    const retry = screen.getByRole('button', { name: /reintentar/i });
+    fireEvent.click(retry);
+    fireEvent.click(retry);
+    expect(await screen.findByRole('status')).toHaveTextContent('Actualizando tu afinidad…');
+    expect(retry).toBeDisabled();
+    expect(mockGetAffinityVector).toHaveBeenCalledTimes(2);
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+    await act(async () => { resolve(makeVector()); });
+    expect(screen.queryByText('No se pudo actualizar tu radar')).not.toBeInTheDocument();
+    expect(screen.getByText('Resumen de tu afinidad')).toBeInTheDocument();
+  });
+
+  it('QA HU7: timeout de carga inicial a los 7 s y descarte de la respuesta tardia tras reintentar', async () => {
+    jest.useFakeTimers();
+    let resolveOld!: (value: ReturnType<typeof makeVector>) => void;
+    mockGetAffinityVector.mockReturnValueOnce(new Promise((done) => { resolveOld = done; }));
+    render(<GraduateAffinityView />);
+    await act(async () => { await jest.advanceTimersByTimeAsync(6999); });
+    expect(screen.queryByText('No se pudo actualizar tu radar')).not.toBeInTheDocument();
+    await act(async () => { await jest.advanceTimersByTimeAsync(1); });
+    expect(screen.getByText('No se pudo actualizar tu radar')).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /reintentar/i })); });
+    expect(screen.queryByText('No se pudo actualizar tu radar')).not.toBeInTheDocument();
+    await act(async () => { resolveOld(makeVector([], { calculatedAt: '1999-01-01T12:00:00Z' })); });
+    expect(screen.getByText('Resumen de tu afinidad')).toBeInTheDocument();
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+  });
+
+  it('QA HU7: un 503 de recalculo conserva el radar y permite varios reintentos con feedback', async () => {
+    render(<GraduateAffinityView />);
+    await screen.findByText('Resumen de tu afinidad');
+    mockRecalculateAffinity.mockRejectedValueOnce(new Error('503')).mockRejectedValueOnce(new Error('503'));
+    await clickSimulateProfileChange();
+    await screen.findByText('No se pudo actualizar tu radar');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /reintentar/i })); });
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: /reintentar/i })).toBeEnabled();
+    let resolve!: (value: ReturnType<typeof makeVector>) => void;
+    mockRecalculateAffinity.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+    fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Actualizando tu afinidad…');
+    expect(screen.getByRole('button', { name: /reintentar/i })).toBeDisabled();
+    expect(screen.getByTestId('radar')).toBeInTheDocument();
+    await act(async () => { resolve(makeVector()); });
+    expect(screen.queryByText('No se pudo actualizar tu radar')).not.toBeInTheDocument();
+  });
+
+  it('recalcula automáticamente tras eliminar y usa el vector vigente sin confirmación manual', async () => {
+    jest.useFakeTimers();
+    markPendingProfileChanges();
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(recalculatedAreas, { hasPendingChanges: true }));
+    mockRecalculateAffinity.mockResolvedValueOnce(makeVector([]));
+    render(<GraduateAffinityView />);
+    await screen.findByText('Resumen de tu afinidad');
+    expect(screen.queryByText('Se detectaron modificaciones')).not.toBeInTheDocument();
+    await act(async () => { await jest.advanceTimersByTimeAsync(DEBOUNCE_MS - 1); });
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+    await act(async () => { await jest.advanceTimersByTimeAsync(1); });
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Radar actualizado')).toBeInTheDocument();
+    expect(hasPendingProfileChanges()).toBe(false);
+    expect(screen.getByRole('button', { name: /^recalcular$/i })).toBeDisabled();
+  });
+
+  it('ignora y limpia una marca de eliminación obsoleta si el servidor ya está actualizado', async () => {
+    jest.useFakeTimers();
+    markPendingProfileChanges();
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(recalculatedAreas, { hasPendingChanges: false }));
+    render(<GraduateAffinityView />);
+    await screen.findByText('Resumen de tu afinidad');
+    await act(async () => { await jest.advanceTimersByTimeAsync(DEBOUNCE_MS + 1); });
+    expect(mockRecalculateAffinity).not.toHaveBeenCalled();
+    expect(screen.queryByText('Se detectaron modificaciones')).not.toBeInTheDocument();
+    expect(hasPendingProfileChanges()).toBe(false);
+    expect(screen.getByRole('button', { name: /^recalcular$/i })).toBeDisabled();
+  });
+
+  it('conserva el radar y el pendiente si falla el recálculo automático tras eliminar y permite reintentar', async () => {
+    jest.useFakeTimers();
+    markPendingProfileChanges();
+    mockGetAffinityVector.mockResolvedValueOnce(makeVector(recalculatedAreas, { hasPendingChanges: true }));
+    mockRecalculateAffinity.mockRejectedValueOnce(new Error('503'));
+    render(<GraduateAffinityView />);
+    await screen.findByText('Resumen de tu afinidad');
+    await act(async () => { await jest.advanceTimersByTimeAsync(DEBOUNCE_MS); });
+    expect(screen.getByText('No se pudo actualizar tu radar')).toBeInTheDocument();
+    expect(screen.getByTestId('radar')).toBeInTheDocument();
+    expect(hasPendingProfileChanges()).toBe(true);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /reintentar/i })); });
+    expect(mockRecalculateAffinity).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Radar actualizado')).toBeInTheDocument();
+    expect(hasPendingProfileChanges()).toBe(false);
+    expect(screen.getByRole('button', { name: /^recalcular$/i })).toBeDisabled();
   });
 });

@@ -310,10 +310,12 @@ describe('Perfil y eventos con contratos y guards compartidos', () => {
       .set('Authorization', 'Bearer graduate')
       .expect(200);
     expect(response.headers['content-disposition']).toContain('perfil_maria_perez_');
-    expect(response.body.titulado.id).toBe(graduateId);
-    expect(response.body.fechaExportacion).toMatch(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
-    expect(response.body).toHaveProperty(['Formación académica', 'total']);
+    expect(response.body.IdEgresado).toBe(graduateId);
+    expect(response.body.Nombre).toBe('María Pérez');
+    expect(response.body.FechaDescarga).toMatch(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
+    expect(Array.isArray(response.body['Formación académica'])).toBe(true);
     expect(response.body).not.toHaveProperty('formacionAcademica');
+    expect(response.body).not.toHaveProperty('titulado');
     expect(response.body).not.toHaveProperty('password_hash');
   });
 
