@@ -32,6 +32,33 @@ export function mapSurveyList(body: unknown): ManagedSurvey[] {
   return Array.isArray(data) ? data.map(mapSurvey) : [];
 }
 
+/**
+ * Nombre de las carreras del administrador para el subtítulo («… de Ingeniería de Sistemas»).
+ * Si algo falla devuelve null y la pantalla dice «de tu carrera»: el alcance real lo impone la T5.1.
+ */
+export async function loadCareerName(signal?: AbortSignal): Promise<string | null> {
+  try {
+    const me = await authenticatedFetch('/api/v1/auth/me', { cache: 'no-store', signal });
+    if (!me.ok) return null;
+    const ids = ((await me.json()) as { data?: { scopes?: { careerIds?: unknown } } }).data?.scopes
+      ?.careerIds;
+    if (!Array.isArray(ids) || ids.length === 0) return null;
+    const careers = await authenticatedFetch('/api/v1/registrations/careers', {
+      cache: 'no-store',
+      signal,
+    });
+    if (!careers.ok) return null;
+    const list = ((await careers.json()) as { data?: Array<{ id?: unknown; nombre?: unknown }> })
+      .data;
+    const names = (Array.isArray(list) ? list : [])
+      .filter((career) => ids.includes(career.id) && typeof career.nombre === 'string')
+      .map((career) => career.nombre as string);
+    return names.length > 0 ? names.join(', ') : null;
+  } catch {
+    return null;
+  }
+}
+
 /** '2026-01-15T00:00:00.000Z' -> '15/01/2026' (sin convertir zona horaria). */
 export function formatDate(iso: string | null): string {
   const match = iso ? /^(\d{4})-(\d{2})-(\d{2})/.exec(iso) : null;

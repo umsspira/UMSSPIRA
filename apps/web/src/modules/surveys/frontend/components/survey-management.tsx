@@ -6,6 +6,7 @@ import { notifySessionExpired } from '@/modules/auth/frontend/services/session-e
 import {
   createSurvey,
   formatDate,
+  loadCareerName,
   loadManagedSurveys,
   publishSurvey,
   toInputDate,
@@ -35,6 +36,13 @@ export function SurveyManagement() {
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [careerName, setCareerName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadCareerName(controller.signal).then(setCareerName);
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -110,13 +118,15 @@ export function SurveyManagement() {
           <h2 id="survey-management-heading" className="text-lg font-semibold text-abyssal-blue">
             Gestión de encuestas
           </h2>
-          <p className="mt-1 text-sm text-abyssal-blue/70">Encuestas de empleabilidad de tu carrera</p>
+          <p className="mt-1 text-sm text-abyssal-blue/70">
+            Encuestas de empleabilidad de {careerName ?? 'tu carrera'}
+          </p>
         </div>
         {!form && (
           <button
             type="button"
             onClick={() => openForm({ type: 'new' })}
-            className="min-h-11 rounded-md bg-abyssal-blue px-4 py-2 text-sm font-semibold text-white"
+            className="min-h-11 rounded-md bg-burning-flame px-4 py-2 text-sm font-semibold text-abyssal-blue"
           >
             + Nueva encuesta
           </button>
@@ -234,7 +244,7 @@ export function SurveyManagement() {
                       className={
                         'min-h-11 rounded-md px-3 py-2 text-sm font-semibold disabled:opacity-60 ' +
                         (isDraft
-                          ? 'bg-abyssal-blue text-white'
+                          ? 'bg-burning-flame text-abyssal-blue'
                           : 'border border-abyssal-blue bg-white text-abyssal-blue')
                       }
                     >

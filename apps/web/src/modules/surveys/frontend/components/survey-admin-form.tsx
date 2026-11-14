@@ -129,7 +129,7 @@ export function SurveyAdminForm({ heading, initial, submitting, serverError, onS
         <button
           type="submit"
           disabled={submitting}
-          className="min-h-11 rounded-md bg-abyssal-blue px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="min-h-11 rounded-md bg-burning-flame px-4 py-2 text-sm font-semibold text-abyssal-blue disabled:opacity-60"
         >
           {submitting ? 'Guardando…' : 'Guardar'}
         </button>
