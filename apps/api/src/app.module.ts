@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AfinidadModule } from './modules/afinidad/afinidad.module';
 import { ConfigModule } from '@nestjs/config';
 import { resolve } from 'node:path';
 import { validateEnvironment } from './config/environment';
@@ -31,6 +32,7 @@ import { AppService } from './app.service';
       envFilePath: resolve(__dirname, '../.env'),
       validate: validateEnvironment,
     }),
+    AfinidadModule,
     PrismaModule,
     SupabaseModule,
     AuthModule,
