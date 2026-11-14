@@ -228,3 +228,47 @@ self.addEventListener('fetch', (event) => {
     }));
   }
 });
+
+// --- MESSAGE: aquí está la actualización REAL de caché ---
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data) return;
+  if (data.type === 'SKIP_WAITING') { self.skipWaiting(); return; }
+  if (data.type === 'SET_DEVICE_PROFILE') { event.waitUntil(saveProfile(data.profile)); return; }
+  if (data.type === 'UPDATE_CACHE') {
+    event.waitUntil((async () => {
+      try {
+        const sendLog = async (msg) => {
+          const clients = await self.clients.matchAll();
+          clients.forEach((c) => c.postMessage({ type: 'SW_LOG', message: msg }));
+        };
+        await sendLog('Iniciando actualización de caché...');
+        
+        await sendLog('Descargando página offline...');
+        const staticCache = await caches.open(STATIC_CACHE);
+        await staticCache.add('/offline').catch(() => {});
+
+        await sendLog('Descargando recursos del portal...');
+        await precacheShellAssets(staticCache);
+        
+        await sendLog('Descargando iconos...');
+        const assetsCache = await caches.open(ASSETS_CACHE);
+        await Promise.allSettled(PRECACHE_ICONS.map(async (url) => {
+          const response = await fetch(url, { cache: 'no-store' });
+          if (isCacheable(response)) await assetsCache.put(url, response);
+        }));
+
+        await sendLog('Proceso completado con éxito.');
+        const clients = await self.clients.matchAll();
+        clients.forEach((client) => client.postMessage({ type: 'CACHE_UPDATED' }));
+      } catch (error) {
+        console.error('Error actualizando la caché manualmente:', error);
+        const clients = await self.clients.matchAll();
+        clients.forEach((client) => client.postMessage({ type: 'SW_LOG', message: '❌ Error en la actualización.' }));
+      }
+    })());
+    return;
+  }
+  const handler = EXT.messages[data.type];
+  if (typeof handler === 'function') handler(event);
+});
