@@ -70,7 +70,7 @@ test('crea el índice e indexa la vacante con el mismo ID', async () => {
   assert.equal(resultado.idDocumento, vacanteEjemplo.id);
   assert.equal(documentos.size, 1);
   assert.equal(
-    documentos.get(vacanteEjemplo.id)?.requerimientosLaborales.length,
+    documentos.get(vacanteEjemplo.id)?.requerimientosLaborales?.length,
     2,
   );
 });
