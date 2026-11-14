@@ -43,9 +43,8 @@ describe('PrismaSurveyRepository.getSurveyReport', () => {
     prisma.respuestaEncuesta.count.mockResolvedValue(3);
     prisma.respuestaEncuesta.groupBy
       .mockResolvedValueOnce([
-        { condicionLaboral: 'true', _count: { _all: 1 } },
-        { condicionLaboral: ' Trabaja ', _count: { _all: 1 } },
-        { condicionLaboral: 'false', _count: { _all: 1 } },
+        { condicionLaboral: true, _count: { _all: 2 } },
+        { condicionLaboral: false, _count: { _all: 1 } },
       ])
       .mockResolvedValueOnce([
         { modalidad: 'Remoto', _count: { _all: 2 } },
@@ -62,7 +61,7 @@ describe('PrismaSurveyRepository.getSurveyReport', () => {
     prisma.respuestaEncuesta.findMany.mockResolvedValue([
       {
         id: 'resp-1',
-        condicionLaboral: 'true',
+        condicionLaboral: true,
         cargo: 'Analista',
         empresa: 'Empresa',
         area: 'Sistemas',
@@ -73,7 +72,7 @@ describe('PrismaSurveyRepository.getSurveyReport', () => {
       },
       {
         id: 'resp-2',
-        condicionLaboral: 'false',
+        condicionLaboral: false,
         cargo: null,
         empresa: null,
         area: null,

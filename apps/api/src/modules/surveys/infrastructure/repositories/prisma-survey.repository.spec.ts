@@ -33,7 +33,7 @@ describe('PrismaSurveyRepository', () => {
   });
 
   describe('save', () => {
-    it('persiste la respuesta convirtiendo condicionLaboral a string', async () => {
+    it('persiste la respuesta con condicionLaboral booleano', async () => {
       prisma.respuestaEncuesta.create.mockResolvedValue({ id: 'resp-1' });
 
       const input = {
@@ -54,7 +54,7 @@ describe('PrismaSurveyRepository', () => {
         data: {
           idEncuesta: 'enc-1',
           idTitulado: 'tit-1',
-          condicionLaboral: 'true',
+          condicionLaboral: true,
           cargo: 'Desarrollador',
           empresa: 'Empresa Test',
           area: 'Tecnología',

@@ -36,7 +36,7 @@ export class GetMySurveyController {
         responded: Boolean(saved),
         response: saved
           ? {
-              condicion_laboral: saved.condicionLaboral === 'true',
+              condicion_laboral: saved.condicionLaboral,
               cargo: saved.cargo,
               empresa: saved.empresa,
               area: saved.area,

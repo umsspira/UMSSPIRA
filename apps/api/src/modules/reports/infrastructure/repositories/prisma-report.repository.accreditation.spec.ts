@@ -7,7 +7,7 @@ type Response = {
   id: string;
   idEncuesta: string;
   idTitulado: string;
-  condicionLaboral: string;
+  condicionLaboral: boolean;
   salarioMensual: string | null;
   tiempoInsercion: string | null;
   fechaEnvio: Date;
@@ -32,7 +32,7 @@ function answer(
     id: `r-${idTitulado}`,
     idEncuesta: 'survey-published',
     idTitulado,
-    condicionLaboral: works ? 'true' : 'false',
+    condicionLaboral: works,
     salarioMensual: works ? salary : null,
     tiempoInsercion: works ? months : null,
     fechaEnvio,
