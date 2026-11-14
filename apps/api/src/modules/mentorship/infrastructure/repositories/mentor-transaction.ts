@@ -26,7 +26,7 @@ export async function lockOwnMentor(tx: Prisma.TransactionClient, userId: string
   if (active && mentor.esta_activo !== true) {
     throw new BusinessRuleError(
       'forbidden',
-      'MENTOR_NO_HABILITADO',
+      'MENTOR_INACTIVE',
       'Se requiere un perfil de mentor activo',
     );
   }

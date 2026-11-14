@@ -18,7 +18,7 @@ export async function requireOwnMentor(
   if (active && row.esta_activo !== true) {
     throw new BusinessRuleError(
       'forbidden',
-      'MENTOR_NO_HABILITADO',
+      'MENTOR_INACTIVE',
       'Se requiere un perfil de mentor activo',
     );
   }
