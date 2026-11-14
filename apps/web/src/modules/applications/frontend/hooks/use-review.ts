@@ -10,7 +10,8 @@ export type ReviewDecision = "APROBADA" | "OBSERVADA" | "RECHAZADA";
 
 export type ReviewPayload = {
   decision: ReviewDecision;
-  category?: string; // obligatoria si OBSERVADA o RECHAZADA (causal)
+  motivos?: string[]; // solo al observar: uno o más motivos distintos (HU-16)
+  category?: string; // causal de rechazo; en observaciones antiguas, su única categoría
   note?: string; // mínimo 10 caracteres si OBSERVADA o RECHAZADA
   notifyDean?: boolean; // checkbox del diseño de Observar
 };
@@ -18,14 +19,13 @@ export type ReviewPayload = {
 export const MIN_NOTE_LENGTH = 10;
 export const MAX_NOTE_LENGTH = 500;
 
-// TODO: confirmar las listas reales con el equipo
+// Códigos del catálogo de motivos de observación del backend (migración 0014).
 export const OBSERVATION_CATEGORIES = [
-  "Documento ilegible",
-  "Documento incompleto",
-  "Datos incorrectos",
-  "Documento vencido",
-  "Otro",
-];
+  { code: "documento_ilegible", label: "Documento ilegible o borroso" },
+  { code: "datos_no_coinciden", label: "Datos declarados no coinciden con el respaldo" },
+  { code: "documento_incompleto", label: "Documento de respaldo incompleto o formato no válido" },
+  { code: "otro_motivo", label: "Otro motivo (requiere explicación en la nota)" },
+] as const;
 
 export const REJECTION_CAUSES = [
   "Documentación falsa o adulterada",

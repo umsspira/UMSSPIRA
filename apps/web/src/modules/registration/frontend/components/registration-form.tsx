@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/shared/components/button";
@@ -364,6 +365,17 @@ export function RegistrationForm() {
           </Button>
         </div>
       </form>
+
+      <p className="mt-5 text-center text-xs text-abyssal-blue/70">
+      ¿Ya enviaste una solicitud?{" "}
+        <Link
+          href="/status"
+          className="font-bold text-abyssal-blue underline underline-offset-4 hover:text-truffle-trouble"
+        >
+          Consulta su estado aquí.
+        </Link>
+      </p>
+
       <ExitRegistrationDialog
         isOpen={isDialogOpen}
         onConfirm={confirmExit}

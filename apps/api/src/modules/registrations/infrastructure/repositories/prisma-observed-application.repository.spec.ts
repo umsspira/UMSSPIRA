@@ -61,6 +61,8 @@ describe('PrismaObservedApplicationRepository', () => {
       },
       solicitudVersion: {
         create: jest.fn().mockResolvedValue({ id: 'ver-1' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockResolvedValue({ id: 'ver-1' }),
       },
       detalleSolicitud: {
         update: jest.fn().mockResolvedValue({ id: 'detail-1' }),
@@ -127,6 +129,24 @@ describe('PrismaObservedApplicationRepository', () => {
       expect(result.mime).toBe('application/pdf');
       expect(result.size).toBe(2097152);
       expect(Array.from(result.bytes)).toEqual([37, 80, 68, 70, 45]);
+    });
+
+    it('utiliza version_vigente y no la cantidad de registros historicos', async () => {
+      const { repository } = createRepo({
+        application: {
+          id: applicationId,
+          estado: 'OBSERVADA',
+          version_vigente: 4,
+          detalle_solicitud: mockDetail,
+          documento_respaldo: mockDocument,
+          dictamen_registros: [mockReview],
+          version_registros: [{ id: 'v1' }],
+        },
+      });
+
+      const result = await repository.getObservedApplication(applicationId);
+
+      expect(result.version).toBe(4);
     });
 
     it('acepta la solicitud en estado OBSERVADA', async () => {
@@ -203,6 +223,7 @@ describe('PrismaObservedApplicationRepository', () => {
         application: {
           id: applicationId,
           estado: 'OBSERVED',
+          version_vigente: 2,
           detalle_solicitud: mockDetail,
           documento_respaldo: mockDocument,
           dictamen_registros: [mockReview],
@@ -297,11 +318,28 @@ describe('PrismaObservedApplicationRepository', () => {
 
       expect(response.version).toBe(2);
       expect(response.requiresEmailVerification).toBe(false);
-      expect(tx.solicitudVersion.create).toHaveBeenCalledWith({
+      expect(tx.solicitudVersion.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id_solicitud_numero_version: {
+              id_solicitud: applicationId,
+              numero_version: 1,
+            },
+          },
+          create: expect.objectContaining({
+            id_solicitud: applicationId,
+            numero_version: 1,
+            id_documento_respaldo: 'doc-1',
+            snapshot_detalle: expect.objectContaining({
+              nombre: 'Carlos',
+            }),
+          }),
+        }),
+      );
+      expect(tx.solicitud.update).toHaveBeenCalledWith({
+        where: { id: applicationId },
         data: expect.objectContaining({
-          id_solicitud: applicationId,
-          numero_version: 1,
-          snapshot_detalle: expect.objectContaining({ nombre: 'Carlos' }),
+          version_vigente: 2,
         }),
       });
       expect(tx.detalleSolicitud.update).toHaveBeenCalledWith({
@@ -333,6 +371,7 @@ describe('PrismaObservedApplicationRepository', () => {
         application: {
           id: applicationId,
           estado: 'OBSERVED',
+          version_vigente: 2,
           detalle_solicitud: mockDetail,
           version_registros: [{ id: 'v1' }],
         },
@@ -403,34 +442,126 @@ describe('PrismaObservedApplicationRepository', () => {
       size: validPdfBuffer.length,
     };
 
-    it('reemplaza el documento marcando el anterior como no valido y conservandolo en historial', async () => {
+    it('reemplaza el documento y conserva la referencia historica', async () => {
       const { repository, tx } = createRepo({
         application: {
           id: applicationId,
           estado: 'OBSERVED',
+          version_vigente: 1,
           id_documento_respaldo: 'old-doc-1',
         },
       });
-      const response = await repository.replaceDocument(applicationId, mockFile, 'diploma_academico');
 
+      const response = await repository.replaceDocument(
+        applicationId,
+        mockFile,
+        'diploma_academico',
+      );
+
+      // El documento anterior deja de ser vigente.
       expect(tx.documentoRespaldo.update).toHaveBeenCalledWith({
         where: { id: 'old-doc-1' },
-        data: { es_valido: false, es_vigente: false }, // <--- Se agregó es_vigente: false
+        data: {
+          es_vigente: false,
+        },
       });
-      
-      expect(tx.archivoRegistro.create).toHaveBeenCalled();
-      
+
+      // Se conserva la asociacion historica de V1.
+      expect(tx.solicitudVersion.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id_solicitud_numero_version: {
+              id_solicitud: applicationId,
+              numero_version: 1,
+            },
+          },
+          create: expect.objectContaining({
+            numero_version: 1,
+            id_documento_respaldo: 'old-doc-1',
+          }),
+          update: {},
+        }),
+      );
+
+      // El nuevo respaldo se registra como vigente.
       expect(tx.documentoRespaldo.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ es_valido: true, es_vigente: true }), // <--- Se quitó la 'd'
+        data: expect.objectContaining({
+          es_valido: true,
+          es_vigente: true,
+        }),
       });
-      
-      expect(tx.solicitud.update).toHaveBeenCalledWith(expect.objectContaining({
+
+      // La nueva version apunta al documento nuevo.
+      expect(tx.solicitudVersion.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          id_solicitud: applicationId,
+          numero_version: 2,
+          id_documento_respaldo: 'new-doc-1',
+          snapshot_detalle: expect.objectContaining({
+            id_documento_respaldo: 'new-doc-1',
+            reemplazado_en: expect.any(String),
+          }),
+        }),
+      });
+
+      // La solicitud debe utilizar el respaldo nuevo.
+      expect(tx.solicitud.update).toHaveBeenCalledWith({
         where: { id: applicationId },
-        // Opcional: podrías agregar data: expect.objectContaining({ version_vigente: expect.any(Number) })
-      }));
-      
+        data: expect.objectContaining({
+          id_documento_respaldo: 'new-doc-1',
+          version_vigente: 2,
+        }),
+      });
+
       expect(response.documentoId).toBe('new-doc-1');
       expect(response.nombre).toBe('titulo_actualizado.pdf');
+    });
+
+    it('crea una nueva version sin perder la asociacion anterior', async () => {
+      const { repository, tx } = createRepo({
+        application: {
+          id: applicationId,
+          estado: 'OBSERVADA',
+          version_vigente: 2,
+          id_documento_respaldo: 'doc-version-2',
+        },
+      });
+
+      await repository.replaceDocument(
+        applicationId,
+        mockFile,
+      );
+
+      // V2 queda relacionada con su respaldo anterior.
+      expect(tx.solicitudVersion.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id_solicitud_numero_version: {
+              id_solicitud: applicationId,
+              numero_version: 2,
+            },
+          },
+          create: expect.objectContaining({
+            id_documento_respaldo: 'doc-version-2',
+          }),
+        }),
+      );
+
+      // Se crea V3 para el nuevo documento.
+      expect(tx.solicitudVersion.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          numero_version: 3,
+          id_documento_respaldo: 'new-doc-1',
+        }),
+      });
+
+      expect(tx.solicitud.update).toHaveBeenCalledWith({
+        where: { id: applicationId },
+        data: expect.objectContaining({
+          version_vigente: 3,
+          id_documento_respaldo: 'new-doc-1',
+        }),
+      });
     });
 
     it('permite reemplazar documento tanto en estado OBSERVED como OBSERVADA', async () => {
@@ -469,36 +600,113 @@ describe('PrismaObservedApplicationRepository', () => {
   });
 
   describe('submitCorrection', () => {
-    it('entrega la correccion, crea snapshot en version, cambia a PENDIENTE e invalida el token', async () => {
+    it('reenvia la version vigente sin duplicarla y consume el token', async () => {
       const { repository, tx } = createRepo({
         application: {
           id: applicationId,
           estado: 'OBSERVED',
+          version_vigente: 2,
           detalle_solicitud: mockDetail,
           id_documento_respaldo: 'doc-1',
-          version_registros: [{ id: 'v1' }],
         },
-        draft: { id: 'draft-1', correo_verificado: true },
+        draft: {
+          id: 'draft-1',
+          correo_verificado: true,
+        },
       });
 
-      const response = await repository.submitCorrection(applicationId, { expectedVersion: 2 });
+      const response = await repository.submitCorrection(
+        applicationId,
+        { expectedVersion: 2 },
+      );
 
       expect(response.estado).toBe('PENDIENTE');
-      expect(response.version).toBe(3);
-      expect(tx.solicitudVersion.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({
-          id_solicitud: applicationId,
-          numero_version: 2,
+      expect(response.version).toBe(2);
+
+      // Se reutiliza el numero de version actual.
+      expect(tx.solicitudVersion.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id_solicitud_numero_version: {
+              id_solicitud: applicationId,
+              numero_version: 2,
+            },
+          },
+          create: expect.objectContaining({
+            id_solicitud: applicationId,
+            numero_version: 2,
+            id_documento_respaldo: 'doc-1',
+          }),
         }),
-      }));
+      );
+
+      // El reenvio no debe generar otra version.
+      expect(tx.solicitudVersion.create).not.toHaveBeenCalled();
+
+      // La solicitud cambia a PENDIENTE.
       expect(tx.solicitud.update).toHaveBeenCalledWith({
         where: { id: applicationId },
-        data: expect.objectContaining({ estado: 'PENDIENTE' }),
+        data: expect.objectContaining({
+          estado: 'PENDIENTE',
+          version_vigente: 2,
+        }),
       });
+
+      // El token de subsanacion queda consumido.
       expect(tx.tokenSubsanacion.updateMany).toHaveBeenCalledWith({
-        where: { id_solicitud: applicationId, usado: false },
-        data: { usado: true },
+        where: {
+          id_solicitud: applicationId,
+          usado: false,
+        },
+        data: {
+          usado: true,
+        },
       });
+    });
+
+    it('conserva el evento de reemplazo al reenviar la solicitud', async () => {
+      const { repository, tx } = createRepo({
+        application: {
+          id: applicationId,
+          estado: 'OBSERVADA',
+          version_vigente: 2,
+          detalle_solicitud: mockDetail,
+          id_documento_respaldo: 'doc-nuevo',
+        },
+      });
+
+      // Simula una version creada al reemplazar el documento.
+      tx.solicitudVersion.findUnique.mockResolvedValueOnce({
+        id: 'version-2',
+        numero_version: 2,
+        id_documento_respaldo: 'doc-nuevo',
+        snapshot_detalle: {
+          id_documento_respaldo: 'doc-nuevo',
+          reemplazado_en: '2026-11-13T12:00:00.000Z',
+        },
+      });
+
+      const response = await repository.submitCorrection(
+        applicationId,
+        { expectedVersion: 2 },
+      );
+
+      expect(response.version).toBe(2);
+
+      expect(tx.solicitudVersion.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            id_documento_respaldo: 'doc-nuevo',
+            snapshot_detalle: expect.objectContaining({
+              id_documento_respaldo: 'doc-nuevo',
+              reemplazado_en: '2026-11-13T12:00:00.000Z',
+            }),
+          }),
+        }),
+      );
+
+      // No se crea una segunda fila para V2.
+      expect(tx.solicitudVersion.create).not.toHaveBeenCalled();
     });
 
     it('es idempotente si la solicitud ya fue entregada a PENDING o PENDIENTE', async () => {
@@ -523,6 +731,7 @@ describe('PrismaObservedApplicationRepository', () => {
         application: {
           id: applicationId,
           estado: 'OBSERVED',
+          version_vigente: 2,
           detalle_solicitud: mockDetail,
           version_registros: [{ id: 'v1' }],
         },

@@ -1,0 +1,13 @@
+{
+  "name": "hu13-ocr-spike",
+  "private": true,
+  "scripts": {
+    "test": "node scripts/prepare-ocr.mjs && node scripts/download-ocr-models.mjs && node run.cjs"
+  },
+  "dependencies": {
+    "@paddleocr/paddleocr-js": "0.4.2",
+    "pdfjs-dist": "4.8.69",
+    "esbuild": "0.28.2",
+    "playwright": "1.58.2"
+  }
+}

@@ -113,6 +113,14 @@ describe("RegistrationForm", () => {
     ).toBeInTheDocument();
   });
 
+    it("permite consultar el estado desde el primer paso del registro (18.3)", async () => {
+    await renderForm();
+
+    expect(
+      screen.getByRole("link", { name: "Consulta su estado aquí." }),
+    ).toHaveAttribute("href", "/status");
+  });
+
   it("permite volver al inicio directamente si el formulario está vacío (BUG-03)", async () => {
     await renderForm();
 
