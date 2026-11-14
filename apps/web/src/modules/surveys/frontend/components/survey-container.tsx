@@ -74,6 +74,9 @@ export function SurveyContainer() {
   const [recordedResponse, setRecordedResponse] =
     useState<SurveyPersistedAnswer | null>(null);
 
+  // HU-006 CA-07: la edición ya usada (en esta sesión o guardada en el servidor) oculta el botón.
+  const editUsed = editUsedLocally || recordedResponse?.edicion_usada === true;
+
   const router = useRouter();
 
   const userId = useSurveyUserId();
@@ -379,10 +382,7 @@ export function SurveyContainer() {
    * HU-006 CA-01 / CA-02.
    */
   const handleStartEdit = () => {
-    if (
-      !recordedResponse ||
-      editUsedLocally
-    ) {
+    if (!recordedResponse || editUsed) {
       return;
     }
 
@@ -790,7 +790,7 @@ export function SurveyContainer() {
                 </p>
               </div>
 
-              {!editUsedLocally && (
+              {!editUsed && (
                 <Button
                   type="button"
                   variant="secondary"

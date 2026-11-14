@@ -18,6 +18,8 @@ export interface SurveyPersistedAnswer {
   modalidad: string | null;
   salario_mensual: string | null;
   tiempo_insercion: string | null;
+  /** HU-006 CA-07: true cuando ya se usó la única edición (lo devuelve la T6.1). */
+  edicion_usada?: boolean;
 }
 
 export const SURVEY_SENT_MESSAGE = 'Encuesta enviada correctamente';

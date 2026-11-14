@@ -330,6 +330,20 @@ describe('SurveyContainer · HU-006 · edición única', () => {
     ).toBeNull();
   });
 
+  it('CA-07 al recargar no muestra Editar respuestas si la edición ya se usó', async () => {
+    mockedGetMySurveyResponse.mockResolvedValue({
+      ...RECORDED_RESPONSE,
+      edicion_usada: true,
+    });
+
+    render(<SurveyContainer />);
+
+    expect(await screen.findByText('Resumen de tu encuesta')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Editar respuestas' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('maneja conflicto cuando la edición ya fue utilizada en otra sesión', async () => {
     mockedUpdateMySurveyResponse.mockRejectedValue(
       new ApiError(
