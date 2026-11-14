@@ -261,14 +261,35 @@ describe('GetAccreditationDashboardUseCase (CA-10)', () => {
     });
   });
 
-  it('rechaza una carrera que no es del administrador', () => {
+  it('lee y guarda el tablero en la caché para una sola carrera', async () => {
+    const accreditationDashboard = jest.fn().mockResolvedValue({ totalGraduates: 1 });
+    const cache = {
+      buildAccreditationDashboardCacheKey: jest.fn().mockReturnValue('dashboard-key'),
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn(),
+    };
+
+    await new GetAccreditationDashboardUseCase(
+      { accreditationDashboard } as never,
+      cache as never,
+    ).execute(actor(['career-1']), undefined, { cohort: 2023 });
+
+    expect(cache.buildAccreditationDashboardCacheKey).toHaveBeenCalledWith(
+      ['career-1'],
+      { cohort: 2023 },
+    );
+    expect(cache.get).toHaveBeenCalledWith('dashboard-key');
+    expect(cache.set).toHaveBeenCalledWith('dashboard-key', { totalGraduates: 1 });
+  });
+
+  it('rechaza una carrera que no es del administrador', async () => {
     const accreditationDashboard = jest.fn();
-    expect(() =>
+    await expect(
       new GetAccreditationDashboardUseCase({ accreditationDashboard } as never).execute(
         actor(['career-1']),
         'career-2',
       ),
-    ).toThrow(BusinessRuleError);
+    ).rejects.toBeInstanceOf(BusinessRuleError);
     expect(accreditationDashboard).not.toHaveBeenCalled();
   });
 });
