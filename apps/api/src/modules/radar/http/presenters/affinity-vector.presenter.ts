@@ -2,6 +2,7 @@ import {
   AFFINITY_AREAS,
   RADAR_AREA_IDS,
   type AffinityArea,
+  type AffinityAreaExplanation,
   type AffinityAreaScore,
   type AffinityKeywordContribution,
   type AffinityVectorResponse,
@@ -53,13 +54,46 @@ function toWeighting(value: unknown, keywords: readonly KeywordContribution[]): 
   return Math.max(...keywords.map(({ weight }) => weight));
 }
 
+function toExplanation(
+  explanation: unknown,
+): AffinityAreaExplanation | null | undefined {
+  if (explanation === undefined) {
+    return undefined;
+  }
+  if (!explanation || typeof explanation !== 'object') {
+    return null;
+  }
+
+  const candidate = explanation as Partial<AffinityAreaExplanation>;
+  if (
+    candidate.cause !== 'profile' &&
+    candidate.cause !== 'algorithm' &&
+    candidate.cause !== 'dictionary'
+  ) {
+    return null;
+  }
+
+  const rawChanges = Array.isArray(candidate.changes) ? candidate.changes : [];
+  const changes = rawChanges.map((change) => ({
+    keyword: String(change.keyword ?? ''),
+    previousPoints: Number(change.previousPoints ?? 0),
+    currentPoints: Number(change.currentPoints ?? 0),
+    deltaPercentagePoints: roundPercentage(Number(change.deltaPercentagePoints ?? 0)),
+  }));
+
+  return {
+    cause: candidate.cause,
+    changes,
+  };
+}
+
 function buildArea(
   area: AffinityArea,
   vectorArea: RadarAreaVector | undefined,
 ): AffinityAreaScore {
   const topKeywords = normalizeTopKeywords(vectorArea?.topKeywords);
 
-  return {
+  const areaScore: AffinityAreaScore = {
     area,
     affinity: toPercentage(vectorArea?.affinity),
     previousAffinity: toPreviousPercentage(vectorArea?.previousAffinity),
@@ -74,6 +108,13 @@ function buildArea(
       }),
     ),
   };
+
+  const explanation = toExplanation(vectorArea?.explanation);
+  if (explanation !== undefined) {
+    areaScore.explanation = explanation;
+  }
+
+  return areaScore;
 }
 
 /**
@@ -94,6 +135,9 @@ export function presentAffinityVector(
     calculatedAt: vector.calculatedAt.toISOString(),
     status: vector.status,
     algorithmVersion: vector.algorithmVersion,
+    ...(vector.dictionaryVersion !== undefined
+      ? { dictionaryVersion: vector.dictionaryVersion }
+      : {}),
     hasPendingChanges: vector.hasPendingChanges,
     processingMs:
       Number.isFinite(vector.processingMs) && vector.processingMs > 0

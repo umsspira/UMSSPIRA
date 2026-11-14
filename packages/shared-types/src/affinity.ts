@@ -33,6 +33,30 @@ export interface AffinityKeywordContribution {
   percentage: number;
 }
 
+/**
+ * Causa identificada del cambio en el porcentaje de afinidad (HU-13).
+ */
+export type AffinityChangeCause = 'profile' | 'algorithm' | 'dictionary';
+
+/**
+ * Diferencia de aporte de una palabra clave entre el cálculo anterior y el actual (HU-13).
+ * `deltaPercentagePoints` expresa la variación en puntos porcentuales (puntos * 100 / 40).
+ */
+export interface AffinityKeywordChange {
+  keyword: string;
+  previousPoints: number;
+  currentPoints: number;
+  deltaPercentagePoints: number;
+}
+
+/**
+ * Explicación integrada de los cambios producidos en un área del radar (HU-13).
+ */
+export interface AffinityAreaExplanation {
+  cause: AffinityChangeCause;
+  changes: AffinityKeywordChange[];
+}
+
 export interface AffinityAreaScore {
   area: AffinityArea;
   // Porcentaje de afinidad de 0 a 100 (la BD guarda NUMERIC(5,2)).
@@ -46,6 +70,9 @@ export interface AffinityAreaScore {
   // Maximo cinco keywords con aporte positivo, ordenadas de mayor a menor aporte.
   // Opcional en el tipo compartido por compatibilidad con el frontend anterior a T4.2.
   topKeywords?: AffinityKeywordContribution[];
+  // Explicación de los cambios respecto al cálculo anterior (HU-13).
+  // Opcional por compatibilidad; null cuando es primer cálculo o no hay variación.
+  explanation?: AffinityAreaExplanation | null;
 }
 
 export interface AffinityVectorResponse {
@@ -57,6 +84,7 @@ export interface AffinityVectorResponse {
   // "empty" cuando el calculo no reconocio ninguna palabra clave.
   status?: "ok" | "empty";
   algorithmVersion?: string;
+  dictionaryVersion?: string | null;
   hasPendingChanges?: boolean;
   // Solo lo devuelve POST /radar/recalculate.
   recalculated?: boolean;
