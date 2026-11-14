@@ -1,9 +1,8 @@
-import { authenticatedFetch } from '@/shared/services/auth-session';
+import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import type { AccreditationIndicators, SalaryRangeCount } from '../types/acreditacion.types';
 
 const SALARY_RANGES = ['0–2.999', '3.000–5.000', '5.001–8.000', '8.001–12.000', '12.001–21.000'];
 
-// El prefijo /api/v1 todavía lo está confirmando Tais.
 const ENDPOINT = '/api/v1/reports/accreditation';
 
 function toNumber(value: unknown): number {
@@ -44,6 +43,7 @@ export async function loadAccreditationIndicators(
   signal: AbortSignal,
 ): Promise<AccreditationIndicators> {
   const response = await authenticatedFetch(ENDPOINT, { cache: 'no-store', signal });
+  if (response.status === 401) throw new SessionError(401, 'Su sesión ha expirado');
   if (!response.ok) throw new Error('No se pudieron cargar los indicadores.');
   return mapAccreditationResponse(await response.json());
 }
