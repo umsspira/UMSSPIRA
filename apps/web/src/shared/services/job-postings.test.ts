@@ -35,6 +35,7 @@ it("lista las vacantes publicadas usando los datos que devuelve el API", async (
         descripcionTecnica: "Descripción real",
         fechaPublicacion: null,
         empresa: { razonSocial: "Empresa real", descripcion: null, logoUrl: null, bannerUrl: null },
+        porcentajeAfinidad: 82.5,
         requisitosTecnicos: [{
           areaId: "skill-area",
           nombre: "TypeScript",
@@ -49,6 +50,7 @@ it("lista las vacantes publicadas usando los datos que devuelve el API", async (
       id: "vacancy-1",
       title: "Desarrollador",
       company: { name: "Empresa real" },
+      affinityPercentage: 82.5,
       technicalRequirements: [{
         areaId: "skill-area",
         name: "TypeScript",
@@ -57,6 +59,40 @@ it("lista las vacantes publicadas usando los datos que devuelve el API", async (
     },
   ]);
   expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/job-postings");
+});
+
+it("preserves zero as a calculated score and null as an unavailable calculation", async () => {
+  fetchMock.mockResolvedValue(
+    response([
+      {
+        id: "vacancy-1",
+        titulo: "Evaluada",
+        modalidad: null,
+        nivelExperiencia: null,
+        descripcionTecnica: null,
+        fechaPublicacion: null,
+        empresa: null,
+        requisitosTecnicos: [],
+        porcentajeAfinidad: 0,
+      },
+      {
+        id: "vacancy-2",
+        titulo: "Sin cálculo",
+        modalidad: null,
+        nivelExperiencia: null,
+        descripcionTecnica: null,
+        fechaPublicacion: null,
+        empresa: null,
+        requisitosTecnicos: [],
+        porcentajeAfinidad: null,
+      },
+    ]),
+  );
+
+  await expect(listJobPostings()).resolves.toMatchObject([
+    { id: "vacancy-1", affinityPercentage: 0 },
+    { id: "vacancy-2", affinityPercentage: null },
+  ]);
 });
 
 it("obtiene el detalle por identificador y preserva una afinidad inexistente como null", async () => {
