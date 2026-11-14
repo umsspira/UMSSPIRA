@@ -124,9 +124,18 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
     }
   }
 
-  async listPublished(now: Date): Promise<PublishedJobPosting[]> {
+  async listPublished(
+    now: Date,
+    ids?: readonly string[],
+  ): Promise<PublishedJobPosting[]> {
+    if (ids?.length === 0) {
+      return [];
+    }
     const records = await this.prisma.vacante.findMany({
-      where: publishedWhere(now),
+      where: {
+        ...publishedWhere(now),
+        ...(ids === undefined ? {} : { id: { in: [...ids] } }),
+      },
       orderBy: [{ fecha_publicacion: 'desc' }, { created_at: 'desc' }],
       select: publishedJobPostingSelect,
     });

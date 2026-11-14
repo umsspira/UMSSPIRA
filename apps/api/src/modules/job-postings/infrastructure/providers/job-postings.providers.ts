@@ -1,4 +1,6 @@
 import type { Provider } from '@nestjs/common';
+import { JobPostingsSearchService } from '../../search/job-postings-search.service';
+import { JobPostingsSearchReader } from '../readers/job-postings-search.reader';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import {
   JOB_POSTING_REPOSITORY,
@@ -19,6 +21,7 @@ import { SaveTechnicalRequirementsUseCase } from '../../application/use-cases/sa
 import { PrismaTechnicalRequirementsRepository } from '../repositories/prisma-technical-requirements.repository';
 
 export const jobPostingsProviders: Provider[] = [
+  JobPostingsSearchService,
   PrismaJobPostingRepository,
   { provide: JOB_POSTING_REPOSITORY, useExisting: PrismaJobPostingRepository },
   PrismaTechnicalRequirementsRepository,
@@ -53,9 +56,16 @@ export const jobPostingsProviders: Provider[] = [
   },
   {
     provide: ListPublishedJobPostingsUseCase,
-    inject: [JOB_POSTING_REPOSITORY],
-    useFactory: (repository: JobPostingRepository) =>
-      new ListPublishedJobPostingsUseCase(repository),
+    inject: [JOB_POSTING_REPOSITORY, JobPostingsSearchService],
+    useFactory: (
+      repository: JobPostingRepository,
+      search: JobPostingsSearchService,
+    ) =>
+      new ListPublishedJobPostingsUseCase(
+        repository,
+        undefined,
+        new JobPostingsSearchReader(search),
+      ),
   },
   {
     provide: GetPublishedJobPostingUseCase,

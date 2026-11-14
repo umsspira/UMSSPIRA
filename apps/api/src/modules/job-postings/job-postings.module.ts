@@ -1,5 +1,6 @@
 
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
 import { VacantesModule } from '../vacantes/vacantes.module';
@@ -12,7 +13,7 @@ import { ListPublishedJobPostingsController } from './http/controllers/list-publ
 import { TechnicalRequirementsController } from './http/controllers/technical-requirements.controller';
 
 @Module({
-  imports: [PrismaModule, VacantesModule],
+  imports: [ConfigModule, PrismaModule, VacantesModule],
   controllers: [
     CreateJobPostingController,
     GetTechnicalRequirementsController,

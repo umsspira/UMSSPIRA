@@ -12,6 +12,42 @@ beforeEach(() => {
   listJobPostingsMock.mockReset();
 });
 
+it("busca, pagina incluso con huecos y vuelve al listado sin búsqueda", async () => {
+  listJobPostingsMock.mockResolvedValue([]);
+  render(<JobPostingsList isGraduate />);
+  await screen.findByText("No hay vacantes disponibles en este momento.");
+  fireEvent.change(screen.getByRole("searchbox", { name: "Buscar por título o empresa" }), {
+    target: { value: "  Backend  " },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Buscar", exact: true }));
+  await waitFor(() => expect(listJobPostingsMock).toHaveBeenLastCalledWith({ search: "Backend", page: 1 }));
+  await screen.findByText("No se encontraron vacantes en esta página.");
+  fireEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+  await waitFor(() => expect(listJobPostingsMock).toHaveBeenLastCalledWith({ search: "Backend", page: 2 }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Anterior" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "Anterior" }));
+  await waitFor(() => expect(listJobPostingsMock).toHaveBeenLastCalledWith({ search: "Backend", page: 1 }));
+  fireEvent.click(screen.getByRole("button", { name: "Limpiar búsqueda" }));
+  await waitFor(() => expect(listJobPostingsMock).toHaveBeenLastCalledWith());
+  expect(screen.queryByRole("navigation", { name: "Paginación de vacantes" })).not.toBeInTheDocument();
+});
+
+it("conserva el enlace al detalle y la afinidad del resultado de búsqueda", async () => {
+  listJobPostingsMock.mockResolvedValueOnce([]).mockResolvedValue([{
+    id: "10000000-0000-4000-8000-000000000001", title: "Backend oficial",
+    modality: null, experienceLevel: null, technicalDescription: null,
+    publishedAt: null, company: null, technicalRequirements: [], affinityPercentage: 100,
+  }]);
+  render(<JobPostingsList isGraduate />);
+  await screen.findByText("No hay vacantes disponibles en este momento.");
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Backend" } });
+  fireEvent.click(screen.getByRole("button", { name: "Buscar", exact: true }));
+  expect(await screen.findByRole("link", { name: "Ver detalle" })).toHaveAttribute(
+    "href", "/job-postings/10000000-0000-4000-8000-000000000001",
+  );
+  expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+});
+
 it("navega al detalle usando el identificador real de la vacante del API", async () => {
   listJobPostingsMock.mockResolvedValue([
     {

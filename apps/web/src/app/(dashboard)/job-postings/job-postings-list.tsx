@@ -13,12 +13,16 @@ type ListState =
 export function JobPostingsList({ isGraduate }: { isGraduate: boolean }) {
   const [state, setState] = useState<ListState>({ kind: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const [term, setTerm] = useState("");
+  const [query, setQuery] = useState({ search: "", page: 1 });
+  const { search, page } = query;
 
   useEffect(() => {
     let active = true;
     setState({ kind: "loading" });
 
-    listJobPostings()
+    const request = search ? listJobPostings({ search, page }) : listJobPostings();
+    request
       .then((postings) => {
         if (active) setState({ kind: "loaded", postings });
       })
@@ -32,7 +36,7 @@ export function JobPostingsList({ isGraduate }: { isGraduate: boolean }) {
     return () => {
       active = false;
     };
-  }, [attempt]);
+  }, [attempt, search, page]);
 
   return (
     <main className="mx-auto min-h-[calc(100vh-7rem)] w-full max-w-7xl bg-[#f6f5f1] px-4 py-8 text-[#111a2e] sm:px-6 lg:px-8">
@@ -57,6 +61,46 @@ export function JobPostingsList({ isGraduate }: { isGraduate: boolean }) {
         </button>
       </header>
 
+      <form
+        role="search"
+        className="mb-6 flex flex-wrap items-end gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setQuery({ search: term.trim(), page: 1 });
+          setAttempt((value) => value + 1);
+        }}
+      >
+        <label className="flex min-w-64 flex-1 flex-col gap-2 text-sm font-semibold">
+          Buscar por título o empresa
+          <input
+            type="search"
+            value={term}
+            maxLength={200}
+            onChange={(event) => setTerm(event.target.value)}
+            className="rounded-lg border border-[#d9d2c5] bg-white px-3 py-2 font-normal"
+          />
+        </label>
+        <button
+          type="submit"
+          className="rounded-lg bg-[#f97316] px-4 py-2 font-semibold text-white"
+        >
+          Buscar
+        </button>
+        {query.search && (
+          <button
+            type="button"
+            onClick={() => {
+              setTerm("");
+              setQuery({ search: "", page: 1 });
+              setAttempt((value) => value + 1);
+            }}
+            className="rounded-lg border border-[#d9d2c5] bg-white px-4 py-2 font-semibold"
+          >
+            Limpiar búsqueda
+          </button>
+        )}
+      </form>
+
       {state.kind === "loading" && (
         <p role="status" className="rounded-xl border border-[#e2e8f0] bg-white p-8 text-center text-[#475569]">
           Cargando vacantes...
@@ -80,7 +124,9 @@ export function JobPostingsList({ isGraduate }: { isGraduate: boolean }) {
 
       {state.kind === "loaded" && state.postings.length === 0 && (
         <p className="rounded-xl border border-[#e2e8f0] bg-white p-8 text-center text-[#475569]">
-          No hay vacantes disponibles en este momento.
+          {query.search
+            ? "No se encontraron vacantes en esta página."
+            : "No hay vacantes disponibles en este momento."}
         </p>
       )}
 
@@ -161,6 +207,31 @@ export function JobPostingsList({ isGraduate }: { isGraduate: boolean }) {
         </ul>
       )}
 
+      {query.search && (
+        <nav
+          aria-label="Paginación de vacantes"
+          className="mt-6 flex items-center justify-center gap-4"
+        >
+          <button
+            type="button"
+            disabled={state.kind === "loading" || query.page === 1}
+            onClick={() => setQuery((value) => ({ ...value, page: value.page - 1 }))}
+            className="rounded-lg border border-[#d9d2c5] bg-white px-4 py-2 disabled:opacity-50"
+          >
+            Anterior
+          </button>
+          <span>Página {query.page}</span>
+          {/* Una página corta o vacía tras validar Prisma no demuestra el fin de los candidatos. */}
+          <button
+            type="button"
+            disabled={state.kind !== "loaded" || query.page >= 1000}
+            onClick={() => setQuery((value) => ({ ...value, page: value.page + 1 }))}
+            className="rounded-lg border border-[#d9d2c5] bg-white px-4 py-2 disabled:opacity-50"
+          >
+            Siguiente
+          </button>
+        </nav>
+      )}
     </main>
   );
 }

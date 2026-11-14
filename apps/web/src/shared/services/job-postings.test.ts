@@ -24,6 +24,21 @@ afterEach(() => {
   clearAccessToken();
 });
 
+it("envía texto y paginación codificados sin cambiar la respuesta del listado", async () => {
+  fetchMock.mockResolvedValue(response([]));
+  await expect(listJobPostings({ search: "  Backend & Empresa  ", page: 2, limit: 5 }))
+    .resolves.toEqual([]);
+  expect(fetchMock.mock.calls[0][0]).toBe(
+    "/api/v1/job-postings?search=Backend+%26+Empresa&page=2&limit=5",
+  );
+});
+
+it("mantiene la ruta original sin búsqueda aunque se reciban opciones de paginación", async () => {
+  fetchMock.mockResolvedValue(response([]));
+  await listJobPostings({ search: "   ", page: 2 });
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/job-postings");
+});
+
 it("lista las vacantes publicadas usando los datos que devuelve el API", async () => {
   fetchMock.mockResolvedValue(
     response([

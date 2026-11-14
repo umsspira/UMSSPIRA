@@ -80,8 +80,24 @@ function adaptJobPosting(posting: ApiJobPosting): JobPosting {
   };
 }
 
-export async function listJobPostings(): Promise<JobPosting[]> {
-  const postings = await apiFetch<ApiJobPosting[]>("/api/v1/job-postings");
+export interface JobPostingsListOptions {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function listJobPostings(
+  options: JobPostingsListOptions = {},
+): Promise<JobPosting[]> {
+  const search = options.search?.trim();
+  const query = new URLSearchParams();
+  if (search) {
+    query.set("search", search);
+    query.set("page", String(options.page ?? 1));
+    query.set("limit", String(options.limit ?? 10));
+  }
+  const suffix = search ? `?${query.toString()}` : "";
+  const postings = await apiFetch<ApiJobPosting[]>(`/api/v1/job-postings${suffix}`);
   return postings.map(adaptJobPosting);
 }
 
