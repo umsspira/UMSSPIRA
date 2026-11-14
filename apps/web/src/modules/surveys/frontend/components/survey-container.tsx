@@ -6,7 +6,7 @@ import { useSurveyDraft } from '../hooks/use-survey-draft';
 import { isMeaningfulText, useSurveyForm, type SurveyFormValues, type SurveyWorkFields } from '../hooks/use-survey-form';
 import { useSurveySubmit } from '../hooks/use-survey-submit';
 import { useSurveyUserId } from '../hooks/use-survey-user-id';
-import { getMySurveyResponse, getSurveySubmissionStatus, type SurveyPersistedAnswer } from '../services/surveys.service';
+import { getMySurveyResponse, getSurveyStatusInfo, type SurveyPersistedAnswer } from '../services/surveys.service';
 import { SurveyDraftNotice } from './survey-draft-notice';
 import { Button } from '@/shared/components/button';
 import { SurveyJobInputs } from './survey-job-inputs';
@@ -35,7 +35,7 @@ export function SurveyContainer() {
   const [showDiscardNotice, setShowDiscardNotice] = useState(false);
   // HU-002: «Este campo es obligatorio» se muestra recién cuando el titulado intenta continuar.
   const [showErrors, setShowErrors] = useState(false);
-  const [submissionCheck, setSubmissionCheck] = useState<'checking' | 'available' | 'submitted' | 'error'>('checking');
+  const [submissionCheck, setSubmissionCheck] = useState<'checking' | 'available' | 'submitted' | 'no_survey' | 'error'>('checking');
   const [statusCheckAttempt, setStatusCheckAttempt] = useState(0);
   const [recordedResponse, setRecordedResponse] = useState<SurveyPersistedAnswer | null>(null);
   const router = useRouter();
@@ -47,9 +47,15 @@ export function SurveyContainer() {
   useEffect(() => {
     let active = true;
     setSubmissionCheck('checking');
-    getSurveySubmissionStatus().then(async (submitted) => {
+
+    // Una sola consulta a /status (T5.2): si falla, se muestra el error de verificación.
+    getSurveyStatusInfo().then(async (statusResult) => {
       if (!active) return;
-      if (!submitted) {
+      if (!statusResult.hasActiveSurvey) {
+        setSubmissionCheck('no_survey');
+        return;
+      }
+      if (!statusResult.submitted) {
         setSubmissionCheck('available');
         return;
       }
@@ -68,6 +74,13 @@ export function SurveyContainer() {
       active = false;
     };
   }, [statusCheckAttempt]);
+
+  // Borrar el borrador cuando la encuesta ya fue enviada o finalizada con éxito
+  useEffect(() => {
+    if (submissionCheck === 'submitted' || submission.status === 'success') {
+      clearDraft();
+    }
+  }, [submissionCheck, submission.status, clearDraft]);
 
   // Tras cerrar la confirmación, el mensaje de éxito recibe foco y queda visible.
   useEffect(() => {
@@ -265,6 +278,24 @@ export function SurveyContainer() {
           <p>No se pudo verificar si la encuesta ya fue enviada. Por seguridad, el formulario está bloqueado.</p>
           <Button type="button" variant="secondary" onClick={() => setStatusCheckAttempt((attempt) => attempt + 1)}>
             Reintentar verificación
+          </Button>
+        </div>
+      )}
+      {submissionCheck === 'no_survey' && (
+        <div
+          role="status"
+          className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#E6D7BF] bg-[#FEF1E0] p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-base font-medium text-abyssal-blue">
+            No hay una encuesta disponible por el momento
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            className="rounded-xl border border-[#D1C6B4] bg-[#E5DECF] font-semibold text-abyssal-blue hover:bg-[#DACFBE]"
+            onClick={() => router.push('/portal')}
+          >
+            Volver al inicio
           </Button>
         </div>
       )}

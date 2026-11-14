@@ -81,4 +81,35 @@ describe('PrismaReportRepository.competencyHeatmap', () => {
     });
     expect(result.areas).toHaveLength(6);
   });
+
+  it('con una cohorte elegida el mapa queda con una sola fila (HU-003 CA-03)', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new PrismaReportRepository({ calculoRadar: { findMany } } as never);
+
+    await repository.competencyHeatmap(['career-1'], { cohort: 2021, semester: '1/2026' });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { titulado: { id_carrera: { in: ['career-1'] }, anio_egreso: 2021 } },
+      }),
+    );
+  });
+
+  it('ignora el filtro de semestre para el mapa de calor (CA-05)', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new PrismaReportRepository({ calculoRadar: { findMany } } as never);
+
+    await repository.competencyHeatmap(['career-1'], { semester: '2/2026' });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          titulado: {
+            id_carrera: { in: ['career-1'] },
+            anio_egreso: { not: null },
+          },
+        },
+      }),
+    );
+  });
 });

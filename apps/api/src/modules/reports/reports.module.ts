@@ -10,6 +10,7 @@ import { ExportReportCsvController } from './http/controllers/export-report-csv.
 import { ExportReportPdfController } from './http/controllers/export-report-pdf.controller';
 import { GetCompetencyHeatmapController } from './http/controllers/get-competency-heatmap.controller';
 import { GetAccreditationDashboardController } from './http/controllers/get-accreditation-dashboard.controller';
+import { ExportAccreditationPdfController } from './http/controllers/export-accreditation-pdf.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -21,6 +22,7 @@ import { GetAccreditationDashboardController } from './http/controllers/get-accr
     ExportReportPdfController,
     GetCompetencyHeatmapController,
     GetAccreditationDashboardController,
+    ExportAccreditationPdfController,
   ],
   providers: [...reportsProviders, ReportExportGuard],
 })

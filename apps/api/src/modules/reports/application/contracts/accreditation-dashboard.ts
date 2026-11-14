@@ -24,4 +24,6 @@ export interface AccreditationDashboard {
   averageInsertionMonths: number | null;
   salaryRanges: Record<AccreditationSalaryRange, number>;
   employabilityByCohort: AccreditationCohort[];
+  availableCohorts?: number[];
+  availableSemesters?: string[];
 }
