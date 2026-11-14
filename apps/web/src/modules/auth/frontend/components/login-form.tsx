@@ -75,20 +75,22 @@ function fieldState(hasError: boolean) {
   return hasError ? "border-truffle-trouble ring-2 ring-truffle-trouble" : "border-oatmeal";
 }
 
-export function LoginForm() {
+export function LoginForm({ reportsReason }: { reportsReason?: string } = {}) {
   const { signIn, isLoading, error } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [reportsAccessNotice, setReportsAccessNotice] = useState<string | null>(null);
+  const [reportsAccessNotice, setReportsAccessNotice] = useState<string | null>(
+    reportsReason ? REPORTS_ACCESS_NOTICES[reportsReason] ?? null : null,
+  );
 
   useEffect(() => {
     // El motivo lo añade el middleware (o la alerta de sesión caducada) al salir de /reports.
-    const reason = new URLSearchParams(window.location.search).get('reportes');
+    const reason = reportsReason ?? new URLSearchParams(window.location.search).get('reportes');
     setReportsAccessNotice(reason ? REPORTS_ACCESS_NOTICES[reason] ?? null : null);
-  }, []);
+  }, [reportsReason]);
 
   function validate(): FieldErrors {
     const errors: FieldErrors = {};
@@ -109,9 +111,17 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {reportsAccessNotice && (
-        <p role="alert" className="rounded-lg border border-truffle-trouble bg-white px-3 py-2 text-sm text-abyssal-blue">
-          {reportsAccessNotice}
-        </p>
+        <div role="alert" className="flex items-start gap-3 rounded-[9px] border border-[#c9c1b1] bg-[#fff1ed] px-3.5 py-3 text-sm">
+          <span aria-hidden="true" className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#a35139] text-[15px] font-bold text-[#a35139]">!</span>
+          <div className="min-w-0">
+            <p className="font-semibold text-[#a35139]">{reportsAccessNotice}</p>
+            <p className="mt-1 text-xs leading-relaxed text-[#444]">
+              {reportsAccessNotice === REPORTS_ACCESS_NOTICES['requiere-sesion']
+                ? 'Se ha bloqueado el acceso a /reports y se redirige a /login.'
+                : 'Por seguridad, la sesión debe restablecerse para acceder a /reports.'}
+            </p>
+          </div>
+        </div>
       )}
       {/* Campo de correo electrónico */}
       <div className="space-y-2">

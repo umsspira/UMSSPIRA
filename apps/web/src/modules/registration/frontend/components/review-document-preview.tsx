@@ -1,11 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRegistrationStore } from '../store';
 import { readApiError } from '@/shared/services/api-contract';
 import { FileText, ImageIcon } from 'lucide-react';
 import type { RegistrationDocument } from '../store';
 import { formatFileSize } from '@/modules/documents/frontend/validation/document-file';
+
+const InstitutionalPdfPreview = dynamic(
+  () => import('./institutional-pdf-preview').then((module) => module.InstitutionalPdfPreview),
+  { ssr: false },
+);
 
 export interface ReviewDocumentPreviewProps {
   document: RegistrationDocument;
@@ -63,24 +69,7 @@ export function ReviewDocumentPreview({ document }: ReviewDocumentPreviewProps) 
 
       <div className="flex min-h-[280px] items-center justify-center bg-palladian/30 p-4">
         {previewUrl && previewKind === 'pdf' && (
-          <object
-            data={previewUrl}
-            type="application/pdf"
-            aria-label={`Vista previa de ${document.originalName}`}
-            className="h-[520px] w-full rounded-md bg-white"
-          >
-            <p className="p-4 text-center text-sm text-abyssal-blue">
-              Tu navegador no puede mostrar el PDF aquí.{' '}
-              <a
-                href={previewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-truffle-trouble underline"
-              >
-                Abrir vista previa
-              </a>
-            </p>
-          </object>
+          <InstitutionalPdfPreview url={previewUrl} fileName={document.originalName} />
         )}
 
         {previewUrl && previewKind === 'image' && (

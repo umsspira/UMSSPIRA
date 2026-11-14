@@ -70,6 +70,14 @@ export function presentProfileRecord(record: ProfileRecord) {
           fechaSubida: record.backup?.uploadedAt?.toISOString() ?? null,
         },
       };
+    case 'project':
+      return {
+        ...common,
+        nombre: record.name,
+        enlace: record.url,
+        descripcion: record.description,
+        tecnologias: record.technologies,
+      };
   }
 }
 
@@ -88,6 +96,7 @@ export function presentProfile(profile: ProfileSnapshot) {
     formacionAcademica: section(profile.education),
     experienciaLaboral: section(profile.experience),
     certificaciones: section(profile.certifications),
+    proyectos: section(profile.projects),
     // El resumen y el indicador de completitud del perfil la leen junto con las 3 secciones
     descripcionProfesional: profile.description.text,
   };

@@ -1,8 +1,10 @@
-﻿
+
 /// <reference types="jest" />
 
 import snapshotsMock from '../mocks/affinity-snapshots-mock.json';
+import { buildAffinityVectorResponse } from './affinity-vector-test-builder';
 
+// Se mockea fetch para aislar estas pruebas de la red y de la base de datos.
 const originalFetch = global.fetch;
 
 const AREAS_ORDER = [
@@ -58,11 +60,11 @@ describe('getAffinityVector', () => {
     process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
     await setTestAccessToken();
 
-    const payload = {
+    const payload = buildAffinityVectorResponse({
       graduateId: 'id-1',
       calculatedAt: '2026-09-28T12:00:00.000Z',
       areas: [],
-    };
+    });
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -86,17 +88,21 @@ describe('getAffinityVector', () => {
     delete process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK;
     await setTestAccessToken();
 
-    const payload = {
+    const topKeywords = [
+      { keyword: 'typescript', weight: 5, frequency: 2, points: 10, percentage: 25 },
+    ];
+    const payload = buildAffinityVectorResponse({
       graduateId: 'id-1',
       calculatedAt: '2026-09-28T12:00:00.000Z',
       hasPendingChanges: true,
-      areas: [{
-        area: 'software-development',
-        affinity: 85,
-        weighting: 5,
-        topKeywords: [{ keyword: 'typescript', weight: 5, frequency: 2, points: 10, percentage: 25 }],
-      }],
-    };
+      areaOverrides: {
+        'software-development': {
+          affinity: 85,
+          weighting: 5,
+          topKeywords,
+        },
+      },
+    });
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -289,19 +295,17 @@ describe('recalculateAffinity', () => {
     process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
     await setTestAccessToken();
 
-    const payload = {
+    const payload = buildAffinityVectorResponse({
       graduateId: 'id-1',
       calculatedAt: '2026-09-28T12:00:00.000Z',
       recalculated: false,
-      areas: [
-        {
-          area: 'software-development',
+      areaOverrides: {
+        'software-development': {
           affinity: 83,
           previousAffinity: 75,
-          topKeywords: ['React', 'TypeScript'],
         },
-      ],
-    };
+      },
+    });
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -318,6 +322,34 @@ describe('recalculateAffinity', () => {
       affinity: 83,
       previousAffinity: 75,
     });
+  });
+
+  it.each([
+    { caso: 'primer cálculo', previousAffinity: null, affinity: 50 },
+    { caso: '49.6 anterior y 50.4 nuevo', previousAffinity: 49.6, affinity: 50.4 },
+    { caso: '49.4 anterior y 49.6 nuevo', previousAffinity: 49.4, affinity: 49.6 },
+  ])('conserva afinidad y referencia anterior: $caso', async ({ previousAffinity, affinity }) => {
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
+    await setTestAccessToken();
+
+    const payload = buildAffinityVectorResponse({
+      areaOverrides: {
+        'software-development': { affinity, previousAffinity },
+      },
+    });
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: payload }),
+    });
+
+    const { recalculateAffinity } = await import('./affinity-service');
+    const result = await recalculateAffinity();
+
+    expect(
+      result.areas.find((area) => area.area === 'software-development'),
+    ).toMatchObject({ affinity, previousAffinity });
   });
 
   it('aborta a los 7000 ms y lanza el mensaje exacto del criterio', async () => {
@@ -480,5 +512,28 @@ describe('convivencia con la Ã©pica', () => {
     expect(typeof service.getAffinityConfig).toBe('function');
     expect(typeof service.saveAffinityConfig).toBe('function');
     expect(typeof service.recalculateAffinity).toBe('function');
+  });
+});
+
+describe('getAreaCertifications', () => {
+  beforeEach(async () => {
+    jest.resetModules();
+    await setTestAccessToken();
+  });
+  afterEach(async () => {
+    await resetTestSession();
+    global.fetch = originalFetch;
+  });
+  it('consulta el endpoint de certificaciones y conserva una lista vacía válida', async () => {
+    const payload = { area: 'cloud-devops', source: 'current-profile', certifications: [] };
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: payload }) });
+    const { getAreaCertifications } = await import('./affinity-service');
+    await expect(getAreaCertifications('cloud-devops')).resolves.toEqual(payload);
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/v1/radar/certifications/cloud-devops'), expect.any(Object));
+  });
+  it('rechaza una respuesta de otra área en vez de mostrarla como vacía', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: { area: 'data-ai', source: 'current-profile', certifications: [] } }) });
+    const { getAreaCertifications } = await import('./affinity-service');
+    await expect(getAreaCertifications('cloud-devops')).rejects.toThrow('Respuesta de certificaciones no válida');
   });
 });

@@ -94,6 +94,17 @@ export const PROFILE_RECORDS_MOCK: ProfileRecords = {
       issueYear: '2023',
     },
   ],
+  project: [
+    {
+      id: 'project-1',
+      ownerId: CURRENT_GRADUATE_ID,
+      name: 'Portafolio web',
+      url: 'https://portafolio.example.com',
+      description: 'Sitio personal con mis trabajos',
+      technologies: 'Next.js, Tailwind',
+      createdAt: '2026-11-10T12:00:00.000Z',
+    },
+  ],
 };
 
 export const profileTimeline: TimelineSection[] = recordsToTimeline(PROFILE_RECORDS_MOCK);

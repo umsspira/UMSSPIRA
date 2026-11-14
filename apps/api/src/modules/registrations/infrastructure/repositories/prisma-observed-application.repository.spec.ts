@@ -89,6 +89,7 @@ describe('PrismaObservedApplicationRepository', () => {
       },
       archivoRegistro: {
         findFirst: jest.fn().mockResolvedValue(overrides.storedFile ?? mockFile),
+        findUnique: jest.fn().mockResolvedValue(overrides.storedFile ?? mockFile),
       },
     };
 
@@ -98,6 +99,103 @@ describe('PrismaObservedApplicationRepository', () => {
       repository: new PrismaObservedApplicationRepository(prisma as unknown as PrismaService),
     };
   }
+
+  describe('getDocumentContent', () => {
+    const observedApplication = {
+      id: applicationId,
+      estado: 'OBSERVED',
+      documento_respaldo: mockDocument,
+    };
+
+    it('devuelve el archivo vigente del documento de respaldo', async () => {
+      const storedFile = {
+        ...mockFile,
+        id_borrador: 'draft-1',
+        contenido: new Uint8Array([37, 80, 68, 70, 45]),
+      };
+      const { repository, prisma } = createRepo({
+        application: observedApplication,
+        storedFile,
+      });
+
+      const result = await repository.getDocumentContent(applicationId);
+
+      expect(prisma.archivoRegistro.findUnique).toHaveBeenCalledWith({
+        where: { id: 'file-123' },
+      });
+      expect(result.name).toBe('diploma.pdf');
+      expect(result.mime).toBe('application/pdf');
+      expect(result.size).toBe(2097152);
+      expect(Array.from(result.bytes)).toEqual([37, 80, 68, 70, 45]);
+    });
+
+    it('acepta la solicitud en estado OBSERVADA', async () => {
+      const { repository } = createRepo({
+        application: { ...observedApplication, estado: 'OBSERVADA' },
+      });
+
+      const result = await repository.getDocumentContent(applicationId);
+
+      expect(result.id).toBe('file-123');
+    });
+
+    it('lanza 404 generico si la solicitud no existe', async () => {
+      const { repository, prisma } = createRepo({ application: null });
+
+      await expect(repository.getDocumentContent(applicationId)).rejects.toMatchObject({
+        code: 'APPLICATION_NOT_FOUND',
+        reason: 'missing',
+      });
+      expect(prisma.archivoRegistro.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('lanza 404 generico si la solicitud ya no esta observada', async () => {
+      const { repository, prisma } = createRepo({
+        application: { ...observedApplication, estado: 'PENDIENTE' },
+      });
+
+      await expect(repository.getDocumentContent(applicationId)).rejects.toMatchObject({
+        code: 'APPLICATION_NOT_FOUND',
+        reason: 'missing',
+      });
+      expect(prisma.archivoRegistro.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('lanza DOCUMENT_NOT_FOUND si la solicitud no tiene documento de respaldo', async () => {
+      const { repository } = createRepo({
+        application: { ...observedApplication, documento_respaldo: null },
+      });
+
+      await expect(repository.getDocumentContent(applicationId)).rejects.toMatchObject({
+        code: 'DOCUMENT_NOT_FOUND',
+        reason: 'missing',
+      });
+    });
+
+    it('lanza DOCUMENT_NOT_FOUND si el documento no tiene ruta de almacenamiento', async () => {
+      const { repository } = createRepo({
+        application: {
+          ...observedApplication,
+          documento_respaldo: { ...mockDocument, ruta_storage: null },
+        },
+      });
+
+      await expect(repository.getDocumentContent(applicationId)).rejects.toMatchObject({
+        code: 'DOCUMENT_NOT_FOUND',
+        reason: 'missing',
+      });
+    });
+
+    it('lanza DOCUMENT_NOT_FOUND si el archivo no existe en la base de datos', async () => {
+      const { repository, prisma } = createRepo({ application: observedApplication });
+      prisma.archivoRegistro.findUnique.mockResolvedValueOnce(null);
+
+      await expect(repository.getDocumentContent(applicationId)).rejects.toMatchObject({
+        code: 'DOCUMENT_NOT_FOUND',
+        reason: 'missing',
+      });
+    });
+  });
 
   describe('getObservedApplication', () => {
     it('retorna el detalle de la solicitud observada con version y observacion', async () => {

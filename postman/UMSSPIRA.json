@@ -54,6 +54,9 @@
                   "    pm.expect(item.term.length).to.be.above(0);",
                   "    pm.expect(item.count).to.be.a(\"number\");",
                   "    pm.expect(item.count).to.be.above(0);",
+                  "    pm.expect(item).to.not.have.property(\"areas\");",
+                  "    pm.expect(item).to.not.have.property(\"weight\");",
+                  "    pm.expect(item).to.not.have.property(\"weights\");",
                   "  }",
                   "});",
                   "pm.test(\"Resuelve variantes de Node.js\", () => {",
@@ -97,7 +100,7 @@
                 "type": "string"
               }
             },
-            "description": "Usa el accessToken de un titulado o administrador. Normaliza alias, símbolos y la misma mención; deja las palabras desconocidas en unmapped.\n\nPermiso: nlp:extract.",
+            "description": "Usa el accessToken de un titulado o administrador. Normaliza alias, símbolos y la misma mención; deja las palabras desconocidas en unmapped.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -334,6 +337,9 @@
                   "    pm.expect(item.term.length).to.be.above(0);",
                   "    pm.expect(item.count).to.be.a(\"number\");",
                   "    pm.expect(item.count).to.be.above(0);",
+                  "    pm.expect(item).to.not.have.property(\"areas\");",
+                  "    pm.expect(item).to.not.have.property(\"weight\");",
+                  "    pm.expect(item).to.not.have.property(\"weights\");",
                   "  }",
                   "});"
                 ],
@@ -666,7 +672,7 @@
                 "type": "string"
               }
             },
-            "description": "Usa el accessToken de un titulado con perfil cargado (ej. titulado@umss.edu.bo).\nDevuelve { data: AffinityVectorResponse } con 6 areas. La primera llamada de un titulado calcula el radar (lazy GET).\nGuarda graduateId en radarGraduateId para el caso 005.\n\nPermiso: radar:self:read.\nCA-HU7-01: estado ok y esquema del vector.",
+            "description": "Usa el accessToken de un titulado con perfil cargado (ej. titulado@umss.edu.bo).\nDevuelve { data: AffinityVectorResponse } con 6 areas. La primera llamada de un titulado calcula el radar (lazy GET).\nGuarda graduateId en radarGraduateId para el caso 005.\n\nPermiso: radar:self:read.\nCA-HU7-01: estado ok y esquema del vector.\nCA-HU10-04, CA-HU10-05 (T10.7): contrato de GET /api/v1/radar verificado tras desacoplar NLP.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar",
               "protocol": "",
@@ -948,7 +954,7 @@
                 "type": "string"
               }
             },
-            "description": "Usa el accessToken de un titulado. Recalcula con los textos actuales del perfil.\nSi el perfil no cambio desde el ultimo calculo, devuelve el calculo existente (recalculated = false).\nGuarda calculatedAt en radarCalculatedAt para el caso 007.\n\nPermiso: radar:self:write.\nCA-HU7-12: recalcular y esquema del vector.",
+            "description": "Usa el accessToken de un titulado. Recalcula con los textos actuales del perfil.\nSi el perfil no cambio desde el ultimo calculo, devuelve el calculo existente (recalculated = false).\nGuarda calculatedAt en radarCalculatedAt para el caso 007.\n\nPermiso: radar:self:write.\nCA-HU7-12: recalcular y esquema del vector.\nCA-HU10-04, CA-HU10-05 (T10.7): contrato de POST /api/v1/radar/recalculate verificado tras desacoplar NLP.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar/recalculate",
               "protocol": "",
@@ -3923,7 +3929,7 @@
                 "type": "string"
               }
             },
-            "description": "Extrae keywords del texto del perfil. Requiere JWT con permiso nlp:extract.\n\nEspera 200 con { keywords: [{term, count}], unmapped: [{term, count}] }.\n\nPermiso: nlp:extract.",
+            "description": "Extrae keywords del texto del perfil. Requiere JWT con permiso nlp:extract.\n\nEspera 200 con { keywords: [{term, count}], unmapped: [{term, count}] }.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4116,7 +4122,7 @@
                 "type": "string"
               }
             },
-            "description": "Texto de 5 001 caracteres. Debe responder 400 Bad Request con mensaje de validación.\n\nCA-6: texto > 5 000 caracteres → 400.\n\nPermiso: nlp:extract.",
+            "description": "Texto de 5 001 caracteres. Debe responder 400 Bad Request con mensaje de validación.\n\nCA-6: texto > 5 000 caracteres → 400.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4192,7 +4198,7 @@
                 "type": "string"
               }
             },
-            "description": "Texto vacío o ausente. Debe responder 400 Bad Request.\n\nCA-6: texto faltante o vacío → 400.\n\nPermiso: nlp:extract.",
+            "description": "Texto vacío o ausente. Debe responder 400 Bad Request.\n\nCA-6: texto faltante o vacío → 400.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4252,7 +4258,7 @@
                 "type": "string"
               }
             },
-            "description": "Texto sin palabras que coincidan con el diccionario. keywords debe ser [] y unmapped puede tener candidatos.\n\nCA-7: perfil sin keywords mapeadas → keywords es lista vacía.\n\nPermiso: nlp:extract.",
+            "description": "Texto sin palabras que coincidan con el diccionario. keywords debe ser [] y unmapped puede tener candidatos.\n\nCA-7: perfil sin keywords mapeadas → keywords es lista vacía.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4330,7 +4336,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Texto compuesto solo por espacios.\n\nCA-HU5-10: texto vacio o solo espacios -> HTTP 200 con listas vacias.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Texto compuesto solo por espacios.\n\nCA-HU5-10: texto vacio o solo espacios -> HTTP 200 con listas vacias.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4390,7 +4396,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Normalizacion de mayusculas, minusculas y tildes.\n\nCA-HU5-02: variantes -> termino canonico unificado con count sumado.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Normalizacion de mayusculas, minusculas y tildes.\n\nCA-HU5-02: variantes -> termino canonico unificado con count sumado.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4451,7 +4457,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Tratamiento de simbolos tecnicos.\n\nCA-HU5-03: + y # finales se conservan; punto interno en node.js se conserva.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Tratamiento de simbolos tecnicos.\n\nCA-HU5-03: + y # finales se conservan; punto interno en node.js se conserva.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4512,7 +4518,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Alias cortos ml->machine learning, js->javascript y termino compuesto 'gobierno de ti'.\n\nCA-HU5-05: terminos compuestos con alias cortos y stopwords internas.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Alias cortos ml->machine learning, js->javascript y termino compuesto 'gobierno de ti'.\n\nCA-HU5-05: terminos compuestos con alias cortos y stopwords internas.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4571,7 +4577,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Los n-gramas no cruzan el limite de segmento (salto de linea).\n\nCA-HU5-11: 'gobierno de\\nti' no debe reconocerse como 'gobierno de ti'.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Los n-gramas no cruzan el limite de segmento (salto de linea).\n\nCA-HU5-11: 'gobierno de\\nti' no debe reconocerse como 'gobierno de ti'.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4630,7 +4636,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - text con tipo numerico -> 400.\n\nCA-HU5-19: el endpoint acepta UNICAMENTE text de tipo texto.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - text con tipo numerico -> 400.\n\nCA-HU5-19: el endpoint acepta UNICAMENTE text de tipo texto.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4689,7 +4695,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Cuerpo sin el campo text -> 400.\n\nCA-HU5-19: campo text requerido.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Cuerpo sin el campo text -> 400.\n\nCA-HU5-19: campo text requerido.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4748,7 +4754,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Cuerpo con campos extra -> 400 (schema Zod estricto).\n\nCA-HU5-19: el endpoint acepta UNICAMENTE el campo text.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Cuerpo con campos extra -> 400 (schema Zod estricto).\n\nCA-HU5-19: el endpoint acepta UNICAMENTE el campo text.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4808,7 +4814,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Orden descendente por count y limite de 50 en unmapped.\n\nCA-HU5-08: keywords y unmapped ordenados de mayor a menor count; empate -> alfabetico; unmapped max 50.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Orden descendente por count y limite de 50 en unmapped.\n\nCA-HU5-08: keywords y unmapped ordenados de mayor a menor count; empate -> alfabetico; unmapped max 50.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",

@@ -209,6 +209,7 @@ describe('GraduateAffinityView', () => {
       NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS: 'true',
     };
     window.sessionStorage.clear();
+    (affinityService.getAreaCertifications as jest.Mock).mockReset().mockImplementation(async area => ({ area, source: 'current-profile', certifications: [] }));
     jest.clearAllMocks();
     mockGetAffinityVector.mockReset();
     mockGetAffinityConfig.mockReset();
@@ -342,6 +343,45 @@ describe('GraduateAffinityView', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('no presenta los ceros iniciales como dato final ni activa estados vacíos', async () => {
+    let resolveVector!: (value: ReturnType<typeof makeVector>) => void;
+    mockGetAffinityVector.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVector = resolve;
+      })
+    );
+
+    render(<GraduateAffinityView />);
+
+    expect(
+      screen.getByRole('status', {
+        name: 'Cargando tu radar de afinidad',
+      })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completar perfil')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Aún no podemos calcular tus áreas/)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Sin datos de historial laboral')
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveVector(makeVector(recalculatedAreas, { hasLaborHistory: undefined }));
+    });
+
+    expect(
+      await screen.findByText('Resumen de tu afinidad')
+    ).toBeInTheDocument();
+    expect(screen.getByText('85%')).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completar perfil')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Sin datos de historial laboral')
+    ).not.toBeInTheDocument();
+  });
+
   it('muestra las seis etiquetas visibles en el orden esperado', async () => {
     render(<GraduateAffinityView />);
 
@@ -374,12 +414,13 @@ describe('GraduateAffinityView', () => {
     expect(screen.getByText('71%')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Haz clic en un área para inspeccionar sus respaldos'
+        'Haz clic en un área para ver sus palabras clave'
       )
     ).toBeInTheDocument();
   });
 
-  it('al seleccionar Cloud muestra las evidencias del vector cargado', async () => {
+  it('al seleccionar Cloud consulta sus certificaciones relacionadas', async () => {
+    (affinityService.getAreaCertifications as jest.Mock).mockResolvedValueOnce({ area: 'cloud-devops', source: 'current-profile', certifications: [{ id: 'cloud-cert', title: 'AWS Certified Cloud Practitioner', issuer: 'Amazon', issuedYear: 2026, hasBackup: false, matchedKeywords: ['aws'] }] });
     render(<GraduateAffinityView />);
 
     await screen.findByText('Resumen de tu afinidad');
@@ -395,7 +436,7 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('AWS Certified Cloud Practitioner')
+      await screen.findByText('AWS Certified Cloud Practitioner')
     ).toBeInTheDocument();
 
     expect(
@@ -403,7 +444,8 @@ describe('GraduateAffinityView', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('al seleccionar Ciberseguridad muestra sus evidencias', async () => {
+  it('al seleccionar Ciberseguridad consulta sus certificaciones sin inventar proyectos', async () => {
+    (affinityService.getAreaCertifications as jest.Mock).mockResolvedValueOnce({ area: 'cybersecurity-networks', source: 'current-profile', certifications: [{ id: 'cyber-cert', title: 'Cisco Certified Network Associate (CCNA)', issuer: 'Cisco', issuedYear: 2026, hasBackup: false, matchedKeywords: ['redes'] }] });
     render(<GraduateAffinityView />);
 
     await screen.findByText('Resumen de tu afinidad');
@@ -419,12 +461,12 @@ describe('GraduateAffinityView', () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('Cisco Certified Network Associate (CCNA)')
+      await screen.findByText('Cisco Certified Network Associate (CCNA)')
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText('Configuración de Firewalls y Políticas SecOps')
-    ).toBeInTheDocument();
+      screen.queryByText('Configuración de Firewalls y Políticas SecOps')
+    ).not.toBeInTheDocument();
   });
 
   it('volver al resumen deselecciona el área', async () => {
@@ -570,7 +612,7 @@ describe('GraduateAffinityView', () => {
     render(<GraduateAffinityView />);
 
     expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
-    expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no podemos mostrar coincidencias/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Vector Calculado/i)).not.toBeInTheDocument();
@@ -628,6 +670,13 @@ describe('GraduateAffinityView', () => {
 
     const link = await screen.findByRole('link', { name: /Volver a mi perfil/i });
     expect(link).toHaveAttribute('href', '/profile');
+  });
+
+  it('«Volver a mi perfil» usa el mismo botón que las pantallas del perfil (HU-11)', async () => {
+    render(<GraduateAffinityView />);
+
+    const link = await screen.findByRole('link', { name: 'Volver a mi perfil' });
+    expect(link).toHaveClass('min-h-[44px]', 'text-[15px]');
   });
 
   it('dispara automáticamente el recálculo tras el debounce de 500 ms cuando hasPendingChanges es true', async () => {
@@ -798,7 +847,22 @@ describe('GraduateAffinityView', () => {
     expect(screen.queryByRole('button', { name: /Simular Actualización/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Simular Timeout/i)).not.toBeInTheDocument();
   });
+   it('muestra el aviso de demostración cuando el modo demostración está activo', async () => {
+    render(<GraduateAffinityView showDemoNotice />);
 
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.getByTestId('affinity-demo-notice')).toHaveTextContent(/Demostración/i);
+  });
+
+  it('no muestra el aviso de demostración cuando el modo demostración está apagado', async () => {
+    render(<GraduateAffinityView showDemoNotice={false} />);
+
+    await screen.findByText('Resumen de tu afinidad');
+
+    expect(screen.queryByTestId('affinity-demo-notice')).not.toBeInTheDocument();
+  });
+  
   it('muestra el estado vacío cuando el vector tiene áreas pero todas con afinidad cero y sin evidencias', async () => {
     const zeroAreas = recalculatedAreas.map((area) => ({
       ...area,
@@ -812,9 +876,9 @@ describe('GraduateAffinityView', () => {
     render(<GraduateAffinityView />);
 
     expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
-    expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no podemos mostrar coincidencias/i)).toBeInTheDocument();
     expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Áreas con mayor afinidad identificadas:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Áreas con mayor coincidencia de palabras:/i)).not.toBeInTheDocument();
   });
 
   it('ordena el resumen de mayor a menor afinidad en las áreas identificadas', async () => {
@@ -863,7 +927,7 @@ describe('GraduateAffinityView', () => {
 
     await screen.findByText('Resumen de tu afinidad');
 
-    const topSection = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    const topSection = await screen.findByText(/Áreas con mayor coincidencia de palabras:/i);
     expect(topSection).toBeInTheDocument();
 
     const badges = screen.getAllByText(/^\d+\.\s+/);
@@ -936,7 +1000,7 @@ describe('GraduateAffinityView', () => {
 
     render(<GraduateAffinityView />);
 
-    const heading = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    const heading = await screen.findByText(/Áreas con mayor coincidencia de palabras:/i);
     const topSection = heading.closest('.bg-palladian') as HTMLElement;
 
     expect(

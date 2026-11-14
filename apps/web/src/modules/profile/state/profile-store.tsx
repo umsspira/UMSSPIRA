@@ -11,6 +11,7 @@ import type {
   ExperienceRecord,
   ProfileRecord,
   ProfileRecords,
+  ProjectRecord,
   RecordSection,
 } from '@/modules/profile/types/profile-record';
 
@@ -29,6 +30,8 @@ type ProfileStore = {
   addEducation: (record: NewRecord<EducationRecord>) => void;
   addExperience: (record: NewRecord<ExperienceRecord>) => void;
   addCertification: (record: NewRecord<CertificationRecord>) => void;
+  // HU-19: los proyectos se editan y eliminan con updateRecord y removeRecord (sección «project»)
+  addProject: (record: NewRecord<ProjectRecord>) => void;
   updateRecord: (section: RecordSection, record: ProfileRecord) => void;
   removeRecord: (section: RecordSection, recordId: string) => void;
   // Reemplaza la descripción con la que quedó guardada (HU-06)
@@ -145,6 +148,7 @@ useEffect(() => {
       addEducation: (record) => addRecord('education', record),
       addExperience: (record) => addRecord('experience', record),
       addCertification: (record) => addRecord('certification', record),
+      addProject: (record) => addRecord('project', record),
       updateRecord,
       removeRecord,
       setDescription,

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import type { UploadedFileData } from '../../../../shared/files/contracts/uploaded-file';
-import { safeFileName, validateImage } from '../../../../shared/files/policies/image-file.policy';
+import { safeFileName } from '../../../../shared/files/policies/image-file.policy';
+import { validateBackupFile } from '../../domain/policies/backup-file.policy';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { ProfileRepository } from '../ports/profile-repository.port';
 import { profileScope } from '../services/profile-scope';
@@ -15,10 +16,11 @@ export class UploadCertificationBackupUseCase {
       throw new BusinessRuleError(
         'invalid',
         'BACKUP_REQUIRED',
-        'Adjunta el respaldo JPG de la certificación',
+        'Adjunta el respaldo PDF o JPG de la certificación',
       );
     }
-    const mime = validateImage(file.originalname, file.buffer, true);
+    // HU-18: PDF o JPG de hasta 5 MB; si ya había respaldo, el repositorio lo reemplaza en el mismo registro
+    const mime = validateBackupFile(file.originalname, file.buffer);
     return this.repository.saveBackup(scope, id, {
       id: randomUUID(),
       name: safeFileName(file.originalname),

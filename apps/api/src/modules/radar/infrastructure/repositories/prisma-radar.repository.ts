@@ -123,28 +123,6 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
     return this.prisma.$transaction((transaction) => this.persist(transaction, params));
   }
 
-  async getAreaWeights(): Promise<Record<string, Array<{ term: string; peso: number }>>> {
-    const weights = await this.client.palabraClaveArea.findMany({
-      select: {
-        id_area: true,
-        peso: true,
-        palabra_clave: { select: { termino_normalizado: true } },
-      },
-    });
-    const result: Record<string, Array<{ term: string; peso: number }>> = {};
-
-    for (const weight of weights) {
-      const term = weight.palabra_clave.termino_normalizado;
-
-      if (!result[weight.id_area]) {
-        result[weight.id_area] = [];
-      }
-      result[weight.id_area].push({ term, peso: Number(weight.peso) });
-    }
-
-    return result;
-  }
-
   private async persist(
     transaction: Prisma.TransactionClient,
     params: {
@@ -186,25 +164,26 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
       },
     });
 
-    for (const keyword of params.unmapped) {
-      await transaction.palabraClaveNoMapeada.upsert({
-        where: {
-          id_titulado_termino: {
-            id_titulado: params.tituladoId,
-            termino: keyword.term,
-          },
-        },
-        create: {
-          id_titulado: params.tituladoId,
+    if (params.unmapped.length > 0) {
+      // Una ida a PostgreSQL para todo el lote, conservando los IDs existentes.
+      // Los valores son parámetros; ningún texto del perfil se interpola en SQL.
+      const keywords = [
+        ...new Map(params.unmapped.map((keyword) => [keyword.term, keyword])).values(),
+      ];
+      const payload = JSON.stringify(
+        keywords.map((keyword) => ({
           termino: keyword.term,
           frecuencia: keyword.count,
-          fecha_deteccion: new Date(),
-        },
-        update: {
-          frecuencia: keyword.count,
-          fecha_deteccion: new Date(),
-        },
-      });
+        })),
+      );
+      await transaction.$executeRaw`
+        INSERT INTO public.palabra_clave_no_mapeada
+          (id_titulado, termino, frecuencia, fecha_deteccion)
+        SELECT ${params.tituladoId}::uuid, keyword.termino, keyword.frecuencia, ${new Date()}
+        FROM jsonb_to_recordset(${payload}::jsonb) AS keyword(termino text, frecuencia integer)
+        ON CONFLICT (id_titulado, termino) DO UPDATE
+        SET frecuencia = EXCLUDED.frecuencia, fecha_deteccion = EXCLUDED.fecha_deteccion
+      `;
     }
 
     return {

@@ -11,7 +11,7 @@ import {
   RecordNotFound,
 } from '@/modules/profile/components/edit-record-layout';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
-import { recordsHref } from '@/modules/profile/data/profile-records-data';
+import { recordsHref, updatedRecordHref } from '@/modules/profile/data/profile-records-data';
 import { actualizarFormacion } from '@/modules/profile/services/perfil-api';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { EducationRecord } from '@/modules/profile/types/profile-record';
@@ -121,6 +121,8 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
         backupUrl: documentName ? documentUrl : undefined,
       });
       setIsSaved(true);
+      // Vuelve a la pestaña de formación con el aviso «Registro actualizado» (HU-11)
+      router.push(updatedRecordHref('education'));
     } catch (apiError) {
       if (!(apiError instanceof ApiError)) throw apiError;
       setSaveError(apiError.message);

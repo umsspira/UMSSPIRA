@@ -30,10 +30,10 @@ describe('FormularioCertificaciones', () => {
  
     expect(screen.getByRole('button', { name: 'Subir foto' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Subir documento' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Subir foto', { selector: 'input' })).toHaveAttribute('accept', 'image/jpeg');
-    expect(screen.getByLabelText('Subir documento', { selector: 'input' })).toHaveAttribute('accept', 'image/jpeg');
+    expect(screen.getByLabelText('Subir foto', { selector: 'input' })).toHaveAttribute('accept', 'application/pdf,image/jpeg');
+    expect(screen.getByLabelText('Subir documento', { selector: 'input' })).toHaveAttribute('accept', 'application/pdf,image/jpeg');
     // La interfaz indica el formato y el tamaño permitidos (BUG-HU2-007)
-    expect(screen.getByText('Solo JPG, máximo 5 MB')).toBeInTheDocument();
+    expect(screen.getByText('PDF o JPG, máximo 5 MB')).toBeInTheDocument();
   });
  
   it('envia la certificacion con su respaldo', () => {
@@ -57,7 +57,7 @@ describe('FormularioCertificaciones', () => {
   });
 });
  
-describe('FormularioCertificaciones · respaldo solo JPG de hasta 5 MB (BUG-HU2-004)', () => {
+describe('FormularioCertificaciones · respaldo PDF o JPG de hasta 5 MB (HU-18)', () => {
   const MB = 1024 * 1024;
  
   // File con el tamaño indicado sin reservar esa memoria: size se sobrescribe
@@ -71,15 +71,15 @@ describe('FormularioCertificaciones · respaldo solo JPG de hasta 5 MB (BUG-HU2-
     fireEvent.change(screen.getByLabelText('Subir documento', { selector: 'input' }), { target: { files: [file] } });
   }
  
-  it('rechaza un PDF de 6 MB por formato y no lo adjunta (caso de QA)', () => {
+  it('rechaza un PNG de 6 MB por formato y no lo adjunta', () => {
     const onAgregar = jest.fn();
     render(<FormularioCertificaciones certificaciones={[]} onAgregar={onAgregar} />);
     llenarFormulario({ conRespaldo: false });
  
-    adjuntar(archivo('certificado.pdf', 'application/pdf', 6 * MB));
+    adjuntar(archivo('certificado.png', 'image/png', 6 * MB));
  
-    expect(screen.getByText('Formato no permitido. Solo JPG')).toHaveAttribute('id', 'error-respaldo');
-    expect(screen.queryByText('certificado.pdf')).not.toBeInTheDocument();
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toHaveAttribute('id', 'error-respaldo');
+    expect(screen.queryByText('certificado.png')).not.toBeInTheDocument();
  
     // Sin un respaldo válido no se envía nada (T8.3)
     fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
@@ -91,7 +91,7 @@ describe('FormularioCertificaciones · respaldo solo JPG de hasta 5 MB (BUG-HU2-
  
     adjuntar(archivo('certificado.jpg', 'image/jpeg', 6 * MB));
  
-    expect(screen.getByText('El archivo no puede superar 5 MB')).toBeInTheDocument();
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
     expect(screen.queryByText('certificado.jpg')).not.toBeInTheDocument();
   });
  
@@ -101,19 +101,19 @@ describe('FormularioCertificaciones · respaldo solo JPG de hasta 5 MB (BUG-HU2-
  
     adjuntar(archivo('certificado.jpg', 'image/jpeg', 5 * MB));
  
-    expect(screen.queryByText('Formato no permitido. Solo JPG')).not.toBeInTheDocument();
+    expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).not.toBeInTheDocument();
     expect(screen.getByText('certificado.jpg')).toBeInTheDocument();
   });
  
   it('limpia el error al agregar la certificación', async () => {
     render(<FormularioCertificaciones certificaciones={[]} onAgregar={jest.fn()} />);
     llenarFormulario();
-    adjuntar(archivo('certificado.pdf', 'application/pdf'));
+    adjuntar(archivo('certificado.png', 'image/png'));
  
     fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
  
     await waitFor(() =>
-      expect(screen.queryByText('Formato no permitido. Solo JPG')).not.toBeInTheDocument(),
+      expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).not.toBeInTheDocument(),
     );
   });
 });
@@ -167,7 +167,7 @@ describe('FormularioCertificaciones · miniatura y quitar respaldo (T8.2)', () =
     adjuntar(new File(['x'], 'certificado.png', { type: 'image/png' }));
  
     expect(screen.queryByAltText('Vista previa del respaldo')).not.toBeInTheDocument();
-    expect(screen.getByText('Formato no permitido. Solo JPG')).toBeInTheDocument();
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
   });
 });
  
@@ -284,7 +284,7 @@ describe('FormularioCertificaciones · validación en pantalla (T8.3)', () => {
     agregar();
  
     expect(screen.getAllByText('Este campo es obligatorio')).toHaveLength(3);
-    expect(screen.getByText('Adjunta el respaldo de la certificación (JPG de hasta 5 MB)')).toHaveAttribute(
+    expect(screen.getByText('Adjunta el respaldo de la certificación (PDF o JPG de hasta 5 MB)')).toHaveAttribute(
       'id',
       'error-respaldo',
     );
@@ -326,7 +326,7 @@ describe('FormularioCertificaciones · validación en pantalla (T8.3)', () => {
  
     agregar();
  
-    expect(screen.getByText('Adjunta el respaldo de la certificación (JPG de hasta 5 MB)')).toBeInTheDocument();
+    expect(screen.getByText('Adjunta el respaldo de la certificación (PDF o JPG de hasta 5 MB)')).toBeInTheDocument();
     expect(onAgregar).not.toHaveBeenCalled();
   });
  
@@ -443,8 +443,8 @@ describe('FormularioCertificaciones · contador de errores del encabezado (HU-02
     expect(ultimo(onErroresChange)).toBe(3);
 
     // Un archivo no válido reemplaza el mensaje de obligatorio del respaldo: sigue siendo un solo error
-    const pdf = new File(['x'], 'cert.pdf', { type: 'application/pdf' });
-    fireEvent.change(screen.getByLabelText('Subir foto', { selector: 'input' }), { target: { files: [pdf] } });
+    const png = new File(['x'], 'cert.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Subir foto', { selector: 'input' }), { target: { files: [png] } });
     expect(ultimo(onErroresChange)).toBe(3);
   });
 
@@ -462,5 +462,87 @@ describe('FormularioCertificaciones · contador de errores del encabezado (HU-02
 
     await screen.findByText(/No se pudo guardar la certificación/);
     expect(ultimo(onErroresChange)).toBe(1);
+  });
+});
+
+describe('FormularioCertificaciones · respaldo PDF y cambiar respaldo (HU-18)', () => {
+  function guardarCertificacion(onCambiarRespaldo = jest.fn().mockResolvedValue(undefined)) {
+    render(
+      <FormularioCertificaciones
+        certificaciones={[]}
+        onAgregar={jest.fn().mockResolvedValue(undefined)}
+        onCambiarRespaldo={onCambiarRespaldo}
+      />,
+    );
+    llenarFormulario();
+    fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
+    return onCambiarRespaldo;
+  }
+
+  it('acepta un PDF como respaldo y lo muestra sin miniatura (T18.2)', () => {
+    render(<FormularioCertificaciones certificaciones={[]} onAgregar={jest.fn()} />);
+    const pdf = new File(['%PDF-1.4'], 'titulo.pdf', { type: 'application/pdf' });
+
+    fireEvent.change(screen.getByLabelText('Subir documento', { selector: 'input' }), { target: { files: [pdf] } });
+
+    expect(screen.getByText('titulo.pdf')).toBeInTheDocument();
+    expect(screen.queryByAltText('Vista previa del respaldo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).not.toBeInTheDocument();
+  });
+
+  it('no muestra «Cambiar respaldo» antes de guardar (T18.1)', () => {
+    render(<FormularioCertificaciones certificaciones={[]} onAgregar={jest.fn()} onCambiarRespaldo={jest.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Cambiar respaldo' })).not.toBeInTheDocument();
+  });
+
+  it('junto a «Certificación guardada» cambia el respaldo y avisa «Respaldo actualizado» (T18.1)', async () => {
+    const onCambiarRespaldo = guardarCertificacion();
+    expect(await screen.findByText('Certificación guardada')).toBeInTheDocument();
+    const pdf = new File(['%PDF-1.4'], 'nuevo.pdf', { type: 'application/pdf' });
+
+    fireEvent.change(screen.getByLabelText('Cambiar respaldo', { selector: 'input' }), { target: { files: [pdf] } });
+
+    expect(await screen.findByText('Respaldo actualizado')).toBeInTheDocument();
+    expect(onCambiarRespaldo).toHaveBeenCalledTimes(1);
+    expect(onCambiarRespaldo).toHaveBeenCalledWith(pdf);
+  });
+
+  it('rechaza un archivo inválido al cambiar el respaldo y no lo sube (T18.1)', async () => {
+    const onCambiarRespaldo = guardarCertificacion();
+    await screen.findByText('Certificación guardada');
+    const png = new File(['x'], 'foto.png', { type: 'image/png' });
+
+    fireEvent.change(screen.getByLabelText('Cambiar respaldo', { selector: 'input' }), { target: { files: [png] } });
+
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
+    expect(onCambiarRespaldo).not.toHaveBeenCalled();
+  });
+
+  it('si la subida falla muestra el error y no «Respaldo actualizado» (T18.1)', async () => {
+    guardarCertificacion(jest.fn().mockRejectedValue(new ApiError(400, 'Archivo inválido')));
+    await screen.findByText('Certificación guardada');
+    const jpg = new File(['x'], 'nuevo.jpg', { type: 'image/jpeg' });
+
+    fireEvent.change(screen.getByLabelText('Cambiar respaldo', { selector: 'input' }), { target: { files: [jpg] } });
+
+    expect(await screen.findByText('No se pudo cambiar el respaldo. Archivo inválido')).toBeInTheDocument();
+    expect(screen.queryByText('Respaldo actualizado')).not.toBeInTheDocument();
+  });
+});
+
+describe('FormularioCertificaciones · celular (HU-18, T18.6)', () => {
+  it('«Cambiar respaldo» ocupa todo el ancho en celular y vuelve a su tamaño en escritorio', async () => {
+    render(
+      <FormularioCertificaciones
+        certificaciones={[]}
+        onAgregar={jest.fn().mockResolvedValue(undefined)}
+        onCambiarRespaldo={jest.fn()}
+      />,
+    );
+    llenarFormulario();
+    fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
+
+    const boton = await screen.findByRole('button', { name: 'Cambiar respaldo' });
+    expect(boton).toHaveClass('w-full', 'md:w-auto');
   });
 });

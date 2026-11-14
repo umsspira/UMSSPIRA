@@ -22,7 +22,6 @@ const mockedValidate = validateDocumentFile as jest.MockedFunction<typeof valida
 const initial = {
   firstName: "Juan Carlos",
   lastName: "Pérez Mamani",
-  birthDate: "1998-05-14",
   ci: "6842109",
   complement: "",
   issuedIn: "CB",

@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { Camera, Check, FileText, Trash2 } from 'lucide-react';
-import Link from 'next/link';
 
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { MensajeError } from '@/modules/profile/validation/mensaje-error';
-import { validarRespaldo } from '@/modules/profile/validation/reglas-perfil';
+import { BACKUP_ACCEPT, BACKUP_HINT, validateBackupFile } from '@/modules/profile/utils/validate-backup-file';
+import { BackButton } from '@/shared/components/back-button';
 
 // Campos de la v3 del Figma: fondo crema, borde arena y esquinas de 8px
 export const INPUT_CLASS =
@@ -41,9 +42,12 @@ export function EditRecordLayout({
   return (
     <div className="flex flex-col gap-[26px] md:py-4">
       <header className="flex flex-col gap-2">
+        {/* Vuelve igual que «Cancelar»: a la pestaña de Mis registros, sin guardar (HU-11) */}
+        <BackButton onClick={onCancel} ariaLabel="Volver a Mis registros" className="mb-2" />
         <p className="text-[11px] font-bold uppercase text-truffle-trouble">Perfil profesional</p>
         <h1 className="text-[22px] font-bold text-abyssal-blue md:text-[28px]">{title}</h1>
         <p className="text-sm text-[#6D716F]">{description}</p>
+        <ProfileQuickLinks />
       </header>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-5 rounded-2xl bg-[#FFFCF7] p-4 md:p-6">
@@ -128,7 +132,7 @@ export function BackupField({
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const error = validarRespaldo(file);
+    const error = validateBackupFile(file);
     setBackupError(error);
     if (error) {
       // El archivo inválido no se adjunta; se limpia para poder elegir otro
@@ -186,15 +190,15 @@ export function BackupField({
         <label className="flex cursor-pointer items-center gap-2 rounded-md border border-oatmeal bg-white px-4 py-2.5 text-[13px] font-semibold text-blue-fantastic transition hover:bg-palladian">
           <Camera className="h-4 w-4" aria-hidden="true" />
           Subir foto
-          <input type="file" accept="image/jpeg" className="hidden" onChange={handleChange} />
+          <input type="file" accept={BACKUP_ACCEPT} className="hidden" onChange={handleChange} />
         </label>
         <label className="flex cursor-pointer items-center gap-2 rounded-md bg-abyssal-blue px-4 py-2.5 text-[13px] font-semibold text-white transition hover:brightness-110">
           <FileText className="h-4 w-4" aria-hidden="true" />
           Subir documento
-          <input type="file" accept="image/jpeg" className="hidden" onChange={handleChange} />
+          <input type="file" accept={BACKUP_ACCEPT} className="hidden" onChange={handleChange} />
         </label>
-        {/* Decisión del equipo: solo JPG (BUG-HU2-007) */}
-        <p className="w-full text-center text-xs text-blue-fantastic/70">Solo JPG, máximo 5 MB</p>
+        {/* HU-18: se acepta PDF o JPG */}
+        <p className="w-full text-center text-xs text-blue-fantastic/70">{BACKUP_HINT}</p>
       </div>
       <MensajeError id="error-backup" mensaje={backupError} />
     </div>
@@ -206,12 +210,7 @@ export function RecordNotFound({ label }: { label: string }) {
     <div className="flex flex-col items-start gap-4 rounded-2xl border border-abyssal-blue/10 bg-white p-6">
       <h1 className="text-xl font-bold text-blue-fantastic">No encontramos esta {label}</h1>
       <p className="text-sm text-blue-fantastic/70">Puede que haya sido eliminada. Vuelve a tus registros para elegir otra.</p>
-      <Link
-        href="/profile/records"
-        className="rounded-lg border border-oatmeal bg-white px-5 py-2.5 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
-      >
-        Volver a mis registros
-      </Link>
+      <BackButton href="/profile/records" label="Volver a mis registros" />
     </div>
   );
 }

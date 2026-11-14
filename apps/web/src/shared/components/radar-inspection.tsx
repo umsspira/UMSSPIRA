@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import mockData from "../mocks/affinity-vector-mock.json";
 import { AFFINITY_AREA_LABELS } from "@umsspira/shared-types/src/affinity";
 import { formatPercentage } from "@/shared/utils/percentage";
 import { InfluentialKeywords } from './affinity-influential-keywords';
@@ -29,6 +28,7 @@ interface RadarInspectionProps {
   selectedAreaId: string | null;
   onSelectArea: (id: string | null) => void;
   areas?: AreaData[];
+  certificationsPanel?: React.ReactNode;
 }
 
 // 2. Diccionario de ids a los nombres oficiales de shared-types (CA-HU7-22)
@@ -50,14 +50,15 @@ const BRICK_TEXT_AREA_IDS = new Set(["software-development", "cloud-devops"]);
 export default function RadarInspection({ 
   selectedAreaId, 
   onSelectArea,
-  areas = (mockData.areas || []) as unknown as AreaData[]
+  areas = [],
+  certificationsPanel,
 }: RadarInspectionProps) {
 
   // 3. Estado vacío actualizado: SOLO muestra el mensaje, sin botón "Completar perfil"
   if (!areas || areas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-lg text-gray-500 bg-white shadow-sm">
-        <p className="text-lg font-medium text-center">Sin datos de historial laboral</p>
+        <p className="text-lg font-medium text-center">Sin datos de afinidad disponibles</p>
       </div>
     );
   }
@@ -86,7 +87,7 @@ export default function RadarInspection({
             <span className="block">evaluadas</span>
           </div>
         </div>
-        <p className="text-sm text-gray-500">Haz clic en un área para inspeccionar sus respaldos</p>
+        <p className="text-sm text-gray-500">Haz clic en un área para ver sus palabras clave</p>
         
         <div className="space-y-3">
           {[...areas]
@@ -140,12 +141,33 @@ export default function RadarInspection({
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-gray-500 italic">* Datos calculados en base a materias electivas aprobadas, proyectos de grado indexados y certificaciones validadas.</p>
+        {/* Avisos sobre el cálculo de coincidencias */}
+<div className="mt-2 space-y-2 text-xs text-gray-600 border-t border-gray-200 pt-3">
+  <p>
+    El cálculo utiliza únicamente la información textual guardada en tu perfil:
+    título e institución de formación, cargo y empresa de experiencia laboral, nombre y entidad emisora de certificaciones, descripción profesional, y nombre, descripción y tecnologías de los proyectos. Las fechas, los archivos adjuntos y los enlaces de los proyectos quedan fuera del cálculo.
+  </p>
+
+  <p>
+    El porcentaje representa coincidencias de palabras entre la información de tu
+    perfil y el catálogo de áreas; no mide ni certifica tu nivel de competencia.
+  </p>
+
+  <p>
+    Solo se utiliza la información guardada en tu perfil. Los cambios que aún no
+    hayas guardado no se incluyen en el cálculo.
+  </p>
+
+  <p>
+    El sistema no interpreta negaciones. Por ejemplo, si escribes
+    «No tengo experiencia con AWS», puede contar «AWS» como una coincidencia.
+  </p>
+</div>
       </div>
 
       {/* Panel derecho: Inspección detallada y respaldos filtrados */}
       <div className="flex flex-col p-4 border border-gray-200 rounded-lg bg-gray-50">
-        <h3 className="text-lg font-semibold mb-3 text-gray-800">Respaldos e inspección</h3>
+        <h3 className="text-lg font-semibold mb-3 text-gray-800">Detalle del cálculo</h3>
         
         {selectedArea ? (
           <div className="space-y-4">
@@ -161,9 +183,16 @@ export default function RadarInspection({
               </button>
             </div>
             
-            <div>
-              <h5 className="font-semibold text-sm text-gray-700 mb-1">Certificaciones:</h5>
-              {certifications.length > 0 ? (
+            {selectedArea.affinity === 0 && <p className="text-sm text-gray-500">No se detectaron aportes para esta área en el cálculo mostrado.</p>}
+            {certificationsPanel ?? <>
+            {certifications.length === 0 && projects.length === 0 && (
+              <p className="text-sm text-gray-500">
+                No se recibió información de respaldos para esta área. Esto no indica que no tengas certificaciones registradas.
+              </p>
+            )}
+            {certifications.length > 0 && (
+              <div>
+                <h5 className="font-semibold text-sm text-gray-700 mb-1">Certificaciones asociadas:</h5>
                 <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
                   {certifications.map((cert, idx) => (
                     <li key={idx}>
@@ -172,14 +201,11 @@ export default function RadarInspection({
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="text-sm text-gray-500 italic">No hay certificaciones registradas para esta área.</p>
-              )}
-            </div>
-
-            <div>
-              <h5 className="font-semibold text-sm text-gray-700 mb-1">Proyectos:</h5>
-              {projects.length > 0 ? (
+              </div>
+            )}
+            {projects.length > 0 && (
+              <div>
+                <h5 className="font-semibold text-sm text-gray-700 mb-1">Proyectos relacionados:</h5>
                 <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
                   {projects.map((proj, idx) => (
                     <li key={idx}>
@@ -188,16 +214,14 @@ export default function RadarInspection({
                     </li>
                   ))}
                 </ul>
-              ) : (
-                /* HU2-C9: Manejo cuando el área seleccionada no tiene respaldos asociados */
-                <p className="text-sm text-gray-500 italic">Esta área no tiene respaldos asociados.</p>
-              )}
-            </div>
+              </div>
+            )}
+            </>}
             <InfluentialKeywords keywords={selectedArea?.topKeywords}/>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
-            <p className="text-sm text-center">Haz clic en un área para inspeccionar sus respaldos.</p>
+            <p className="text-sm text-center">Haz clic en un área para ver sus palabras clave.</p>
           </div>
         )}
       </div>

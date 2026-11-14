@@ -6,6 +6,10 @@ import { PROFILE_RECORDS_MOCK, profileHeader } from '@/modules/profile/testing/p
 import { ProfileStoreProvider } from '@/modules/profile/state/profile-store';
 import ProfileSummary from '@/modules/profile/ver/profile-summary';
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+}));
+
 describe('ProfileSummary - T7.5 responsive', () => {
   it('muestra las secciones del resumen con datos de prueba', () => {
     render(

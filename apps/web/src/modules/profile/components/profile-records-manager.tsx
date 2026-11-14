@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Check, Plus } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
+import { ProfilePhotoSection } from '@/modules/profile/components/profile-photo-section';
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { ProfileRecordsTable } from '@/modules/profile/components/profile-records-table';
 import { EMPTY_PROFILE_RECORDS, SECTION_LABELS } from '@/modules/profile/data/profile-records-data';
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
@@ -16,21 +18,26 @@ import type {
   RecordSection,
 } from '@/modules/profile/types/profile-record';
 import { removeProfileRecord } from '@/modules/profile/utils/remove-profile-record';
+import { BackButton } from '@/shared/components/back-button';
 import { cn } from '@/shared/utils/cn';
 
 // Mismo orden de pestañas que la v3 del Figma
-const SECTIONS: RecordSection[] = ['education', 'certification', 'experience'];
+// HU-15 dejó el lugar de la pestaña Proyectos; HU-19 (T19.4) la llena
+const SECTIONS: RecordSection[] = ['education', 'certification', 'experience', 'project'];
 const TOAST_DURATION_MS = 3000;
 
 type ProfileRecordsManagerProps = {
   initialRecords?: ProfileRecords;
   // Pestaña abierta al entrar (por ejemplo, al cancelar la edición de una experiencia)
   initialSection?: RecordSection;
+  // Se llega desde «Guardar cambios» de una edición (HU-11)
+  wasUpdated?: boolean;
 };
 
 export function ProfileRecordsManager({
   initialRecords = EMPTY_PROFILE_RECORDS,
   initialSection = 'education',
+  wasUpdated = false,
 }: ProfileRecordsManagerProps) {
   // Dentro de las pantallas del perfil usa el estado compartido; sin proveedor (pruebas) usa su propio estado
   const store = useOptionalProfileStore();
@@ -38,6 +45,7 @@ export function ProfileRecordsManager({
   const records = store?.records ?? localRecords;
   const [activeSection, setActiveSection] = useState<RecordSection>(initialSection);
   const [recordToDelete, setRecordToDelete] = useState<ProfileRecord | null>(null);
+  const [isClosingModal, setIsClosingModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<DeleteRecordErrorCode | null>(null);
   const [isToastVisible, setIsToastVisible] = useState(false);
@@ -47,15 +55,40 @@ export function ProfileRecordsManager({
     const timeoutId = setTimeout(() => setIsToastVisible(false), TOAST_DURATION_MS);
     return () => clearTimeout(timeoutId);
   }, [isToastVisible]);
+  useEffect(() => {
+  if (!isClosingModal) return;
+
+  const timeoutId = setTimeout(() => {
+    setRecordToDelete(null);
+    setDeleteError(null);
+    setIsClosingModal(false);
+  }, 200);
+
+  return () => clearTimeout(timeoutId);
+  }, [isClosingModal]);
+
+  const [isUpdatedToastVisible, setIsUpdatedToastVisible] = useState(wasUpdated);
+
+  useEffect(() => {
+    if (!isUpdatedToastVisible) return;
+    // Se quita la marca de la URL para que el aviso no vuelva a salir al recargar
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('actualizado')) {
+      params.delete('actualizado');
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params}`);
+    }
+    const timeoutId = setTimeout(() => setIsUpdatedToastVisible(false), TOAST_DURATION_MS);
+    return () => clearTimeout(timeoutId);
+  }, [isUpdatedToastVisible]);
 
   function openDeleteModal(record: ProfileRecord) {
     setDeleteError(null);
+    setIsClosingModal(false);
     setRecordToDelete(record);
   }
 
   function closeDeleteModal() {
-    setRecordToDelete(null);
-    setDeleteError(null);
+    setIsClosingModal(true);
   }
 
   async function handleConfirmDelete() {
@@ -73,8 +106,8 @@ export function ProfileRecordsManager({
           [activeSection]: removeProfileRecord(current[activeSection], recordToDelete.id),
         }));
       }
-      setRecordToDelete(null);
       setIsToastVisible(true);
+      setIsClosingModal(true);
     } catch (error) {
       setDeleteError(error instanceof DeleteRecordException ? error.code : 'network');
     } finally {
@@ -85,28 +118,30 @@ export function ProfileRecordsManager({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <Link
-          href="/profile"
-          className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-blue-fantastic/70 transition hover:text-blue-fantastic"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          Volver al resumen
-        </Link>
+        <BackButton href="/profile" ariaLabel="Volver a Mi perfil" />
         <h1 className="text-[28px] font-semibold leading-tight text-blue-fantastic">
           Mis registros del perfil
         </h1>
         <p className="text-sm text-blue-fantastic/70">Edita o elimina tu información profesional.</p>
+        <ProfileQuickLinks current="/profile/records" />
       </header>
 
+      {/* HU-16: foto actual o avatar con iniciales */}
+      <ProfilePhotoSection name={store?.header?.name ?? ''} />
+
       <Link
-        href="/profile/completar"
+        href="/profile/records/add"
         className="inline-flex w-fit items-center gap-2 rounded-lg bg-burning-flame px-5 py-3 text-sm font-bold text-abyssal-blue transition hover:brightness-95"
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
         Agregar Registros
       </Link>
 
-      <div role="tablist" aria-label="Secciones del perfil" className="flex gap-6 overflow-x-auto border-b border-oatmeal">
+      <div
+        role="tablist"
+        aria-label="Secciones del perfil"
+        className="grid grid-cols-2 gap-2 border-b border-oatmeal sm:flex sm:gap-6"
+      >
         {SECTIONS.map((section) => {
           const isActive = section === activeSection;
           return (
@@ -123,7 +158,7 @@ export function ProfileRecordsManager({
                 window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params}`);
               }}
               className={cn(
-                '-mb-px whitespace-nowrap border-b-2 pb-2.5 text-sm transition',
+                '-mb-px min-w-0 border-b-2 pb-2.5 text-center text-xs transition sm:whitespace-nowrap sm:text-sm',
                 isActive
                   ? 'border-truffle-trouble font-bold text-blue-fantastic'
                   : 'border-transparent font-medium text-blue-fantastic/60 hover:text-blue-fantastic',
@@ -163,6 +198,7 @@ export function ProfileRecordsManager({
           section={activeSection}
           record={recordToDelete}
           isDeleting={isDeleting}
+          isClosing={isClosingModal}
           errorCode={deleteError}
           onConfirm={handleConfirmDelete}
           onCancel={closeDeleteModal}
@@ -176,6 +212,16 @@ export function ProfileRecordsManager({
         >
           <Check className="h-4 w-4 text-burning-flame" aria-hidden="true" />
           Registro eliminado
+        </div>
+      )}
+
+      {isUpdatedToastVisible && (
+        <div
+          role="status"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-abyssal-blue px-4 py-3 text-sm font-semibold text-white shadow-lg"
+        >
+          <Check className="h-4 w-4 text-burning-flame" aria-hidden="true" />
+          Registro actualizado
         </div>
       )}
     </div>

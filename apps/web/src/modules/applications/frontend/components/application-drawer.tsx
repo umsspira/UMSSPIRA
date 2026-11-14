@@ -219,7 +219,8 @@ export function ApplicationDrawer({
         </footer>
       </aside>
 
-      <ApproveDialog open={activeDialog === "approve"} {...dialogProps} />
+      <ApproveDialog open={activeDialog === "approve"} {...dialogProps}
+        applicantEmail={reviewData?.email} currentReviewer={reviewData?.currentReviewer} />
       <ObserveDialog open={activeDialog === "observe"} {...dialogProps} />
       <RejectDialog open={activeDialog === "reject"} {...dialogProps} />
     </>
