@@ -28,7 +28,9 @@ export class IndexacionVacantesService {
   async asegurarIndice(): Promise<void> {
     try {
       const existe = await this.client.indices.exists({ index: this.indexName });
-      if (existe) return;
+      if (existe) {
+        return;
+      }
 
       try {
         await this.client.indices.create({
