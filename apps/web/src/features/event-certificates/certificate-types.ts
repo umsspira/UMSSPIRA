@@ -9,4 +9,5 @@ export type CertificatesView =
   | { status: 'integration-pending' }
   | { status: 'success'; certificates: EventCertificate[] }
   | { status: 'error'; message: string }
-  | { status: 'unauthenticated' };
+  | { status: 'unauthenticated' }
+  | { status: 'forbidden' };

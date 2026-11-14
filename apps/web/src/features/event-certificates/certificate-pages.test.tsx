@@ -130,4 +130,17 @@ describe('HU19 - Pantallas de certificados', () => {
       }),
     ).toBeEnabled();
   });
+  it('muestra acceso restringido en el listado', () => {
+  render(
+    <MyCertificatesPage view={{ status: 'forbidden' }} />,
+  );
+
+  expect(
+    screen.getByRole('alert'),
+  ).toHaveTextContent('Acceso restringido');
+
+  expect(
+    screen.queryByRole('link', { name: 'Ver certificado' }),
+  ).not.toBeInTheDocument();
+});
 });

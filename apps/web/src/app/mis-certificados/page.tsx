@@ -1,5 +1,5 @@
 ﻿import { ConnectedNavbar } from '@/shared/components/navbar/index';
-import { MyCertificatesPage } from '@/features/event-certificates/my-certificates-page';
+import { MyCertificatesController } from '@/features/event-certificates/my-certificates-controller';
 import '@/app/(dashboard)/events/events.css';
 
 export default function Page() {
@@ -7,7 +7,7 @@ export default function Page() {
     <>
       <ConnectedNavbar />
       <div className="events-app">
-        <MyCertificatesPage view={{ status: 'integration-pending' }} />
+        <MyCertificatesController />
       </div>
     </>
   );

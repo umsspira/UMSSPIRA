@@ -8,6 +8,7 @@ interface Props {
   onRetry?: () => void;
   onDownload?: (id: string) => void;
   downloadingId?: string | null;
+  downloadError?: string | null;
 }
 
 export function MyCertificatesPage({
@@ -15,6 +16,7 @@ export function MyCertificatesPage({
   onRetry,
   onDownload,
   downloadingId,
+  downloadError,
 }: Props) {
   const certificates =
     view.status === 'success' ? view.certificates : [];
@@ -43,6 +45,9 @@ export function MyCertificatesPage({
           </p>
         </header>
 
+        {downloadError && view.status === 'success' && (
+          <p role="alert">{downloadError}</p>
+        )}
         {view.status === 'success' && !isEmpty && (
           <section className={styles.panel} aria-label="Certificados disponibles">
             <div className={styles.sectionHeader}>
@@ -122,16 +127,31 @@ export function MyCertificatesPage({
           </section>
         )}
 
-        {view.status === 'unauthenticated' && (
-          <section className={styles.statePanel} role="alert">
-            <h2>Debes iniciar sesión</h2>
-            <p>
-              Inicia sesión con tu cuenta para consultar
-              tus certificados de participación.
-            </p>
-          </section>
-        )}
+        {/* Usuario autenticado, pero sin permisos */}
+{view.status === 'forbidden' && (
+  <section className={styles.statePanel} role="alert">
+    <h2>Acceso restringido</h2>
+    <p>
+      Tu cuenta no tiene permiso para consultar estos certificados.
+    </p>
+    <Link className={styles.secondaryButton} href="/portal/eventos">
+      Volver a eventos
+    </Link>
+  </section>
+)}
+
+{/* Usuario sin sesión */}
+{view.status === 'unauthenticated' && (
+  <section className={styles.statePanel} role="alert">
+    <h2>Debes iniciar sesión</h2>
+    <p>
+      Inicia sesión con tu cuenta para consultar
+      tus certificados de participación.
+    </p>
+  </section>
+)}
       </div>
     </main>
   );
 }
+
