@@ -341,6 +341,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     previousAffinity: item.previousAffinity ?? null,
     evidence: item.evidence ?? [],
     topKeywords: item.topKeywords ?? [],
+    explanation: item.explanation ?? null,
   }));
 
   const areasWithAffinity = orderedCandidateAreas.filter((item) => item.affinity > 0);
@@ -569,6 +570,9 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   onSelectArea={setSelectedAreaId}
                   areas={inspectionAreas}
                   certificationsPanel={selectedAreaId && AFFINITY_AREAS.includes(selectedAreaId as AffinityArea) ? <RadarCertificationsPanel area={selectedAreaId as AffinityArea} calculationKey={lastCalculatedAt} /> : undefined}
+                  isExplanationLoading={isLoading}
+                  hasExplanationError={hasRadarError}
+                  onRetryExplanation={() => { void handleRetry(); }}
                 />
               )}
             </div>
