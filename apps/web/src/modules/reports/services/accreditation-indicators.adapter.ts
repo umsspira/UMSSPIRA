@@ -1,4 +1,5 @@
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
+import type { CohortEmployabilityData } from '../accreditation/components/cohort-employability-chart';
 import type { AccreditationIndicators, SalaryRangeCount } from '../types/acreditacion.types';
 
 const SALARY_RANGES = ['0–2.999', '3.000–5.000', '5.001–8.000', '8.001–12.000', '12.001–21.000'];
@@ -24,6 +25,26 @@ function toSalaryRanges(raw: unknown): SalaryRangeCount[] {
   return SALARY_RANGES.map((range) => ({ range, count: counts.get(range) ?? 0 }));
 }
 
+/**
+ * Cohortes del endpoint al formato del gráfico de la T1.4. Las cohortes con 1 a 4 respuestas
+ * llegan sin cantidades («insufficient»): se envían con 0 respuestas para que el gráfico
+ * muestre «Sin datos suficientes» sin revelar la cantidad.
+ */
+function toCohorts(raw: unknown): CohortEmployabilityData[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as Array<Record<string, unknown>>)
+    .filter((item) => Number.isInteger(item?.cohort))
+    .map((item) =>
+      item.status === 'ok'
+        ? {
+            cohort: item.cohort as number,
+            responses: toNumber(item.totalResponses),
+            employed: toNumber(item.employedGraduates),
+          }
+        : { cohort: item.cohort as number, responses: 0, employed: 0 },
+    );
+}
+
 export function mapAccreditationResponse(body: unknown): AccreditationIndicators {
   const data = (typeof body === 'object' && body !== null && 'data' in body
     ? (body as { data?: Record<string, unknown> }).data
@@ -36,6 +57,7 @@ export function mapAccreditationResponse(body: unknown): AccreditationIndicators
     employedPercent: toNumber(data.employedPercentage),
     averageInsertionMonths: months === null || months === undefined ? null : toNumber(months),
     salaryRanges: toSalaryRanges(data.salaryRanges),
+    cohorts: toCohorts(data.employabilityByCohort),
   };
 }
 

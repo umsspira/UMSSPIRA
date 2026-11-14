@@ -50,3 +50,23 @@ describe('mapAccreditationResponse', () => {
     expect(result.salaryRanges).toHaveLength(5);
   });
 });
+describe('cohortes para el gráfico «Empleabilidad por cohorte»', () => {
+  it('pasa las cohortes con datos y oculta la cantidad de las de 1 a 4 respuestas', () => {
+    const { cohorts } = mapAccreditationResponse({
+      data: {
+        employabilityByCohort: [
+          { cohort: 2021, status: 'ok', totalResponses: 8, employedGraduates: 6, employedPercentage: 75 },
+          { cohort: 2023, status: 'insufficient' },
+        ],
+      },
+    });
+    expect(cohorts).toEqual([
+      { cohort: 2021, responses: 8, employed: 6 },
+      { cohort: 2023, responses: 0, employed: 0 },
+    ]);
+  });
+
+  it('sin cohortes devuelve una lista vacía', () => {
+    expect(mapAccreditationResponse({ data: {} }).cohorts).toEqual([]);
+  });
+});

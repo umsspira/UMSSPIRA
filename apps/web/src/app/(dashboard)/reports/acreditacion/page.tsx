@@ -1,13 +1,34 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { ConnectedCompetencyHeatmap } from '@/modules/reports/components/competency-heatmap';
 import { loadCompetencyHeatmap } from '@/modules/reports/services/competency-heatmap.adapter';
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 import { ConnectedAccreditationIndicators } from '@/modules/reports/components/connected-accreditation-indicators';
 import { loadAccreditationIndicators } from '@/modules/reports/services/accreditation-indicators.adapter';
+import { SemesterHeatmapNote } from '@/modules/reports/accreditation/components/accreditation-filters';
+import { useAccreditationFilters } from '@/modules/reports/accreditation/hooks/use-accreditation-filters';
+
+/**
+ * Indicadores, filtros (HU-003) y mapa de calor del tablero. Va dentro de <Suspense>
+ * porque los filtros leen la URL con useSearchParams.
+ */
+function AccreditationDashboard({ careerName }: { careerName: string }) {
+  const filtersState = useAccreditationFilters();
+  return (
+    <div className="min-w-0 space-y-6">
+      <ConnectedAccreditationIndicators
+        careerName={careerName}
+        load={loadAccreditationIndicators}
+        filtersState={filtersState}
+      />
+      <SemesterHeatmapNote visible={filtersState.isSemesterActive} />
+      <ConnectedCompetencyHeatmap careerName={careerName} load={loadCompetencyHeatmap} />
+    </div>
+  );
+}
 
 const REPORTS_ACTIVE_TAB_KEY = 'umsspira:reports-active-tab';
 
@@ -122,16 +143,9 @@ export default function AccreditationHeatmapPage() {
         ) : identityError ? (
           <p role="alert" className="text-sm text-red-700">{identityError}</p>
         ) : careerName ? (
-          <div className="min-w-0 space-y-6">
-                       <ConnectedAccreditationIndicators
-              careerName={careerName}
-              load={loadAccreditationIndicators}
-            />
-            <ConnectedCompetencyHeatmap
-              careerName={careerName}
-              load={loadCompetencyHeatmap}
-            />
-          </div>
+          <Suspense fallback={<p role="status" className="text-sm text-gray-600">Cargando tablero…</p>}>
+            <AccreditationDashboard careerName={careerName} />
+          </Suspense>
         ) : null}
       </div>
     </main>

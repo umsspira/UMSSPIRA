@@ -5,20 +5,33 @@ import { SessionError } from '@/shared/services/auth-session';
 import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 import type { AccreditationExportFilters } from '../accreditation/services/accreditation-export.service';
 import { AccreditationExportButtons } from '../accreditation/components/accreditation-export-buttons';
+import {
+  AccreditationFilters,
+  AccreditationNoDataForPeriod,
+} from '../accreditation/components/accreditation-filters';
+import { CohortEmployabilityChart } from '../accreditation/components/cohort-employability-chart';
+import type { useAccreditationFilters } from '../accreditation/hooks/use-accreditation-filters';
 import type { AccreditationIndicators } from '../types/acreditacion.types';
 import { AcreditacionHeader } from './acreditacion-header';
 import { AcreditacionKpis } from './acreditacion-kpis';
 import { AcreditacionSalaryBlock } from './acreditacion-salary-block';
 
-// Mientras los filtros de la T3.2 no estén montados, se exporta sin filtros.
-const NO_FILTERS: AccreditationExportFilters = { cohort: '', semester: '' };
+/**
+ * Semestres con encuestas enviadas: los devuelve la T3.1 (filtros en el backend).
+ * Mientras tanto el selector «Semestre» solo ofrece «Todos».
+ */
+const SEMESTERS: string[] = [];
 
 interface Props {
   careerName: string;
   load: (signal: AbortSignal) => Promise<AccreditationIndicators>;
+  /** Filtros de la T3.2 guardados en la URL (HU-003). */
+  filtersState: ReturnType<typeof useAccreditationFilters>;
 }
 
-export function ConnectedAccreditationIndicators({ careerName, load }: Props) {
+export function ConnectedAccreditationIndicators({ careerName, load, filtersState }: Props) {
+  const { filters, setCohort, setSemester, clearFilters, hasActiveFilters } = filtersState;
+  const exportFilters: AccreditationExportFilters = filters;
   const [data, setData] = useState<AccreditationIndicators | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -55,7 +68,7 @@ export function ConnectedAccreditationIndicators({ careerName, load }: Props) {
         actions={
           data ? (
             <AccreditationExportButtons
-              filters={NO_FILTERS}
+              filters={exportFilters}
               hasData={data.totalResponses > 0}
             />
           ) : undefined
@@ -73,12 +86,30 @@ export function ConnectedAccreditationIndicators({ careerName, load }: Props) {
         <p role="status" className="text-sm text-gray-600">Cargando indicadores…</p>
       ) : (
         <>
-          <AcreditacionKpis
-            totalResponses={data.totalResponses}
-            employedPercent={data.employedPercent}
-            averageInsertionMonths={data.averageInsertionMonths}
+          <AccreditationFilters
+            cohorts={data.cohorts.map((item) => String(item.cohort))}
+            semesters={SEMESTERS}
+            value={filters}
+            onCohortChange={setCohort}
+            onSemesterChange={setSemester}
+            onClear={clearFilters}
           />
-          <AcreditacionSalaryBlock ranges={data.salaryRanges} />
+          {data.totalResponses === 0 && hasActiveFilters ? (
+            <AccreditationNoDataForPeriod />
+          ) : (
+            <>
+              <AcreditacionKpis
+                totalResponses={data.totalResponses}
+                employedPercent={data.employedPercent}
+                averageInsertionMonths={data.averageInsertionMonths}
+              />
+              {/* Mock-up 01 de la HU-001: «Salario mensual» y el gráfico por cohorte lado a lado. */}
+              <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                <AcreditacionSalaryBlock ranges={data.salaryRanges} />
+                <CohortEmployabilityChart cohorts={data.cohorts} />
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
