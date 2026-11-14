@@ -14,4 +14,3 @@ export interface Graduate {
   rejectionReason: string | null;
   status: GraduateStatus;
 }
-
