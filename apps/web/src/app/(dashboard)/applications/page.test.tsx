@@ -7,6 +7,14 @@ import {
 } from '@/modules/applications/frontend/services/applications-board.service';
 import { authenticatedFetch } from '@/shared/services/auth-session';
 
+jest.mock('@/modules/applications/frontend/hooks/use-ocr-queue', () => ({
+  useOcrQueue: () => 'Análisis automático en espera',
+}));
+
+jest.mock('@/modules/applications/frontend/components/ocr-panel', () => ({
+  OcrPanel: () => null,
+}));
+
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
