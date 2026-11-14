@@ -425,6 +425,7 @@ export function EventManagementContent({
                           <strong>Opciones del evento</strong>
                           <small>{event.title}</small>
                           <button type="button" onClick={() => router.push(`/events/${event.id}/edit`)}>Editar evento</button>
+                          
                           <Link
                             href={`/events/${encodeURIComponent(event.id)}/participants`}
                             className="event-actions-item hu14-participants-link"
@@ -432,6 +433,13 @@ export function EventManagementContent({
                           >
                             Ver participantes
                           </Link>
+                          <Link
+                            href={`/events/${encodeURIComponent(event.id)}/certificates`}
+                            className="event-actions-item"
+                          >
+                            Configurar certificados
+                          </Link>
+                          
                           <button type="button" className="is-danger" disabled={isCancelling} onClick={() => { setOpenActionEventId(null); setCancelError(null); setPendingCancellation(event); }}>Cancelar evento</button>
                           <button type="button" onClick={() => setOpenActionEventId(null)}>Cerrar menú</button>
                         </div>
