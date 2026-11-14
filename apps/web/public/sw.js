@@ -328,6 +328,13 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
 
   if (request.mode === 'navigate') {
+    const navUrl = new URL(request.url);
+    const esDelPortal =
+      navUrl.origin === self.location.origin &&
+      (navUrl.pathname === '/portal' ||
+        navUrl.pathname.startsWith('/portal/') ||
+        isOfflineRoute(navUrl.pathname));
+    if (!esDelPortal) return; // homepage, /me, /graduates-report, /api/... pasan directo a la red
     event.respondWith(handleNavigation(event));
     return;
   }
