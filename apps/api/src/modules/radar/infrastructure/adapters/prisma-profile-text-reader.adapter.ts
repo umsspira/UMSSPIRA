@@ -4,9 +4,13 @@ import {
   type ProfileTextSources,
 } from '../../application/ports/profile-text-reader.port';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import { CURRENT_PROFILE_DESCRIPTION_ORDER } from '../../domain/policies/profile-description-order';
 
 /**
- * Lee los textos del perfil desde las cuatro fuentes definidas por el radar.
+ * Lee los textos del perfil desde las cinco fuentes definidas por el radar:
+ * formación, experiencia, certificaciones, descripción vigente y proyectos.
+ * Como todos entran al hash de entrada, crear, editar o eliminar un proyecto
+ * marca el radar con cambios pendientes igual que las otras secciones.
  * No reutiliza el módulo de perfil para no acoplar los dos contextos.
  */
 @Injectable()
@@ -14,30 +18,41 @@ export class PrismaProfileTextReaderAdapter implements ProfileTextReaderPort {
   constructor(private readonly prisma: PrismaService) {}
 
   async getProfileTexts(tituladoId: string): Promise<ProfileTextSources> {
-    const [educations, experiences, certifications, profiles] = await Promise.all([
-      this.prisma.formacionAcademica.findMany({
-        where: { id_titulado: tituladoId },
-        select: { titulo: true, institucion: true },
-      }),
-      this.prisma.experienciaLaboral.findMany({
-        where: { id_titulado: tituladoId },
-        select: { cargo: true, empresa: true },
-      }),
-      this.prisma.certificacion.findMany({
-        where: { id_titulado: tituladoId },
-        select: { nombre: true, entidad_emisora: true },
-      }),
-      this.prisma.perfilArea.findMany({
-        where: { id_titulado: tituladoId },
-        select: { descripcion_profesional: true },
-      }),
-    ]);
+    const [educations, experiences, certifications, currentDescription, projects] =
+      await Promise.all([
+        this.prisma.formacionAcademica.findMany({
+          where: { id_titulado: tituladoId },
+          select: { titulo: true, institucion: true },
+        }),
+        this.prisma.experienciaLaboral.findMany({
+          where: { id_titulado: tituladoId },
+          select: { cargo: true, empresa: true },
+        }),
+        this.prisma.certificacion.findMany({
+          where: { id_titulado: tituladoId },
+          select: { nombre: true, entidad_emisora: true },
+        }),
+        this.prisma.perfilArea.findFirst({
+          where: { id_titulado: tituladoId },
+          orderBy: CURRENT_PROFILE_DESCRIPTION_ORDER,
+          select: { descripcion_profesional: true },
+        }),
+        this.prisma.proyecto.findMany({
+          where: { id_titulado: tituladoId },
+          select: { nombre: true, descripcion: true, tecnologias: true },
+        }),
+      ]);
 
     const texts = [
       ...educations.flatMap(({ titulo, institucion }) => [titulo, institucion]),
       ...experiences.flatMap(({ cargo, empresa }) => [cargo, empresa]),
       ...certifications.flatMap(({ nombre, entidad_emisora }) => [nombre, entidad_emisora]),
-      ...profiles.map(({ descripcion_profesional }) => descripcion_profesional),
+      currentDescription?.descripcion_profesional,
+      ...projects.flatMap(({ nombre, descripcion, tecnologias }) => [
+        nombre,
+        descripcion,
+        tecnologias,
+      ]),
     ]
       .filter((text): text is string => typeof text === 'string')
       .map((text) => text.trim())
