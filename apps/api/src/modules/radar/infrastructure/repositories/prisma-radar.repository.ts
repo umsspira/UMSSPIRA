@@ -238,7 +238,7 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
         const contribucionesKeyword =
           area.contribuciones_keyword !== undefined && area.contribuciones_keyword !== null
             ? normalizeKeywordContributions(area.contribuciones_keyword)
-            : palabrasClaveTop;
+            : undefined;
 
         return {
           areaId: area.id_area,
@@ -248,7 +248,7 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
           // la deriva del mayor peso conservado en palabras_clave_top.
           ponderacion: null,
           palabrasClaveTop,
-          contribucionesKeyword,
+          ...(contribucionesKeyword === undefined ? {} : { contribucionesKeyword }),
         };
       }),
     };

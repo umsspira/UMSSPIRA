@@ -1,3 +1,4 @@
+import { explainRadarChanges } from '../../domain/policies/radar-change-explanation';
 import { normalizeTopKeywords } from '../../domain/policies/affinity-calculator';
 import type { RadarVector, RadarAreaVector } from '../contracts/radar-vector';
 import type { RadarCalculationSnapshot } from '../ports/radar-repository.port';
@@ -24,7 +25,9 @@ function buildAreas(
   calculation: RadarCalculationSnapshot,
   previous: RadarCalculationSnapshot | null,
 ): RadarAreaVector[] {
+  const explanations = new Map(explainRadarChanges(calculation, previous).map((item) => [item.areaId, item]));
   return calculation.afinidad.map((area) => {
+    const explanation = explanations.get(area.areaId);
     const topKeywords = normalizeTopKeywords(area.palabrasClaveTop);
     const previousArea = previous?.afinidad.find((candidate) => candidate.areaId === area.areaId);
 
@@ -36,6 +39,11 @@ function buildAreas(
       // del mayor peso conservado en la instantánea de palabras clave.
       weighting: area.ponderacion ?? getMaxWeight(topKeywords),
       topKeywords,
+      ...(calculation.versionDiccionario !== undefined && {
+        explanation: explanation && previous?.afinidad.some((item) => item.areaId === area.areaId && item.contribucionesKeyword !== undefined) && area.contribucionesKeyword !== undefined && explanation.cause !== 'initial' && explanation.changes.length > 0
+          ? { cause: explanation.cause, changes: explanation.changes }
+          : null,
+      }),
     };
   });
 }
@@ -50,6 +58,7 @@ export function buildRadarVector(input: BuildRadarVectorInput): RadarVector {
     calculatedAt: calculation.fechaCalculo,
     status: calculation.estado === 'VACIO' ? 'empty' : 'ok',
     algorithmVersion: calculation.versionAlgoritmo,
+    ...(calculation.versionDiccionario !== undefined && { dictionaryVersion: calculation.versionDiccionario }),
     hasPendingChanges: input.hasPendingChanges,
     ...(input.recalculated === undefined ? {} : { recalculated: input.recalculated }),
     processingMs: input.processingMs,
