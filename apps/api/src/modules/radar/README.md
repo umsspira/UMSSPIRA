@@ -9,9 +9,9 @@ Las seis áreas técnicas del catálogo son:
 - `software-development`: Desarrollo de Software
 - `cloud-devops`: Cloud y DevOps
 - `data-ai`: Datos e Inteligencia Artificial
-- `cybersecurity`: Ciberseguridad
-- `mobile-development`: Desarrollo Móvil
 - `quality-assurance`: Control de Calidad (QA)
+- `cybersecurity-networks`: Ciberseguridad y Redes
+- `it-management`: Gestión de TI y Gobernanza
 
 El orden de estas áreas es canónico y determina la secuencia devuelta en el vector de respuesta.
 
