@@ -58,6 +58,10 @@ describe('PushPermissionPanel (HU13 - T7 y T8)', () => {
     return requestPermission;
   };
 
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
   afterEach(() => {
     (global as unknown as { Notification?: unknown }).Notification = originalNotification;
     jest.clearAllMocks();
@@ -66,14 +70,14 @@ describe('PushPermissionPanel (HU13 - T7 y T8)', () => {
   it('muestra el botón para activar cuando el permiso está pendiente', async () => {
     setupBrowser('default');
     render(<PushPermissionPanel />);
-    expect(await screen.findByRole('button', { name: /activar notificaciones/i })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /solicitar permiso/i })).toBeTruthy();
   });
 
   it('solicita permiso y registra la suscripción al activar', async () => {
     const requestPermission = setupBrowser('default');
     render(<PushPermissionPanel />);
 
-    fireEvent.click(screen.getByRole('button', { name: /activar notificaciones/i }));
+    fireEvent.click(screen.getByRole('button', { name: /solicitar permiso/i }));
 
     await waitFor(() => expect(requestPermission).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(pushSub.savePushSubscription).toHaveBeenCalledTimes(1));
@@ -85,13 +89,24 @@ describe('PushPermissionPanel (HU13 - T7 y T8)', () => {
     render(<PushPermissionPanel />);
 
     // Con permiso concedido, se ofrece activar la suscripción primero.
-    fireEvent.click(screen.getByRole('button', { name: /activar notificaciones/i }));
+    fireEvent.click(screen.getByRole('button', { name: /solicitar permiso/i }));
     const boton = await screen.findByRole('button', { name: /desactivar notificaciones/i });
 
     fireEvent.click(boton);
 
     await waitFor(() => expect(pushSub.removePushSubscription).toHaveBeenCalled());
-    await screen.findByRole('button', { name: /activar notificaciones/i });
+    await screen.findByRole('button', { name: /solicitar permiso/i });
+  });
+
+  it('«Ahora no» oculta la solicitud y permite activarla después', async () => {
+    window.sessionStorage.clear();
+    setupBrowser('default');
+    render(<PushPermissionPanel />);
+
+    fireEvent.click(screen.getByRole('button', { name: /ahora no/i }));
+
+    expect(await screen.findByRole('button', { name: /activar avisos/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /solicitar permiso/i })).toBeNull();
   });
 
   it('informa cuando el permiso fue bloqueado', async () => {
@@ -104,6 +119,6 @@ describe('PushPermissionPanel (HU13 - T7 y T8)', () => {
     setupBrowser('default', false);
     render(<PushPermissionPanel />);
     expect(screen.getByText(/no admite|requieren una conexión segura/i)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /activar notificaciones/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /solicitar permiso/i })).toBeNull();
   });
 });

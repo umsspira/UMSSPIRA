@@ -1,38 +1,66 @@
 'use client';
 
-import { Bell, BellRing, BellOff, ShieldAlert } from 'lucide-react';
-import {
-  describeUnsupportedReason,
-} from '@/shared/services/push-permissions';
+import { useEffect, useState } from 'react';
+import { BellOff, BellRing, ShieldAlert } from 'lucide-react';
+import { describeUnsupportedReason } from '@/shared/services/push-permissions';
 import { usePushPermission } from '../hooks/usePushPermission';
 import { usePushSubscription } from '../hooks/usePushSubscription';
+import styles from './push-permission-panel.module.css';
+
+const DISMISS_KEY = 'umsspira:push-prompt-dismissed';
+
+function readDismissed(): boolean {
+  try {
+    return window.sessionStorage.getItem(DISMISS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeDismissed(value: boolean): void {
+  try {
+    if (value) window.sessionStorage.setItem(DISMISS_KEY, '1');
+    else window.sessionStorage.removeItem(DISMISS_KEY);
+  } catch {
+    // Sin sessionStorage solo se pierde la preferencia de esta sesión.
+  }
+}
 
 /**
- * Panel de estado y activación de notificaciones Push (HU13 - T7 y T8).
- * Se muestra dentro del desplegable de notificaciones del navbar,
- * respetando la tipografía y colores existentes (ámbar #FFB162 sobre #0F172A).
+ * Panel «Activar avisos» de notificaciones Push (HU13 - T7 y T8).
+ * Se muestra dentro del desplegable de notificaciones del navbar (ActivityPanel)
+ * y sigue el mockup: «Solicitar permiso» / «Ahora no».
  */
 export function PushPermissionPanel() {
   const { permission, support, requesting, request } = usePushPermission();
   const { status, error, subscribe, unsubscribe } = usePushSubscription(permission);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    setDismissed(readDismissed());
+  }, []);
 
   if (!support.supported) {
     return (
-      <div className="flex items-start gap-2 text-xs text-slate-500">
-        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
-        <p>{describeUnsupportedReason(support.reason)}</p>
+      <div className={styles.panel}>
+        <div className={`${styles.status} ${styles.warn}`}>
+          <ShieldAlert size={16} aria-hidden="true" />
+          <p>{describeUnsupportedReason(support.reason)}</p>
+        </div>
       </div>
     );
   }
 
   if (permission === 'denied') {
     return (
-      <div className="flex items-start gap-2 text-xs text-slate-500">
-        <BellOff className="mt-0.5 h-4 w-4 shrink-0 text-[#b06c30]" aria-hidden="true" />
-        <p>
-          Bloqueaste las notificaciones. Habilítalas desde la configuración de tu
-          navegador para recibir avisos de eventos.
-        </p>
+      <div className={styles.panel}>
+        <div className={`${styles.status} ${styles.warn}`}>
+          <BellOff size={16} aria-hidden="true" />
+          <p>
+            Bloqueaste las notificaciones. Habilítalas desde la configuración de tu
+            navegador para recibir avisos de eventos.
+          </p>
+        </div>
       </div>
     );
   }
@@ -41,51 +69,68 @@ export function PushPermissionPanel() {
   const subscribed = permission === 'granted' && status === 'subscribed';
 
   const handleActivate = async () => {
+    writeDismissed(false);
+    setDismissed(false);
     const result = permission === 'granted' ? permission : await request();
     if (result === 'granted') {
       await subscribe();
     }
   };
 
-  return (
-    <div className="space-y-2">
-      <div className="flex items-start gap-2 text-xs text-slate-600">
-        {subscribed ? (
-          <BellRing className="mt-0.5 h-4 w-4 shrink-0 text-[#237044]" aria-hidden="true" />
-        ) : (
-          <Bell className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
-        )}
-        <p>
-          {subscribed
-            ? 'Recibirás avisos de cambios y cancelaciones de tus eventos.'
-            : 'Activa las notificaciones para enterarte de cambios y cancelaciones de eventos.'}
-        </p>
+  const handleDismiss = () => {
+    writeDismissed(true);
+    setDismissed(true);
+  };
+
+  if (subscribed) {
+    return (
+      <div className={styles.panel}>
+        <div className={`${styles.status} ${styles.ok}`}>
+          <BellRing size={16} aria-hidden="true" />
+          <p>Recibirás avisos de cambios y cancelaciones de tus eventos.</p>
+        </div>
+        <button type="button" className={styles.secondary} onClick={() => void unsubscribe()}>
+          Desactivar notificaciones
+        </button>
       </div>
+    );
+  }
+
+  if (dismissed) {
+    return (
+      <div className={styles.panel}>
+        <p className={styles.text}>Los avisos de eventos están desactivados por ahora.</p>
+        <button type="button" className={styles.secondary} onClick={() => void handleActivate()} disabled={busy}>
+          Activar avisos
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.panel}>
+      <p className={styles.eyebrow}>Ajustes de notificación</p>
+      <span className={styles.chip}>Avisos opcionales</span>
+      <h3 className={styles.title}>Activar avisos</h3>
+      <p className={styles.text}>
+        Recibirás avisos cuando cambie o se cancele uno de tus eventos y cuando esté por comenzar.
+      </p>
+      <p className={styles.hint}>El navegador te pedirá autorización antes de activar los avisos.</p>
 
       {error && (
-        <p role="alert" className="text-xs font-medium text-[#8B0000]">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
 
-      {subscribed ? (
-        <button
-          type="button"
-          onClick={() => void unsubscribe()}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-        >
-          Desactivar notificaciones
+      <div className={styles.actions}>
+        <button type="button" className={styles.primary} onClick={() => void handleActivate()} disabled={busy}>
+          {busy ? 'Solicitando…' : 'Solicitar permiso'}
         </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => void handleActivate()}
-          disabled={busy}
-          className="w-full rounded-xl bg-[#FFB162] px-3 py-2 text-xs font-bold text-[#0F172A] transition-colors hover:bg-[#e99541] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {busy ? 'Activando notificaciones…' : 'Activar notificaciones'}
+        <button type="button" className={styles.secondary} onClick={handleDismiss} disabled={busy}>
+          Ahora no
         </button>
-      )}
+      </div>
     </div>
   );
 }
