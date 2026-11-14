@@ -15,6 +15,8 @@ import type {
   UpdateObservedDataUseCaseInput,
   UploadedDocument,
 } from '../../application/contracts/registration-inputs';
+import type { RegistrationFile } from '../../domain/entities/registration';
+import { toRegistrationFile } from '../translators/registration.translator';
 
 @Injectable()
 export class PrismaObservedApplicationRepository implements ObservedApplicationPort {
@@ -99,6 +101,43 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
       observacion,
       documento: docInfo,
     };
+  }
+
+  async getDocumentContent(applicationId: string): Promise<RegistrationFile> {
+    const row = await this.prisma.solicitud.findUnique({
+      where: { id: applicationId },
+      include: { documento_respaldo: true },
+    });
+
+    if (!row || (row.estado !== 'OBSERVED' && row.estado !== 'OBSERVADA')) {
+      throw new BusinessRuleError(
+        'missing',
+        'APPLICATION_NOT_FOUND',
+        'La solicitud no existe o no está disponible',
+      );
+    }
+
+    const storagePath = row.documento_respaldo?.ruta_storage;
+    if (!storagePath) {
+      throw new BusinessRuleError(
+        'missing',
+        'DOCUMENT_NOT_FOUND',
+        'No se encontró el documento de respaldo',
+      );
+    }
+
+    const file = await this.prisma.archivoRegistro.findUnique({
+      where: { id: storagePath },
+    });
+    if (!file) {
+      throw new BusinessRuleError(
+        'missing',
+        'DOCUMENT_NOT_FOUND',
+        'No se encontró el archivo del documento',
+      );
+    }
+
+    return toRegistrationFile(file);
   }
 
   async updateObservedApplication(

@@ -55,6 +55,33 @@ describe('FormularioDescripcion (T6.2)', () => {
   });
 });
 
+describe('Descripción vacía (T6.2 y T6.4)', () => {
+  it.each(['', '   '])('no envía nada y muestra el mensaje junto al campo con "%s"', (valor) => {
+    const onGuardar = jest.fn();
+    render(<FormularioDescripcion descripcion="" onGuardar={onGuardar} />);
+
+    fireEvent.change(screen.getByLabelText('Descripción profesional'), { target: { value: valor } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('La descripción no puede estar vacía');
+    expect(onGuardar).not.toHaveBeenCalled();
+    expect(screen.queryByText('Descripción guardada')).not.toBeInTheDocument();
+  });
+
+  it('quita el mensaje al volver a escribir y deja guardar', async () => {
+    const onGuardar = jest.fn().mockResolvedValue(undefined);
+    render(<FormularioDescripcion descripcion="" onGuardar={onGuardar} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Descripción profesional'), { target: { value: 'Analista' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(onGuardar).toHaveBeenCalledWith('Analista'));
+  });
+});
+
 describe('Guardado de la descripción (T6.3)', () => {
   function escribirYGuardar(texto: string) {
     fireEvent.change(screen.getByLabelText('Descripción profesional'), { target: { value: texto } });

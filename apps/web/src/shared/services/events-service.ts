@@ -262,7 +262,7 @@ export async function retireEvent(
 ): Promise<RetiredEventItem> {
   requireUserId(userId, 'retirar el evento');
   return (await apiClient<{ data: RetiredEventItem }>(
-    `/api/v1/events/inactive/${encodeURIComponent(eventId)}/retire`,
+    `/api/v1/events/owned/${encodeURIComponent(eventId)}/retire`,
     {
       method: 'PATCH',
       authenticated: true,

@@ -27,6 +27,9 @@ const MIGRATIONS_DIR = join(__dirname, '..', '..', '..', 'prisma', 'migrations')
 export async function applyMigrations(connectionString: string): Promise<void> {
   const pool = new Pool({ connectionString });
   try {
+    // Supabase trae el esquema `extensions`; un PostgreSQL vacío no. La migración histórica
+    // 20261028000000_create_unnacent instala unaccent ahí, así que se prepara antes (sin tocarla).
+    await pool.query('CREATE SCHEMA IF NOT EXISTS extensions');
     const dirs = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
