@@ -39,6 +39,11 @@ import { GetApplicationDocumentController } from './http/controllers/get-applica
 import { GetApplicationMetricsController } from './http/controllers/get-application-metrics.controller';
 import { MailEventsController } from './http/controllers/mail-events.controller';
 
+// 1. Importaciones necesarias para el historial
+import { HistoryEventsService } from './application/services/history-events.service';
+import { HISTORY_EVENTS_PORT } from './application/ports/history-events.port';
+import { PrismaHistoryEventsRepository } from './infrastructure/repositories/prisma-history-events.repository';
+
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [
@@ -78,7 +83,20 @@ import { MailEventsController } from './http/controllers/mail-events.controller'
     RegistrationTrafficGuard,
     TrustedOriginGuard,
     CorrectionTokenGuard,
+    
+    // 2. Providers añadidos (El servicio y su puerto)
+    HistoryEventsService,
+    {
+      provide: HISTORY_EVENTS_PORT,
+      useClass: PrismaHistoryEventsRepository,
+    },
   ],
-  exports: [REGISTRATION_SECURITY, CorrectionTokenService, CorrectionTokenGuard, ObservedApplicationService],
+  exports: [
+    REGISTRATION_SECURITY, 
+    CorrectionTokenService, 
+    CorrectionTokenGuard, 
+    ObservedApplicationService,
+    HistoryEventsService, // 3. Exportar el servicio por si lo usas en otro lado
+  ],
 })
 export class RegistrationsModule {}
