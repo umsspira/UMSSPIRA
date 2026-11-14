@@ -20,3 +20,27 @@ export const graduateListSchema = z.strictObject({
   page: z.coerce.number().int().min(1).max(100000).default(1),
   limit: z.coerce.number().int().min(1).max(1000).default(10),
 });
+
+/**
+ * Filtros del tablero de acreditación en la URL (HU-003): ?careerId&cohorte=2023&semestre=1-2026.
+ * El semestre llega con guion porque la barra no va en la URL; adentro se usa 1/2026.
+ */
+export const accreditationFilterSchema = z
+  .strictObject({
+    careerId: fields.careerId,
+    cohorte: z
+      .string()
+      .regex(/^\d{4}$/)
+      .transform(Number)
+      .optional(),
+    semestre: z
+      .string()
+      .regex(/^[12]-\d{4}$/)
+      .transform((value) => value.replace('-', '/'))
+      .optional(),
+  })
+  .transform(({ careerId, cohorte, semestre }) => ({
+    ...(careerId ? { careerId } : {}),
+    ...(cohorte !== undefined ? { cohort: cohorte } : {}),
+    ...(semestre ? { semester: semestre } : {}),
+  }));
