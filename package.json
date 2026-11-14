@@ -1,20 +1,27 @@
 {
-  "name": "umsspira-monorepo",
+  "name": "umsspira3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
   "private": true,
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --filter \"./apps/*\" --parallel dev",
-    "build": "pnpm -r build",
+    "dev": "npm --prefix frontend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run start:dev",
+    "start:dev": "npm --prefix backend run start:dev",
+    "test": "pnpm -r test",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r --parallel test",
+    "build": "pnpm -r build",
     "prepare": "husky"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "devDependencies": {
-    "@commitlint/cli": "^21.2.3",
-    "@commitlint/config-conventional": "^21.2.3",
-    "husky": "^9.1.7",
-    "lint-staged": "^17.5.1"
+    "supabase": "^3.0.0"
   }
 }
+

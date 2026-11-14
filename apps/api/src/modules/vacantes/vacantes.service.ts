@@ -60,18 +60,28 @@ export class VacantesService {
     return vacancies.map((vacancy) => this.mapVacante(vacancy));
   }
 
-  async obtenerVacantePorId(idVacante: string, idUsuario: string) {
-    const empresa = await this.empresaDelUsuario(idUsuario);
-    if (!empresa) {
-      throw new NotFoundException('Empresa no encontrada.');
+  async obtenerVacantePorId(idVacante: string, idUsuario?: string) {
+    if (idUsuario) {
+      const empresa = await this.empresaDelUsuario(idUsuario);
+      if (!empresa) {
+        throw new NotFoundException('Empresa no encontrada.');
+      }
+      const vacancy = await this.prisma.vacante.findFirst({
+        where: { id: idVacante, id_empresa: empresa.id },
+        include: VACANTE_INCLUDE,
+      });
+      if (!vacancy) {
+        throw new NotFoundException('Vacante no encontrada o sin permiso.');
+      }
+      return this.mapVacante(vacancy);
     }
 
-    const vacancy = await this.prisma.vacante.findFirst({
-      where: { id: idVacante, id_empresa: empresa.id },
+    const vacancy = await this.prisma.vacante.findUnique({
+      where: { id: idVacante },
       include: VACANTE_INCLUDE,
     });
     if (!vacancy) {
-      throw new NotFoundException('Vacante no encontrada o sin permiso.');
+      throw new NotFoundException('La vacante no existe.');
     }
     return this.mapVacante(vacancy);
   }
@@ -125,18 +135,7 @@ export class VacantesService {
       return vacancy.id;
     });
 
-    return this.obtenerPorId(idVacante);
-  }
-
-  async obtenerPorId(idVacante: string) {
-    const vacancy = await this.prisma.vacante.findUnique({
-      where: { id: idVacante },
-      include: VACANTE_INCLUDE,
-    });
-    if (!vacancy) {
-      throw new NotFoundException('La vacante no existe.');
-    }
-    return this.mapVacante(vacancy);
+    return this.obtenerVacantePorId(idVacante);
   }
 
   async listarPorEmpresa(idEmpresa: string) {
@@ -195,7 +194,7 @@ export class VacantesService {
       }
     });
 
-    return this.obtenerPorId(idVacante);
+    return this.obtenerVacantePorId(idVacante);
   }
 
   async consultarDisponibilidad(buscar?: string) {
@@ -268,10 +267,7 @@ export class VacantesService {
   }
 
   private async ensureOwnedVacancy(idVacante: string, idUsuario: string) {
-    const vacancy = await this.obtenerVacantePorId(idVacante, idUsuario);
-    if (!vacancy) {
-      throw new NotFoundException('Vacante no encontrada o sin permiso.');
-    }
+    await this.obtenerVacantePorId(idVacante, idUsuario);
   }
 
   private mapVacante(vacancy: VacanteWithRelations) {
