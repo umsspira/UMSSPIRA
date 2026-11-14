@@ -11,6 +11,21 @@ import {
   withOcrSlot,
 } from "../services/ocr-control";
 
+function isOcrJob(value: unknown): value is OcrJob {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const job = value as Partial<OcrJob>;
+  return (
+    [job.id, job.applicationId, job.token].every(
+      (field) => typeof field === "string" && field.trim().length > 0,
+    ) &&
+    typeof job.revision === "number" &&
+    Number.isInteger(job.revision) &&
+    job.revision > 0 &&
+    typeof job.expiresAt === "string" &&
+    Number.isFinite(Date.parse(job.expiresAt))
+  );
+}
+
 export function useOcrQueue() {
   const [message, setMessage] = useState("Buscando respaldos pendientes…");
   useEffect(() => {
@@ -61,11 +76,16 @@ export function useOcrQueue() {
         if (document.visibilityState === "hidden" || lifetime.signal.aborted)
           return;
         const priorities = pendingOcrPriorities();
-        job = await ocrRequest<OcrJob | null>(
+        const claimed = await ocrRequest<unknown>(
           "ocr/claim",
           { applicationIds: priorities },
           lifetime.signal,
         );
+        if (claimed !== null && !isOcrJob(claimed))
+          throw new Error(
+            "La reserva OCR recibida no es válida. Se reintentará la consulta.",
+          );
+        job = claimed;
         // Only acknowledge priorities sent in this request; keep any opened during the fetch.
         const selected = job ? priorities.indexOf(job.applicationId) : -1;
         acknowledgeOcrPriorities(
