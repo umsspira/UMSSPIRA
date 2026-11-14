@@ -30,6 +30,9 @@ import { GetReceivedMentorshipRequestController } from './http/controllers/get-r
 import { AcceptMentorshipRequestController } from './http/controllers/accept-mentorship-request.controller';
 import { RejectMentorshipRequestController } from './http/controllers/reject-mentorship-request.controller';
 import { GetMentorSlotsController } from './http/controllers/get-mentor-slots.controller';
+import { CreateCustomInterestController } from './http/controllers/create-custom-interest.controller';
+import { UpdateCustomInterestController } from './http/controllers/update-custom-interest.controller';
+import { DeleteCustomInterestController } from './http/controllers/delete-custom-interest.controller';
 
 @Module({
   imports: [PrismaModule, RegistrationsModule],
@@ -51,6 +54,9 @@ import { GetMentorSlotsController } from './http/controllers/get-mentor-slots.co
     GetMyMentorInterestsController,
     AddMentorInterestsController,
     RemoveMentorInterestController,
+    CreateCustomInterestController,
+    UpdateCustomInterestController,
+    DeleteCustomInterestController,
     GetMentorAvailabilityController,
     SetMentorAvailabilityController,
     GetMentorScheduleController,

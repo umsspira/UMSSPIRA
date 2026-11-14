@@ -50,6 +50,9 @@ import { ListReceivedMentorshipRequestsUseCase } from '../../application/use-cas
 import { GetReceivedMentorshipRequestUseCase } from '../../application/use-cases/get-received-mentorship-request.use-case';
 import { RespondToMentorshipRequestUseCase } from '../../application/use-cases/respond-to-mentorship-request.use-case';
 import { GetMentorSlotsUseCase } from '../../application/use-cases/get-mentor-slots.use-case';
+import { CreateCustomInterestUseCase } from '../../application/use-cases/create-custom-interest.use-case';
+import { UpdateCustomInterestUseCase } from '../../application/use-cases/update-custom-interest.use-case';
+import { DeleteCustomInterestUseCase } from '../../application/use-cases/delete-custom-interest.use-case';
 
 export const mentorshipProviders: Provider[] = [
   PrismaMentorRepository,
@@ -201,5 +204,23 @@ export const mentorshipProviders: Provider[] = [
     inject: [MENTORSHIP_REQUEST_REPOSITORY],
     useFactory: (repository: MentorshipRequestRepository) =>
       new GetMentorSlotsUseCase(repository),
+  },
+  {
+    provide: CreateCustomInterestUseCase,
+    inject: [MENTOR_CATALOG_REPOSITORY],
+    useFactory: (repository: MentorCatalogRepository) =>
+      new CreateCustomInterestUseCase(repository),
+  },
+  {
+    provide: UpdateCustomInterestUseCase,
+    inject: [MENTOR_CATALOG_REPOSITORY],
+    useFactory: (repository: MentorCatalogRepository) =>
+      new UpdateCustomInterestUseCase(repository),
+  },
+  {
+    provide: DeleteCustomInterestUseCase,
+    inject: [MENTOR_CATALOG_REPOSITORY],
+    useFactory: (repository: MentorCatalogRepository) =>
+      new DeleteCustomInterestUseCase(repository),
   },
 ];

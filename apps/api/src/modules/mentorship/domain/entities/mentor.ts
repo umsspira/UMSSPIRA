@@ -27,6 +27,7 @@ export interface AreaReference {
 
 export interface MentorInterest extends AreaReference {
   area: AreaReference;
+  esPersonalizado?: boolean;
 }
 
 export interface MentorAreas {

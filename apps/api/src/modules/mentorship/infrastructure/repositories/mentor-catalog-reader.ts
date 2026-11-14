@@ -32,25 +32,39 @@ export const linkedAreaInclude = {
 };
 
 export async function readMentorAreas(db: Prisma.TransactionClient, mentorId: string) {
-  const [catalog, links] = await Promise.all([
+  const [catalog, links, customInterests] = await Promise.all([
     db.area.findMany({
       where: { padre_id: null, esta_activo: true },
       orderBy: [{ nombre: 'asc' }, { id: 'asc' }],
       select: { id: true, nombre: true },
     }),
     db.mentorArea.findMany({ where: { id_mentor: mentorId }, include: linkedAreaInclude }),
+    db.mentorInteresPersonalizado.findMany({
+      where: { id_mentor: mentorId },
+      include: { area: { select: { id: true, nombre: true } } },
+      orderBy: [{ fecha_creacion: 'asc' }, { id: 'asc' }],
+    }),
   ]);
-  const interests: MentorInterest[] = links.flatMap((link) =>
-    link.area?.padre
-      ? [
-          {
-            id: link.area.id,
-            name: link.area.nombre ?? '',
-            area: { id: link.area.padre.id, name: link.area.padre.nombre ?? '' },
-          },
-        ]
-      : [],
-  );
+  const interests: MentorInterest[] = [
+    ...links.flatMap((link) =>
+      link.area?.padre
+        ? [
+            {
+              id: link.area.id,
+              name: link.area.nombre ?? '',
+              area: { id: link.area.padre.id, name: link.area.padre.nombre ?? '' },
+              esPersonalizado: false,
+            },
+          ]
+        : [],
+    ),
+    ...customInterests.map((custom) => ({
+      id: custom.id,
+      name: custom.nombre,
+      area: { id: custom.area.id, name: custom.area.nombre ?? '' },
+      esPersonalizado: true,
+    })),
+  ];
   return {
     catalog: catalog.map((area) => ({ id: area.id, name: area.nombre ?? '' })),
     selectedIds: [

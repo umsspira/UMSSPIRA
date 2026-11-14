@@ -25,6 +25,14 @@ export const mentorInterestsSchema = z.strictObject({
 export const availabilitySchema = z.strictObject({
   availabilityStatus: z.enum(['DISPONIBLE', 'EN_PAUSA', 'NO_DISPONIBLE']),
 });
+export const createCustomInterestSchema = z.strictObject({
+  areaId: mentorIdSchema,
+  texto: z.string(),
+});
+export const updateCustomInterestSchema = z.strictObject({
+  texto: z.string(),
+});
+
 const scheduleTimeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'La hora debe tener el formato HH:MM');
 export const mentorScheduleSchema = z.strictObject({
   // 7 días × 6 franjas; las reglas de negocio las valida la política del dominio.
