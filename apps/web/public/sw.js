@@ -159,3 +159,15 @@ async function handleNavigation(request) {
     return new Response('Sin conexión. Reintenta más tarde.', { status: 503, headers: { 'Content-Type': 'text/plain' } });
   }
 }
+
+async function saveProfile(name) {
+  if (!PROFILES[name]) return;
+  const cache = await caches.open(CONFIG_CACHE);
+  await cache.put(PROFILE_KEY, new Response(name));
+}
+
+async function loadProfile() {
+  const cache = await caches.open(CONFIG_CACHE);
+  const response = await cache.match(PROFILE_KEY);
+  return response ? await response.text() : DEFAULT_PROFILE;
+}
