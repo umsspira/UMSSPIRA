@@ -6,7 +6,11 @@ import type {
   RadarCalculationSnapshot,
   RadarRepositoryPort,
 } from '../../application/ports/radar-repository.port';
-import { normalizeTopKeywords } from '../../domain/policies/affinity-calculator';
+import {
+  normalizeKeywordContributions,
+  normalizeTopKeywords,
+} from '../../domain/policies/affinity-calculator';
+import { DICTIONARY_VERSION } from '../../domain/policies/affinity-config';
 
 type CalculateRadarRow = {
   id: string;
@@ -14,6 +18,7 @@ type CalculateRadarRow = {
   hash_entrada: string | null;
   estado: string;
   version_algoritmo: string;
+  version_diccionario?: string | null;
   fecha_calculo: Date;
 };
 
@@ -22,6 +27,7 @@ type AfinidadRadarRow = {
   puntaje: unknown;
   porcentaje: unknown;
   palabras_clave_top: unknown;
+  contribuciones_keyword?: unknown;
 };
 
 @Injectable()
@@ -113,6 +119,7 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
     hashEntrada: string;
     estado: 'COMPLETADO' | 'VACIO';
     versionAlgoritmo: string;
+    versionDiccionario?: string | null;
     areas: AreaScoreRecord[];
     unmapped: Array<{ term: string; count: number }>;
   }): Promise<RadarCalculationSnapshot> {
@@ -130,15 +137,20 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
       hashEntrada: string;
       estado: 'COMPLETADO' | 'VACIO';
       versionAlgoritmo: string;
+      versionDiccionario?: string | null;
       areas: AreaScoreRecord[];
       unmapped: Array<{ term: string; count: number }>;
     },
   ): Promise<RadarCalculationSnapshot> {
+    const versionDiccionario =
+      params.versionDiccionario === undefined ? DICTIONARY_VERSION : params.versionDiccionario;
+
     const savedCalculation = await transaction.calculoRadar.create({
       data: {
         id_titulado: params.tituladoId,
         hash_entrada: params.hashEntrada,
         version_algoritmo: params.versionAlgoritmo,
+        version_diccionario: versionDiccionario,
         estado: params.estado,
         fecha_calculo: new Date(),
       },
@@ -146,13 +158,17 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
 
     if (params.areas.length > 0) {
       await transaction.afinidadRadar.createMany({
-        data: params.areas.map((area) => ({
-          id_calculo_radar: savedCalculation.id,
-          id_area: area.areaId,
-          puntaje: area.puntaje,
-          porcentaje: area.porcentaje,
-          palabras_clave_top: area.palabrasClaveTop as unknown as Prisma.InputJsonValue,
-        })),
+        data: params.areas.map((area) => {
+          const allContributions = area.contribucionesKeyword ?? area.palabrasClaveTop;
+          return {
+            id_calculo_radar: savedCalculation.id,
+            id_area: area.areaId,
+            puntaje: area.puntaje,
+            porcentaje: area.porcentaje,
+            palabras_clave_top: area.palabrasClaveTop as unknown as Prisma.InputJsonValue,
+            contribuciones_keyword: allContributions as unknown as Prisma.InputJsonValue,
+          };
+        }),
       });
     }
 
@@ -192,8 +208,16 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
       hashEntrada: savedCalculation.hash_entrada,
       estado: savedCalculation.estado as 'COMPLETADO' | 'VACIO',
       versionAlgoritmo: savedCalculation.version_algoritmo,
+      versionDiccionario: savedCalculation.version_diccionario ?? versionDiccionario,
       fechaCalculo: savedCalculation.fecha_calculo,
-      afinidad: params.areas,
+      afinidad: params.areas.map((area) => ({
+        areaId: area.areaId,
+        puntaje: area.puntaje,
+        porcentaje: area.porcentaje,
+        ponderacion: area.ponderacion,
+        palabrasClaveTop: area.palabrasClaveTop,
+        contribucionesKeyword: area.contribucionesKeyword ?? area.palabrasClaveTop,
+      })),
     };
   }
 
@@ -207,16 +231,26 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
       hashEntrada: calc.hash_entrada,
       estado: calc.estado as 'COMPLETADO' | 'VACIO',
       versionAlgoritmo: calc.version_algoritmo,
+      versionDiccionario: calc.version_diccionario ?? null,
       fechaCalculo: calc.fecha_calculo,
-      afinidad: afinidades.map((area) => ({
-        areaId: area.id_area,
-        puntaje: Number(area.puntaje),
-        porcentaje: Number(area.porcentaje),
-        // La tabla afinidad_radar no guarda ponderacion: el armado del vector
-        // la deriva del mayor peso conservado en palabras_clave_top.
-        ponderacion: null,
-        palabrasClaveTop: normalizeTopKeywords(area.palabras_clave_top),
-      })),
+      afinidad: afinidades.map((area) => {
+        const palabrasClaveTop = normalizeTopKeywords(area.palabras_clave_top);
+        const contribucionesKeyword =
+          area.contribuciones_keyword !== undefined && area.contribuciones_keyword !== null
+            ? normalizeKeywordContributions(area.contribuciones_keyword)
+            : undefined;
+
+        return {
+          areaId: area.id_area,
+          puntaje: Number(area.puntaje),
+          porcentaje: Number(area.porcentaje),
+          // La tabla afinidad_radar no guarda ponderacion: el armado del vector
+          // la deriva del mayor peso conservado en palabras_clave_top.
+          ponderacion: null,
+          palabrasClaveTop,
+          ...(contribucionesKeyword === undefined ? {} : { contribucionesKeyword }),
+        };
+      }),
     };
   }
 }
