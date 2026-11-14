@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
-  ArrowRightIcon,
+  CheckIcon,
   CheckCircle2Icon,
   CirclePauseIcon,
   CircleSlash2Icon,
@@ -279,8 +279,8 @@ export function MentorAvailabilityPage() {
         }}><ArrowLeftIcon aria-hidden="true" /> Volver a Mi perfil de mentor</Link>
         <div className="mentor-availability-action-buttons">
           {dirty && <SecondaryButton onClick={discard} disabled={saving}>Descartar cambios</SecondaryButton>}
-          <PrimaryButton onClick={() => void save()} disabled={!dirty || loading || loadFailed || saving} loading={saving} loadingLabel="Guardando…" iconRight={savedFeedback ? CheckCircle2Icon : ArrowRightIcon} className={`mentor-availability-save${savedFeedback ? ' is-saved' : ''}`}>
-            {savedFeedback ? '¡Guardado!' : 'Guardar disponibilidad'}
+          <PrimaryButton onClick={() => void save()} disabled={!dirty || loading || loadFailed || saving} loading={saving} loadingLabel="Guardando…" iconRight={savedFeedback ? CheckCircle2Icon : CheckIcon} className={`mentor-availability-save${savedFeedback ? ' is-saved' : ''}`}>
+            {savedFeedback ? '¡Guardado!' : 'Guardar y finalizar'}
           </PrimaryButton>
         </div>
       </div>

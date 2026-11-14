@@ -582,9 +582,10 @@
 .mentor-availability-back:hover { text-decoration: underline; }
 .mentor-availability-action-buttons { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; }
 .mentor-availability-action-buttons .mentor-button { min-height: 2.4rem; font-size: .6875rem; }
-.mentor-availability-save { background: #e4dfd3; border-color: #e4dfd3; color: var(--ink-70); }
-.mentor-availability-save:hover:not(:disabled) { background: #d9d2c5; }
-.mentor-availability-save:disabled { cursor: not-allowed; opacity: .8; }
+/* Botón naranja «Guardar y finalizar» del prototipo; gris mientras no hay cambios. */
+.mentor-availability-save { background: #ffb162; border-color: #ffb162; color: #1b2632; font-weight: 700; }
+.mentor-availability-save:hover:not(:disabled) { background: #ffa44f; border-color: #ffa44f; }
+.mentor-availability-save:disabled { background: #e4dfd3; border-color: #e4dfd3; color: var(--ink-70); cursor: not-allowed; opacity: .8; }
 .mentor-availability-save.is-saved { background: var(--success); border-color: var(--success); color: white; }
 .mentor-availability-help { padding: 0 1rem .7rem; color: var(--ink-70); font-size: .625rem; text-align: right; }
 .mentor-availability-toast { position: fixed; z-index: 50; right: 1rem; bottom: 1rem; display: flex; max-width: min(24rem, calc(100vw - 2rem)); align-items: center; gap: .65rem; border: 1px solid rgb(255 255 255 / 15%); border-radius: .55rem; background: #192635; box-shadow: 0 8px 24px rgb(0 0 0 / 22%); padding: .85rem 1rem; color: white; font-size: .75rem; }

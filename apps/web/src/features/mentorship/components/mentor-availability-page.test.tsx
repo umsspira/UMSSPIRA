@@ -36,7 +36,7 @@ beforeEach(() => {
   saveSchedule.mockImplementation(async schedule => ({ schedule, fecha_actualizacion: '2026-11-14' }));
 });
 
-const saveButton = () => screen.getByRole('button', { name: /Guardar disponibilidad|Guardando…|¡Guardado!/ });
+const saveButton = () => screen.getByRole('button', { name: /Guardar y finalizar|Guardando…|¡Guardado!/ });
 
 it('reemplaza «Próximamente» por el horario semanal vacío y lo despliega', async () => {
   render(<MentorAvailabilityPage />);
