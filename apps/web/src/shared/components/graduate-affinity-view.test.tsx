@@ -612,7 +612,7 @@ describe('GraduateAffinityView', () => {
     render(<GraduateAffinityView />);
 
     expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
-    expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no podemos mostrar coincidencias/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Vector Calculado/i)).not.toBeInTheDocument();
@@ -869,9 +869,9 @@ describe('GraduateAffinityView', () => {
     render(<GraduateAffinityView />);
 
     expect(await screen.findByText(/Completar perfil/i)).toBeInTheDocument();
-    expect(screen.getByText(/Aún no podemos calcular tus áreas de mayor afinidad/i)).toBeInTheDocument();
+    expect(screen.getByText(/Aún no podemos mostrar coincidencias/i)).toBeInTheDocument();
     expect(screen.queryByText(/Última actualización/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Áreas con mayor afinidad identificadas:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Áreas con mayor coincidencia de palabras:/i)).not.toBeInTheDocument();
   });
 
   it('ordena el resumen de mayor a menor afinidad en las áreas identificadas', async () => {
@@ -920,7 +920,7 @@ describe('GraduateAffinityView', () => {
 
     await screen.findByText('Resumen de tu afinidad');
 
-    const topSection = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    const topSection = await screen.findByText(/Áreas con mayor coincidencia de palabras:/i);
     expect(topSection).toBeInTheDocument();
 
     const badges = screen.getAllByText(/^\d+\.\s+/);
@@ -993,7 +993,7 @@ describe('GraduateAffinityView', () => {
 
     render(<GraduateAffinityView />);
 
-    const heading = await screen.findByText(/Áreas con mayor afinidad identificadas:/i);
+    const heading = await screen.findByText(/Áreas con mayor coincidencia de palabras:/i);
     const topSection = heading.closest('.bg-palladian') as HTMLElement;
 
     expect(
