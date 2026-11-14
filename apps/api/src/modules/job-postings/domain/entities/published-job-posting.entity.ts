@@ -20,4 +20,6 @@ export interface PublishedJobPosting {
 
 export interface PublishedJobPostingDetail extends PublishedJobPosting {
   affinityPercentage: number | null;
+  affinityMessage: string | null;
+  publishedTechnicalRequirements: import('../../application/ports/published-technical-requirements-reader.port').PublishedTechnicalRequirement[];
 }

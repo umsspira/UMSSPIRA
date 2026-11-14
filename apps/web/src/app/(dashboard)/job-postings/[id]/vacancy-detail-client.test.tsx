@@ -23,8 +23,16 @@ const posting = {
     logoUrl: null,
     bannerUrl: null,
   },
-  technicalRequirements: [{ name: "React", level: "Intermedio" }],
+  technicalRequirements: [{
+    id: "requirement-1",
+    vacancyId: "vacancy-1",
+    name: "React",
+    level: "Intermedio",
+    type: "Obligatorio",
+    description: "Desarrollo de interfaces.",
+  }],
   affinityPercentage: 95,
+  affinityMessage: null,
 };
 
 beforeEach(() => {
@@ -36,7 +44,7 @@ afterEach(() => {
   console.error = originalConsoleError;
 });
 
-it("muestra la vacante y la afinidad persistida", async () => {
+it("muestra el detalle, los requisitos HU8 y la afinidad disponible", async () => {
   getJobPostingMock.mockResolvedValue(posting);
 
   render(<VacancyDetailClient id="vacancy-1" isGraduate />);
@@ -45,16 +53,22 @@ it("muestra la vacante y la afinidad persistida", async () => {
   expect(screen.getAllByText("Empresa real")).toHaveLength(3);
   expect(screen.getByText("Descripción registrada de la vacante.")).toBeInTheDocument();
   expect(screen.getByText("React")).toBeInTheDocument();
+  expect(screen.getByText("Competencias requeridas")).toBeInTheDocument();
+  expect(screen.getByText("Tipo: Obligatorio")).toBeInTheDocument();
   expect(screen.getByText(/95\s*%/)).toBeInTheDocument();
 });
 
 it("indica que la afinidad no está calculada sin mostrar un porcentaje sustituto", async () => {
-  getJobPostingMock.mockResolvedValue({ ...posting, affinityPercentage: null });
+  getJobPostingMock.mockResolvedValue({
+    ...posting,
+    affinityPercentage: null,
+    affinityMessage: "No fue posible calcular la afinidad en este momento.",
+  });
 
   render(<VacancyDetailClient id="vacancy-1" isGraduate />);
 
   expect(await screen.findByText("Afinidad no calculada")).toBeInTheDocument();
-  expect(screen.getByText(/aún no está disponible/)).toBeInTheDocument();
+  expect(screen.getByText("No fue posible calcular la afinidad en este momento.")).toBeInTheDocument();
   expect(screen.queryByText("0 %")).not.toBeInTheDocument();
 });
 
@@ -67,6 +81,15 @@ it("muestra un cero solo cuando el API devuelve ese porcentaje calculado", async
   expect(screen.queryByText("Afinidad no calculada")).not.toBeInTheDocument();
 });
 
+it("no muestra la tarjeta de afinidad para actores que no son titulados", async () => {
+  getJobPostingMock.mockResolvedValue(posting);
+
+  render(<VacancyDetailClient id="vacancy-1" isGraduate={false} />);
+
+  expect(await screen.findByRole("heading", { name: "Desarrolladora frontend" })).toBeInTheDocument();
+  expect(screen.queryByLabelText("Tu afinidad con esta vacante")).not.toBeInTheDocument();
+});
+
 it("muestra el estado de vacante no disponible cuando el API responde 404", async () => {
   getJobPostingMock.mockRejectedValue(new ApiError(404, "No disponible"));
 
@@ -75,7 +98,7 @@ it("muestra el estado de vacante no disponible cuando el API responde 404", asyn
   expect(
     await screen.findByRole("heading", { name: "Esta vacante ya no está disponible" }),
   ).toBeInTheDocument();
-  expect(screen.getAllByRole("link", { name: /Volver a vacantes/ })).toHaveLength(2);
+  expect(screen.getAllByRole("link", { name: /Volver a vacantes/ })).toHaveLength(1);
 });
 
 it("muestra el estado de error y permite reintentar la consulta", async () => {
