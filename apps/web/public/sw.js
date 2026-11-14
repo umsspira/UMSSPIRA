@@ -107,3 +107,9 @@ self.addEventListener('activate', (event) => {
     await self.clients.claim();
   })());
 });
+
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length > maxEntries) await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
+}
