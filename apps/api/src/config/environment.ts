@@ -1,9 +1,16 @@
 import { z } from 'zod';
+import {
+  DEFAULT_JOB_POSTINGS_INDEX,
+  resolveJobPostingsIndex,
+} from '../shared/infrastructure/search/job-posting-search.config';
 
 const postgresUrl = z.string().refine((value) => {
   try {
     const url = new URL(value);
-    return ['postgres:', 'postgresql:'].includes(url.protocol) && Boolean(url.hostname);
+    return (
+      ['postgres:', 'postgresql:'].includes(url.protocol) &&
+      Boolean(url.hostname)
+    );
   } catch {
     return false;
   }
@@ -39,7 +46,9 @@ const corsOrigins = z
       )
       .min(1),
   )
-  .transform((origins) => [...new Set(origins.map((origin) => new URL(origin).origin))]);
+  .transform((origins) => [
+    ...new Set(origins.map((origin) => new URL(origin).origin)),
+  ]);
 
 const optionalUrl = z.preprocess(
   (value) => (value === '' ? undefined : value),
@@ -53,7 +62,9 @@ const optionalSecret = z.preprocess(
 
 export const environmentSchema = z
   .object({
-    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    NODE_ENV: z
+      .enum(['development', 'test', 'production'])
+      .default('development'),
     APP_ENV: z.enum(['epic', 'dev', 'test', 'production']).default('epic'),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     CORS_ORIGINS: corsOrigins,
@@ -81,7 +92,9 @@ export const environmentSchema = z
     DATABASE_URL: postgresUrl,
     DIRECT_URL: postgresUrl.optional(),
     SHADOW_DATABASE_URL: postgresUrl.optional(),
-    AUTH_JWT_SECRET: z.string().min(64, 'La clave de firma debe tener al menos 64 caracteres'),
+    AUTH_JWT_SECRET: z
+      .string()
+      .min(64, 'La clave de firma debe tener al menos 64 caracteres'),
     AUTH_JWT_ISSUER: z.string().min(1).default('umsspira-api'),
     AUTH_JWT_AUDIENCE: z.string().min(1).default('umsspira-web'),
     AUTH_ACCESS_SECONDS: z.coerce.number().int().min(60).max(1800).default(900),
@@ -103,9 +116,30 @@ export const environmentSchema = z
     ELASTICSEARCH_NODE: optionalUrl,
     ELASTICSEARCH_API_KEY: optionalSecret,
     ELASTICSEARCH_INDEX_VACANTES: z.string().min(1).default('vacantes'),
+    ELASTICSEARCH_INDEX_JOB_POSTINGS: z
+      .string()
+      .trim()
+      .default(DEFAULT_JOB_POSTINGS_INDEX),
   })
   .superRefine((env, context) => {
-    const store = env.AUTH_RATE_LIMIT_STORE ?? (env.NODE_ENV === 'production' ? 'redis' : 'memory');
+    try {
+      resolveJobPostingsIndex(
+        env.ELASTICSEARCH_INDEX_JOB_POSTINGS,
+        env.ELASTICSEARCH_INDEX_VACANTES,
+      );
+    } catch (error) {
+      context.addIssue({
+        code: 'custom',
+        path: ['ELASTICSEARCH_INDEX_JOB_POSTINGS'],
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Indice de vacantes invalido.',
+      });
+    }
+    const store =
+      env.AUTH_RATE_LIMIT_STORE ??
+      (env.NODE_ENV === 'production' ? 'redis' : 'memory');
     if (store === 'redis' && !env.REDIS_URL) {
       context.addIssue({
         code: 'custom',
@@ -124,17 +158,22 @@ export const environmentSchema = z
   .transform((env) => ({
     ...env,
     AUTH_RATE_LIMIT_STORE:
-      env.AUTH_RATE_LIMIT_STORE ?? (env.NODE_ENV === 'production' ? 'redis' : 'memory'),
+      env.AUTH_RATE_LIMIT_STORE ??
+      (env.NODE_ENV === 'production' ? 'redis' : 'memory'),
     REDIS_URL: env.REDIS_URL ?? 'redis://localhost:6379',
   }));
 
 export type Environment = z.infer<typeof environmentSchema>;
 
-export function validateEnvironment(values: Record<string, unknown>): Environment {
+export function validateEnvironment(
+  values: Record<string, unknown>,
+): Environment {
   const result = environmentSchema.safeParse(values);
   if (!result.success) {
     // No incluir valores del entorno: pueden contener contraseñas y claves.
-    const issues = result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+    const issues = result.error.issues.map(
+      (issue) => `${issue.path.join('.')}: ${issue.message}`,
+    );
     throw new Error(`Configuración de entorno inválida: ${issues.join('; ')}`);
   }
   return result.data;

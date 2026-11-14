@@ -6,6 +6,41 @@ const database = {
 };
 
 describe('Configuración del entorno', () => {
+  it('separa el nuevo indice del anterior y normaliza su nombre', () => {
+    expect(validateEnvironment(database)).toMatchObject({
+      ELASTICSEARCH_INDEX_JOB_POSTINGS: 'job-postings-v1',
+      ELASTICSEARCH_INDEX_VACANTES: 'vacantes',
+    });
+    expect(
+      validateEnvironment({
+        ...database,
+        ELASTICSEARCH_INDEX_JOB_POSTINGS: ' ofertas-v1 ',
+      }).ELASTICSEARCH_INDEX_JOB_POSTINGS,
+    ).toBe('ofertas-v1');
+  });
+
+  it.each(['', ' ', '*', 'uno,dos', 'vacantes'])(
+    'rechaza una configuracion de indice incompatible: %s',
+    (index) => {
+      expect(() =>
+        validateEnvironment({
+          ...database,
+          ELASTICSEARCH_INDEX_JOB_POSTINGS: index,
+        }),
+      ).toThrow('ELASTICSEARCH_INDEX_JOB_POSTINGS');
+    },
+  );
+
+  it('detecta la colision con un indice anterior personalizado', () => {
+    expect(() =>
+      validateEnvironment({
+        ...database,
+        ELASTICSEARCH_INDEX_VACANTES: 'ofertas',
+        ELASTICSEARCH_INDEX_JOB_POSTINGS: 'ofertas',
+      }),
+    ).toThrow('ELASTICSEARCH_INDEX_JOB_POSTINGS');
+  });
+
   it('utiliza memoria por defecto en desarrollo', () => {
     expect(validateEnvironment(database).AUTH_RATE_LIMIT_STORE).toBe('memory');
   });
@@ -20,7 +55,9 @@ describe('Configuración del entorno', () => {
   });
 
   it('en producción usa Redis por defecto y exige una conexión explícita', () => {
-    expect(() => validateEnvironment({ ...database, NODE_ENV: 'production' })).toThrow('REDIS_URL');
+    expect(() =>
+      validateEnvironment({ ...database, NODE_ENV: 'production' }),
+    ).toThrow('REDIS_URL');
     expect(
       validateEnvironment({
         ...database,
@@ -44,10 +81,14 @@ describe('Configuración del entorno', () => {
     const env = validateEnvironment({
       ...database,
       PORT: '3005',
-      CORS_ORIGINS: 'http://localhost:3001/, https://ejemplo.edu.bo, http://localhost:3001',
+      CORS_ORIGINS:
+        'http://localhost:3001/, https://ejemplo.edu.bo, http://localhost:3001',
     });
     expect(env.PORT).toBe(3005);
-    expect(env.CORS_ORIGINS).toEqual(['http://localhost:3001', 'https://ejemplo.edu.bo']);
+    expect(env.CORS_ORIGINS).toEqual([
+      'http://localhost:3001',
+      'https://ejemplo.edu.bo',
+    ]);
   });
 
   it.each([
@@ -56,7 +97,9 @@ describe('Configuración del entorno', () => {
     'file:///tmp',
     'https://usuario:clave@ejemplo.edu.bo',
   ])('rechaza un origen inválido: %s', (origin) =>
-    expect(() => validateEnvironment({ ...database, CORS_ORIGINS: origin })).toThrow(),
+    expect(() =>
+      validateEnvironment({ ...database, CORS_ORIGINS: origin }),
+    ).toThrow(),
   );
 
   it('rechaza un entorno sin conexión PostgreSQL', () => {
@@ -70,6 +113,8 @@ describe('Configuración del entorno', () => {
   });
 
   it('rechaza puertos inválidos', () => {
-    expect(() => validateEnvironment({ ...database, PORT: '0' })).toThrow('PORT');
+    expect(() => validateEnvironment({ ...database, PORT: '0' })).toThrow(
+      'PORT',
+    );
   });
 });

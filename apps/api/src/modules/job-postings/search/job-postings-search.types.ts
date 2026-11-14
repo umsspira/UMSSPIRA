@@ -1,14 +1,10 @@
-export interface IndexedJobPosting {
-  id: string;
-  titulo: string | null;
-  id_empresa: string | null;
-  razon_social: string | null;
-  disponible: boolean;
-  created_at: string | null;
-}
+import type { JobPostingSearchDocument } from '../../../shared/infrastructure/search/job-posting-search-document';
+
+export type IndexedJobPosting = JobPostingSearchDocument;
 
 export interface ActiveJobPostingsResult {
   data: IndexedJobPosting[];
+  /** Total exacto de coincidencias del indice; no es un conteo validado contra Prisma. */
   total: number;
 }
 

@@ -1,9 +1,61 @@
 import {
   toJobPostingSearchDocument,
+  parseJobPostingSearchDocument,
   type JobPostingSearchSource,
 } from './job-posting-search-document';
 
 const now = new Date('2026-11-14T12:00:00.000Z');
+
+describe('Validacion del documento serializado HU4/HU7', () => {
+  it('acepta la salida del mapper y no expone propiedades adicionales', () => {
+    const document = toJobPostingSearchDocument(vacancy(), now);
+    expect(
+      parseJobPostingSearchDocument({ ...document, extra: 'interno' }),
+    ).toEqual(document);
+  });
+
+  it('conserva los nulos permitidos', () => {
+    const source = {
+      ...vacancy(),
+      titulo: null,
+      id_empresa: null,
+      empresa: null,
+      estado: null,
+      created_at: null,
+      fecha_cierre: null,
+    };
+    const document = toJobPostingSearchDocument(source, now);
+    expect(parseJobPostingSearchDocument(document)).toEqual(document);
+  });
+
+  it.each([
+    { schema_version: 2 },
+    { id: 'no-uuid' },
+    { titulo: 3 },
+    { id_empresa: 'no-uuid' },
+    { razon_social: {} },
+    { estado: 1 },
+    { disponible: 'true' },
+    { created_at: 'fecha-invalida' },
+    { fecha_cierre: '2026-02-30T12:00:00.000Z' },
+    { fecha_cierre: undefined },
+    { created_at: undefined },
+  ])('rechaza campos invalidos o ausentes', (patch) => {
+    expect(() =>
+      parseJobPostingSearchDocument({
+        ...toJobPostingSearchDocument(vacancy(), now),
+        ...patch,
+      }),
+    ).toThrow(TypeError);
+  });
+
+  it.each([null, [], 'documento', {}])(
+    'rechaza estructuras sin contrato',
+    (value) => {
+      expect(() => parseJobPostingSearchDocument(value)).toThrow(TypeError);
+    },
+  );
+});
 
 function vacancy(): JobPostingSearchSource {
   return {

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Client } from '@elastic/elasticsearch';
+import { getJobPostingSearchConfig } from '../../shared/infrastructure/search/job-posting-search.config';
 import {
   ELASTICSEARCH_CLIENT,
   ELASTICSEARCH_INDEX,
@@ -12,10 +14,9 @@ import { IndexacionVacantesService } from './indexacion-vacantes.service';
   providers: [
     {
       provide: ELASTICSEARCH_CLIENT,
-      useFactory: () => {
-        const node =
-          process.env.ELASTICSEARCH_NODE || 'http://localhost:9200';
-        const apiKey = process.env.ELASTICSEARCH_API_KEY;
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const { node, apiKey } = getJobPostingSearchConfig(config);
 
         return new Client({
           node,
@@ -27,8 +28,9 @@ import { IndexacionVacantesService } from './indexacion-vacantes.service';
     },
     {
       provide: ELASTICSEARCH_INDEX,
-      useFactory: () =>
-        process.env.ELASTICSEARCH_INDEX_VACANTES || 'vacantes',
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
+        getJobPostingSearchConfig(config).index,
     },
     IndexacionVacantesService,
   ],
