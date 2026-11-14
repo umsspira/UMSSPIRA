@@ -234,7 +234,7 @@ export default function RadarInspection({
               </div>
             )}
             </>}
-            <InfluentialKeywords keywords={selectedArea?.topKeywords}/>
+            {(selectedArea.previousAffinity != null || isExplanationLoading || hasExplanationError) && <InfluentialKeywords keywords={selectedArea.topKeywords} />}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
