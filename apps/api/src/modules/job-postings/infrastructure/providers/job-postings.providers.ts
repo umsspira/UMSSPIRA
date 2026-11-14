@@ -1,4 +1,5 @@
 import type { Provider } from '@nestjs/common';
+import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import {
   JOB_POSTING_REPOSITORY,
   type JobPostingRepository,
@@ -7,7 +8,7 @@ import { CreateJobPostingUseCase } from '../../application/use-cases/create-job-
 import { GetPublishedJobPostingUseCase } from '../../application/use-cases/get-published-job-posting.use-case';
 import { GetPublishedJobPostingTechnicalRequirementsUseCase } from '../../application/use-cases/get-published-job-posting-technical-requirements.use-case';
 import { ListPublishedJobPostingsUseCase } from '../../application/use-cases/list-published-job-postings.use-case';
-import { RequisitosTecnicosService } from '../../../vacantes/requisitos-tecnicos.service';
+import { CanonicalTechnicalRequirementsReader } from '../readers/canonical-technical-requirements.reader';
 import { PrismaJobPostingRepository } from '../repositories/prisma-job-posting.repository';
 import {
   TECHNICAL_REQUIREMENTS_REPOSITORY,
@@ -24,6 +25,14 @@ export const jobPostingsProviders: Provider[] = [
   {
     provide: TECHNICAL_REQUIREMENTS_REPOSITORY,
     useExisting: PrismaTechnicalRequirementsRepository,
+  },
+  {
+    provide: CanonicalTechnicalRequirementsReader,
+    inject: [PrismaService],
+    useFactory: (prisma: PrismaService) =>
+      new CanonicalTechnicalRequirementsReader({
+        findMany: (query) => prisma.vacanteRequisitoTecnico.findMany(query),
+      }),
   },
   {
     provide: CreateJobPostingUseCase,
@@ -56,10 +65,10 @@ export const jobPostingsProviders: Provider[] = [
   },
   {
     provide: GetPublishedJobPostingTechnicalRequirementsUseCase,
-    inject: [JOB_POSTING_REPOSITORY, RequisitosTecnicosService],
+    inject: [JOB_POSTING_REPOSITORY, CanonicalTechnicalRequirementsReader],
     useFactory: (
       repository: JobPostingRepository,
-      requirements: RequisitosTecnicosService,
+      requirements: CanonicalTechnicalRequirementsReader,
     ) => new GetPublishedJobPostingTechnicalRequirementsUseCase(repository, requirements),
   },
 ];

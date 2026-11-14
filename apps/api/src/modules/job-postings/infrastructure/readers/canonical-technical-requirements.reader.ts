@@ -30,8 +30,8 @@ export interface CanonicalTechnicalRequirementsQuery {
 }
 
 /**
- * Read-only boundary for the future prisma.vacanteRequisitoTecnico delegate.
- * It is intentionally not registered in production while that model is absent.
+ * Read-only boundary for prisma.vacanteRequisitoTecnico, wired by the HU8 factory.
+ * Tests can replace this source without replacing the reader or its validation.
  */
 export interface CanonicalTechnicalRequirementsSource {
   findMany(

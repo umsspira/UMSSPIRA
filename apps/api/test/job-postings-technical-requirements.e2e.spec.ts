@@ -5,6 +5,10 @@ import request from 'supertest';
 import { Prisma } from '../src/generated/prisma/client';
 import { JOB_POSTING_REPOSITORY, type JobPostingRepository } from '../src/modules/job-postings/application/ports/job-posting-repository.port';
 import type { PublishedJobPosting } from '../src/modules/job-postings/domain/entities/published-job-posting.entity';
+import type {
+  CanonicalTechnicalRequirementRow,
+  CanonicalTechnicalRequirementsSource,
+} from '../src/modules/job-postings/infrastructure/readers/canonical-technical-requirements.reader';
 import { JobPostingsModule } from '../src/modules/job-postings/job-postings.module';
 import { ElasticsearchService } from '../src/modules/vacantes/indexacion/elasticsearch.service';
 import { REQUISITOS_TECNICOS_REPOSITORY, type RequisitosTecnicosRepository } from '../src/modules/vacantes/requisitos-tecnicos.repository';
@@ -32,22 +36,36 @@ const session: AuthenticatedContext = {
   },
 };
 
-describe('GET job-postings/:id/requisitos (official guards, isolated persistence)', () => {
+describe('GET job-postings/:id/requisitos (production canonical factory, isolated persistence)', () => {
   let app: INestApplication;
   const authenticator: jest.Mocked<Authenticator> = { execute: jest.fn() };
   const jobs: jest.Mocked<JobPostingRepository> = {
     create: jest.fn(), listPublished: jest.fn(),
     findPublishedById: jest.fn(), findGraduateSkills: jest.fn(),
   };
-  const requirements: jest.Mocked<RequisitosTecnicosRepository> = {
+  const legacyRequirements: jest.Mocked<RequisitosTecnicosRepository> = {
     listarPorVacante: jest.fn(), crear: jest.fn(),
     actualizar: jest.fn(), eliminar: jest.fn(),
+  };
+  const canonicalRequirements: jest.Mocked<CanonicalTechnicalRequirementsSource> = {
+    findMany: jest.fn(),
+  };
+  const prisma = {
+    vacanteRequisitoTecnico: canonicalRequirements,
+    $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
+    $executeRaw: jest.fn(),
+  };
+  const row: CanonicalTechnicalRequirementRow = {
+    id: '20000000-0000-4000-8000-000000000001', id_vacante: id,
+    competencia_tecnica: 'PostgreSQL', nivel_esperado: 'AVANZADO', tipo: 'OBLIGATORIO',
+    descripcion: 'Modelado relacional.', creado_en: new Date('2026-11-04T12:00:00.000Z'),
   };
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      // Exercise the actual module factories and exported HU2 service. Only
-      // persistence, authentication and external indexing are replaced.
+      // Keep the production providers, reader and use case. Replace only Prisma,
+      // authentication and external indexing; the legacy repository is a sentinel.
       imports: [JobPostingsModule],
       providers: [
         { provide: AUTHENTICATOR, useValue: authenticator },
@@ -56,8 +74,8 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
       ],
     })
       .overrideProvider(JOB_POSTING_REPOSITORY).useValue(jobs)
-      .overrideProvider(REQUISITOS_TECNICOS_REPOSITORY).useValue(requirements)
-      .overrideProvider(PrismaService).useValue({})
+      .overrideProvider(REQUISITOS_TECNICOS_REPOSITORY).useValue(legacyRequirements)
+      .overrideProvider(PrismaService).useValue(prisma)
       .overrideProvider(ElasticsearchService).useValue({})
       .compile();
     app = module.createNestApplication();
@@ -71,23 +89,31 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
     jest.clearAllMocks();
     authenticator.execute.mockReset().mockResolvedValue(session);
     jobs.findPublishedById.mockReset().mockResolvedValue(posting);
-    requirements.listarPorVacante.mockReset().mockResolvedValue([]);
+    canonicalRequirements.findMany.mockReset().mockResolvedValue([]);
+    legacyRequirements.listarPorVacante.mockReset().mockRejectedValue(
+      new Error('The legacy requirements source must not be read by HU8'),
+    );
   });
 
   afterAll(async () => { await app?.close(); });
 
   afterEach(() => {
     expect(jobs.create).not.toHaveBeenCalled();
-    expect(requirements.crear).not.toHaveBeenCalled();
-    expect(requirements.actualizar).not.toHaveBeenCalled();
-    expect(requirements.eliminar).not.toHaveBeenCalled();
+    expect(jobs.findGraduateSkills).not.toHaveBeenCalled();
+    expect(legacyRequirements.listarPorVacante).not.toHaveBeenCalled();
+    expect(legacyRequirements.crear).not.toHaveBeenCalled();
+    expect(legacyRequirements.actualizar).not.toHaveBeenCalled();
+    expect(legacyRequirements.eliminar).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
   });
 
   it('requires a session before validating the UUID or querying data', async () => {
     await request(app.getHttpServer()).get('/api/v1/job-postings/invalid/requisitos').expect(401);
     expect(authenticator.execute).not.toHaveBeenCalled();
     expect(jobs.findPublishedById).not.toHaveBeenCalled();
-    expect(requirements.listarPorVacante).not.toHaveBeenCalled();
+    expect(canonicalRequirements.findMany).not.toHaveBeenCalled();
   });
 
   it('accepts the official session cookie and returns the raw HU8 empty contract', async () => {
@@ -95,14 +121,16 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
       .get(route).set('Cookie', 'umsspira_token=test-session-cookie').expect(200);
     expect(authenticator.execute).toHaveBeenCalledWith('test-session-cookie', undefined);
     expect(response.body).toEqual({ idVacante: id, requisitos: [] });
-    expect(requirements.listarPorVacante).toHaveBeenCalledWith(id);
+    expect(canonicalRequirements.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id_vacante: id } }),
+    );
   });
 
   it('rejects a malformed UUID with 400 without reading persistence', async () => {
     await request(app.getHttpServer()).get('/api/v1/job-postings/invalid/requisitos')
       .set('Authorization', 'Bearer test-session').expect(400);
     expect(jobs.findPublishedById).not.toHaveBeenCalled();
-    expect(requirements.listarPorVacante).not.toHaveBeenCalled();
+    expect(canonicalRequirements.findMany).not.toHaveBeenCalled();
   });
 
   it.each([['UNAUTHENTICATED', 401], ['FORBIDDEN', 403]] as const)(
@@ -111,7 +139,7 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
       await request(app.getHttpServer()).get(route)
         .set('Authorization', 'Bearer test-session').expect(status);
       expect(jobs.findPublishedById).not.toHaveBeenCalled();
-      expect(requirements.listarPorVacante).not.toHaveBeenCalled();
+      expect(canonicalRequirements.findMany).not.toHaveBeenCalled();
     },
   );
 
@@ -119,22 +147,32 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
     jobs.findPublishedById.mockResolvedValue(null);
     await request(app.getHttpServer()).get(route)
       .set('Authorization', 'Bearer test-session').expect(404);
-    expect(requirements.listarPorVacante).not.toHaveBeenCalled();
+    expect(canonicalRequirements.findMany).not.toHaveBeenCalled();
   });
 
-  it('returns structured HU2 fields rather than HU12 skills', async () => {
+  it('reads the canonical delegate after availability and converts HU2 fields for a graduate', async () => {
     const requirement = {
       id: '20000000-0000-4000-8000-000000000001', idVacante: id,
       competencia: 'PostgreSQL', nivel: 'Avanzado' as const, tipo: 'Obligatorio' as const,
       descripcion: 'Modelado relacional.', fechaCreacion: '2026-11-04T12:00:00.000Z',
     };
-    requirements.listarPorVacante.mockResolvedValue([requirement]);
+    canonicalRequirements.findMany.mockImplementation(async () => {
+      expect(jobs.findPublishedById).toHaveBeenCalledWith(id, expect.any(Date));
+      return [row];
+    });
     const response = await request(app.getHttpServer()).get(route)
       .set('Authorization', 'Bearer test-session').expect(200);
     expect(response.body).toEqual({ idVacante: id, requisitos: [requirement] });
     expect(authenticator.execute).toHaveBeenCalledWith('test-session', undefined);
-    expect(requirements.listarPorVacante).toHaveBeenCalledWith(id);
-    expect(jobs.findGraduateSkills).not.toHaveBeenCalled();
+    expect(canonicalRequirements.findMany).toHaveBeenCalledTimes(1);
+    expect(canonicalRequirements.findMany).toHaveBeenCalledWith({
+      where: { id_vacante: id },
+      select: {
+        id: true, id_vacante: true, competencia_tecnica: true,
+        nivel_esperado: true, tipo: true, descripcion: true, creado_en: true,
+      },
+      orderBy: { competencia_normalizada: 'asc' },
+    });
   });
 
   it('propagates an availability failure without reading HU2 or returning an empty result', async () => {
@@ -144,7 +182,7 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
     expect(response.body).toEqual({
       error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado' },
     });
-    expect(requirements.listarPorVacante).not.toHaveBeenCalled();
+    expect(canonicalRequirements.findMany).not.toHaveBeenCalled();
   });
 
   it('reports a database timeout as unavailable without exposing diagnostics or reading requirements', async () => {
@@ -156,15 +194,59 @@ describe('GET job-postings/:id/requisitos (official guards, isolated persistence
     expect(response.body).toEqual({
       error: { code: 'DATABASE_UNAVAILABLE', message: 'La base de datos no está disponible' },
     });
-    expect(requirements.listarPorVacante).not.toHaveBeenCalled();
+    expect(canonicalRequirements.findMany).not.toHaveBeenCalled();
   });
 
   it('propagates a HU2 persistence failure without returning an empty result', async () => {
-    requirements.listarPorVacante.mockRejectedValue(new Error('Requirements unavailable'));
+    canonicalRequirements.findMany.mockRejectedValue(new Error('Requirements unavailable'));
     const response = await request(app.getHttpServer()).get(route)
       .set('Authorization', 'Bearer test-session').expect(500);
     expect(response.body).toEqual({
       error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado' },
+    });
+  });
+
+  it('keeps an empty canonical result even if the legacy source contains requirements', async () => {
+    legacyRequirements.listarPorVacante.mockResolvedValue([{
+      id: row.id, idVacante: id, competencia: 'Solo en la tabla anterior',
+      nivel: 'Experto', tipo: 'Obligatorio', fechaCreacion: row.creado_en.toISOString(),
+    }]);
+    const response = await request(app.getHttpServer()).get(route)
+      .set('Authorization', 'Bearer test-session').expect(200);
+    expect(response.body).toEqual({ idVacante: id, requisitos: [] });
+    expect(canonicalRequirements.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not expose canonical requirements associated with another vacancy', async () => {
+    canonicalRequirements.findMany.mockResolvedValue([{
+      ...row, id_vacante: '10000000-0000-4000-8000-000000000002',
+    }]);
+    const response = await request(app.getHttpServer()).get(route)
+      .set('Authorization', 'Bearer test-session').expect(500);
+    expect(response.body).toEqual({
+      error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado' },
+    });
+  });
+
+  it('propagates a missing canonical table without reading the legacy source', async () => {
+    canonicalRequirements.findMany.mockRejectedValue(new Prisma.PrismaClientKnownRequestError(
+      'Private table diagnostic', { code: 'P2021', clientVersion: 'hu8-test' },
+    ));
+    const response = await request(app.getHttpServer()).get(route)
+      .set('Authorization', 'Bearer test-session').expect(500);
+    expect(response.body).toEqual({
+      error: { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado' },
+    });
+  });
+
+  it('preserves the shared 503 translation for a canonical database timeout', async () => {
+    canonicalRequirements.findMany.mockRejectedValue(new Prisma.PrismaClientKnownRequestError(
+      'Private connection diagnostic', { code: 'P2024', clientVersion: 'hu8-test' },
+    ));
+    const response = await request(app.getHttpServer()).get(route)
+      .set('Authorization', 'Bearer test-session').expect(503);
+    expect(response.body).toEqual({
+      error: { code: 'DATABASE_UNAVAILABLE', message: 'La base de datos no está disponible' },
     });
   });
 });

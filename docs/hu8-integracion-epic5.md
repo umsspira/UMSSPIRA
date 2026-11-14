@@ -1,18 +1,19 @@
 # HU8: consultar requisitos técnicos sobre epic5
 
-Revisión local: 12 de noviembre de 2026.
-Rama: `feat/G2-HU8-consultar-requisitos-tecnicos`.
+Revisión original: 12 de noviembre de 2026.
+Rama original: `feat/G2-HU8-consultar-requisitos-tecnicos`.
+Actualización de integración: 14 de noviembre de 2026, rama `integracion/G2-HU8`,
+base `f65bf064` con HU2 nueva incorporada.
 Referencia: `RESPALDO-HU8/docs/hu8-integracion-epic5.md` y archivos individuales
 del respaldo. No se incorporaron directorios completos.
 
-**Estado actual: lector canónico preparado, sin activar en producción.**
-El esquema y el cliente Prisma actuales todavía no contienen
-`VacanteRequisitoTecnico`. Se añadió un lector independiente del contrato
-`vacante_requisito_tecnico`, probado con una fuente simulada que solo expone
-`findMany`. No se editó Prisma ni se modificaron los providers compartidos:
-la ruta productiva conserva su servicio HU2 anterior. Las dos fuentes no se
-mezclan ni se seleccionan automáticamente. La conexión canónica real queda
-pendiente de la integración coordinada de HU2/HU3.
+**Estado actual: lector canónico registrado en los providers de HU8; validación
+con base de datos real pendiente.** El esquema integrado de HU2 ya contiene
+`VacanteRequisitoTecnico`, asociado a `vacante_requisito_tecnico`. La fábrica del
+lector recibe `PrismaService` y expone únicamente una función que delega en
+`prisma.vacanteRequisitoTecnico.findMany`. El caso HU8 utiliza ese lector en lugar
+de `RequisitosTecnicosService`. No hay mezcla de tablas ni lectura alternativa de
+la fuente anterior. Este cambio no aplica migraciones ni copia datos históricos.
 
 ## Integración y contrato
 
@@ -27,8 +28,9 @@ La consulta utiliza `GET /api/v1/job-postings/:id/requisitos`. La respuesta es
 `id`, `idVacante`, `competencia`, `nivel`, `tipo`, descripción y fecha de HU2.
 El frontend reutiliza los tipos y enumeraciones de `lib/vacancies/contracts.ts`.
 
-`JobPostingsModule` importa `VacantesModule` y la fábrica HU8 recibe el repositorio
-oficial y el `RequisitosTecnicosService` exportado por HU2. Primero se consulta
+`JobPostingsModule` conserva sus importaciones y controladores. La fábrica HU8
+recibe el repositorio oficial y `CanonicalTechnicalRequirementsReader`, registrado
+mediante el `PrismaService` que ya exporta `PrismaModule`. Primero se consulta
 `findPublishedById(id, now)`; solo si existe una vacante disponible se ejecuta
 `obtenerRequisitos(posting.id)`. HU2 mantiene su repositorio Prisma y sus rutas
 administrativas, con sus controles de propietario, sin cambios.
@@ -49,18 +51,19 @@ El caso administrativo de HU2/HU3 utiliza `GetTechnicalRequirementsUseCase` y
 y archivo permite que ambos casos coexistan sin compartir contrato ni token de
 inyección. No se conserva un archivo de compatibilidad con el nombre anterior.
 
-El refactor actualiza únicamente el caso de uso y su prueba unitaria, las
+El refactor histórico actualizó únicamente el caso de uso y su prueba unitaria, las
 referencias HU8 del controlador y provider, la composición canónica de prueba y
 esta documentación. Mantiene `GET /api/v1/job-postings/:id/requisitos`, respuesta,
-validaciones, errores, autenticación, disponibilidad y afinidad HU12. La fábrica
-productiva sigue inyectando `RequisitosTecnicosService`; no activa el lector
-canónico ni cambia el módulo. La conciliación futura de providers, repositorios,
-módulos y rutas administrativas de HU2/HU3 sigue pendiente.
+validaciones, errores, autenticación, disponibilidad y afinidad HU12. La activación
+actual sustituye solo la dependencia de lectura HU8 por el lector canónico y
+conserva los providers administrativos de HU2. No cambia el módulo. La integración
+adicional con HU3 queda fuera de esta etapa.
 
 ## Revisión de compatibilidad
 
-- El prefijo oficial es `api/v1`. La ruta nueva no colisiona con `GET :id` ni con
-  las rutas administrativas `vacantes/:id/requisitos`.
+- El prefijo oficial es `api/v1`. La ruta HU8 no colisiona con `GET :id`, con las
+  rutas HU2 `GET/PUT job-postings/:id/technical-requirements` ni con las rutas
+  administrativas anteriores `vacantes/:id/requisitos`.
 - HU8 utiliza los guards globales `AuthenticationGuard` y `PermissionsGuard`,
   como la lectura HU12. No declara acceso público ni agrega permisos nuevos.
   El guard acepta bearer o cookie oficial y conserva los rechazos 401/403.
@@ -77,9 +80,10 @@ módulos y rutas administrativas de HU2/HU3 sigue pendiente.
 - El componente distingue carga, resultado vacío y error; permite reintentar
   fallos temporales y cancela/descarta respuestas al cambiar de vacante o desmontar.
 
-Las seis suites HU8 aprobaron con persistencia/transporte simulados. TypeScript
-global conserva errores ajenos a HU8, detallados abajo. La comprobación con el
-backend y la base de datos reales sigue pendiente.
+Las secciones históricas de este documento registran suites HU8 aprobadas con
+persistencia/transporte simulados y errores globales de TypeScript de esas
+revisiones. No acreditan el resultado de la activación actual. La comprobación
+con el backend y la base de datos reales sigue pendiente.
 
 ## Inventario completo de cambios locales
 
@@ -102,11 +106,11 @@ Archivos modificados o agregados durante esta revisión:
 | --- | --- |
 | `apps/web/src/app/(dashboard)/job-postings/[id]/vacancy-detail-client.tsx` | Importar/montar HU8 y distinguir las habilidades HU12 mediante título y mensaje vacío. |
 | `apps/api/src/modules/job-postings/application/use-cases/get-published-job-posting-technical-requirements.use-case.spec.ts` | Cinco casos unitarios recuperados, adaptados al puerto de lectura HU8. |
-| `apps/api/test/job-postings-technical-requirements.e2e.spec.ts` | Recuperar y adaptar la integración HTTP: módulo y servicio HU2 reales, guards/filtro oficiales, autenticador y persistencia simulados, sin indexación externa. |
+| `apps/api/test/job-postings-technical-requirements.e2e.spec.ts` | Integración HTTP con módulo, providers y lector canónico reales; guards/filtro oficiales, autenticador y delegado Prisma simulados. La fuente anterior se mantiene como centinela que no debe consultarse. |
 | `apps/web/src/shared/services/technical-requirements.test.ts` | Recuperar pruebas de contrato, transporte, errores y cancelación; ampliar con 429 e integración del cliente/sesión oficiales usando `fetch` simulado. |
 | `apps/web/src/app/(dashboard)/job-postings/[id]/technical-requirements.test.tsx` | Recuperar pruebas de componente y detalle; ampliar separación HU2/HU12 sin habilidades y visibilidad según el usuario. |
 | `apps/api/src/modules/job-postings/application/ports/published-technical-requirements-reader.port.ts` | Puerto y formato de lectura HU8, independientes de los modelos de persistencia HU2. |
-| `apps/api/src/modules/job-postings/infrastructure/readers/canonical-technical-requirements.reader.ts` | Lectura del contrato canónico y conversión al formato del frontend existente; sin registro productivo mientras falta el modelo. |
+| `apps/api/src/modules/job-postings/infrastructure/readers/canonical-technical-requirements.reader.ts` | Lectura del contrato canónico y conversión al formato del frontend existente; registrado por la fábrica HU8 sobre el delegado Prisma nuevo. |
 | `apps/api/src/modules/job-postings/infrastructure/readers/canonical-technical-requirements.reader.spec.ts` | 22 pruebas independientes de conversión, asociación, consulta y errores. |
 | `apps/api/test/job-postings-canonical-technical-requirements.e2e.spec.ts` | 14 pruebas HTTP de la composición canónica con controlador, caso de uso, lector, guards y filtro existentes; fuente y autenticador simulados. |
 | `docs/hu8-integracion-epic5.md` | Registrar decisiones, inventario, bloqueos y pasos pendientes. |
@@ -117,7 +121,7 @@ guía cita `e2e.spec.ts`. Se recuperó con este último nombre para coincidir co
 La integración HTTP verifica también que la lectura no invoque métodos de escritura.
 Las pruebas históricas de otras HU permanecen intactas.
 
-## Validación inicial del entorno
+## Validación inicial del entorno (histórica)
 
 La primera revisión quedó bloqueada por dependencias ausentes y permisos de la
 caché. Con la autorización posterior para preparar el entorno, se completó:
@@ -194,7 +198,7 @@ node 'node_modules/jest/bin/jest.js' --runInBand --runTestsByPath src/shared/ser
 node 'node_modules/typescript/bin/tsc' --noEmit --incremental false -p tsconfig.json
 ```
 
-## Preparación y validación del lector canónico
+## Preparación y validación del lector canónico (histórica)
 
 Referencias locales consultadas: HU2 `13f148c9` y HU3 `c03508de`. HU3 sigue el
 contrato HU2: modelo `VacanteRequisitoTecnico`, tabla
@@ -257,7 +261,7 @@ HU2, modelos, migraciones, lockfiles o configuraciones compartidas. No se usaron
 consultas SQL como sustituto del modelo faltante ni conversiones de tipo para
 aparentar la existencia del delegado Prisma canónico.
 
-## Validación del refactor de nombres
+## Validación del refactor de nombres (histórica)
 
 Refactor local sobre `7cd3aa97`, correspondiente al PR #687 en Draft; todavía
 sin commit de estos cambios. Se renombraron el caso de uso y su prueba y se
@@ -289,28 +293,53 @@ sigue siendo el servicio anterior HU2 y la integración canónica real continúa
 pendiente. Los errores globales heredados descritos arriba siguen impidiendo
 aprobar las comprobaciones completas de tipos.
 
+## Activación en integracion/G2-HU8
+
+La activación modifica el registro del lector y la fábrica HU8 en
+`job-postings.providers.ts`. No modifica `job-postings.module.ts`, controladores,
+frontend, permisos, política de disponibilidad, modelos ni migraciones.
+
+La prueba HTTP que importa `JobPostingsModule` conserva los providers reales y
+sustituye `PrismaService` por un delegado canónico simulado. Comprueba la consulta
+y conversión después de verificar disponibilidad, acceso con sesión de titulado
+sin alcance de empresa, vacío confirmado, errores y ausencia de consultas a la
+fuente anterior o de operaciones SQL alternativas. También cubre asociación con
+otra vacante, tabla ausente y tiempo de espera de la fuente canónica.
+
+La tabla ausente conserva el error genérico 500 del filtro existente; los tiempos
+de espera Prisma P2024 conservan 503. No se agregan traducciones globales ni se
+presentan esos fallos como una colección vacía. Los registros exclusivos de la
+tabla anterior no aparecen en HU8; `EXPERTO` no es un nivel del contrato nuevo.
+
+Al iniciar esta etapa faltaban las dependencias y el cliente Prisma. Se instalaron
+953 paquetes desde la caché con `--offline --frozen-lockfile --ignore-scripts`,
+sin descargas ni cambios en manifiestos o lockfile. Se compiló el paquete de tipos
+compartidos y se generó Prisma Client 7.10.1 desde el esquema existente, usando
+URLs ficticias solo en el proceso. Las salidas de preparación están ignoradas
+por Git; no se aplicaron migraciones ni se consultaron datos reales.
+
+| Verificación de esta activación | Resultado |
+| --- | --- |
+| Cinco suites HU8: caso de uso, lector, HTTP con módulo real, HTTP aislado y disponibilidad | 65 pruebas aprobadas. |
+| Tres suites HU12: detalle publicado, política de afinidad y repositorio | 12 pruebas aprobadas. |
+| Selección de regresión HU2 en `companies-job-postings.e2e.spec.ts` | 6 pruebas aprobadas; las otras 34 se excluyeron con `--testNamePattern`. |
+| TypeScript completo API, `--noEmit --incremental false -p tsconfig.check.json` | Código 0. Comprueba también la fábrica contra el cliente Prisma generado. |
+| ESLint de providers, lector y prueba HTTP modificados, sin `--fix` | Código 0. |
+| `git diff --check` y revisión del alcance | Sin errores; solo cuatro archivos HU8 modificados. |
+
+Jest se ejecutó directamente con Node, `--runInBand --no-cache --runTestsByPath`.
+La selección HU2 cubrió publicación, CSRF, asociación y aislamiento de requisitos,
+normalización de duplicados, sesión/permiso/alcance y validación estricta. Todas
+las suites ejecutadas sustituyen la persistencia por dobles; no acreditan consultas
+reales a PostgreSQL. No se repitieron pruebas ni compilación del frontend.
+
 ## Pasos pendientes
 
-1. Integrar de forma coordinada el modelo y la migración existentes de HU2,
-   conciliando los consumidores del esquema anterior. HU8 no agrega otra tabla.
-   Generar el cliente canónico y comprobar que su delegado satisface el puerto
-   `CanonicalTechnicalRequirementsSource`.
-2. Cuando se autoricen los cambios compartidos, registrar explícitamente ese
-   delegado como fuente del lector y sustituir la inyección anterior de HU8.
-   Conciliar los providers, repositorios y módulos de HU2/HU3, y resolver la ruta
-   administrativa HU3 `GET /job-postings/:id`, que coincide con el detalle HU12.
-   Mantener los métodos y controladores actuales de listado, disponibilidad y afinidad.
-3. Resolver los errores globales de TypeScript en un trabajo separado y autorizado
-   sobre las historias/contratos correspondientes; repetir ambas comprobaciones
-   completas. Las pruebas HU8 aprobadas no implican que todo el monorepo compile.
-4. Ejecutar las regresiones aisladas existentes de disponibilidad, detalle,
-   afinidad, listado, servicios HU2 y transporte. Revisar cualquier suite que
-   importe `AppModule` antes de ejecutarla: debe reemplazar todas las dependencias
-   externas. No habilitar las integraciones opt-in con BD real.
-5. En un entorno autorizado, verificar con datos existentes la ruta del proxy,
-   backend desplegado y coincidencia de requisitos HU2 para una vacante vigente.
-   Comprobar resultado vacío, 400/401/403/404 y errores temporales, sin alterar
-   estados ni datos. Confirmar empresa, afinidad y navegación en la interfaz.
-6. Revisar este inventario y los resultados antes de cualquier commit. La conexión
-   con la BD real, la presencia de tablas/datos y el funcionamiento desplegado no
-   están verificados por esta revisión ni por las pruebas con dobles.
+1. En un entorno autorizado, cotejar datos existentes de HU2 con el endpoint HU8
+   y la interfaz, incluida una colección vacía, sin alterar estados ni registros.
+2. Comprobar el recorrido real del proxy y frontend, conservando autenticación,
+   disponibilidad y la separación de requisitos respecto a las habilidades HU12.
+3. Conciliar una eventual integración de HU3 en otra etapa, preservando las rutas
+   actuales de listado, detalle, requisitos y afinidad.
+4. Revisar el diff y los resultados antes de cualquier commit. La presencia de
+   tablas/datos y el funcionamiento desplegado siguen sin acreditarse con dobles.
