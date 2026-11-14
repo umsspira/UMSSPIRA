@@ -89,12 +89,3 @@ it('espera el resultado del servidor antes de mostrar éxito', async () => {
   expect(onSave).toHaveBeenCalledTimes(1);
 });
 
-it('protege los enlaces del breadcrumb cuando hay cambios sin guardar', () => {
-  render(<div className="interests-page"><a className="breadcrumb-link" href="/mentorship">Mentorías</a><MentorInterests catalog={catalog} initialConfiguration={initialConfiguration} onSave={onSave} /></div>);
-  add();
-  fireEvent.click(screen.getByRole('link', { name: 'Mentorías' }));
-  expect(push).not.toHaveBeenCalled();
-  expect(screen.getByRole('alertdialog')).toHaveTextContent('Descartar');
-  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
-  expect(push).toHaveBeenCalledWith('/mentorship');
-});

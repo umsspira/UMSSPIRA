@@ -22,12 +22,17 @@ import { AddMentorInterestsController } from './http/controllers/add-mentor-inte
 import { RemoveMentorInterestController } from './http/controllers/remove-mentor-interest.controller';
 import { GetMentorAvailabilityController } from './http/controllers/get-mentor-availability.controller';
 import { SetMentorAvailabilityController } from './http/controllers/set-mentor-availability.controller';
+import { GetMentorScheduleController } from './http/controllers/get-mentor-schedule.controller';
+import { SetMentorScheduleController } from './http/controllers/set-mentor-schedule.controller';
 import { CreateMentorshipRequestController } from './http/controllers/create-mentorship-request.controller';
 import { ListReceivedMentorshipRequestsController } from './http/controllers/list-received-mentorship-requests.controller';
 import { GetReceivedMentorshipRequestController } from './http/controllers/get-received-mentorship-request.controller';
 import { AcceptMentorshipRequestController } from './http/controllers/accept-mentorship-request.controller';
 import { RejectMentorshipRequestController } from './http/controllers/reject-mentorship-request.controller';
 import { GetMentorSlotsController } from './http/controllers/get-mentor-slots.controller';
+import { CreateCustomInterestController } from './http/controllers/create-custom-interest.controller';
+import { UpdateCustomInterestController } from './http/controllers/update-custom-interest.controller';
+import { DeleteCustomInterestController } from './http/controllers/delete-custom-interest.controller';
 
 @Module({
   imports: [PrismaModule, RegistrationsModule],
@@ -49,8 +54,13 @@ import { GetMentorSlotsController } from './http/controllers/get-mentor-slots.co
     GetMyMentorInterestsController,
     AddMentorInterestsController,
     RemoveMentorInterestController,
+    CreateCustomInterestController,
+    UpdateCustomInterestController,
+    DeleteCustomInterestController,
     GetMentorAvailabilityController,
     SetMentorAvailabilityController,
+    GetMentorScheduleController,
+    SetMentorScheduleController,
     CreateMentorshipRequestController,
     ListReceivedMentorshipRequestsController,
     GetReceivedMentorshipRequestController,

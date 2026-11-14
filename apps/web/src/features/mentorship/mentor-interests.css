@@ -15,13 +15,6 @@
   padding: 32px 32px 54px;
 }
 
-.interests-page .breadcrumb-list {
-  font-size: 13px;
-  line-height: 18px;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
 .interests-page .page-eyebrow {
   display: inline-block;
   width: 250px;
@@ -61,10 +54,6 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-}
-
-.interests-page .breadcrumb-link {
-  min-height: 18px;
 }
 
 /* Resumen de áreas y estado */
@@ -291,6 +280,150 @@
 .interests-page .interest-area:nth-child(2) .interest-area-footer {
   padding-top: 16px;
 }
+
+/* Intereses personalizados (HU 6.22) */
+
+.interest-custom-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 700;
+  border-radius: 4px;
+  background: #e0f2fe;
+  color: #0369a1;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-left: 4px;
+}
+
+.custom-topic-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.custom-topic-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px !important;
+  min-height: auto !important;
+  border: none !important;
+  background: transparent !important;
+  color: inherit !important;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.custom-topic-action-btn:hover {
+  opacity: 1;
+}
+
+.custom-topic-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgb(201 193 177 / 60%);
+}
+
+.custom-topic-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(27 38 50 / 75%);
+  margin-bottom: 6px;
+}
+
+.custom-topic-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.custom-topic-input {
+  flex: 1;
+  min-height: 36px;
+  padding: 6px 52px 6px 12px;
+  border: 1px solid #c9c1b1;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1b2632;
+  background: white;
+  transition: border-color 0.15s ease;
+}
+
+.custom-topic-input:focus {
+  outline: none;
+  border-color: #a35139;
+  box-shadow: 0 0 0 1px #a35139;
+}
+
+.custom-topic-counter {
+  position: absolute;
+  right: 96px;
+  font-size: 11px;
+  color: rgb(27 38 50 / 50%);
+  pointer-events: none;
+}
+
+.custom-topic-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 14px;
+  background: #a35139;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.custom-topic-add-btn:hover:not(:disabled) {
+  background: #8b3f2b;
+}
+
+.custom-topic-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.custom-topic-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.custom-topic-feedback {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.custom-topic-limit {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #d97706;
+}
+
+.custom-topic-edit-input {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #c9c1b1;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
 
 /* Tópicos: selección y estados */
 

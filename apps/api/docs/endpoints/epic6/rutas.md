@@ -35,6 +35,8 @@
 | `DELETE` | `/api/v1/mentorship/interests/:id` | `mentores:self:write` | Quitar un interés. |
 | `GET` | `/api/v1/mentorship/availability` | `mentores:self:write` | Disponibilidad propia (vocabulario en español). |
 | `PATCH` | `/api/v1/mentorship/availability` | `mentores:self:write` | Cambiar disponibilidad: `DISPONIBLE`, `EN_PAUSA` o `NO_DISPONIBLE`. |
+| `GET` | `/api/v1/mentorship/availability/schedule` | `mentores:self:write` | Horario semanal propio: franjas `{ weekday, start, end }` en hora de Bolivia. |
+| `PUT` | `/api/v1/mentorship/availability/schedule` | `mentores:self:write` | Reemplazar el horario semanal (pasos de 30 min, mínimo 1 h, sin solapes). |
 
 ### 1.3 Solicitudes de mentoría (HU 6.10 y bandeja de recibidas)
 

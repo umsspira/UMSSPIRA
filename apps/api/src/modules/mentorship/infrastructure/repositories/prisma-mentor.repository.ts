@@ -125,6 +125,9 @@ export class PrismaMentorRepository implements MentorRepository {
                 },
               },
             },
+            mentor_interes_personalizado_registros: {
+              include: { area: { select: { id: true, nombre: true } } },
+            },
           },
         })
       : [];
@@ -154,10 +157,24 @@ export class PrismaMentorRepository implements MentorRepository {
                 id: area.id,
                 name: area.nombre ?? '',
                 area: { id: area.padre.id, name: area.padre.nombre ?? '' },
+                esPersonalizado: false,
               },
             ]
           : [],
       );
+      const customInterests = (row.mentor_interes_personalizado_registros ?? []).flatMap((custom) =>
+        custom.area && selectedAreaIds.has(custom.id_area)
+          ? [
+              {
+                id: custom.id,
+                name: custom.nombre,
+                area: { id: custom.area.id, name: custom.area.nombre ?? '' },
+                esPersonalizado: true,
+              },
+            ]
+          : [],
+      );
+      const allInterests = [...interests, ...customInterests];
       const availability = toAvailability(row.disponibilidad_mentor_registros[0]).status;
       const experience = row.titulado.experiencia_laboral_registros[0];
       return [
@@ -165,7 +182,7 @@ export class PrismaMentorRepository implements MentorRepository {
           mentor: toMentor(row),
           availability,
           areas,
-          interests,
+          interests: allInterests,
           cargo: experience?.cargo ?? null,
           empresa: experience?.empresa ?? null,
         },
@@ -360,6 +377,9 @@ export class PrismaMentorRepository implements MentorRepository {
           where: { area: { esta_activo: true } },
           include: linkedAreaInclude,
         },
+        mentor_interes_personalizado_registros: {
+          include: { area: { select: { id: true, nombre: true } } },
+        },
         espacio_disponible_mentor_registros: {
           where: { esta_activo: true },
           orderBy: [{ dia_semana: 'asc' }, { horario_inicio: 'asc' }, { id: 'asc' }],
@@ -383,6 +403,17 @@ export class PrismaMentorRepository implements MentorRepository {
           id: area.id,
           name: area.nombre ?? '',
           area: { id: area.padre.id, name: area.padre.nombre ?? '' },
+          esPersonalizado: false,
+        });
+      }
+    }
+    for (const custom of row.mentor_interes_personalizado_registros ?? []) {
+      if (custom.area && areas.has(custom.id_area)) {
+        interests.set(custom.id, {
+          id: custom.id,
+          name: custom.nombre,
+          area: { id: custom.area.id, name: custom.area.nombre ?? '' },
+          esPersonalizado: true,
         });
       }
     }
@@ -487,7 +518,6 @@ export class PrismaMentorRepository implements MentorRepository {
               descripcion: input.descripcion ?? null,
               experiencia: input.experiencia,
               informacion_relevante: input.informacion_relevante ?? null,
-              foto_perfil: input.foto_perfil ?? null,
               ...(input.anios_exp !== undefined ? { anios_exp: input.anios_exp } : {}),
               fecha_actualizacion: new Date(),
             },

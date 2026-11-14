@@ -212,6 +212,7 @@ model Area {
   hijos                             Area[]                   @relation("area_padre_id_area")
   perfil_area_registros             PerfilArea[]             @relation("perfil_area_area_id_area")
   mentor_area_registros             MentorArea[]             @relation("mentor_area_id_area_area")
+  mentor_interes_personalizado_registros MentorInteresPersonalizado[] @relation("mentor_interes_personalizado_id_area_area")
   requerimiento_habilidad_registros RequerimientoHabilidad[] @relation("requerimiento_habilidad_id_area_area")
   palabra_clave_area_registros      PalabraClaveArea[]
   afinidad_radar_registros          AfinidadRadar[]
@@ -558,6 +559,7 @@ model Mentor {
   id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   mentor_area_registros               MentorArea[]              @relation("mentor_area_id_mentor_mentor")
+  mentor_interes_personalizado_registros MentorInteresPersonalizado[] @relation("mentor_interes_personalizado_id_mentor_mentor")
   disponibilidad_mentor_registros     DisponibilidadMentor[]    @relation("disponibilidad_mentor_id_mentor_mentor")
   espacio_disponible_mentor_registros EspacioDisponibleMentor[] @relation("espacio_disponible_mentor_id_mentor_mentor")
   mentoria_solicitud_registros        MentoriaSolicitud[]       @relation("mentoria_solicitud_id_mentor_mentor")
@@ -575,6 +577,26 @@ model MentorArea {
   area   Area?   @relation("mentor_area_id_area_area", fields: [id_area], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "mentor_area_id_area_fkey")
 
   @@map("mentor_area")
+}
+
+model MentorInteresPersonalizado {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_mentor           String    @db.Uuid
+  id_area             String    @db.Uuid
+  nombre              String    @db.VarChar(50)
+  nombre_normalizado  String    @db.VarChar(50)
+  es_personalizado    Boolean   @default(true)
+  fecha_creacion      DateTime  @default(now()) @db.Timestamptz(6)
+  fecha_actualizacion DateTime? @db.Timestamptz(6)
+
+  mentor Mentor @relation("mentor_interes_personalizado_id_mentor_mentor", fields: [id_mentor], references: [id], onDelete: Cascade)
+  area   Area   @relation("mentor_interes_personalizado_id_area_area", fields: [id_area], references: [id], onDelete: Cascade)
+
+  @@unique([id_mentor, id_area, nombre_normalizado], map: "uq_mentor_area_interes_norm")
+  @@index([id_mentor], map: "idx_mentor_interes_personalizado_mentor")
+  @@index([id_area], map: "idx_mentor_interes_personalizado_area")
+  @@index([nombre_normalizado], map: "idx_mentor_interes_personalizado_norm")
+  @@map("mentor_interes_personalizado")
 }
 
 model DisponibilidadMentor {

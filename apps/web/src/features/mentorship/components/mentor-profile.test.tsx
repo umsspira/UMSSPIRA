@@ -12,7 +12,7 @@ jest.mock('../services/mentorship-api');
 jest.mock('../services/mentor-areas-api', () => ({ getMentorAreas: jest.fn().mockResolvedValue({ areas: [], selectedIds: [] }) }));
 jest.mock('../services/mentor-interests-api', () => ({ getMentorInterests: jest.fn().mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } }) }));
 jest.mock('../services/mentor-availability-api', () => ({ getMentorAvailability: jest.fn().mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null }) }));
-jest.mock('../services/mentor-profile-info-api', () => ({ getMentorProfileInformation: jest.fn().mockResolvedValue({ exists: false, profile: null }) }));
+jest.mock('../services/mentor-profile-info-api', () => ({ getMentorProfileInformation: jest.fn().mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null }) }));
 const getProfile = jest.mocked(getMentorProfile);
 const updateParticipation = jest.mocked(updateMentorParticipation);
 const getAreas = jest.mocked(getMentorAreas);
@@ -27,7 +27,7 @@ beforeEach(() => {
   getAreas.mockResolvedValue({ areas: [], selectedIds: [] });
   getInterests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } });
   getAvailability.mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null });
-  getInformation.mockResolvedValue({ exists: false, profile: null });
+  getInformation.mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null });
 });
 
 it('activa y desactiva con los estados confirmados por la API', async () => {

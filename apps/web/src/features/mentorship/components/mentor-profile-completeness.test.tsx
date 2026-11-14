@@ -33,7 +33,7 @@ function setProfileState({
   selectedAreaIds = [],
   topicIds = [],
   availabilityStatus = null,
-  profileInfo = { exists: false, profile: null },
+  profileInfo = { nombre: 'Mentor', exists: false, profile: null },
 }: {
   active?: boolean;
   selectedAreaIds?: string[];
@@ -80,7 +80,7 @@ it('marca una seccion pendiente si falta un campo obligatorio y llega a 100 % cu
     selectedAreaIds: ['area-1'],
     topicIds: ['topic-1'],
     availabilityStatus: 'NO_DISPONIBLE',
-    profileInfo: { exists: true, profile: { descripcion: 'Descripción', experiencia: '   ' } },
+    profileInfo: { nombre: 'Mentor', exists: true, profile: { descripcion: 'Descripción', experiencia: '   ' } },
   });
   render(<MentorProfileCompleteness />);
 
@@ -93,7 +93,7 @@ it('marca una seccion pendiente si falta un campo obligatorio y llega a 100 % cu
   areas.mockResolvedValue({ areas: [], selectedIds: ['area-1'] });
   interests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: ['topic-1'] } });
   availability.mockResolvedValue({ availabilityStatus: 'DISPONIBLE', fecha_actualizacion: null });
-  information.mockResolvedValue({ exists: true, profile: { descripcion: 'Descripción', experiencia: 'Experiencia' } });
+  information.mockResolvedValue({ nombre: 'Mentor', exists: true, profile: { descripcion: 'Descripción', experiencia: 'Experiencia' } });
   await act(async () => { window.dispatchEvent(new PopStateEvent('popstate')); });
 
   await waitFor(() => expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100'));

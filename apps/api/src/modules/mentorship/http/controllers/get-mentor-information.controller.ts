@@ -11,6 +11,6 @@ export class GetMentorInformationController {
   @Get('my-profile/information')
   @RequirePermissions('mentores:self:write')
   async handle(@CurrentActor() actor: ActorContext) {
-    return { data: presentMentorInformation(await this.useCase.execute(actor)) };
+    return { data: presentMentorInformation(await this.useCase.execute(actor), actor.name) };
   }
 }

@@ -8,6 +8,7 @@ import type {
   MentorAvailability,
   MentorProfile,
   MentorInterest,
+  MentorWeeklySchedule,
 } from '../../domain/entities/mentor';
 import type { MentorFilterOptions } from '../../application/contracts/mentor-directory-filters';
 
@@ -34,20 +35,25 @@ export function presentMentor(mentor: Mentor) {
   };
 }
 
-export function presentMentorInformation(mentor: Mentor | null) {
-  return !mentor || (!mentor.description && !mentor.experience)
-    ? { exists: false, profile: null }
+export function presentMentorInformation(mentor: Mentor | null, name: string | null) {
+  const profile = !mentor || (!mentor.description && !mentor.experience)
+    ? null
     : {
         exists: true,
         profile: {
           descripcion: mentor.description,
           experiencia: mentor.experience,
           informacion_relevante: mentor.relevantInformation,
-          foto_perfil: mentor.photoUrl,
+          foto_perfil: null,
           anios_exp: mentor.experienceYears,
           fecha_actualizacion: day(mentor.updatedAt),
         },
       };
+  return {
+    nombre: name?.trim() || 'Mentor',
+    exists: profile !== null,
+    profile: profile?.profile ?? null,
+  };
 }
 
 export function presentDirectory(entry: DirectoryMentor) {
@@ -55,7 +61,7 @@ export function presentDirectory(entry: DirectoryMentor) {
     ...presentMentor(entry.mentor),
     nombre: entry.mentor.graduateName,
     descripcion: entry.mentor.description,
-    foto_perfil: entry.mentor.photoUrl,
+    foto_perfil: null,
     areas: entry.areas.map((area) => ({ id: area.id, nombre: area.name })),
     cargo: entry.cargo,
     empresa: entry.empresa,
@@ -92,6 +98,7 @@ export function presentInterest(interest: MentorInterest) {
     id: interest.id,
     nombre: interest.name,
     area: { id: interest.area.id, nombre: interest.area.name },
+    es_personalizado: interest.esPersonalizado ?? false,
   };
 }
 
@@ -120,6 +127,13 @@ export function presentAvailability(state: MentorAvailability) {
   return { availabilityStatus: state.status, fecha_actualizacion: day(state.updatedAt) };
 }
 
+export function presentWeeklySchedule(state: MentorWeeklySchedule) {
+  return {
+    schedule: state.schedule.map(({ weekday, start, end }) => ({ weekday, start, end })),
+    fecha_actualizacion: day(state.updatedAt),
+  };
+}
+
 const WEEKDAYS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -146,7 +160,7 @@ export function presentMentorDetail(profile: MentorProfile) {
   return {
     id: profile.mentor.id,
     fullName: profile.mentor.graduateName,
-    photoUrl: profile.mentor.photoUrl,
+    photoUrl: null,
     jobTitle: profile.position,
     company: profile.company,
     about: profile.mentor.description,
