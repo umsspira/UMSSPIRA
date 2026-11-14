@@ -89,6 +89,13 @@ export function MentorInterests({
   }, [catalog]);
 
   const dirty = !sameConfiguration(saved, draft);
+  // HU 6.13: el enlace del checklist enfoca el primer tópico sugerido cuando aún no hay intereses.
+  const firstSuggestedId = draft.topicIds.length
+    ? undefined
+    : currentCatalog
+        .filter((area) => draft.areaIds.includes(area.id))
+        .flatMap((area) => area.topics)
+        .find((topic) => !topic.isCustom)?.id;
   const completedSteps = Number(saved.areaIds.length > 0) + Number(saved.topicIds.length > 0);
   const added = draft.topicIds.filter((id) => !saved.topicIds.includes(id));
   const removed = saved.topicIds.filter((id) => !draft.topicIds.includes(id));
@@ -107,6 +114,12 @@ export function MentorInterests({
     window.addEventListener('beforeunload', prevent);
     return () => window.removeEventListener('beforeunload', prevent);
   }, [dirty]);
+
+  useEffect(() => {
+    if (window.location.hash === '#first-incomplete' && !draft.topicIds.length) {
+      document.getElementById('first-incomplete')?.focus();
+    }
+  }, [catalog, draft.topicIds.length]);
 
   function change(next: InterestConfiguration) {
     setDraft(normalizeInterests(currentCatalog, next));
@@ -468,6 +481,7 @@ export function MentorInterests({
                       .filter((topic) => !topic.isCustom && !draft.topicIds.includes(topic.id))
                       .map((topic) => (
                         <button
+                          id={topic.id === firstSuggestedId ? 'first-incomplete' : undefined}
                           key={topic.id}
                           type="button"
                           aria-pressed="false"

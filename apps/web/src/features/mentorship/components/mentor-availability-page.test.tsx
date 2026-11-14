@@ -101,6 +101,18 @@ it('quitar una franja y «Descartar cambios» restaura el horario guardado', asy
   expect(saveButton()).toBeDisabled();
 });
 
+it('desde el checklist (HU 6.13) despliega los horarios y enfoca el día si hay estado pero no horarios', async () => {
+  window.location.hash = '#first-incomplete';
+  try {
+    render(<MentorAvailabilityPage />);
+    const day = await screen.findByLabelText('Día');
+    expect(screen.getByRole('button', { name: 'Ocultar horarios' })).toHaveAttribute('aria-expanded', 'true');
+    await waitFor(() => expect(day).toHaveFocus());
+  } finally {
+    window.location.hash = '';
+  }
+});
+
 it('un cambio solo de estado sigue usando el PATCH de disponibilidad', async () => {
   updateAvailability.mockResolvedValue({ availabilityStatus: 'EN_PAUSA', fecha_actualizacion: '2026-11-14' });
   render(<MentorAvailabilityPage />);

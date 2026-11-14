@@ -8,10 +8,12 @@ import { ActivePanel } from './active-panel';
 import { InactivePanel } from './inactive-panel';
 import { SecondaryButton } from './mentor-button';
 import { MentorSavedAreas } from './mentor-saved-areas';
+import { MentorProfileCompleteness } from './mentor-profile-completeness';
 
 export function MentorProfile() {
   const { profile, loading, saving, error, changeParticipation, retry } = useMentorParticipation();
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const completeness = profile && !loading ? <MentorProfileCompleteness /> : null;
 
   return <>
     {loading && <p role="status">Cargando participación…</p>}
@@ -22,7 +24,7 @@ export function MentorProfile() {
     {profile?.isActive ? (
       <ActivePanel requirements={profile.requirements} onDeactivate={() => setConfirmDeactivate(true)} />
     ) : (
-      <InactivePanel requirements={profile?.requirements ?? null} activating={saving} onActivate={() => { void changeParticipation(true); }} />
+      <InactivePanel requirements={profile?.requirements ?? null} activating={saving} onActivate={() => { void changeParticipation(true); }} completeness={completeness} />
     )}
     {profile && !loading && <MentorSavedAreas />}
     <ConfirmModal

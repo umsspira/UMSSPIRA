@@ -123,6 +123,13 @@ export function MentorAvailabilityPage() {
   }, [loadAvailability]);
 
   useEffect(() => {
+    // Sin estado se enfoca la primera opción; con estado pero sin horarios, el selector de día (HU 6.18).
+    if (!loading && window.location.hash === '#first-incomplete' && (!savedStatus || !savedSchedule.length)) {
+      document.getElementById('first-incomplete')?.focus();
+    }
+  }, [loading, savedStatus, savedSchedule.length]);
+
+  useEffect(() => {
     if (!forbidden) return;
     const timeout = window.setTimeout(() => router.replace('/'), 2500);
     return () => window.clearTimeout(timeout);
@@ -256,7 +263,7 @@ export function MentorAvailabilityPage() {
             return <article key={status} className={`mentor-availability-option${selected ? ` is-selected is-${status.toLowerCase()}` : ''}`}>
               <div className="mentor-availability-option-top">
                 <span className="mentor-availability-option-icon"><Icon aria-hidden="true" /></span>
-                <button type="button" className={selected ? 'mentor-availability-selected' : 'mentor-availability-choose'} onClick={() => choose(status)} disabled={saving || loadFailed} aria-pressed={selected}>
+                <button id={!savedStatus && status === options[0].status ? 'first-incomplete' : undefined} type="button" className={selected ? 'mentor-availability-selected' : 'mentor-availability-choose'} onClick={() => choose(status)} disabled={saving || loadFailed} aria-pressed={selected}>
                   {selected ? <><CheckCircle2Icon aria-hidden="true" /> Seleccionado</> : 'Elegir'}
                 </button>
               </div>
@@ -268,7 +275,7 @@ export function MentorAvailabilityPage() {
         </div>
       )}
 
-      {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} />}
+      {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} firstIncomplete={Boolean(savedStatus) && !savedSchedule.length} />}
 
       <div className="mentor-availability-actions">
         <Link href="/mentorship/profile" className="mentor-availability-back" onClick={event => {

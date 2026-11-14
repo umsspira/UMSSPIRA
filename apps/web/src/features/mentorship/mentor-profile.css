@@ -27,6 +27,10 @@
   text-align: center;
 }
 
+.active-panel-card:not(.inactive-panel) .active-panel-hero {
+  padding: 1.25rem 0 .75rem;
+}
+
 .active-panel-hero-icon {
   display: flex;
   width: 3.5rem;
@@ -48,14 +52,14 @@
   margin-top: 1.25rem;
 }
 
-.active-panel-requests-link {
+.active-panel-configure-link {
   display: inline-flex;
   align-items: center;
   gap: .5rem;
   margin-top: 1rem;
 }
 
-.active-panel-requests-link svg {
+.active-panel-configure-link svg {
   width: 1rem;
   height: 1rem;
 }
@@ -64,6 +68,90 @@
 
 .active-panel-settings {
   margin-top: 2rem;
+}
+
+.mentor-completeness {
+  margin: 0 auto 1.5rem;
+  border: 1px solid var(--oatmeal-70);
+  border-radius: .55rem;
+  background: var(--palladian-50);
+  padding: .9rem 1rem;
+}
+
+.mentor-completeness-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  color: var(--ink);
+  font-size: .6875rem;
+}
+
+.mentor-completeness-heading h3 { margin: 0; font-size: inherit; font-weight: 700; }
+.mentor-completeness-heading > span { color: var(--truffle-dark); font-size: .625rem; font-weight: 600; text-align: right; }
+
+.mentor-completeness-track {
+  height: .3rem;
+  overflow: hidden;
+  margin-top: .65rem;
+  border-radius: 999px;
+  background: var(--oatmeal-70);
+}
+
+.mentor-completeness-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--flame);
+  transition: width .2s ease;
+}
+
+.mentor-completeness-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .35rem 1rem;
+  padding: 0;
+  margin: .65rem 0 0;
+  list-style: none;
+}
+
+.mentor-completeness-list li {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .35rem;
+  min-width: 0;
+  color: var(--ink-75);
+  font-size: .625rem;
+  line-height: 1.2;
+}
+
+.mentor-completeness-list li > svg { width: .9rem; height: .9rem; }
+.mentor-completeness-label { display: flex; min-width: 0; flex-direction: column; gap: .1rem; }
+.mentor-completeness-label small { color: var(--ink-70); font-size: .5625rem; }
+.mentor-completeness-list .is-complete { color: var(--success); }
+.mentor-completeness-list .is-pending { color: #786d5b; }
+.mentor-completeness-status { color: var(--success); font-weight: 600; }
+
+.mentor-completeness-link {
+  color: var(--navy);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+}
+
+.mentor-completeness-link:hover,
+.mentor-completeness-link:focus-visible { text-decoration-color: currentColor; }
+.mentor-completeness-link:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.mentor-completeness-success { margin-top: .7rem; color: var(--success); font-size: .75rem; font-weight: 600; }
+.mentor-completeness-message { margin-top: .65rem; color: var(--ink-70); font-size: .75rem; }
+.mentor-completeness-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .65rem; color: #8b2924; font-size: .75rem; }
+
+@media (max-width: 639px) {
+  .mentor-completeness { padding: .8rem; }
+  .mentor-completeness-list { grid-template-columns: minmax(0, 1fr); }
+  .mentor-completeness-list li { font-size: .6875rem; }
 }
 
 .active-panel-section-title {
@@ -81,7 +169,7 @@
 }
 
 .active-panel-option {
-  min-height: 13.375rem;
+  min-height: 12rem;
 }
 
 .active-panel-option-top {
@@ -92,13 +180,18 @@
 }
 
 .active-panel-option-status {
-  border-radius: .125rem;
+  border-radius: .25rem;
   background: rgb(242 166 90 / 25%);
   padding: .25rem .5rem;
   color: var(--truffle-dark);
   font-size: .625rem;
   font-weight: 600;
   line-height: .75rem;
+}
+
+.active-panel-option-status.is-complete {
+  background: rgb(35 112 68 / 12%);
+  color: var(--success);
 }
 
 .active-panel-option-title {
@@ -375,17 +468,13 @@
   .active-panel-footer {
     padding-inline: 2.25rem;
   }
-}
 
-@media (min-width: 768px) {
   .active-panel-options {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .active-panel-option-areas {
-    grid-column: 1 / -1;
-  }
-
+@media (min-width: 768px) {
   .inactive-preview-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

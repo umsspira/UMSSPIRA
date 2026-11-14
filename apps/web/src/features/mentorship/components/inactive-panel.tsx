@@ -19,9 +19,10 @@ interface InactivePanelProps {
   requirements: Requirements | null;
   activating: boolean;
   onActivate: () => void;
+  completeness?: import('react').ReactNode;
 }
 
-export function InactivePanel({ requirements, activating, onActivate }: InactivePanelProps) {
+export function InactivePanel({ requirements, activating, onActivate, completeness }: InactivePanelProps) {
   const eligibility = requirements ? getActivationEligibility(requirements) : null;
   const eligible = eligibility?.eligible ?? false;
 
@@ -36,6 +37,7 @@ export function InactivePanel({ requirements, activating, onActivate }: Inactive
           <h2 id="inactive-title" className="mentor-card-title active-panel-title">{!requirements ? 'Tu participación como mentor' : eligible ? 'Tu participación como mentor está inactiva' : 'Aún no puedes activar tu participación como mentor'}</h2>
           <p className="mentor-card-description active-panel-intro">{!requirements ? 'Consulta tu participación y configura cómo deseas contribuir en la red de mentorías.' : eligible ? 'Activa tu participación para comenzar a configurar cómo deseas contribuir en la red de mentorías.' : 'Revisa los requisitos pendientes. La activación se habilitará cuando todos estén cumplidos.'}</p>
         </div>
+        {completeness}
         <RequirementsList requirements={requirements} />
         {!requirements && <MentorConfiguration />}
         <section className="inactive-preview" aria-labelledby="activation-preview-title">
@@ -59,7 +61,7 @@ export function InactivePanel({ requirements, activating, onActivate }: Inactive
         <Link href="/mentorship" className="inactive-back"><ArrowLeftIcon className="icon" aria-hidden="true" />Volver a Mentorías</Link>
         <div className="inactive-actions">
           <span className={eligible ? 'requirements-met' : undefined}>{eligibility ? `Requisitos cumplidos (${eligibility.metCount}/${eligibility.total})` : 'Requisitos por consultar'}</span>
-          <PrimaryButton disabled={!eligible} loading={activating} loadingLabel="Activando…" iconRight={eligible ? ArrowRightIcon : LockIcon} onClick={() => { if (eligible) onActivate(); }} aria-describedby={!eligible ? 'activation-locked-note' : undefined}>Activar como mentor</PrimaryButton>
+          <PrimaryButton id={eligible ? 'first-incomplete' : undefined} disabled={!eligible} loading={activating} loadingLabel="Activando…" iconRight={eligible ? ArrowRightIcon : LockIcon} onClick={() => { if (eligible) onActivate(); }} aria-describedby={!eligible ? 'activation-locked-note' : undefined}>Activar como mentor</PrimaryButton>
           {!eligible && <p id="activation-locked-note">{eligibility ? `Pendiente: ${eligibility.pending.map(condition => condition.title).join(', ')}.` : 'Consulta tu perfil antes de activar tu participación.'}</p>}
         </div>
       </div>
