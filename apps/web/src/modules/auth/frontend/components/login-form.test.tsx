@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { authStore } from "../store";
 import { LoginForm } from "./login-form";
+import LoginPage from "../../../../app/(public)/login/page";
 
 const mockPush = jest.fn();
 const mockSaveSession = jest.fn();
@@ -59,8 +60,8 @@ describe("LoginForm", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("permite consultar el estado desde el inicio de sesión (18.3)", () => {
-  render(<LoginForm />);
+  it("permite consultar el estado fuera del formulario (18.3)", () => {
+    render(<LoginPage />);
     expect(
       screen.getByRole("link", { name: "Consulta su estado aquí." }),
     ).toHaveAttribute("href", "/status");
@@ -110,7 +111,7 @@ describe("LoginForm", () => {
   });
 
   it("permite volver al inicio institucional desde el login (BUG-08)", () => {
-    render(<LoginForm />);
+    render(<LoginPage />);
 
     expect(screen.getByRole("link", { name: "Volver al inicio" })).toHaveAttribute(
       "href",
