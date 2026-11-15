@@ -796,7 +796,10 @@ Depende solo de la sesión y del alcance de `@CurrentActor`.
 **H16. Rutas del frontend sin cobertura de middleware**.
 `/profile*`, `/mis-pases*` y `/portal/admin` no entran en el `matcher` de `src/middleware.ts` ni montan `<AuthGuard>`. La API responde 401 y la pantalla muestra su estado de error, pero **no hay redirección automática a `/login`**.
 
-**H17. `supabase/snippets/` vacío** y `scripts/verificar-radar-m1.ps1` restringido a PostgreSQL local (verifica que `DIRECT_URL` sea `localhost`).
+**H17. SQL histórico de Supabase fuera del flujo activo.** Los scripts antiguos se conservan como referencia histórica en
+[`docs/epic5/sql-historico/`](./epic5/sql-historico/); no existe un flujo Supabase CLI activo. El esquema y las
+migraciones vigentes se gestionan con Prisma en `apps/api/prisma/`. `scripts/verificar-radar-m1.ps1` sigue
+restringido a PostgreSQL local (verifica que `DIRECT_URL` sea `localhost`).
 
 ---
 

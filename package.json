@@ -8,10 +8,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
-    "dev:frontend": "npm --prefix frontend run dev",
-    "dev:backend": "npm --prefix backend run start:dev",
-    "start:dev": "npm --prefix backend run start:dev",
+    "dev": "pnpm --filter \"./apps/*\" --parallel dev",
+    "dev:frontend": "pnpm --filter web dev",
+    "dev:backend": "pnpm --filter api dev",
+    "start:dev": "pnpm --filter api dev",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "build": "pnpm -r build",
@@ -19,9 +19,5 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "supabase": "^3.0.0"
-  }
+  "license": "ISC"
 }
-
