@@ -16,6 +16,7 @@ import type { Prisma } from '../../../../generated/prisma/client';
 import { canReceiveMentorship } from '../../domain/policies/mentor.policy';
 import { toAvailability } from '../translators/mentor.translator';
 import { availabilityOrder, lockGraduate } from './mentor-transaction';
+import { isMentorPublished } from './mentor-publication';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const toDatabaseDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
@@ -127,7 +128,8 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
     if (
       mentorUser?.estado !== 'ACTIVO' ||
       mentorUser.rol !== 'titulado' ||
-      !canReceiveMentorship(mentor.esta_activo === true, toAvailability(availability).status)
+      !canReceiveMentorship(mentor.esta_activo === true, toAvailability(availability).status) ||
+      !(await isMentorPublished(this.prisma, mentorId))
     ) {
       throw new BusinessRuleError(
         'forbidden',
@@ -244,7 +246,10 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
           orderBy: availabilityOrder,
           select: { estado: true, fecha_actualizacion: true, hora_inicio: true, hora_fin: true },
         });
-        if (!canReceiveMentorship(mentor.esta_activo, toAvailability(availability).status)) {
+        if (
+          !canReceiveMentorship(mentor.esta_activo, toAvailability(availability).status) ||
+          !(await isMentorPublished(tx, mentor.id))
+        ) {
           throw new BusinessRuleError(
             'forbidden',
             'MENTOR_NOT_AVAILABLE',

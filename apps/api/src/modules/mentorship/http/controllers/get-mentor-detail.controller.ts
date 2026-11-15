@@ -1,5 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { GetMentorDetailUseCase } from '../../application/use-cases/get-mentor-detail.use-case';
+import { Roles } from '../../../../shared/http/auth/decorators/roles.decorator';
 import { presentMentorDetail } from '../presenters/mentor.presenter';
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
 import { mentorIdSchema } from '../schemas/mentorship.schemas';
@@ -8,6 +9,7 @@ import { mentorIdSchema } from '../schemas/mentorship.schemas';
 export class GetMentorDetailController {
   constructor(private readonly useCase: GetMentorDetailUseCase) {}
   @Get('profiles/:id')
+  @Roles('titulado')
   async handle(@Param('id', new ZodValidationPipe(mentorIdSchema)) id: string) {
     return { data: presentMentorDetail(await this.useCase.execute(id)) };
   }

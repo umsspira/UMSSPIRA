@@ -32,30 +32,13 @@ import {
   lockOwnMentor,
   mentorMissing,
 } from './mentor-transaction';
+import { isMentorPublished, PUBLISHED_MENTORS_FROM_WHERE } from './mentor-publication';
 
 @Injectable()
 export class PrismaMentorRepository implements MentorRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async directory(query: MentorDirectoryQuery = { offset: 0 }) {
-    const visibleMentors = Prisma.sql`
-      FROM mentor AS m
-      JOIN titulado AS t ON t.id = m.id_titulado
-      JOIN usuario AS u ON u.usuario_id = t.id_usuario
-      JOIN LATERAL (
-        SELECT d.estado
-        FROM disponibilidad_mentor AS d
-        WHERE d.id_mentor = m.id
-        ORDER BY d.fecha_actualizacion DESC NULLS LAST,
-                 d.fecha_creacion DESC NULLS LAST,
-                 d.id DESC
-        LIMIT 1
-      ) AS latest_availability ON TRUE
-      WHERE m.esta_activo IS TRUE
-        AND u.estado = 'ACTIVO'
-        AND u.rol = 'titulado'
-        AND latest_availability.estado = 'DISPONIBLE'
-    `;
     const page =
       query.limit === undefined
         ? Prisma.empty
@@ -65,13 +48,13 @@ export class PrismaMentorRepository implements MentorRepository {
       this.prisma.$queryRaw<Array<{ id: string }>>(
         Prisma.sql`
           SELECT m.id
-          ${visibleMentors}
+          ${PUBLISHED_MENTORS_FROM_WHERE}
           ORDER BY m.fecha_creacion DESC NULLS LAST, m.id ASC
           ${page}
         `,
       ),
       this.prisma.$queryRaw<Array<{ total: number }>>(
-        Prisma.sql`SELECT COUNT(*)::int AS total ${visibleMentors}`,
+        Prisma.sql`SELECT COUNT(*)::int AS total ${PUBLISHED_MENTORS_FROM_WHERE}`,
       ),
       this.prisma.area.findMany({
         where: { padre_id: null, esta_activo: true },
@@ -184,34 +167,13 @@ export class PrismaMentorRepository implements MentorRepository {
 
   async filteredDirectory(filters: MentorDirectoryFilters) {
     await this.validateFilterIds(filters.areaIds, filters.interestIds);
-    const filterConditions: Prisma.MentorWhereInput[] = [];
-    if (filters.areaIds.length) {
-      filterConditions.push({
-        mentor_area_registros: {
-          some: {
-            id_area: { in: filters.areaIds },
-            area: { is: { padre_id: null, esta_activo: true } },
-          },
-        },
-      });
-    }
-    if (filters.interestIds.length) {
-      filterConditions.push({
-        mentor_area_registros: {
-          some: {
-            id_area: { in: filters.interestIds },
-            area: {
-              is: {
-                padre_id: { not: null },
-                esta_activo: true,
-                padre: { is: { padre_id: null, esta_activo: true } },
-              },
-            },
-          },
-        },
-      });
-    }
-    return this.readDirectory({ AND: filterConditions });
+    const { entries } = await this.directory({ offset: 0 });
+    return entries.filter(
+      (entry) =>
+        (!filters.areaIds.length || entry.areas.some((area) => filters.areaIds.includes(area.id))) &&
+        (!filters.interestIds.length ||
+          entry.interests.some((interest) => filters.interestIds.includes(interest.id))),
+    );
   }
 
   async filterOptions(areaIds: string[]) {
@@ -296,43 +258,6 @@ export class PrismaMentorRepository implements MentorRepository {
     }
   }
 
-  private async readDirectory(where: Prisma.MentorWhereInput) {
-    const rows = await this.prisma.mentor.findMany({
-      where: {
-        AND: [
-          {
-            esta_activo: true,
-            titulado: { usuario: { estado: 'ACTIVO', rol: 'titulado' } },
-          },
-          where,
-        ],
-      },
-      include: {
-        ...mentorInclude,
-        disponibilidad_mentor_registros: { orderBy: availabilityOrder, take: 1 },
-        mentor_area_registros: {
-          where: { area: { padre_id: null, esta_activo: true } },
-          include: { area: { select: { id: true, nombre: true } } },
-        },
-      },
-      orderBy: [{ fecha_creacion: 'desc' }, { id: 'asc' }],
-    });
-    return rows
-      .filter(
-        (row) => toAvailability(row.disponibilidad_mentor_registros[0]).status !== 'NO_DISPONIBLE',
-      )
-      .map((row) => ({
-        mentor: toMentor(row),
-        availability: toAvailability(row.disponibilidad_mentor_registros[0]).status,
-        areas: row.mentor_area_registros.flatMap((link) =>
-          link.area ? [{ id: link.area.id, name: link.area.nombre ?? '' }] : [],
-        ),
-        interests: [],
-        cargo: null,
-        empresa: null,
-      }));
-  }
-
   async detail(mentorId: string, from: string, to: string): Promise<MentorDetail | null> {
     const row = await this.prisma.mentor.findFirst({
       where: {
@@ -367,7 +292,7 @@ export class PrismaMentorRepository implements MentorRepository {
       },
     });
     const availability = toAvailability(row?.disponibilidad_mentor_registros[0]).status;
-    if (!row || availability === 'NO_DISPONIBLE') {
+    if (!row || !(await isMentorPublished(this.prisma, mentorId))) {
       return null;
     }
     const areas = new Map<string, AreaReference>();
@@ -376,15 +301,25 @@ export class PrismaMentorRepository implements MentorRepository {
       if (!area) {
         continue;
       }
-      if (area.padre_id === null) {
+      if (area.padre_id === null && area.esta_activo === true) {
         areas.set(area.id, { id: area.id, name: area.nombre ?? '' });
-      } else if (area.padre?.esta_activo === true) {
-        interests.set(area.id, {
-          id: area.id,
-          name: area.nombre ?? '',
-          area: { id: area.padre.id, name: area.padre.nombre ?? '' },
-        });
       }
+    }
+    const selectedAreaIds = new Set(areas.keys());
+    for (const { area } of row.mentor_area_registros) {
+      if (!area || area.padre_id === null || area.esta_activo !== true || !area.padre) {
+        continue;
+      }
+      if (
+        area.padre.esta_activo !== true ||
+        area.padre.padre_id !== null ||
+        !selectedAreaIds.has(area.padre.id)
+      ) {continue;}
+      interests.set(area.id, {
+        id: area.id,
+        name: area.nombre ?? '',
+        area: { id: area.padre.id, name: area.padre.nombre ?? '' },
+      });
     }
     const byName = (a: AreaReference, b: AreaReference) => a.name.localeCompare(b.name, 'es');
     const job = row.titulado.experiencia_laboral_registros[0];
