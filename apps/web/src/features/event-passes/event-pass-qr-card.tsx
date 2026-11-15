@@ -1,10 +1,13 @@
 
 'use client';
 
+import { useState } from 'react';
 import type { EventPassDto } from '@umsspira/shared-types';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
+import { saveOfflineQrPass } from './offline/offline-qr-storage';
 import { EventPassCard } from '@/modules/events/components/EventPassCard';
+import { OFFLINE_PASS_INVALID_MESSAGE } from './offline/offline-sync';
 
 interface EventPassQrCardProps {
   pass: EventPassDto;
@@ -12,6 +15,8 @@ interface EventPassQrCardProps {
   updated?: boolean;
   offline?: boolean;
   backHref?: string;
+  /** true cuando el pase viene del dispositivo (sin conexión): no se ofrece guardarlo de nuevo. */
+  fromOfflineStorage?: boolean;
 }
 
 function formatEventDate(value?: string): string {
@@ -30,11 +35,70 @@ function formatEventDate(value?: string): string {
   }).format(date);
 }
 
-export function EventPassQrCard({ pass, savedOffline = false, updated = false, offline = false, backHref = '/mis-pases' }: EventPassQrCardProps) {
+export function EventPassQrCard({
+  pass,
+  savedOffline = false,
+  updated = false,
+  offline = false,
+  backHref = '/mis-pases',
+  fromOfflineStorage = false,
+}: EventPassQrCardProps) {
   const isValid =
     pass.status === 'ACTIVO' && pass.isValidForAccess;
 
   const details = pass.eventDetails;
+const [isSavedOffline, setIsSavedOffline] = useState(false);
+const [isSavingOffline, setIsSavingOffline] = useState(false);
+const [saveOfflineMessage, setSaveOfflineMessage] = useState('');
+
+const handleSaveOffline = async () => {
+  if (!isValid || !details || isSavingOffline || isSavedOffline) {
+    return;
+  }
+
+  if (
+    !pass.id?.trim() ||
+    !pass.userId?.trim() ||
+    !pass.qrToken?.trim() ||
+    !details.name?.trim() ||
+    !details.userName?.trim() ||
+    !details.dateTime?.trim() ||
+    !details.location?.trim()
+  ) {
+    setSaveOfflineMessage(
+      'No se puede guardar: faltan datos del pase o del evento.'
+    );
+    return;
+  }
+
+  setIsSavingOffline(true);
+  setSaveOfflineMessage('');
+
+  try {
+    await saveOfflineQrPass({
+      id: pass.id,
+      userId: pass.userId,
+      qrToken: pass.qrToken,
+      eventDetails: {
+        name: details.name,
+        userName: details.userName,
+        dateTime: details.dateTime,
+        location: details.location,
+      },
+    });
+
+    setIsSavedOffline(true);
+    setSaveOfflineMessage('Tu pase QR se guardó en este dispositivo.');
+  } catch (error) {
+    setSaveOfflineMessage(
+      error instanceof Error
+        ? `${error.message} Puedes intentarlo nuevamente.`
+        : 'No se pudo guardar el pase. Inténtalo nuevamente.'
+    );
+  } finally {
+    setIsSavingOffline(false);
+  }
+};
 
   const statusLabel = isValid
     ? (offline ? 'ESTADO SIN VERIFICAR' : 'INSCRIPCIÓN CONFIRMADA')
@@ -48,7 +112,7 @@ export function EventPassQrCard({ pass, savedOffline = false, updated = false, o
     pass.status === 'VENCIDO'
       ? 'Este pase ha vencido y ya no permite el acceso al evento.'
       : pass.status === 'INVALIDADO'
-        ? 'Este pase ha sido invalidado y ya no permite el acceso al evento.'
+        ? `${OFFLINE_PASS_INVALID_MESSAGE}. Fue invalidado y ya no permite el acceso al evento.`
         : 'Este pase no está habilitado para acceder al evento.';
 
   if (!isValid) {
@@ -100,6 +164,10 @@ export function EventPassQrCard({ pass, savedOffline = false, updated = false, o
       passId={pass.id}
       qrToken={isValid ? pass.qrToken : undefined}
       onBack={() => window.location.assign(backHref)}
+      onSaveOffline={isValid && !fromOfflineStorage ? handleSaveOffline : undefined}
+      isSavedOffline={isSavedOffline}
+      isSavingOffline={isSavingOffline}
+      saveOfflineMessage={saveOfflineMessage}
     />
   );
 }
