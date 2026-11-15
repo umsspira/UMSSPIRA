@@ -26,38 +26,28 @@ const AREAS = Object.keys(RADAR_AREA_IDS) as RadarArea[];
  * El catálogo es la fuente de verdad de los pesos; la base replica esos valores.
  */
 function buildDictionary(): DictionaryFixture {
-  const definitions = new Map<
-    string,
-    { aliases: Set<string>; areas: Map<string, { nombre: string | null; peso: number }> }
-  >();
+  const definitions = new Map<string, Set<string>>();
+  const weightsByArea: Record<string, Array<{ term: string; peso: number }>> = {};
 
   for (const area of AREAS) {
     const areaId = RADAR_AREA_IDS[area];
 
     for (const keyword of RADAR_DICTIONARY[area]) {
       const canonical = normalizePhrase(keyword.term);
-      const definition = definitions.get(canonical) ?? {
-        aliases: new Set<string>(),
-        areas: new Map<string, { nombre: string | null; peso: number }>(),
-      };
+      const aliases = definitions.get(canonical) ?? new Set<string>();
 
-      definition.areas.set(areaId, { nombre: area, peso: keyword.weight });
       for (const alias of keyword.aliases ?? []) {
-        definition.aliases.add(normalizePhrase(alias));
+        aliases.add(normalizePhrase(alias));
       }
-      definitions.set(canonical, definition);
+      definitions.set(canonical, aliases);
+      (weightsByArea[areaId] ??= []).push({ term: canonical, peso: keyword.weight });
     }
   }
 
-  const entries: DictionaryEntry[] = [];
-  const weightsByArea: Record<string, Array<{ term: string; peso: number }>> = {};
-
-  for (const [canonical, definition] of definitions) {
-    entries.push({ canonical, aliases: [...definition.aliases] });
-    for (const [id, { peso }] of definition.areas) {
-      (weightsByArea[id] ??= []).push({ term: canonical, peso });
-    }
-  }
+  const entries: DictionaryEntry[] = [...definitions].map(([canonical, aliases]) => ({
+    canonical,
+    aliases: [...aliases],
+  }));
 
   return { entries, weightsByArea };
 }

@@ -1,12 +1,9 @@
 import { createDatabaseClient } from './database-client';
 import { KeywordExtractorService } from '../src/modules/nlp/application/services/keyword-extractor.service';
-import { mapKeywordsToAreas } from '../src/modules/nlp/application/services/keyword-area-mapper';
-import type {
-  DictionaryAreaAssociation,
-  DictionaryEntry,
-} from '../src/modules/nlp/domain/entities/dictionary-entry';
+import type { DictionaryEntry } from '../src/modules/nlp/domain/entities/dictionary-entry';
 import type { ExtractedKeyword } from '../src/modules/nlp/domain/entities/extracted-keyword';
 import { calculateAreaAffinity } from '../src/modules/radar/domain/policies/affinity-calculator';
+import { mapKeywordsToRadarAreas } from '../src/modules/radar/domain/policies/keyword-area-mapper';
 import { calculateInputHash } from '../src/modules/radar/domain/policies/input-hash';
 import { CURRENT_PROFILE_DESCRIPTION_ORDER } from '../src/modules/radar/domain/policies/profile-description-order';
 import { RADAR_AREA_IDS, type RadarArea } from '../src/modules/radar/domain/entities/radar-area';
@@ -47,6 +44,8 @@ interface AreaResult {
   keywords: Array<{ keyword: string; weight: number; frequency: number; points: number }>;
 }
 
+type AreaWeights = Record<string, Array<{ term: string; peso: number }>>;
+
 function readRequiredId(): string {
   const value = process.env.TITULADO_ID?.trim();
   if (!value) {
@@ -65,13 +64,13 @@ function readKeyword(): string {
 
 function groupWeightsByArea(
   keywords: readonly ExtractedKeyword[],
-  areasByKeyword: ReadonlyMap<string, readonly DictionaryAreaAssociation[]>,
+  weightsByArea: AreaWeights,
 ): Map<RadarArea, Array<{ term: string; peso: number }>> {
   const grouped = new Map<RadarArea, Array<{ term: string; peso: number }>>();
 
-  for (const association of mapKeywordsToAreas(keywords, areasByKeyword)) {
+  for (const association of mapKeywordsToRadarAreas(keywords, weightsByArea)) {
     const current = grouped.get(association.area) ?? [];
-    current.push({ term: association.term, peso: association.weight });
+    current.push({ term: association.term, peso: association.peso });
     grouped.set(association.area, current);
   }
 
@@ -80,9 +79,9 @@ function groupWeightsByArea(
 
 function calculateAreas(
   keywords: readonly ExtractedKeyword[],
-  areasByKeyword: ReadonlyMap<string, readonly DictionaryAreaAssociation[]>,
+  weightsByArea: AreaWeights,
 ): AreaResult[] {
-  const grouped = groupWeightsByArea(keywords, areasByKeyword);
+  const grouped = groupWeightsByArea(keywords, weightsByArea);
 
   return (Object.keys(RADAR_AREA_IDS) as RadarArea[]).map((area) => {
     const result = calculateAreaAffinity([...keywords], grouped.get(area) ?? []);
@@ -110,13 +109,13 @@ function buildTexts(fields: readonly SourceField[]): string[] {
 function summarize(
   extractor: KeywordExtractorService,
   fields: readonly SourceField[],
-  areasByKeyword: ReadonlyMap<string, readonly DictionaryAreaAssociation[]>,
+  weightsByArea: AreaWeights,
   target: string,
 ) {
   const texts = buildTexts(fields);
   const extracted = extractor.extract(texts.join('\n'));
   const targetMatches = extracted.keywords.filter(({ term }) => term === target);
-  const areas = calculateAreas(extracted.keywords, areasByKeyword);
+  const areas = calculateAreas(extracted.keywords, weightsByArea);
 
   return {
     textCount: texts.length,
@@ -191,21 +190,18 @@ async function main(): Promise<void> {
         const entries: DictionaryEntry[] = dictionaryRows.map((row) => ({
           canonical: row.termino_normalizado,
           aliases: row.alias_registros.map(({ alias_normalizado }) => alias_normalizado),
-          areas: row.area_registros.map((association) => ({
-            id: association.area.id,
-            nombre: association.area.nombre,
-            peso: association.peso,
-          })),
         }));
 
         const extractor = new KeywordExtractorService();
         const loadReport = extractor.loadDictionary(entries);
 
-        const areasByKeyword = new Map<string, DictionaryAreaAssociation[]>();
-        for (const entry of entries) {
-          areasByKeyword.set(entry.canonical, entry.areas ?? []);
-          for (const alias of entry.aliases) {
-            areasByKeyword.set(alias, entry.areas ?? []);
+        const weightsByArea: AreaWeights = {};
+        for (const row of dictionaryRows) {
+          for (const association of row.area_registros) {
+            (weightsByArea[association.area.id] ??= []).push({
+              term: row.termino_normalizado,
+              peso: Number(association.peso),
+            });
           }
         }
 
@@ -251,8 +247,8 @@ async function main(): Promise<void> {
           (field) => field.source !== 'descripcion' || field.rowId === profileRows[0]?.id,
         );
 
-        const reproducedWithAllRows = summarize(extractor, allRowsFields, areasByKeyword, target);
-        const reproducedWithCurrentRow = summarize(extractor, currentRowFields, areasByKeyword, target);
+        const reproducedWithAllRows = summarize(extractor, allRowsFields, weightsByArea, target);
+        const reproducedWithCurrentRow = summarize(extractor, currentRowFields, weightsByArea, target);
 
         const servedAreas = (lastCalculation?.afinidad_registros ?? []).map((row) => ({
           areaId: row.area.id,

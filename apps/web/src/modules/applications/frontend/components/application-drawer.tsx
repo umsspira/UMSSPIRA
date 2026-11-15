@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ApplicationDetail,
   OVERDUE_HOURS,
@@ -39,6 +39,7 @@ export function ApplicationDrawer({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reviewData, setReviewData] = useState<BoardDetail | null>(null);
+  const drawerRef = useRef<HTMLElement>(null);
 
   // CA-04.3: trae el expediente real y la URL firmada del documento (5 min).
   useEffect(() => {
@@ -89,6 +90,23 @@ export function ApplicationDrawer({
     };
   }, [open, applicationId]);
 
+  // BUG-07: mientras el expediente está abierto el fondo no se desplaza y el foco
+  // queda dentro del diálogo; al cerrar se restauran ambos y el foco vuelve al control de origen.
+  useEffect(() => {
+    if (!open || !applicationId) return;
+    const origin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const { overflow, paddingRight } = document.body.style;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+    drawerRef.current?.focus();
+    return () => {
+      document.body.style.overflow = overflow;
+      document.body.style.paddingRight = paddingRight;
+      if (origin && origin.isConnected) origin.focus();
+    };
+  }, [open, applicationId]);
+
   if (!open || !applicationId) return null;
 
   const canReview = application?.status === "PENDIENTE" || (application?.status as string)?.toUpperCase() === "PENDING"; 
@@ -119,7 +137,9 @@ export function ApplicationDrawer({
       />
 
       <aside
-        className="fixed bottom-0 right-0 top-[70px] z-40 flex min-h-0 w-full max-w-6xl flex-col overflow-hidden bg-[#EEE9DF] shadow-xl min-[601px]:top-[76px] min-[1261px]:top-[84px]"
+        ref={drawerRef}
+        tabIndex={-1}
+        className="fixed bottom-0 right-0 top-[70px] z-40 flex min-h-0 w-full max-w-6xl flex-col overflow-hidden bg-[#EEE9DF] shadow-xl outline-none min-[601px]:top-[76px] min-[1261px]:top-[84px]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="drawer-title"

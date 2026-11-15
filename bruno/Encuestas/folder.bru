@@ -6,10 +6,12 @@ meta {
 vars:pre-request {
   baseUrl: http://localhost:3000
   accessToken:
+  adminAccessToken:
   surveyId:
 }
 
 docs {
   Completa estos valores antes de ejecutar las peticiones de encuestas.
   surveyId es el UUID de la encuesta activa y accessToken debe corresponder a un titulado autenticado.
+  adminAccessToken debe corresponder a un Administrador de Carrera con el permiso reportes:read (lo usa «Reporte de encuestas»).
 }

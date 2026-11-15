@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UMSSPIRA | Sin conexión</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #eee9df;
+      color: #1b2632;
+    }
+
+    header {
+      background: #1b2632;
+      color: white;
+      padding: 20px;
+    }
+
+    header h1 { margin: 0 0 8px; }
+
+    main {
+      max-width: 1000px;
+      margin: 30px auto;
+      padding: 16px;
+    }
+
+    .aviso {
+      background: #fff3df;
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+
+    nav {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    nav a {
+      display: block;
+      padding: 16px;
+      border-radius: 10px;
+      background: white;
+      color: #1b2632;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    nav a[aria-current="page"] {
+      background: #ffb162;
+    }
+
+    .contenido {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      min-height: 180px;
+    }
+
+    button {
+      margin-top: 24px;
+      padding: 12px 24px;
+      background: #ffb162;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+
+    .evento-card {
+      padding: 16px;
+      margin-top: 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .evento-card h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .evento-card p {
+      margin: 7px 0;
+      line-height: 1.5;
+    }
+
+    .actualizacion {
+      margin-top: 18px;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .estado-vacio {
+      padding: 16px;
+      border-radius: 8px;
+      background: #fff3df;
+    }
+
+
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>UMSSPIRA</h1>
+    <p>Navegación sin conexión</p>
+  </header>
+
+  <main>
+    <div class="aviso" role="status">
+      Estás navegando sin conexión. Algunas funciones no están disponibles.
+    </div>
+
+    <nav aria-label="Navegación offline">
+      <a href="/portal">Inicio</a>
+      <a href="/portal/eventos">Eventos</a>
+      <a href="/portal/empleos">Empleos</a>
+      <a href="/portal/beneficios">Beneficios</a>
+      <a href="/portal/comunidad">Comunidad</a>
+    </nav>
+
+    <section class="contenido" aria-live="polite">
+      <h2 id="titulo">Inicio</h2>
+      <p id="descripcion"></p>
+    </section>
+
+    
+    <button type="button" id="btn-reintentar">
+      Reintentar conexión
+    </button>
+
+    <p id="estado-reintento" role="status" aria-live="polite"></p>
+
+  </main>
+
+
+    <script>
+      const secciones = {
+        '/portal': {
+          titulo: 'Inicio',
+          descripcion: 'Bienvenido a UMSSPIRA. Puedes navegar por las secciones disponibles sin conexión.'
+        },
+        '/portal/eventos': {
+          titulo: 'Eventos',
+          descripcion: 'Consulta los eventos guardados mientras tenías conexión.'
+        },
+        '/portal/empleos': {
+          titulo: 'Bolsa de trabajo',
+          descripcion: 'Estás en la sección de empleos. Las ofertas que requieren conexión no están disponibles.'
+        },
+        '/portal/beneficios': {
+          titulo: 'Beneficios',
+          descripcion: 'Beneficios (próximamente).'
+        },
+        '/portal/comunidad': {
+          titulo: 'Comunidad',
+          descripcion: 'Estás en la sección de comunidad. Las funciones interactivas requieren conexión.'
+        }
+      };
+
+      const DB_NAME = 'umsspira-hu04';
+      const STORE_NAME = 'public-events';
+
+      function abrirBaseDatos() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, 1);
+
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function obtenerEventosGuardados() {
+        const db = await abrirBaseDatos();
+
+        try {
+          return await new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const request = transaction.objectStore(STORE_NAME).get('catalog');
+
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+          });
+        } finally {
+          db.close();
+        }
+      }
+
+      function formatearFecha(valor) {
+        if (!valor) return 'No especificada';
+
+        const fecha = new Date(valor);
+
+        if (Number.isNaN(fecha.getTime())) {
+          return String(valor);
+        }
+
+        return fecha.toLocaleString('es-BO', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        });
+      }
+
+      function obtenerCampo(evento, nombres) {
+        for (const nombre of nombres) {
+          if (evento[nombre] !== undefined && evento[nombre] !== null) {
+            return evento[nombre];
+          }
+        }
+
+        return null;
+      }
+
+      async function mostrarEventos(contenedor) {
+        const mensaje = document.createElement('p');
+        mensaje.textContent = 'Cargando eventos guardados...';
+        contenedor.appendChild(mensaje);
+
+        try {
+          const cache = await obtenerEventosGuardados();
+
+          mensaje.remove();
+
+          if (!cache || !Array.isArray(cache.events) || cache.events.length === 0) {
+            const vacio = document.createElement('p');
+            vacio.className = 'estado-vacio';
+            vacio.textContent = 'No hay eventos guardados para consultar sin conexión.';
+            contenedor.appendChild(vacio);
+            return;
+          }
+
+          for (const evento of cache.events) {
+            const tarjeta = document.createElement('article');
+            tarjeta.className = 'evento-card';
+
+            const titulo = document.createElement('h3');
+            titulo.textContent =
+              obtenerCampo(evento, ['title', 'name', 'titulo']) || 'Evento sin título';
+
+            tarjeta.appendChild(titulo);
+
+            const inicio = obtenerCampo(evento, [
+              'startDate',
+              'startAt',
+              'startsAt',
+              'startDateTime',
+              'date'
+            ]);
+
+            const fin = obtenerCampo(evento, [
+              'endDate',
+              'endAt',
+              'endsAt',
+              'endDateTime'
+            ]);
+
+            const ubicacion = obtenerCampo(evento, [
+              'location',
+              'venue',
+              'place',
+              'ubicacion'
+            ]);
+
+            const datos = [
+              ['Inicio', formatearFecha(inicio)],
+              ['Fin', formatearFecha(fin)],
+              ['Ubicación', typeof ubicacion === 'string' ? ubicacion : 'No especificada']
+            ];
+
+            for (const [etiqueta, valor] of datos) {
+              const linea = document.createElement('p');
+
+              const fuerte = document.createElement('strong');
+              fuerte.textContent = etiqueta + ': ';
+
+              linea.appendChild(fuerte);
+              linea.appendChild(document.createTextNode(valor));
+
+              tarjeta.appendChild(linea);
+            }
+
+            contenedor.appendChild(tarjeta);
+          }
+
+          const actualizacion = document.createElement('p');
+          actualizacion.className = 'actualizacion';
+          actualizacion.textContent =
+            'Última actualización: ' + formatearFecha(cache.updatedAt);
+
+          contenedor.appendChild(actualizacion);
+        } catch (error) {
+          mensaje.remove();
+
+          const aviso = document.createElement('p');
+          aviso.className = 'estado-vacio';
+          aviso.textContent = 'No se pudieron recuperar los eventos guardados.';
+
+          contenedor.appendChild(aviso);
+          console.error('Error al leer eventos offline:', error);
+        }
+      }
+
+      function normalizarRuta(ruta) {
+        return ruta.replace(/\/$/, '') || '/';
+      }
+
+      async function mostrarSeccion(ruta) {
+        const seccion = secciones[ruta];
+        if (!seccion) return;
+
+        document.getElementById('titulo').textContent = seccion.titulo;
+
+        const descripcion = document.getElementById('descripcion');
+        descripcion.textContent = seccion.descripcion;
+
+        document.querySelectorAll('nav a').forEach((enlace) => {
+          if (enlace.getAttribute('href') === ruta) {
+            enlace.setAttribute('aria-current', 'page');
+          } else {
+            enlace.removeAttribute('aria-current');
+          }
+        });
+
+        const contenedorAnterior = document.getElementById('eventos-offline');
+        if (contenedorAnterior) contenedorAnterior.remove();
+
+        if (ruta === '/portal/eventos') {
+          const contenedor = document.createElement('div');
+          contenedor.id = 'eventos-offline';
+          descripcion.insertAdjacentElement('afterend', contenedor);
+
+          await mostrarEventos(contenedor);
+        }
+      }
+
+      document.querySelectorAll('nav a').forEach((enlace) => {
+        enlace.addEventListener('click', (event) => {
+          const ruta = enlace.getAttribute('href');
+
+          if (!secciones[ruta]) return;
+
+          event.preventDefault();
+          history.pushState({}, '', ruta);
+          mostrarSeccion(ruta);
+        });
+      });
+
+      window.addEventListener('popstate', () => {
+        mostrarSeccion(normalizarRuta(location.pathname));
+      });
+
+      mostrarSeccion(normalizarRuta(location.pathname));
+    
+          
+          
+      const botonReintentar = document.getElementById('btn-reintentar');
+      const estadoReintento = document.getElementById('estado-reintento');
+
+      botonReintentar.addEventListener('click', () => {
+        if (!navigator.onLine) {
+          estadoReintento.textContent =
+            'Sigues sin conexión. Comprueba tu Internet e inténtalo nuevamente.';
+          return;
+        }
+
+        estadoReintento.textContent = 'Reintentando conexión...';
+        location.reload();
+      });
+
+      window.addEventListener('online', () => {
+        estadoReintento.textContent =
+          'Conexión recuperada. Presiona Reintentar conexión para actualizar.';
+      });
+
+      window.addEventListener('offline', () => {
+        estadoReintento.textContent =
+          'Sin conexión a Internet. Puedes seguir consultando el contenido guardado.';
+      });
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,38 @@
+meta {
+  name: Guardar paso 3 — disponibilidad
+  type: http
+  seq: 20
+}
+
+put {
+  url: {{baseUrl}}/api/v1/mentorship/onboarding/availability
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "availabilityStatus": "DISPONIBLE",
+    "schedules": [
+      {
+        "weekday": 2,
+        "start": "18:00",
+        "end": "20:00"
+      }
+    ]
+  }
+}
+
+docs {
+  Paso 3 del onboarding. Reemplaza estado y horarios del mentor. weekday va de 1 (lunes) a 7 (domingo) y end debe ser mayor que start.
+
+  Permiso: mentores:self:write. Errores: 403 MENTOR_NO_HABILITADO, 409 PASO_PREVIO_INCOMPLETO si faltan los pasos 1 y 2, 422 DATOS_PASO_INVALIDOS.
+}

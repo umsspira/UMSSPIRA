@@ -2,6 +2,7 @@ import { apiFetch, ApiError } from '@/shared/services/api-client';
 import {
   buildSurveySubmissionBody,
   getSurveySubmissionStatus,
+  getSurveyStatusInfo,
   submitSurvey,
   SURVEY_SUBMISSION_PATH,
   SURVEY_SUBMISSION_STATUS_PATH,
@@ -42,6 +43,19 @@ describe('HU-EP09-03 / T3.4 — servicio de envío', () => {
     await expect(getSurveySubmissionStatus()).rejects.toThrow(
       'No se pudo verificar el estado de la encuesta',
     );
+  });
+
+  it('consulta la información completa del estado de la encuesta (T5.4 / Mejora 1.2)', async () => {
+    mockedApiFetch.mockResolvedValueOnce({
+      submitted: false,
+      hasActiveSurvey: false,
+      surveyId: null,
+    });
+    await expect(getSurveyStatusInfo()).resolves.toEqual({
+      submitted: false,
+      hasActiveSurvey: false,
+      surveyId: null,
+    });
   });
 
   it('usa POST del cliente HTTP autenticado existente', async () => {

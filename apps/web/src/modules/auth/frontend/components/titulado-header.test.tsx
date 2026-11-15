@@ -4,6 +4,12 @@ import { useProfilePhotoStore } from "@/shared/hooks/use-profile-photo-store";
 
 import { TituladoHeader } from "./titulado-header";
 
+let mockPathname = "/profile";
+
+jest.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+}));
+
 jest.mock("./logout-button", () => ({
   LogoutButton: () => <button type="button">Cerrar sesión</button>,
 }));
@@ -42,5 +48,23 @@ describe("TituladoHeader", () => {
     render(<TituladoHeader />);
 
     expect(screen.getByTestId("profile-photo-badge").querySelector("img")).toHaveAttribute("src", "blob:foto");
+  });
+
+  it("marca Mentorías con subrayado naranja dentro del módulo", () => {
+    mockPathname = "/mentorship/directory";
+    render(<TituladoHeader />);
+
+    const link = screen.getByRole("link", { name: "Mentorías" });
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link.querySelector("[data-active-indicator]")).not.toBeNull();
+  });
+
+  it("no marca Mentorías fuera del módulo", () => {
+    mockPathname = "/profile";
+    render(<TituladoHeader />);
+
+    const link = screen.getByRole("link", { name: "Mentorías" });
+    expect(link).not.toHaveAttribute("aria-current", "page");
+    expect(link.querySelector("[data-active-indicator]")).toBeNull();
   });
 });
