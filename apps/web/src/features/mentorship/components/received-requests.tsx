@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ArrowLeft, CalendarDays, Check, CircleAlert, Clock3, Eye, Inbox,
+  ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, CircleAlert, Clock3, Eye, Inbox,
   MessageSquareText, X,
 } from 'lucide-react';
 import { getMentorProfile } from '../services/mentorship-api';
@@ -27,6 +27,7 @@ type RequestItem = {
 type Filter = 'TODAS' | RequestStatus;
 type Dialog = { kind: 'confirm' | 'success' | 'processed'; action?: 'accept' | 'reject' | 'cancel'; requestId?: string } | null;
 type SentRequest = { id: string; mentor: string; role: string; date: string; time: string; reason: string; status: RequestStatus };
+const PAGE_SIZE = 5;
 
 const initialSentRequests: SentRequest[] = [
   { id: 'sent-1', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '19/10', time: '09:00', reason: '—', status: 'PENDIENTE' },
@@ -70,6 +71,11 @@ function statusLabel(status: RequestStatus) {
   return ({ PENDIENTE: 'Pendiente', ACEPTADA: 'Aceptada', RECHAZADA: 'Rechazada', CANCELADA: 'Cancelada' })[status];
 }
 
+function formatRequestDate(value: string) {
+  const [year, month, day] = value.slice(0, 10).split('-');
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
 function StatusPill({ status }: { status: RequestStatus }) {
   return <span className={`received-status received-status-${status.toLowerCase()}`}><span aria-hidden="true" />{statusLabel(status)}</span>;
 }
@@ -82,7 +88,7 @@ export function ReceivedRequests() {
   const [counts, setCounts] = useState<Record<Filter, number>>({ TODAS: 0, PENDIENTE: 0, ACEPTADA: 0, RECHAZADA: 0, CANCELADA: 0 });
   const [sentRequests, setSentRequests] = useState(initialSentRequests);
   const [screen, setScreen] = useState<'received' | 'sent'>(requestedView === 'sent' ? 'sent' : 'received');
-  const [filter, setFilter] = useState<Filter>('PENDIENTE');
+  const [filter, setFilter] = useState<Filter>('TODAS');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -118,16 +124,16 @@ export function ReceivedRequests() {
         }
         setIsActiveMentor(true);
         const statuses: Exclude<Filter, 'TODAS'>[] = ['PENDIENTE', 'ACEPTADA', 'RECHAZADA', 'CANCELADA'];
-        const countsPages = await Promise.all(statuses.map(status => listReceivedRequests(apiStatus[status], 1, controller.signal)));
+        const countsPages = await Promise.all(statuses.map(status => listReceivedRequests(apiStatus[status], 1, controller.signal, PAGE_SIZE)));
         const selectedPages = filter === 'TODAS'
-          ? page === 1 ? countsPages : await Promise.all(statuses.flatMap(status => Array.from({ length: page }, (_, index) => listReceivedRequests(apiStatus[status], index + 1, controller.signal))))
-          : [page === 1 ? countsPages[statuses.indexOf(filter)] : await listReceivedRequests(apiStatus[filter], page, controller.signal)];
+          ? page === 1 ? countsPages : await Promise.all(statuses.flatMap(status => Array.from({ length: page }, (_, index) => listReceivedRequests(apiStatus[status], index + 1, controller.signal, PAGE_SIZE))))
+          : [page === 1 ? countsPages[statuses.indexOf(filter)] : await listReceivedRequests(apiStatus[filter], page, controller.signal, PAGE_SIZE)];
         if (cancelled) return;
         const total = countsPages.reduce((sum, result) => sum + result.total, 0);
         const combined = selectedPages.flatMap(result => result.items.map(mapRequest)).sort((a, b) => b.sentAt.localeCompare(a.sentAt));
-        const items = filter === 'TODAS' ? combined.slice((page - 1) * 20, page * 20) : combined;
+        const items = filter === 'TODAS' ? combined.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : combined;
         setRequests(items);
-        setTotalPages(filter === 'TODAS' ? Math.max(1, Math.ceil(total / 20)) : countsPages[statuses.indexOf(filter)]?.totalPages ?? 1);
+        setTotalPages(filter === 'TODAS' ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : countsPages[statuses.indexOf(filter)]?.totalPages ?? 1);
         setCounts(current => {
           const next = { ...current };
           statuses.forEach((status, index) => { next[status] = countsPages[index].total; });
@@ -263,34 +269,62 @@ export function ReceivedRequests() {
           <span className="received-empty-icon"><Inbox size={21} /></span>
           <h2>{filter === 'PENDIENTE' ? 'No tienes solicitudes pendientes' : 'No tienes solicitudes de mentoría'}</h2>
           <p>Cuando alguien solicite una sesión contigo, aparecerá aquí.</p>
-        </div> : visibleRequests.map(request => <article className="received-card" key={request.id}>
-          <div className="received-card-top">
-            <div className="received-person">
-              <div className="received-avatar">{request.initials}</div>
-              <div><h2>{request.name}</h2><p>{request.career}</p></div>
-            </div>
-            <StatusPill status={request.status} />
+        </div> : <>
+          <div className="received-table-wrap">
+            <table className="received-table">
+              <thead><tr>
+                <th scope="col">Solicitante</th>
+                <th scope="col">Fecha de envío</th>
+                <th scope="col">Motivo</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Acciones</th>
+              </tr></thead>
+              <tbody>{visibleRequests.map(request => <tr key={request.id}>
+                <td>
+                  <div className="received-person">
+                    <div className="received-avatar">{request.initials}</div>
+                    <div><h2>{request.name}</h2><p>{request.career}</p></div>
+                  </div>
+                </td>
+                <td><span className="received-table-date-label">Recibida el</span><strong>{formatRequestDate(request.sentAt)}</strong></td>
+                <td className="received-table-message" title={request.message}>{request.message === 'Sin mensaje' ? '—' : request.message}</td>
+                <td><StatusPill status={request.status} /></td>
+                <td>
+                  <div className="received-table-actions">
+                    <button type="button" className="received-button received-details" disabled={loadingDetail} onClick={async () => {
+                      setLoadingDetail(true);
+                      try {
+                        const full = mapRequest(await getReceivedRequest(request.id));
+                        setRequests(items => items.map(item => item.id === full.id ? full : item));
+                        setSelectedId(full.id);
+                      } catch { setActionError('No se pudo cargar el detalle de la solicitud. Intenta nuevamente.'); }
+                      finally { setLoadingDetail(false); }
+                    }}><Eye size={15} />Ver detalles</button>
+                    {request.status === 'PENDIENTE' && <>
+                      <button type="button" className="received-button received-reject" onClick={() => setDialog({ kind: 'confirm', action: 'reject', requestId: request.id })}><X size={15} />Rechazar</button>
+                      <button type="button" className="received-button received-accept" onClick={() => setDialog({ kind: 'confirm', action: 'accept', requestId: request.id })}><Check size={15} />Aceptar</button>
+                    </>}
+                  </div>
+                </td>
+              </tr>)}</tbody>
+            </table>
           </div>
-          <p className="received-datetime">{request.date} · {request.time}</p>
-          <p className="received-sent-date">Enviada: {request.sentAt}{request.respondedAt ? ` · Respondida: ${request.respondedAt}` : ''}</p>
-          <p className="received-message">{request.message}</p>
-          <div className="received-actions">
-            {request.status === 'PENDIENTE' && <>
-              <button type="button" className="received-button received-reject" onClick={() => setDialog({ kind: 'confirm', action: 'reject', requestId: request.id })}><X size={16} />Rechazar</button>
-              <button type="button" className="received-button received-accept" onClick={() => setDialog({ kind: 'confirm', action: 'accept', requestId: request.id })}><Check size={16} />Aceptar</button>
-            </>}
-            <button type="button" className="received-button received-details" disabled={loadingDetail} onClick={async () => {
-              setLoadingDetail(true);
-              try {
-                const full = mapRequest(await getReceivedRequest(request.id));
-                setRequests(items => items.map(item => item.id === full.id ? full : item));
-                setSelectedId(full.id);
-              } catch { setActionError('No se pudo cargar el detalle de la solicitud. Intenta nuevamente.'); }
-              finally { setLoadingDetail(false); }
-            }}><Eye size={16} />Ver detalles</button>
-          </div>
-        </article>)}
-        {!loading && totalPages > 1 && <div className="received-pagination"><button type="button" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>Anterior</button><span>Página {page} de {totalPages}</span><button type="button" disabled={page >= totalPages} onClick={() => setPage(value => value + 1)}>Siguiente</button></div>}
+          {!loading && totalPages > 1 && <footer className="received-list-footer">
+            <p>Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, counts[filter])} de {counts[filter]} · Más recientes primero</p>
+            <nav className="received-pagination" aria-label="Paginación de solicitudes">
+              <button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}><ChevronLeft size={17} /></button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map(pageNumber => <button
+                type="button"
+                key={pageNumber}
+                aria-label={`Página ${pageNumber}`}
+                aria-current={pageNumber === page ? 'page' : undefined}
+                className={pageNumber === page ? 'is-current' : undefined}
+                onClick={() => setPage(pageNumber)}
+              >{pageNumber}</button>)}
+              <button type="button" aria-label="Página siguiente" disabled={page >= totalPages} onClick={() => setPage(value => Math.min(totalPages, value + 1))}><ChevronRight size={17} /></button>
+            </nav>
+          </footer>}
+        </>}
       </section>}
       {actionError && <div className="received-error" role="alert">{actionError}</div>}
     </>}
