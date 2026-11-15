@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   CheckIcon,
   CheckCircle2Icon,
   CirclePauseIcon,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { PrimaryButton, SecondaryButton } from './mentor-button';
+import { MentorSetupSteps } from './mentor-setup-steps';
 import {
   getMentorAvailability,
   MentorAvailabilityError,
@@ -81,6 +83,7 @@ export function MentorAvailabilityPage() {
   const [selectedStatus, setSelectedStatus] = useState<MentorAvailabilityStatus | null>(null);
   const [confirmStatus, setConfirmStatus] = useState<MentorAvailabilityStatus | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [discardDestination, setDiscardDestination] = useState('/mentorship/profile/interests');
   const [error, setError] = useState('');
   const [banner, setBanner] = useState('');
   const [toast, setToast] = useState('');
@@ -151,6 +154,21 @@ export function MentorAvailabilityPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [dirty]);
 
+  useEffect(() => {
+    if (!dirty) return;
+    const handleStepClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.mentor-setup-steps a') : null;
+      if (!link) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setDiscardDestination(link.getAttribute('href') || '/mentorship/profile/interests');
+      setConfirmDiscard(true);
+    };
+    document.addEventListener('click', handleStepClick, true);
+    return () => document.removeEventListener('click', handleStepClick, true);
+  }, [dirty]);
+
   function choose(status: MentorAvailabilityStatus) {
     if (busy.current || saving || loadFailed) return;
     setError('');
@@ -164,7 +182,7 @@ export function MentorAvailabilityPage() {
     setConfirmStatus(status);
   }
 
-  async function save() {
+  async function save(nextHref?: string) {
     if (busy.current || !dirty || loading || forbidden || (statusDirty && !selectedStatus)) return;
     busy.current = true;
     const startedAt = Date.now();
@@ -191,6 +209,7 @@ export function MentorAvailabilityPage() {
       }
       setSavedFeedback(true);
       window.setTimeout(() => setSavedFeedback(false), 1800);
+      if (nextHref) router.push(nextHref);
     } catch (reason) {
       setError(reason instanceof Error
         ? reason.message
@@ -277,18 +296,26 @@ export function MentorAvailabilityPage() {
 
       {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} firstIncomplete={Boolean(savedStatus) && !savedSchedule.length} />}
 
+      <MentorSetupSteps currentStep={3} completedSteps={savedStatus ? 3 : 2} />
+
       <div className="mentor-availability-actions">
-        <Link href="/mentorship/profile" className="mentor-availability-back" onClick={event => {
+        <Link href="/mentorship/profile/interests" className="mentor-availability-back" onClick={event => {
           if (dirty) {
             event.preventDefault();
+            setDiscardDestination('/mentorship/profile/interests');
             setConfirmDiscard(true);
           }
-        }}><ArrowLeftIcon aria-hidden="true" /> Volver a Mi perfil de mentor</Link>
+        }}><ArrowLeftIcon aria-hidden="true" /> Volver a Intereses de mentoría</Link>
         <div className="mentor-availability-action-buttons">
           {dirty && <SecondaryButton onClick={discard} disabled={saving}>Descartar cambios</SecondaryButton>}
-          <PrimaryButton onClick={() => void save()} disabled={!dirty || loading || loadFailed || saving} loading={saving} loadingLabel="Guardando…" iconRight={savedFeedback ? CheckCircle2Icon : CheckIcon} className={`mentor-availability-save${savedFeedback ? ' is-saved' : ''}`}>
-            {savedFeedback ? '¡Guardado!' : 'Guardar y finalizar'}
-          </PrimaryButton>
+          {dirty && <SecondaryButton onClick={() => void save()} disabled={!dirty || loading || loadFailed || saving}>Guardar</SecondaryButton>}
+          {dirty
+            ? <PrimaryButton onClick={() => void save('/mentorship/profile')} disabled={!dirty || loading || loadFailed || saving} loading={saving} loadingLabel="Guardando…" iconRight={savedFeedback ? CheckCircle2Icon : ArrowRightIcon} className={`mentor-availability-save${savedFeedback ? ' is-saved' : ''}`}>
+                {savedFeedback ? '¡Guardado!' : 'Guardar y finalizar'}
+              </PrimaryButton>
+            : <PrimaryButton onClick={() => router.push('/mentorship/profile')} disabled={loading} iconRight={ArrowRightIcon} className="mentor-availability-save">
+                Finalizar configuración
+              </PrimaryButton>}
         </div>
       </div>
       {!selectedStatus && !scheduleDirty && !loading && !loadFailed && <p className="mentor-availability-help">Selecciona un estado para habilitar el guardado.</p>}
@@ -309,7 +336,7 @@ export function MentorAvailabilityPage() {
       onConfirm={() => {
         discard();
         setConfirmDiscard(false);
-        router.push('/mentorship/profile');
+        router.push(discardDestination);
       }}
     />
     <ConfirmModal

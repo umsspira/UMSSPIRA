@@ -27,9 +27,9 @@ it('carga el catálogo real y guarda solo tras confirmar', async () => {
   expect(screen.getByRole('status')).toHaveTextContent('Cargando');
   fireEvent.click(await screen.findByRole('button', { name: 'REST real' }));
   expect(screen.getByRole('button', { name: 'Quitar área' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: /Guardar configuración/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
   expect(save).not.toHaveBeenCalled();
-  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar cambios' }));
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' }));
   await screen.findByText('Intereses guardados correctamente');
   expect(save).toHaveBeenCalledWith({ areaIds: ['root'], topicIds: ['rest'] });
   expect(screen.queryByText(/Vista de prueba/)).not.toBeInTheDocument();
@@ -62,10 +62,10 @@ it('permite editar y guardar sugeridos aunque falte el esquema de personalizados
   fireEvent.change(screen.getByLabelText('Agregar otro tema'), { target: { value: 'Mi tema' } });
   expect(screen.getByRole('button', { name: 'Agregar' })).toBeEnabled();
   fireEvent.click(topic);
-  expect(screen.getByRole('button', { name: /Guardar configuración/ })).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: /Guardar configuración/ }));
+  expect(screen.getByRole('button', { name: 'Guardar y continuar' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
   expect(save).not.toHaveBeenCalled();
-  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar cambios' }));
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' }));
   await screen.findByText('Intereses guardados correctamente');
   expect(save).toHaveBeenCalledWith({ areaIds: ['root'], topicIds: ['rest'] });
 });
@@ -81,8 +81,8 @@ it('conserva el borrador y no muestra éxito si el guardado falla', async () => 
   save.mockRejectedValueOnce(new Error('No se pudo guardar'));
   render(<MentorInterestsConnected />);
   fireEvent.click(await screen.findByRole('button', { name: 'REST real' }));
-  fireEvent.click(screen.getByRole('button', { name: /Guardar configuración/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo guardar');
   expect(screen.getByRole('button', { name: 'REST real' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.queryByText('Intereses guardados correctamente')).not.toBeInTheDocument();

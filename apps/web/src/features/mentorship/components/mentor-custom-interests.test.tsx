@@ -272,10 +272,11 @@ describe('HU 6.22 - Intereses de mentoría personalizados', () => {
   // Task #272: Indicador de paso actual y completados
   it('#272: muestra el indicador con el paso actual "Intereses de mentoría" y pasos completados', () => {
     renderComponent();
-    expect(screen.getByText(/Completa tu perfil de mentor/i)).toBeInTheDocument();
-    expect(screen.getByText(/paso actual/i)).toBeInTheDocument();
-    expect(screen.getByText(/Intereses de mentoría/i)).toBeInTheDocument();
-    expect(screen.getByText(/Paso 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/Paso 3/i)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ir al paso 1: Áreas técnicas' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ir al paso 3: Disponibilidad' })).toBeInTheDocument();
+    expect(screen.getByText('Paso actual')).toBeInTheDocument();
+    expect(screen.getByText('Intereses de mentoría')).toBeInTheDocument();
+    expect(screen.getByText(/de 3 pasos completados/)).toBeInTheDocument();
   });
 });

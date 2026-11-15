@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { PrimaryButton, SecondaryButton } from './mentor-button';
+import { MentorSetupSteps } from './mentor-setup-steps';
 import {
   normalizeInterests,
   normalizeTopicText,
@@ -54,6 +55,7 @@ interface Props {
   onUpdateCustomTopic?: (id: string, text: string) => Promise<{ id: string; name: string }>;
   onDeleteCustomTopic?: (id: string) => Promise<void>;
   areasHref?: string;
+  nextHref?: string;
   onNavigate?: (href: string) => void;
   profile?: MentorState;
   minimumAreas?: number;
@@ -92,6 +94,7 @@ export function MentorInterests({
   onUpdateCustomTopic,
   onDeleteCustomTopic,
   areasHref = '/mentorship/profile/areas',
+  nextHref = '/mentorship/profile/availability',
   onNavigate,
   profile,
   minimumAreas = 0,
@@ -102,6 +105,7 @@ export function MentorInterests({
   const [draft, setDraft] = useState(saved);
   const [dialog, setDialog] = useState<'save' | 'discard' | 'leave' | string | null>(null);
   const [destination, setDestination] = useState(areasHref);
+  const [saveDestination, setSaveDestination] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState('');
@@ -198,7 +202,7 @@ export function MentorInterests({
     }
   }
 
-  async function save() {
+  async function save(nextHref?: string) {
     if (savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
@@ -214,6 +218,7 @@ export function MentorInterests({
       setSuccess(true);
       setStatusMessage('');
       setDialog(null);
+      if (nextHref) navigate(nextHref);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudieron guardar los intereses. Vuelve a intentar.');
     } finally {
@@ -670,44 +675,7 @@ export function MentorInterests({
         </button>
       </p>
 
-      {/* #272: Indicador con el paso actual y los pasos completados */}
-      <section className="interests-progress" aria-label="Configuración del perfil">
-        <div className="interests-progress-heading">
-          <h2>Completa tu perfil de mentor</h2>
-          <span>
-            <strong>{completedSteps}</strong> de 3 pasos completados
-          </span>
-        </div>
-        <div className="interests-progress-track">
-          <span style={{ width: `${(completedSteps / 3) * 100}%` }} />
-        </div>
-        <ol>
-          <li>
-            <span className="interests-step-number">
-              <CheckIcon size={16} aria-hidden="true" />
-            </span>
-            <div>
-              <small>Paso 1</small>
-              <strong>Áreas técnicas</strong>
-            </div>
-          </li>
-          <li aria-current="step">
-            <span className="interests-step-label">En edición</span>
-            <span className="interests-step-number">2</span>
-            <div>
-              <small>Paso actual</small>
-              <strong>Intereses de mentoría</strong>
-            </div>
-          </li>
-          <li>
-            <span className="interests-step-number">3</span>
-            <div>
-              <small>Paso 3</small>
-              <strong>Disponibilidad</strong>
-            </div>
-          </li>
-        </ol>
-      </section>
+      <MentorSetupSteps currentStep={2} completedSteps={completedSteps} />
 
       {success && (
         <div role="status" className="interests-success">
@@ -724,31 +692,32 @@ export function MentorInterests({
       <footer className="interests-actions">
         <SecondaryButton disabled={saving} onClick={() => leave(areasHref)}>
           <ArrowLeftIcon size={16} aria-hidden="true" />
-          Volver a Áreas técnicas
+          Atrás: Áreas técnicas
         </SecondaryButton>
-        <div className="interests-actions-panel">
-          <div className="interests-actions-buttons">
-            <SecondaryButton disabled={!dirty || saving} onClick={() => setDialog('discard')}>
-              Descartar cambios
-            </SecondaryButton>
-            {success ? (
-              <PrimaryButton className="interests-return-profile" onClick={() => leave('/mentorship/profile')}>
-                <CheckIcon size={16} aria-hidden="true" />
-                Volver a mi perfil
-              </PrimaryButton>
-            ) : (
-              <PrimaryButton disabled={!dirty} loading={saving} loadingLabel="Guardando…"
-                iconRight={ArrowRightIcon} onClick={() => setDialog('save')}>
-                Guardar configuración ({draft.topicIds.length})
-              </PrimaryButton>
-            )}
-          </div>
-          {!success && (
-            <span role="status" className={`interests-save-status${dirty ? ' interests-save-status-dirty' : ''}`}>
-              {dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}
-            </span>
-          )}
-        </div>
+        <span role="status">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span>
+        <SecondaryButton disabled={!dirty || saving} onClick={() => setDialog('discard')}>
+          Descartar cambios
+        </SecondaryButton>
+        {dirty && (
+          <SecondaryButton disabled={saving} onClick={() => { setSaveDestination(undefined); setDialog('save'); }}>
+            Guardar
+          </SecondaryButton>
+        )}
+        {dirty ? (
+          <PrimaryButton loading={saving} iconRight={ArrowRightIcon} onClick={() => { setSaveDestination(nextHref); setDialog('save'); }}>
+            Guardar y continuar
+          </PrimaryButton>
+        ) : (
+          <PrimaryButton disabled={saving} iconRight={ArrowRightIcon} onClick={() => leave(nextHref)}>
+            Continuar a disponibilidad
+          </PrimaryButton>
+        )}
+        {success && (
+          <SecondaryButton className="interests-return-profile" onClick={() => leave('/mentorship/profile')}>
+            <CheckIcon size={16} aria-hidden="true" />
+            Volver a mi perfil
+          </SecondaryButton>
+        )}
       </footer>
 
       {/* Modal guardar configuración */}
@@ -758,13 +727,14 @@ export function MentorInterests({
         title="¿Guardar cambios en tus intereses?"
         description={`Tu perfil quedará con ${draft.topicIds.length} intereses de mentoría.`}
         cancelLabel="Seguir editando"
-        confirmLabel="Guardar cambios"
+        confirmLabel={saveDestination ? 'Guardar y continuar' : 'Guardar cambios'}
         confirming={saving}
         onCancel={() => {
           setDialog(null);
+          setSaveDestination(undefined);
           setError('');
         }}
-        onConfirm={() => void save()}
+        onConfirm={() => void save(saveDestination)}
       >
         <p>Se agregarán ({added.length}): {added.map(topicName).join(', ') || 'Ninguno'}.</p>
         <p>Se quitarán ({removed.length}): {removed.map(topicName).join(', ') || 'Ninguno'}.</p>

@@ -31,6 +31,10 @@ import { GetReceivedMentorshipRequestController } from './http/controllers/get-r
 import { AcceptMentorshipRequestController } from './http/controllers/accept-mentorship-request.controller';
 import { RejectMentorshipRequestController } from './http/controllers/reject-mentorship-request.controller';
 import { GetMentorSlotsController } from './http/controllers/get-mentor-slots.controller';
+import { GetMentorOnboardingController } from './http/controllers/get-mentor-onboarding.controller';
+import { SaveMentorOnboardingAreasController } from './http/controllers/save-mentor-onboarding-areas.controller';
+import { SaveMentorOnboardingInterestsController } from './http/controllers/save-mentor-onboarding-interests.controller';
+import { SaveMentorOnboardingAvailabilityController } from './http/controllers/save-mentor-onboarding-availability.controller';
 import { CreateCustomInterestController } from './http/controllers/create-custom-interest.controller';
 import { UpdateCustomInterestController } from './http/controllers/update-custom-interest.controller';
 import { DeleteCustomInterestController } from './http/controllers/delete-custom-interest.controller';
@@ -69,6 +73,10 @@ import { DeleteCustomInterestController } from './http/controllers/delete-custom
     AcceptMentorshipRequestController,
     RejectMentorshipRequestController,
     GetMentorSlotsController,
+    GetMentorOnboardingController,
+    SaveMentorOnboardingAreasController,
+    SaveMentorOnboardingInterestsController,
+    SaveMentorOnboardingAvailabilityController,
   ],
   providers: mentorshipProviders,
   exports: [MENTOR_AVAILABILITY_REPOSITORY],
