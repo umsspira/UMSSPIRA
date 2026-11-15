@@ -68,6 +68,8 @@ export const onboardingAvailabilitySchema = z.strictObject({
   availabilityStatus: z.enum(['DISPONIBLE', 'EN_PAUSA', 'NO_DISPONIBLE']),
   schedules: z.array(onboardingScheduleSchema).max(21),
   ...ignoredIdentityFields,
+});
+
 export const createCustomInterestSchema = z.strictObject({
   areaId: mentorIdSchema,
   texto: z.string(),

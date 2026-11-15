@@ -17,17 +17,14 @@ function add() { fireEvent.click(screen.getByRole('button', { name: 'APIs REST' 
 function openSave() { fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' })); }
 function confirmSave() { fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' })); }
 
-it('muestra solo áreas seleccionadas y permite ir a configurar otras áreas', () => {
+it('muestra el catálogo por área y permite ir a configurar otras áreas', () => {
   setup();
-  expect(screen.getByRole('button', { name: 'PostgreSQL' })).toBeDisabled();
-  expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Continuar a disponibilidad' })).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Activar esta área técnica' }));
   expect(screen.getByRole('heading', { name: 'Web' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Bases de datos' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'PostgreSQL' })).not.toBeInTheDocument();
   expect(screen.queryByText('Bloqueada')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Guardar configuración/ })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Continuar a disponibilidad' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: 'Modificar áreas técnicas' }));
   expect(push).toHaveBeenCalledWith('/mentorship/profile/areas');
 });
@@ -48,28 +45,24 @@ it('guarda solo después de confirmar y muestra el resultado', async () => {
   expect(onSave).toHaveBeenCalledWith({ areaIds: ['web'], topicIds: ['react', 'rest'] });
   expect(push).toHaveBeenCalledWith('/mentorship/profile/availability');
   expect(screen.getByRole('button', { name: 'Continuar a disponibilidad' })).toBeEnabled();
-  expect(screen.queryByRole('button', { name: /Guardar configuración/ })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Descartar cambios' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Volver a mi perfil' })).toBeEnabled();
   expect(screen.queryByText('Cambios sin guardar')).not.toBeInTheDocument();
-  expect(screen.queryByText('Sin cambios pendientes')).not.toBeInTheDocument();
-  expect(push).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Volver a mi perfil' }));
   expect(push).toHaveBeenCalledWith('/mentorship/profile');
 });
 
-it('muestra el estado debajo de las acciones y vuelve a guardar al editar después del éxito', async () => {
+it('muestra el estado de cambios y vuelve a guardar al editar después del éxito', async () => {
   setup();
   expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
   add();
-  const status = screen.getByText('Cambios sin guardar');
-  expect(status.previousElementSibling).toHaveClass('interests-actions-buttons');
+  expect(screen.getByText('Cambios sin guardar')).toBeInTheDocument();
   openSave();
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+  confirmSave();
   await screen.findByRole('button', { name: 'Volver a mi perfil' });
   fireEvent.click(screen.getByRole('button', { name: 'APIs REST' }));
   expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Guardar configuración/ })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Guardar y continuar' })).toBeEnabled();
   expect(screen.getByText('Cambios sin guardar')).toBeInTheDocument();
 });
 
@@ -151,7 +144,7 @@ it('oculta el área quitada solo después de confirmar un guardado exitoso', asy
   expect(screen.getByRole('heading', { name: 'Web' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'React' })).toBeDisabled();
   openSave();
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+  confirmSave();
   await screen.findByText('Intereses guardados correctamente');
   expect(screen.queryByRole('heading', { name: 'Web' })).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Bases de datos' })).toBeInTheDocument();
@@ -175,9 +168,8 @@ it('espera el resultado del servidor antes de mostrar éxito', async () => {
   setup(); add(); openSave();
   confirmSave();
   expect(screen.queryByText(/Intereses guardados correctamente/)).not.toBeInTheDocument();
-  expect(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: /Guardando…/ })).toBeDisabled();
+  expect(screen.getAllByRole('button', { name: 'Guardar y continuar' })).toHaveLength(2);
+  screen.getAllByRole('button', { name: 'Guardar y continuar' }).forEach(button => expect(button).toBeDisabled());
   resolve(initialConfiguration);
   await waitFor(() => expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'false'));
   expect(onSave).toHaveBeenCalledTimes(1);

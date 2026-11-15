@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   CheckIcon,
   CheckCircle2Icon,
   CirclePauseIcon,
@@ -181,7 +182,7 @@ export function MentorAvailabilityPage() {
     setConfirmStatus(status);
   }
 
-  async function save() {
+  async function save(nextHref?: string) {
     if (busy.current || !dirty || loading || forbidden || (statusDirty && !selectedStatus)) return;
     busy.current = true;
     const startedAt = Date.now();
@@ -307,9 +308,14 @@ export function MentorAvailabilityPage() {
         }}><ArrowLeftIcon aria-hidden="true" /> Volver a Intereses de mentoría</Link>
         <div className="mentor-availability-action-buttons">
           {dirty && <SecondaryButton onClick={discard} disabled={saving}>Descartar cambios</SecondaryButton>}
-          <PrimaryButton onClick={() => void save()} disabled={!dirty || loading || loadFailed || saving} loading={saving} loadingLabel="Guardando…" iconRight={savedFeedback ? CheckCircle2Icon : CheckIcon} className={`mentor-availability-save${savedFeedback ? ' is-saved' : ''}`}>
-            {savedFeedback ? '¡Guardado!' : 'Guardar y finalizar'}
-          </PrimaryButton>
+          {dirty && <SecondaryButton onClick={() => void save()} disabled={!dirty || loading || loadFailed || saving}>Guardar</SecondaryButton>}
+          {dirty
+            ? <PrimaryButton onClick={() => void save('/mentorship/profile')} disabled={!dirty || loading || loadFailed || saving} loading={saving} loadingLabel="Guardando…" iconRight={savedFeedback ? CheckCircle2Icon : ArrowRightIcon} className={`mentor-availability-save${savedFeedback ? ' is-saved' : ''}`}>
+                {savedFeedback ? '¡Guardado!' : 'Guardar y finalizar'}
+              </PrimaryButton>
+            : <PrimaryButton onClick={() => router.push('/mentorship/profile')} disabled={loading} iconRight={ArrowRightIcon} className="mentor-availability-save">
+                Finalizar configuración
+              </PrimaryButton>}
         </div>
       </div>
       {!selectedStatus && !scheduleDirty && !loading && !loadFailed && <p className="mentor-availability-help">Selecciona un estado para habilitar el guardado.</p>}

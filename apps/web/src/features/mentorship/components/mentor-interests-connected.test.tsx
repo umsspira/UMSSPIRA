@@ -62,10 +62,10 @@ it('permite editar y guardar sugeridos aunque falte el esquema de personalizados
   fireEvent.change(screen.getByLabelText('Agregar otro tema'), { target: { value: 'Mi tema' } });
   expect(screen.getByRole('button', { name: 'Agregar' })).toBeEnabled();
   fireEvent.click(topic);
-  expect(screen.getByRole('button', { name: /Guardar configuración/ })).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: /Guardar configuración/ }));
+  expect(screen.getByRole('button', { name: 'Guardar y continuar' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
   expect(save).not.toHaveBeenCalled();
-  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar cambios' }));
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' }));
   await screen.findByText('Intereses guardados correctamente');
   expect(save).toHaveBeenCalledWith({ areaIds: ['root'], topicIds: ['rest'] });
 });

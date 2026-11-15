@@ -26,6 +26,7 @@ import {
   assertValidOnboardingInterests,
   onboardingStatus,
 } from '../../domain/policies/mentor-onboarding.policy';
+import { describeArea } from '../../domain/policies/area-description.policy';
 import { availabilityOrder } from './mentor-transaction';
 import { linkedAreaInclude } from './mentor-catalog-reader';
 import { toAvailability, toSchedule } from '../translators/mentor.translator';
@@ -108,7 +109,12 @@ async function readState(
   const selectedInterestSet = new Set(selectedInterestIds);
   const interestCatalog: InterestCatalogGroup[] = sortAreas([...selectedRoots.values()]).map(
     (area) => ({
-      area,
+      area: {
+        ...area,
+        description: describeArea(area.name),
+        selected: true,
+        locked: false,
+      },
       interests: children
         .filter((child) => child.padre_id === area.id)
         .map((child) => ({

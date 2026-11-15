@@ -1,7 +1,5 @@
-import Link from 'next/link';
 import Image from 'next/image';
-import { HomeIcon, CompassIcon } from 'lucide-react';
-import { ArrowRightIcon, CompassIcon, UserRoundCogIcon } from 'lucide-react';
+import { CompassIcon } from 'lucide-react';
 import { ExploreCard } from '@/features/mentorship/components/explore-card';
 import { MentorEntryCard } from '@/features/mentorship/components/mentor-entry-card';
 

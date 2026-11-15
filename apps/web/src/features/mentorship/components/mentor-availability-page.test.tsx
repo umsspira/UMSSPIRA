@@ -20,63 +20,6 @@ jest.mock('next/link', () => ({
     <a href={href} {...props}>{children}</a>
   ),
 }));
-const push = jest.fn();
-const replace = jest.fn();
-jest.mock('next/navigation', () => ({ useRouter: () => ({ push, replace }) }));
-
-const getAvailability = jest.mocked(getMentorAvailability);
-const updateAvailability = jest.mocked(updateMentorAvailability);
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  getAvailability.mockResolvedValue({ availabilityStatus: 'DISPONIBLE', fecha_actualizacion: null });
-  updateAvailability.mockImplementation(async status => ({ availabilityStatus: status, fecha_actualizacion: '2026-01-01' }));
-});
-
-it('muestra el paso 3 y permite navegar a los pasos anteriores', async () => {
-  render(<MentorAvailabilityPage />);
-  await screen.findByText('Mentor disponible');
-
-  expect(screen.getByRole('heading', { name: 'Completa tu perfil de mentor' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Ir al paso 1: Áreas técnicas' })).toHaveAttribute('href', '/mentorship/profile/areas');
-  expect(screen.getByRole('link', { name: 'Ir al paso 2: Intereses de mentoría' })).toHaveAttribute('href', '/mentorship/profile/interests');
-  expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toHaveTextContent('3 de 3 pasos completados');
-});
-
-it('guarda la disponibilidad y finaliza en mi perfil de mentor', async () => {
-  render(<MentorAvailabilityPage />);
-  await screen.findByText('Mentor disponible');
-
-  fireEvent.click(screen.getAllByRole('button', { name: 'Elegir' })[0]);
-  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Sí, pausar disponibilidad' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar y finalizar' }));
-
-  await waitFor(() => expect(updateAvailability).toHaveBeenCalledWith('EN_PAUSA'), { timeout: 2500 });
-  await waitFor(() => expect(push).toHaveBeenCalledWith('/mentorship/profile'), { timeout: 2500 });
-});
-
-it('permite finalizar sin cambios sin volver a guardar', async () => {
-  render(<MentorAvailabilityPage />);
-  await screen.findByText('Mentor disponible');
-
-  fireEvent.click(screen.getByRole('button', { name: 'Finalizar configuración' }));
-
-  expect(updateAvailability).not.toHaveBeenCalled();
-  expect(push).toHaveBeenCalledWith('/mentorship/profile');
-});
-
-it('pide confirmación al salir por un paso con cambios sin guardar', async () => {
-  render(<MentorAvailabilityPage />);
-  await screen.findByText('Mentor disponible');
-
-  fireEvent.click(screen.getAllByRole('button', { name: 'Elegir' })[0]);
-  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Sí, pausar disponibilidad' }));
-  fireEvent.click(screen.getByRole('link', { name: 'Ir al paso 1: Áreas técnicas' }));
-
-  expect(push).not.toHaveBeenCalled();
-  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
-
-  expect(push).toHaveBeenCalledWith('/mentorship/profile/areas');
 const router = { push: jest.fn(), replace: jest.fn() };
 jest.mock('next/navigation', () => ({ useRouter: () => router }));
 
@@ -90,10 +33,11 @@ beforeEach(() => {
   jest.resetAllMocks();
   getAvailability.mockResolvedValue({ availabilityStatus: 'DISPONIBLE', fecha_actualizacion: '2026-11-01' });
   getSchedule.mockResolvedValue({ schedule: [], fecha_actualizacion: null });
+  updateAvailability.mockImplementation(async status => ({ availabilityStatus: status, fecha_actualizacion: '2026-01-01' }));
   saveSchedule.mockImplementation(async schedule => ({ schedule, fecha_actualizacion: '2026-11-14' }));
 });
 
-const saveButton = () => screen.getByRole('button', { name: /Guardar y finalizar|Guardando…|¡Guardado!/ });
+const saveButton = () => screen.getByRole('button', { name: /Guardar y finalizar|Finalizar configuración|Guardando…|¡Guardado!/ });
 
 it('reemplaza «Próximamente» por el horario semanal vacío y lo despliega', async () => {
   render(<MentorAvailabilityPage />);
@@ -108,7 +52,7 @@ it('reemplaza «Próximamente» por el horario semanal vacío y lo despliega', a
   expect(screen.getByLabelText('Día')).toBeInTheDocument();
   expect(screen.getByLabelText('Desde')).toBeInTheDocument();
   expect(screen.getByLabelText('Hasta')).toBeInTheDocument();
-  expect(saveButton()).toBeDisabled();
+  expect(saveButton()).toBeEnabled();
 });
 
 it('agrega una franja, la guarda con PUT y muestra «Horarios guardados»', async () => {
@@ -144,7 +88,7 @@ it('muestra el error en línea y no agrega una franja solapada o de menos de 1 h
   fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '14:30' } });
   fireEvent.click(screen.getByRole('button', { name: 'Agregar horario' }));
   expect(screen.getByRole('alert')).toHaveTextContent('La franja debe durar al menos 1 hora.');
-  expect(saveButton()).toBeDisabled();
+  expect(saveButton()).toBeEnabled();
 });
 
 it('quitar una franja y «Descartar cambios» restaura el horario guardado', async () => {
@@ -155,7 +99,7 @@ it('quitar una franja y «Descartar cambios» restaura el horario guardado', asy
 
   fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }));
   expect(screen.getByText('1 día con horarios: Lun')).toBeInTheDocument();
-  expect(saveButton()).toBeDisabled();
+  expect(saveButton()).toBeEnabled();
 });
 
 it('desde el checklist (HU 6.13) despliega los horarios y enfoca el día si hay estado pero no horarios', async () => {
@@ -179,4 +123,50 @@ it('un cambio solo de estado sigue usando el PATCH de disponibilidad', async () 
   fireEvent.click(saveButton());
   await waitFor(() => expect(updateAvailability).toHaveBeenCalledWith('EN_PAUSA'));
   expect(saveSchedule).not.toHaveBeenCalled();
+});
+
+it('muestra el paso 3 y permite navegar a los pasos anteriores', async () => {
+  render(<MentorAvailabilityPage />);
+  await screen.findByText('Mentor disponible');
+
+  expect(screen.getByRole('heading', { name: 'Completa tu perfil de mentor' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Ir al paso 1: Áreas técnicas' })).toHaveAttribute('href', '/mentorship/profile/areas');
+  expect(screen.getByRole('link', { name: 'Ir al paso 2: Intereses de mentoría' })).toHaveAttribute('href', '/mentorship/profile/interests');
+  expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toHaveTextContent('3 de 3 pasos completados');
+});
+
+it('guarda la disponibilidad y finaliza en mi perfil de mentor', async () => {
+  render(<MentorAvailabilityPage />);
+  await screen.findByText('Mentor disponible');
+
+  fireEvent.click(screen.getAllByRole('button', { name: 'Elegir' })[0]);
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Sí, pausar disponibilidad' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar y finalizar' }));
+
+  await waitFor(() => expect(updateAvailability).toHaveBeenCalledWith('EN_PAUSA'), { timeout: 2500 });
+  await waitFor(() => expect(router.push).toHaveBeenCalledWith('/mentorship/profile'), { timeout: 2500 });
+});
+
+it('permite finalizar sin cambios sin volver a guardar', async () => {
+  render(<MentorAvailabilityPage />);
+  await screen.findByText('Mentor disponible');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Finalizar configuración' }));
+
+  expect(updateAvailability).not.toHaveBeenCalled();
+  expect(router.push).toHaveBeenCalledWith('/mentorship/profile');
+});
+
+it('pide confirmación al salir por un paso con cambios sin guardar', async () => {
+  render(<MentorAvailabilityPage />);
+  await screen.findByText('Mentor disponible');
+
+  fireEvent.click(screen.getAllByRole('button', { name: 'Elegir' })[0]);
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Sí, pausar disponibilidad' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Ir al paso 1: Áreas técnicas' }));
+
+  expect(router.push).not.toHaveBeenCalled();
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
+
+  expect(router.push).toHaveBeenCalledWith('/mentorship/profile/areas');
 });

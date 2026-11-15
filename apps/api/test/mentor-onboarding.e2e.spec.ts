@@ -23,7 +23,13 @@ const graduate: ActorContext = {
   scopes: { graduateId: randomUUID(), companyIds: [], careerIds: [] },
 };
 
-const area = { id: randomUUID(), name: 'Desarrollo de software' };
+const area = {
+  id: randomUUID(),
+  name: 'Desarrollo de software',
+  description: 'Construcción de aplicaciones y servicios de software.',
+  selected: true,
+  locked: false,
+};
 const interest = {
   id: randomUUID(),
   name: 'Backend',
@@ -124,7 +130,7 @@ describe('Onboarding de mentor: contratos HTTP', () => {
     ]);
     expect(response.body.data.areas.selectedIds).toEqual([area.id]);
     expect(response.body.data.areas.catalog).toEqual([
-      { id: area.id, nombre: area.name, descripcion: null },
+      { id: area.id, nombre: area.name, descripcion: area.description },
     ]);
     expect(response.body.data.areas.intereses).toEqual([
       { id_area: area.id, nombre: interest.name },
