@@ -14,10 +14,10 @@ import type { RegistrationSecurity } from '../../../registrations/application/po
 import { REGISTRATION_SECURITY } from '../../../registrations/application/ports/registration-security.port';
 import type { Prisma } from '../../../../generated/prisma/client';
 import { canReceiveMentorship } from '../../domain/policies/mentor.policy';
+import { upcomingWindow } from '../../domain/policies/mentor-schedule.policy';
 import { toAvailability } from '../translators/mentor.translator';
 import { availabilityOrder, lockGraduate } from './mentor-transaction';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const toDatabaseDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const toDatabaseTime = (time: string) => new Date(`1970-01-01T${time}:00.000Z`);
 
@@ -122,7 +122,7 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
     const availability = await this.prisma.disponibilidadMentor.findFirst({
       where: { id_mentor: mentorId },
       orderBy: availabilityOrder,
-      select: { estado: true, fecha_actualizacion: true, hora_inicio: true, hora_fin: true },
+      select: { estado: true, fecha_actualizacion: true },
     });
     if (
       mentorUser?.estado !== 'ACTIVO' ||
@@ -136,8 +136,10 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
       );
     }
 
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const last = new Date(today.getTime() + (days - 1) * DAY_MS);
+    // Fechas y hora actual en Bolivia, igual que el perfil detallado (HU 6.9).
+    const window = upcomingWindow(now, days);
+    const today = toDatabaseDate(window.days[0].date);
+    const last = toDatabaseDate(window.days[window.days.length - 1].date);
     const [spaces, taken] = await Promise.all([
       this.prisma.espacioDisponibleMentor.findMany({
         where: { id_mentor: mentorId, esta_activo: true },
@@ -156,27 +158,26 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
     const minutes = (value: Date) => value.getUTCHours() * 60 + value.getUTCMinutes();
     const label = (total: number) =>
       `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-    const windowStart = availability?.hora_inicio ? minutes(availability.hora_inicio) : 0;
-    const windowEnd = availability?.hora_fin ? minutes(availability.hora_fin) : 24 * 60;
-    const nowMinutes = minutes(now);
+    const [hours, mins] = window.currentTime.split(':').map(Number);
+    const nowMinutes = hours * 60 + mins;
 
-    return Array.from({ length: days }, (_, index) => {
-      const day = new Date(today.getTime() + index * DAY_MS);
-      const key = day.toISOString().slice(0, 10);
+    return window.days.map(({ date: key, weekday }, index) => {
       const busy = taken
         .filter((row) => row.solicitud_fecha?.toISOString().slice(0, 10) === key)
         .map((row) => [minutes(row.solicitud_inicio!), minutes(row.solicitud_fin!)]);
       const slots: MentorSlotDay['slots'] = [];
       for (const space of spaces) {
-        if (space.dia_semana !== day.getUTCDay() || !space.horario_inicio || !space.horario_fin) {
+        // dia_semana usa domingo = 0 (también se acepta 7); weekday usa 1 = lunes … 7 = domingo.
+        if (
+          space.dia_semana === null ||
+          space.dia_semana % 7 !== weekday % 7 ||
+          !space.horario_inicio ||
+          !space.horario_fin
+        ) {
           continue;
         }
-        const end = Math.min(minutes(space.horario_fin), windowEnd);
-        for (
-          let start = Math.max(minutes(space.horario_inicio), windowStart);
-          start + 60 <= end;
-          start += 60
-        ) {
+        const end = minutes(space.horario_fin);
+        for (let start = minutes(space.horario_inicio); start + 60 <= end; start += 60) {
           const isPast = index === 0 && start <= nowMinutes;
           const isBusy = busy.some(([from, to]) => from < start + 60 && to > start);
           if (!isPast && !isBusy) {
@@ -242,7 +243,7 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
         const availability = await tx.disponibilidadMentor.findFirst({
           where: { id_mentor: mentor.id },
           orderBy: availabilityOrder,
-          select: { estado: true, fecha_actualizacion: true, hora_inicio: true, hora_fin: true },
+          select: { estado: true, fecha_actualizacion: true },
         });
         if (!canReceiveMentorship(mentor.esta_activo, toAvailability(availability).status)) {
           throw new BusinessRuleError(
@@ -255,21 +256,19 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
         const date = toDatabaseDate(input.date);
         const startTime = toDatabaseTime(input.startTime);
         const endTime = toDatabaseTime(input.endTime);
+        // El horario semanal del mentor (HU 6.18) es la única fuente; el domingo puede venir como 0 o 7.
+        const weekday = date.getUTCDay();
         const space = await tx.espacioDisponibleMentor.findFirst({
           where: {
             id_mentor: mentor.id,
-            dia_semana: date.getUTCDay(),
+            dia_semana: { in: weekday === 0 ? [0, 7] : [weekday] },
             esta_activo: true,
             horario_inicio: { lte: startTime },
             horario_fin: { gte: endTime },
           },
           select: { id: true },
         });
-        const hasAvailabilityWindow =
-          availability?.hora_inicio == null ||
-          availability.hora_fin == null ||
-          (startTime >= availability.hora_inicio && endTime <= availability.hora_fin);
-        if (!space || !hasAvailabilityWindow) {
+        if (!space) {
           throw new BusinessRuleError(
             'conflict',
             'MENTOR_SLOT_UNAVAILABLE',

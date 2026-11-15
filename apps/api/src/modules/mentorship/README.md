@@ -32,3 +32,15 @@ El módulo exporta MENTOR_AVAILABILITY_REPOSITORY mediante un port. Otros módul
 Los filtros solo leen el catálogo `area` y las relaciones `mentor_area`; no crean catálogos ni modifican perfiles. El directorio filtrado conserva la visibilidad habitual: solo titulados y mentores activos cuyo estado no sea `UNAVAILABLE`.
 
 Los [contratos HTTP](../../../docs/endpoints/epic06-grupo06-hu1.6.md) documentan las rutas nuevas. La integración del frontend queda pendiente.
+
+## Onboarding del mentor
+
+`GET /api/v1/mentorship/onboarding` devuelve el avance derivado de los datos persistidos (`isComplete`, `currentStep`, `completedSteps`, catálogos y selección). Los `PUT /api/v1/mentorship/onboarding/areas|interests|availability` guardan un paso completo dentro de una transacción: bloquean el mentor, validan el orden (`1 → 2 → 3`), reemplazan la selección y actualizan `mentor_onboarding` como registro de avance.
+
+- Paso 1 exige entre 1 y 5 áreas raíz activas; el paso 2 solo acepta intereses de esas áreas; el paso 3 exige estado y al menos un horario con `end > start`.
+- `assertPreviousOnboardingStepCompleted` responde 409 `PASO_PREVIO_INCOMPLETO`; los datos de negocio inválidos responden 422 `DATOS_PASO_INVALIDOS` con `fields`; un mentor sin participación activa responde 403 `MENTOR_NO_HABILITADO`.
+- La identidad sale del actor (`@CurrentActor`); los campos de identidad del body se ignoran en el schema.
+- El paso 3 reemplaza los `EspacioDisponibleMentor` del mentor en la misma transacción. Guardar de nuevo el mismo paso es idempotente y no duplica `mentor_area`.
+- La tabla `mentor_onboarding` tiene `id_mentor` único y `pasos_completados` (`Int[]`); `mentor_area` tiene índice único `(id_mentor, id_area)`.
+
+El frontend vive en `/mentorship/onboarding` (`mentor-onboarding-wizard`) y el inicio `/mentorship` muestra `mentor-entry-card` según el avance. Las secciones del perfil usan `mentor-configuration-gate` para exigir el onboarding completo antes de editar.

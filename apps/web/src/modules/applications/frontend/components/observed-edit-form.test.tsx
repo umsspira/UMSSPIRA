@@ -22,7 +22,6 @@ const mockedValidate = validateDocumentFile as jest.MockedFunction<typeof valida
 const initial = {
   firstName: "Juan Carlos",
   lastName: "Pérez Mamani",
-  birthDate: "1998-05-14",
   ci: "6842109",
   complement: "",
   issuedIn: "CB",
@@ -69,6 +68,15 @@ describe("ObservedEditForm", () => {
     expect(screen.getByLabelText(/Correo electrónico/)).toHaveValue("a@correo.com");
     expect(reviewButton()).toBeDisabled();
     expect(screen.getByRole("combobox", { name: /Carrera universitaria/i })).toHaveValue("Sistemas");
+  });
+
+  it("elimina el espacio vacío haciendo que el teléfono ocupe toda la fila (BUG-13)", async () => {
+    await setup();
+
+    const phoneInput = screen.getByLabelText(/Teléfono/);
+    const phoneField = phoneInput.parentElement?.parentElement;
+
+    expect(phoneField).toHaveClass("sm:col-span-2");
   });
 
   it("habilita 'Revisar cambios' al modificar un dato", async () => {

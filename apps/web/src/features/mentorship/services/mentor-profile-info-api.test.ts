@@ -26,6 +26,7 @@ afterAll(() => {
 describe('mentor-profile-info-api', () => {
   it('obtiene la información del perfil del mentor', async () => {
     const mockState = {
+      nombre: 'Juan Diego',
       exists: true,
       profile: {
         descripcion: 'Desarrollador fullstack',
@@ -56,6 +57,7 @@ describe('mentor-profile-info-api', () => {
       informacion_relevante: 'Nuevo enfoque',
     };
     const mockState = {
+      nombre: 'Juan Diego',
       exists: true,
       profile: {
         ...payload,
@@ -82,6 +84,7 @@ describe('mentor-profile-info-api', () => {
 
   it('elimina la información del perfil del mentor', async () => {
     const mockState = {
+      nombre: 'Juan Diego',
       exists: false,
       profile: null,
     };

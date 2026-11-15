@@ -76,6 +76,22 @@ async function renderReadyReview() {
 }
 
 describe('RegistrationReview', () => {
+  it('exige aceptar la declaración y permite revocar la aceptación antes del envío', async () => {
+    prepareStore();
+    await renderReadyReview();
+    const submit = screen.getByRole('button', { name: /Entregar solicitud/ });
+    const agreement = screen.getByRole('checkbox', { name: /Declaración de veracidad/ });
+    expect(agreement).not.toBeChecked();
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+    expect(mockedSubmit).not.toHaveBeenCalled();
+    expect(mockedUpdate).not.toHaveBeenCalled();
+    fireEvent.click(agreement);
+    expect(submit).toBeEnabled();
+    fireEvent.click(agreement);
+    expect(submit).toBeDisabled();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockedUpdate.mockResolvedValue({ ok: true, verifiedEmail: PERSONAL_DATA.correo });
@@ -104,6 +120,7 @@ describe('RegistrationReview', () => {
   it('no permite entregar mientras el correo no esté verificado', async () => {
     prepareStore({ verified: false });
     await renderReadyReview();
+    fireEvent.click(screen.getByRole('checkbox'));
 
     expect(screen.getByText('Pendiente de verificación')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Entregar solicitud/ })).toBeDisabled();
@@ -117,6 +134,7 @@ describe('RegistrationReview', () => {
       submission: { idSolicitud: 'abcdef12-3456-4789-8123-456789abcdef', estado: 'Pendiente', mensaje: 'ok' },
     });
     await renderReadyReview();
+    fireEvent.click(screen.getByRole('checkbox'));
 
     fireEvent.click(screen.getByRole('button', { name: /Entregar solicitud/ }));
 
@@ -143,6 +161,7 @@ describe('RegistrationReview', () => {
     const message = 'Este correo electrónico ya está registrado en otra solicitud';
     mockedSubmit.mockResolvedValue({ ok: false, status: 409, message, errors: [{ field: 'correo', message }] });
     await renderReadyReview();
+    fireEvent.click(screen.getByRole('checkbox'));
 
     fireEvent.click(screen.getByRole('button', { name: /Entregar solicitud/ }));
 
@@ -177,12 +196,15 @@ describe('RegistrationReview', () => {
   it('edita los datos personales en la misma pantalla y conserva el resto (CA-07.3)', async () => {
     prepareStore();
     await renderReadyReview();
+    fireEvent.click(screen.getByRole('checkbox'));
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Editar datos' })[0]);
     fireEvent.change(screen.getByLabelText(/^Nombres/), { target: { value: 'Ana Lucía' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => expect(screen.getByText('Ana Lucía')).toBeInTheDocument());
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: /Entregar solicitud/ })).toBeDisabled();
     expect(useRegistrationStore.getState().personalData).toEqual(
       expect.objectContaining({
         nombres: 'Ana Lucía',

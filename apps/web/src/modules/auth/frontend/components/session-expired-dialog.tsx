@@ -43,11 +43,17 @@ export function SessionExpiredDialog() {
         aria-describedby="session-expired-description"
         className="w-full max-w-md rounded-xl border border-oatmeal bg-white p-6 shadow-xl"
       >
-        <h2 id="session-expired-title" className="font-display text-xl font-bold text-abyssal-blue">
-          Su sesión ha expirado
+        <div className="rounded-[9px] border border-[#c9c1b1] bg-[#fff1ed] px-4 py-3 text-left">
+          <p className="text-sm font-semibold text-[#a35139]">Sesión expirada (401)</p>
+          <p className="mt-1 text-xs text-[#444]">Por seguridad, la sesión debe restablecerse para acceder a /reports.</p>
+        </div>
+        <span aria-hidden="true" className="mx-auto mt-6 flex h-[72px] w-[72px] items-center justify-center rounded-full border border-[#a35139] bg-[#fff1ed] text-3xl font-bold text-[#a35139]">!</span>
+        <h2 id="session-expired-title" className="mt-4 text-center font-display text-[23px] font-semibold text-[#1b2632]">
+          Vuelve a iniciar sesión
         </h2>
-        <p id="session-expired-description" className="mt-2 text-sm text-abyssal-blue/80">
-          Por seguridad, inicie sesión nuevamente para continuar.
+        <p id="session-expired-description" className="mt-3 text-center text-sm leading-relaxed text-[#444]">
+          La sesión caducó. Se descartaron los datos locales de autenticación.
+          Inicia sesión nuevamente para acceder a /reports.
         </p>
         <button
           ref={actionRef}
@@ -55,7 +61,7 @@ export function SessionExpiredDialog() {
           onClick={() => hardRedirect(SESSION_EXPIRED_LOGIN_PATH)}
           className="mt-5 w-full rounded-md bg-abyssal-blue px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-burning-flame"
         >
-          Iniciar sesión nuevamente
+          Iniciar sesión
         </button>
       </div>
     </div>

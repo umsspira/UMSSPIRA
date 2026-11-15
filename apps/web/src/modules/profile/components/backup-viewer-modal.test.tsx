@@ -74,12 +74,29 @@ describe('BackupViewerModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('muestra «Cargando respaldo…» mientras llega el enlace', async () => {
+  it('muestra «Cargando respaldo…» mientras llega el enlace y hasta que la foto termina de cargar', async () => {
     render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
-    await screen.findByRole('img');
+    const image = await screen.findByRole('img');
+    // El enlace ya llegó, pero la foto todavía no: sigue "Cargando" y la imagen queda oculta
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
+    expect(image).toHaveClass('hidden');
+
+    fireEvent.load(image);
+
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(image).not.toHaveClass('hidden');
+  });
+
+  it('si la foto lenta falla al cargar quita «Cargando» y muestra el error con «Reintentar»', async () => {
+    render(<BackupViewerModal certificationId="cert-1" certificationName="AWS" onClose={jest.fn()} />);
+
+    fireEvent.error(await screen.findByRole('img'));
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
   });
 
   it('si falla el enlace muestra el error sin cerrar el visor', async () => {
@@ -110,7 +127,10 @@ describe('BackupViewerModal', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
 
     expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
-    expect(await screen.findByRole('img')).toHaveAttribute('src', ENLACE);
+    const image = await screen.findByRole('img');
+    expect(image).toHaveAttribute('src', ENLACE);
+    fireEvent.load(image);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(obtenerEnlaceMock).toHaveBeenCalledTimes(2);
   });
@@ -125,3 +145,55 @@ describe('BackupViewerModal', () => {
     expect(screen.getByRole('dialog')).toHaveClass('max-h-[calc(100dvh-2rem)]');
   });
 });
+
+describe('BackupViewerModal · respaldo PDF (HU-18)', () => {
+  beforeEach(() => {
+    obtenerEnlaceMock.mockReset();
+    obtenerEnlaceMock.mockResolvedValue({ url: ENLACE, expiraEn: '2026-10-23T23:05:00.000Z' });
+  });
+
+  function abrirPdf(onClose = jest.fn()) {
+    render(
+      <BackupViewerModal certificationId="cert-1" certificationName="Título" backupType="pdf" onClose={onClose} />,
+    );
+    return onClose;
+  }
+
+  it('abre el PDF en el visor y no como foto', async () => {
+    abrirPdf();
+
+    const visor = await screen.findByTitle('Respaldo de Título');
+    expect(visor.tagName).toBe('IFRAME');
+    expect(visor).toHaveAttribute('src', ENLACE);
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('mantiene «Cargando respaldo…» hasta que el PDF termina de cargar', async () => {
+    abrirPdf();
+    const visor = await screen.findByTitle('Respaldo de Título');
+    expect(screen.getByText('Cargando respaldo…')).toBeInTheDocument();
+
+    fireEvent.load(visor);
+
+    expect(screen.queryByText('Cargando respaldo…')).not.toBeInTheDocument();
+  });
+
+  it('ofrece «Descargar» con el enlace de descarga del PDF', async () => {
+    abrirPdf();
+    await screen.findByTitle('Respaldo de Título');
+
+    expect(screen.getByRole('link', { name: 'Descargar' })).toHaveAttribute('href', `${ENLACE}&descargar=1`);
+  });
+
+  it('se cierra con «Cerrar», con Esc y con clic fuera', async () => {
+    const onClose = abrirPdf();
+    await screen.findByTitle('Respaldo de Título');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('dialog').parentElement as HTMLElement);
+
+    expect(onClose).toHaveBeenCalledTimes(3);
+  });
+});
+
