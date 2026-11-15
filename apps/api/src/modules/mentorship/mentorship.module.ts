@@ -19,9 +19,12 @@ import { SetMentorAreasController } from './http/controllers/set-mentor-areas.co
 import { GetMentorInterestCatalogController } from './http/controllers/get-mentor-interest-catalog.controller';
 import { GetMyMentorInterestsController } from './http/controllers/get-my-mentor-interests.controller';
 import { AddMentorInterestsController } from './http/controllers/add-mentor-interests.controller';
+import { SaveMentorInterestsController } from './http/controllers/save-mentor-interests.controller';
 import { RemoveMentorInterestController } from './http/controllers/remove-mentor-interest.controller';
 import { GetMentorAvailabilityController } from './http/controllers/get-mentor-availability.controller';
 import { SetMentorAvailabilityController } from './http/controllers/set-mentor-availability.controller';
+import { GetMentorScheduleController } from './http/controllers/get-mentor-schedule.controller';
+import { SetMentorScheduleController } from './http/controllers/set-mentor-schedule.controller';
 import { CreateMentorshipRequestController } from './http/controllers/create-mentorship-request.controller';
 import { ListReceivedMentorshipRequestsController } from './http/controllers/list-received-mentorship-requests.controller';
 import { GetReceivedMentorshipRequestController } from './http/controllers/get-received-mentorship-request.controller';
@@ -32,6 +35,9 @@ import { GetMentorOnboardingController } from './http/controllers/get-mentor-onb
 import { SaveMentorOnboardingAreasController } from './http/controllers/save-mentor-onboarding-areas.controller';
 import { SaveMentorOnboardingInterestsController } from './http/controllers/save-mentor-onboarding-interests.controller';
 import { SaveMentorOnboardingAvailabilityController } from './http/controllers/save-mentor-onboarding-availability.controller';
+import { CreateCustomInterestController } from './http/controllers/create-custom-interest.controller';
+import { UpdateCustomInterestController } from './http/controllers/update-custom-interest.controller';
+import { DeleteCustomInterestController } from './http/controllers/delete-custom-interest.controller';
 
 @Module({
   imports: [PrismaModule, RegistrationsModule],
@@ -52,9 +58,15 @@ import { SaveMentorOnboardingAvailabilityController } from './http/controllers/s
     GetMentorInterestCatalogController,
     GetMyMentorInterestsController,
     AddMentorInterestsController,
+    SaveMentorInterestsController,
     RemoveMentorInterestController,
+    CreateCustomInterestController,
+    UpdateCustomInterestController,
+    DeleteCustomInterestController,
     GetMentorAvailabilityController,
     SetMentorAvailabilityController,
+    GetMentorScheduleController,
+    SetMentorScheduleController,
     CreateMentorshipRequestController,
     ListReceivedMentorshipRequestsController,
     GetReceivedMentorshipRequestController,

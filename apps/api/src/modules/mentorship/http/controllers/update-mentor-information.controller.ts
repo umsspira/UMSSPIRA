@@ -17,6 +17,6 @@ export class UpdateMentorInformationController {
     @CurrentActor() actor: ActorContext,
     @Body(new ZodValidationPipe(mentorInformationSchema)) body: MentorInformationInput,
   ) {
-    return { data: presentMentorInformation(await this.useCase.execute(actor, body)) };
+    return { data: presentMentorInformation(await this.useCase.execute(actor, body), actor.name) };
   }
 }

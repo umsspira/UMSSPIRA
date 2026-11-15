@@ -93,6 +93,12 @@ export function MentorAreasPage() {
   }, []);
 
   useEffect(() => {
+    if (!loading && window.location.hash === '#first-incomplete') {
+      document.getElementById('first-incomplete')?.focus();
+    }
+  }, [loading, areas.length, selectedIds.length]);
+
+  useEffect(() => {
     if (!forbidden) return;
     const timeout = window.setTimeout(() => router.replace('/'), 2000);
     return () => window.clearTimeout(timeout);
@@ -175,18 +181,6 @@ export function MentorAreasPage() {
 
   return (
     <main className="mentorship-shell mentor-areas-page">
-      <nav aria-label="Ruta de navegación" className="mentorship-breadcrumb">
-        <ol className="breadcrumb-list">
-          <li><Link href="/" className="breadcrumb-link">Inicio</Link></li>
-          <li aria-hidden="true">/</li>
-          <li><Link href="/mentorship" className="breadcrumb-link">Mentorías</Link></li>
-          <li aria-hidden="true">/</li>
-          <li><Link href="/mentorship/profile" className="breadcrumb-link">Mi perfil de mentor</Link></li>
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" className="breadcrumb-current">Configurar áreas técnicas</li>
-        </ol>
-      </nav>
-
       <p className="page-eyebrow">Red universitaria de desarrollo</p>
       <h1 className="page-title page-title-with-eyebrow mentor-areas-page-title">Áreas técnicas de especialidad</h1>
       <p className="page-description">
@@ -230,7 +224,7 @@ export function MentorAreasPage() {
                   <label
                     className={`mentor-area-option${selected ? ' is-selected' : ''}`}
                   >
-                    <input type="checkbox" aria-label={area.nombre} checked={selected} onChange={() => toggleArea(area.id)} disabled={saving} />
+                    <input id={!selectedIds.length && areas[0]?.id === area.id ? 'first-incomplete' : undefined} type="checkbox" aria-label={area.nombre} checked={selected} onChange={() => toggleArea(area.id)} disabled={saving} />
                     <span className="areas-category-icon" aria-hidden="true"><AreaIcon size={20} /></span>
                     <span className="mentor-area-option-copy">
                       <span className="mentor-area-name">{area.nombre}</span>

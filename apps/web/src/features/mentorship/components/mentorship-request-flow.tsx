@@ -38,24 +38,12 @@ const AVAILABILITY_LABELS = {
 } as const;
 
 function MentorRequestProfile({ mentor }: { mentor: DirectoryMentor }) {
-  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
   const availability = AVAILABILITY_LABELS[mentor.availabilityStatus ?? 'NONE'];
-  const hasPhoto = mentor.photoUrl && failedPhoto !== mentor.photoUrl;
 
   return (
     <div className="mentor-request-profile">
       <div className="mentor-request-profile-photo">
-        {hasPhoto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={mentor.photoUrl!}
-            alt={`Foto de ${mentor.name}`}
-            referrerPolicy="no-referrer"
-            onError={() => setFailedPhoto(mentor.photoUrl)}
-          />
-        ) : (
-          <span role="img" aria-label={`Foto de ${mentor.name} no disponible`}>{mentorInitials(mentor.name)}</span>
-        )}
+        <span role="img" aria-label={`Avatar de ${mentor.name}`}>{mentorInitials(mentor.name)}</span>
       </div>
       <div className="mentor-request-profile-data">
         <h2 id="mentor-request-heading">{mentor.name}</h2>

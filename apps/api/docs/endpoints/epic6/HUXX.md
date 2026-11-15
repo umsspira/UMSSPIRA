@@ -25,6 +25,8 @@
 - `PUT /api/v1/mentorship/onboarding/areas` — paso 1: áreas técnicas (1–5).
 - `PUT /api/v1/mentorship/onboarding/interests` — paso 2: intereses de las áreas elegidas.
 - `PUT /api/v1/mentorship/onboarding/availability` — paso 3: estado y días/horarios.
+- `GET /api/v1/mentorship/availability/schedule` — horario semanal propio (HU 6.18).
+- `PUT /api/v1/mentorship/availability/schedule` — reemplazar el horario semanal (HU 6.18).
 - `PATCH /api/v1/mentorship/profiles/:id/deactivate` — desactivar desde administración.
 
 ## Autenticación
@@ -207,6 +209,23 @@ Sin configurar, ambos campos son null; la lectura no escribe en la BD.
 **Body:** `{ "availabilityStatus": "EN_PAUSA" }`; admite DISPONIBLE, EN_PAUSA o NO_DISPONIBLE.
 **Respuesta 200:** mismo contrato de consulta. Repetir el estado conserva la fecha anterior.
 **Errores:** 400 `VALIDATION_ERROR`; 403 `MENTOR_INACTIVE`; 404 `MENTOR_NOT_FOUND`.
+
+### 15.1 Consultar horario semanal — `GET /api/v1/mentorship/availability/schedule`
+
+**Permiso:** `mentores:self:write`. Requiere mentor activo.
+**Respuesta 200:** `{ "data": { "schedule": [{ "weekday": 1, "start": "09:00", "end": "11:00" }], "fecha_actualizacion": "2026-11-14" } }`.
+
+`weekday` va de 1 (lunes) a 7 (domingo). Las horas son hora de Bolivia (`America/La_Paz`). Sin horarios, `schedule` es `[]` y `fecha_actualizacion` es null.
+**Errores:** 403 `MENTOR_INACTIVE`; 404 `MENTOR_NOT_FOUND`.
+
+### 15.2 Guardar horario semanal — `PUT /api/v1/mentorship/availability/schedule`
+
+**Permiso:** `mentores:self:write`. Requiere mentor activo; solo modifica el horario del propio mentor.
+**Body:** `{ "schedule": [{ "weekday": 1, "start": "09:00", "end": "11:00" }] }` con hasta 42 franjas. Reemplaza el horario completo: los días que no vienen quedan sin horarios. `[]` deja el horario vacío.
+**Respuesta 200:** el contrato de consulta más `"mensaje": "Horarios guardados"`.
+
+Reglas: horas `HH:MM` en pasos de 30 minutos, fin posterior al inicio, al menos 60 minutos (una sesión), hasta 6 franjas por día y sin solapes en el mismo día (las franjas contiguas, como 10:00–12:00 y 12:00–14:00, se permiten). Las franjas anteriores se desactivan (`esta_activo = false`) y las solicitudes ya registradas no cambian. El directorio, el perfil detallado y la solicitud de mentoría usan este horario.
+**Errores:** 400 `VALIDATION_ERROR`, `HORARIO_FORMATO_INVALIDO`, `HORARIO_FIN_ANTES_DE_INICIO`, `HORARIO_DURACION_MINIMA`, `HORARIO_SOLAPADO` o `HORARIO_LIMITE_FRANJAS`; 403 `MENTOR_INACTIVE`; 404 `MENTOR_NOT_FOUND`.
 
 ## 16. Desactivar mentor — `PATCH /api/v1/mentorship/profiles/:id/deactivate`
 
