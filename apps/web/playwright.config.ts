@@ -8,11 +8,12 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: false,
   retries: 0,
-  reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
+  reporter: [['html', { outputFolder: 'playwright-report', open: 'never' }], ['list']],
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
     video: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
@@ -23,7 +24,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: 'npm run dev',
+        command: 'pnpm dev',
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

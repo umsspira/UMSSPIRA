@@ -34,10 +34,9 @@ const publishedEvent: EventItem = {
 
 describe('detalle público de eventos', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
   });
-
   it('rechaza un identificador malformado sin consultar la API', () => {
     render(<EventDetailPage params={{ id: 'no-es-un-uuid' }} />);
 
@@ -341,8 +340,6 @@ describe('detalle público de eventos', () => {
     })).toHaveClass('max-w-full', 'break-words');
   });
 });
-
-
 describe('Cancelación desde la inscripción confirmada', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -393,6 +390,3 @@ describe('Cancelación desde la inscripción confirmada', () => {
     expect(screen.queryByRole('heading', { name: 'Inscripción cancelada' })).not.toBeInTheDocument();
   });
 });
-
-
-

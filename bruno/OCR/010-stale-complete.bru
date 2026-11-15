@@ -1,0 +1,43 @@
+meta {
+  name: Rechazar resultado de version anterior
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/{{ocrExpiredJobId}}/complete
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{ocrExpiredToken}}",
+    "reading": {
+      "lines": [],
+      "pagesRead": 1,
+      "totalPages": 1,
+      "partial": false,
+      "engine": "PaddleOCR.js@0.4.2/PP-OCRv6_small/es",
+      "loadMs": 1,
+      "readMs": 1
+    }
+  }
+}
+
+tests {
+  test("HTTP 409", function () { expect(res.getStatus()).to.equal(409); });
+
+}
+
+docs {
+  Conservar reserva de la version anterior en ocrExpiredJobId/ocrExpiredToken. Corregir y reenviar la solicitud antes de entregar este resultado. No debe reemplazar la nueva revision.
+}

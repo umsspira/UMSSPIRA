@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { LoginForm } from "../../../modules/auth/frontend/components/login-form";
 
@@ -35,12 +36,6 @@ const LockSmallIcon = () => (
     <path d="M8 11V7a4 4 0 0 1 8 0v4" />
   </Svg>
 );
-const CloudIcon = () => (
-  <Svg>
-    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-  </Svg>
-);
-
 export default function LoginPage({
   searchParams,
 }: {
@@ -86,7 +81,7 @@ export default function LoginPage({
               Bolivia.”
             </p>
             <p className="text-sm leading-relaxed text-white/80">
-              Facultad de Ciencias y Tecnología • Carrera de Ingeniería de Sistemas. Red alumni
+              Facultad de Ciencias y Tecnología. Red alumni
               integrada para seguimiento curricular, convenios y validación digital.
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70">
@@ -96,13 +91,7 @@ export default function LoginPage({
                 </span>
                 Cifrado SSL 256-bit
               </span>
-              <span aria-hidden="true">•</span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="text-emerald-400">
-                  <CloudIcon />
-                </span>
-                Servidores DTI UMSS
-              </span>
+
             </div>
           </div>
         </div>
@@ -111,8 +100,34 @@ export default function LoginPage({
       {/* Columna del formulario */}
       <section className="flex flex-col items-center justify-center bg-[#EEE9DF] px-6 py-10 sm:px-10">
         <div className="w-full max-w-[460px] space-y-6">
-          <header className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <nav aria-label="Navegación de inicio" className="flex justify-start">
+            <Link
+              href="/portal/institucional"
+              aria-label="Volver al inicio"
+              title="Volver al inicio"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-abyssal-blue transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-abyssal-blue"
+            >
+              <Svg>
+                <path d="m12 5-7 7 7 7M5 12h14" />
+              </Svg>
+            </Link>
+          </nav>
+          <header className="flex items-center justify-between gap-3">
+            <Image
+              src="/images/logo-umsspira-login.png"
+              alt="UMSSPIRA"
+              width={2160}
+              height={724}
+              className="h-auto w-[45%] max-w-[220px] object-contain"
+              priority
+            />
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-oatmeal/80 bg-white/80 px-2.5 py-1 text-[10px] font-medium text-abyssal-blue/80 shadow-sm backdrop-blur sm:px-3.5 sm:text-xs">
+                <span className="text-emerald-600">
+                  <CheckCircleIcon />
+                </span>
+                Portal Seguro
+              </span>
               <Image
                 src={UMSS_LOGO}
                 alt="Escudo oficial de la Universidad Mayor de San Simón"
@@ -121,20 +136,7 @@ export default function LoginPage({
                 className="h-12 w-auto object-contain"
                 priority
               />
-              <div className="leading-tight">
-                <p className="text-[22px] font-black tracking-tight text-abyssal-blue">
-                  UMSS<span className="text-burning-flame">PIRA</span>
-                </p>
-                <p className="text-[11px] font-bold tracking-wider text-abyssal-blue/70">UMSS</p>
-              </div>
             </div>
-
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-oatmeal/80 bg-white/80 px-3.5 py-1 text-xs font-medium text-abyssal-blue/80 shadow-sm backdrop-blur">
-              <span className="text-emerald-600">
-                <CheckCircleIcon />
-              </span>
-              Portal Seguro
-            </span>
           </header>
 
           {/* Tarjeta con fondo BLANCO puro según FIX-04 */}
@@ -150,7 +152,16 @@ export default function LoginPage({
             </div>
           </div>
 
-          <footer className="space-y-1 text-center text-[11px] text-abyssal-blue/60">
+          <footer className="space-y-5 text-center text-[11px] text-abyssal-blue/60">
+            <p className="text-xs text-gray-500">
+              ¿Ya enviaste una solicitud?{" "}
+              <Link
+                href="/status"
+                className="font-bold text-abyssal-blue underline underline-offset-4 hover:text-truffle-trouble"
+              >
+                Consulta su estado aquí.
+              </Link>
+            </p>
             <p className="uppercase tracking-wider">
               UNIVERSIDAD MAYOR DE SAN SIMÓN
             </p>

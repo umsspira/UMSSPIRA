@@ -140,3 +140,45 @@ describe("HU-EP09-04 / T4.1: middleware de reportería", () => {
     expect(result.headers.get("Cache-Control")).toBe("no-store");
   });
 });
+
+describe("BUG-12: enlace antiguo de corrección", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    respond(200, "administrador");
+  });
+
+  it("redirige el enlace antiguo sin requerir sesión", async () => {
+    const result = observed(
+      await middleware(request("/applications/correct/token_123"))
+    );
+
+    expect(result.status).toBe(307);
+    expect(result.destination).toBe(
+      "http://localhost:3001/register/correction/token_123"
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("un token antiguo mal formado no lleva al login", async () => {
+    const result = observed(
+      await middleware(request("/applications/correct/token.invalido"))
+    );
+
+    expect(result.destination).toBe(
+      "http://localhost:3001/register/correction"
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("mantiene protegidas las otras rutas de applications", async () => {
+    const result = observed(
+      await middleware(request("/applications"))
+    );
+
+    expect(result.destination).toBe(
+      "http://localhost:3001/login"
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
