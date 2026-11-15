@@ -16,6 +16,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate, type ValidationError } from 'class-validator';
 import { CurrentActor } from '../../shared/http/auth/decorators/current-actor.decorator';
 import { Public } from '../../shared/http/auth/decorators/public.decorator';
+import { RequirePermissions } from '../../shared/http/auth/decorators/require-permissions.decorator';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
 import { ActualizarRequisitoDto } from './dto/actualizar-requisito.dto';
 import { AddRequisitosDto } from './dto/add-requisitos.dto';
@@ -44,16 +45,51 @@ export class VacantesController {
   }
 
   @Post()
-  crear(
-    @Body() dto: CreateVacanteDto,
-    @CurrentActor() actor: ActorContext,
-  ) {
+  crear(@Body() dto: CreateVacanteDto, @CurrentActor() actor: ActorContext) {
     return this.vacantesService.crear(dto, actor.id);
   }
 
   @Get()
   listar(@CurrentActor() actor: ActorContext) {
     return this.vacantesService.obtenerMisVacantes(actor.id);
+  }
+  @Get(':idVacante/postulantes')
+  @RequirePermissions('empresas:self:read')
+  async listarPostulantes(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.listarPostulantes(idVacante, actor.id);
+  }
+
+  @Get(':idVacante/postulantes/:idPostulacion')
+  @RequirePermissions('empresas:self:read')
+  async obtenerPostulante(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @Param('idPostulacion', ParseUUIDPipe) idPostulacion: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.obtenerPostulante(
+      idVacante,
+      idPostulacion,
+      actor.id,
+    );
+  }
+  // HU-04: la empresa cambia la etapa de un postulante de SUS vacantes.
+  @Patch(':idVacante/postulantes/:idPostulacion/etapa')
+  @RequirePermissions('empresas:self:write')
+  async cambiarEtapa(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @Param('idPostulacion', ParseUUIDPipe) idPostulacion: string,
+    @Body() body: { etapa?: string },
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.cambiarEtapaPostulante(
+      idVacante,
+      idPostulacion,
+      actor.id,
+      body?.etapa,
+    );
   }
 
   @Get('mis-vacantes')
@@ -92,10 +128,14 @@ export class VacantesController {
     await this.assertVacancyOwner(idVacante, actor);
     const body = dto as unknown;
     if (!isRecord(body) || !Array.isArray(body.requisitos)) {
-      throw new BadRequestException('Debe proporcionar una lista de requisitos.');
+      throw new BadRequestException(
+        'Debe proporcionar una lista de requisitos.',
+      );
     }
 
-    if (body.requisitos.every((requirement) => typeof requirement === 'string')) {
+    if (
+      body.requisitos.every((requirement) => typeof requirement === 'string')
+    ) {
       const input = plainToInstance(AddRequisitosDto, body);
       const errors = await validate(input);
       if (errors.length > 0) {

@@ -70,7 +70,8 @@ export function PublishVacancyForm() {
     const next: Record<string, string> = {};
     if (!formData.title.trim()) next.title = "El título es obligatorio";
     if (!formData.modality) next.modality = "Selecciona la modalidad";
-    if (!formData.experienceLevel) next.experienceLevel = "Selecciona el nivel de experiencia";
+    if (!formData.experienceLevel)
+      next.experienceLevel = "Selecciona el nivel de experiencia";
     if (!formData.technicalDescription.trim()) {
       next.technicalDescription = "La descripción técnica es obligatoria";
     }
@@ -86,10 +87,10 @@ export function PublishVacancyForm() {
     setFeedback(null);
     try {
       const vacancy = await createJobPosting({
-          titulo: formData.title.trim(),
-          modalidad: formData.modality,
-          nivelExperiencia: formData.experienceLevel,
-          descripcionTecnica: formData.technicalDescription.trim(),
+        titulo: formData.title.trim(),
+        modalidad: formData.modality,
+        nivelExperiencia: formData.experienceLevel,
+        descripcionTecnica: formData.technicalDescription.trim(),
       });
       router.push(`/empresa/mis-vacantes/${vacancy.id}/requisitos-tecnicos`);
     } catch (error) {
@@ -100,7 +101,10 @@ export function PublishVacancyForm() {
       }
       setFeedback({
         type: "error",
-        text: error instanceof Error ? error.message : "Ocurrió un error inesperado",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error inesperado",
       });
     } finally {
       setLoading(false);
@@ -115,10 +119,13 @@ export function PublishVacancyForm() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF1E3] text-[#D97720]">
               <BriefcaseBusiness className="h-5 w-5" />
             </div>
-            <h1 className="text-2xl font-bold text-abyssal">Publicar una vacante</h1>
+            <h1 className="text-2xl font-bold text-abyssal">
+              Publicar una vacante
+            </h1>
           </div>
           <p className="ml-[52px] text-sm text-[#66717C]">
-            Completa la información de la vacante para encontrar al perfil que buscas.
+            Completa la información de la vacante para encontrar al perfil que
+            buscas.
           </p>
         </div>
 
@@ -135,7 +142,10 @@ export function PublishVacancyForm() {
               {/* Primera fila */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
-                  <label htmlFor="title" className="mb-2 block text-sm font-semibold text-abyssal">
+                  <label
+                    htmlFor="title"
+                    className="mb-2 block text-sm font-semibold text-abyssal"
+                  >
                     Título <span className="text-[#A35139]">*</span>
                   </label>
                   <div className="relative">
@@ -145,7 +155,9 @@ export function PublishVacancyForm() {
                       name="title"
                       type="text"
                       value={formData.title}
-                      onChange={(event) => setField("title", event.target.value)}
+                      onChange={(event) =>
+                        setField("title", event.target.value)
+                      }
                       placeholder="Ej. Desarrollador Frontend"
                       className={`${inputBase} ${borderFor("title")} h-11 pl-10 pr-3 placeholder:text-[#8A929A]`}
                     />
@@ -154,7 +166,10 @@ export function PublishVacancyForm() {
                 </div>
 
                 <div>
-                  <label htmlFor="modality" className="mb-2 block text-sm font-semibold text-abyssal">
+                  <label
+                    htmlFor="modality"
+                    className="mb-2 block text-sm font-semibold text-abyssal"
+                  >
                     Modalidad <span className="text-[#A35139]">*</span>
                   </label>
                   <div className="relative">
@@ -163,7 +178,9 @@ export function PublishVacancyForm() {
                       id="modality"
                       name="modality"
                       value={formData.modality}
-                      onChange={(event) => setField("modality", event.target.value)}
+                      onChange={(event) =>
+                        setField("modality", event.target.value)
+                      }
                       className={`${inputBase} ${borderFor("modality")} h-11 appearance-none pl-10 pr-9`}
                     >
                       <option value="">Selecciona una opción</option>
@@ -190,7 +207,9 @@ export function PublishVacancyForm() {
                     id="experienceLevel"
                     name="experienceLevel"
                     value={formData.experienceLevel}
-                    onChange={(event) => setField("experienceLevel", event.target.value)}
+                    onChange={(event) =>
+                      setField("experienceLevel", event.target.value)
+                    }
                     className={`${inputBase} ${borderFor("experienceLevel")} h-11 appearance-none pl-10 pr-9`}
                   >
                     <option value="">Selecciona una opción</option>
@@ -218,7 +237,9 @@ export function PublishVacancyForm() {
                     name="technicalDescription"
                     rows={6}
                     value={formData.technicalDescription}
-                    onChange={(event) => setField("technicalDescription", event.target.value)}
+                    onChange={(event) =>
+                      setField("technicalDescription", event.target.value)
+                    }
                     placeholder="Describe las responsabilidades, conocimientos técnicos, herramientas y requisitos necesarios para el puesto."
                     className={`${inputBase} ${borderFor("technicalDescription")} resize-none py-3 pl-10 pr-3 leading-6 placeholder:text-[#8A929A]`}
                   />
@@ -233,7 +254,7 @@ export function PublishVacancyForm() {
               {feedback && (
                 <div
                   role="alert"
-                  className="rounded-lg border border-red-500 bg-red-50 p-3 text-sm font-semibold text-red-700"
+                  className="rounded-lg border border-red-500 bg-red-50 p-3 text-sm font-semibold text-red-700 break-words"
                 >
                   {feedback.text}
                 </div>
@@ -267,7 +288,9 @@ export function PublishVacancyForm() {
                 <Lightbulb className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="font-bold text-abyssal">Consejos para una buena publicación</h2>
+                <h2 className="font-bold text-abyssal">
+                  Consejos para una buena publicación
+                </h2>
                 <p className="mt-1 text-xs leading-5 text-[#7B858E]">
                   Una buena oferta ayuda a encontrar mejores candidatos.
                 </p>
@@ -285,7 +308,8 @@ export function PublishVacancyForm() {
               <div className="flex gap-3">
                 <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#D97720]" />
                 <p className="text-xs leading-5 text-[#59636D]">
-                  Una buena descripción ayuda a que los estudiantes comprendan mejor qué perfil estás buscando.
+                  Una buena descripción ayuda a que los estudiantes comprendan
+                  mejor qué perfil estás buscando.
                 </p>
               </div>
             </div>

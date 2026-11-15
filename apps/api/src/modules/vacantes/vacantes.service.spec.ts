@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { validate } from 'class-validator';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 import { CreateVacanteDto } from './dto/create-vacante.dto';
@@ -60,6 +64,185 @@ describe('VacantesService - Prisma', () => {
     service = new VacantesService(prisma as unknown as PrismaService);
   });
 
+  describe('VacantesService - postulantes', () => {
+    const vacancyId = '44500000-0000-4000-8000-000000000001';
+    const applicationId = '44800000-0000-4000-8000-000000000001';
+    const userId = '20000000-0000-4000-8000-000000000003';
+
+    function application(overrides: Record<string, unknown> = {}) {
+      return {
+        id: applicationId,
+        estado: 'preseleccionado',
+        porcentaje_match: '92.50',
+        created_at: new Date('2026-11-02T00:00:00.000Z'),
+        usuario: {
+          nombre: 'Ana Rojas',
+          correo: 'ana.rojas.demo@umsspira.local',
+          titulado: {
+            nombre: 'Ana',
+            apellido: 'Rojas',
+            curriculum_vitae: null,
+          },
+        },
+        ...overrides,
+      };
+    }
+
+    function createApplicantsService(
+      options: {
+        visibleVacancies?: number;
+        applications?: unknown[];
+        detail?: unknown;
+      } = {},
+    ) {
+      const prisma = {
+        vacante: {
+          count: jest.fn().mockResolvedValue(options.visibleVacancies ?? 1),
+        },
+        postulacion: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue(options.applications ?? [application()]),
+          findFirst: jest
+            .fn()
+            .mockResolvedValue(
+              options.detail === undefined ? application() : options.detail,
+            ),
+        },
+      };
+      return { service: new VacantesService(prisma as never), prisma };
+    }
+
+    it('returns applicants in the frontend contract and preserves the engine match score', async () => {
+      const { service } = createApplicantsService();
+
+      await expect(
+        service.listarPostulantes(vacancyId, userId),
+      ).resolves.toEqual([
+        {
+          id: applicationId,
+          name: 'Ana Rojas',
+          email: 'ana.rojas.demo@umsspira.local',
+          location: null,
+          experienceLevel: null,
+          stage: 'preseleccionado',
+          appliedAt: '2026-11-02T00:00:00.000Z',
+          hasCv: false,
+          cvUrl: null,
+          matchPercentage: 92.5,
+          skills: null,
+        },
+      ]);
+    });
+
+    it('orders applicants by match score descending and null scores last', async () => {
+      const { service, prisma } = createApplicantsService();
+
+      await service.listarPostulantes(vacancyId, userId);
+
+      expect(prisma.postulacion.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id_vacante: vacancyId },
+          orderBy: [
+            { porcentaje_match: { sort: 'desc', nulls: 'last' } },
+            { created_at: 'asc' },
+          ],
+        }),
+      );
+    });
+
+    it('allows the company owner and active invited members', async () => {
+      const { service, prisma } = createApplicantsService();
+
+      await service.listarPostulantes(vacancyId, userId);
+
+      expect(prisma.vacante.count).toHaveBeenCalledWith({
+        where: {
+          id: vacancyId,
+          empresa: {
+            OR: [
+              { id_usuario: userId },
+              {
+                empresa_usuario_registros: {
+                  some: { id_usuario: userId, estado: 'activo' },
+                },
+              },
+            ],
+          },
+        },
+      });
+    });
+
+    it('returns not found for an inaccessible vacancy without reading applications', async () => {
+      const { service, prisma } = createApplicantsService({
+        visibleVacancies: 0,
+      });
+
+      await expect(
+        service.listarPostulantes(vacancyId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.postulacion.findMany).not.toHaveBeenCalled();
+    });
+
+    it('does not invent a match score when the matching engine returned none', async () => {
+      const { service } = createApplicantsService({
+        applications: [application({ porcentaje_match: null })],
+      });
+
+      const applicants = await service.listarPostulantes(vacancyId, userId);
+
+      expect(applicants[0]?.matchPercentage).toBeNull();
+    });
+
+    it('falls back to the user name and reports CV availability', async () => {
+      const { service } = createApplicantsService({
+        applications: [
+          application({
+            usuario: {
+              nombre: 'Usuario sin perfil',
+              correo: 'x@umsspira.local',
+              titulado: {
+                nombre: null,
+                apellido: null,
+                curriculum_vitae: { id: 'cv-1' },
+              },
+            },
+          }),
+        ],
+      });
+
+      const applicants = await service.listarPostulantes(vacancyId, userId);
+
+      expect(applicants[0]?.name).toBe('Usuario sin perfil');
+      expect(applicants[0]?.hasCv).toBe(true);
+    });
+
+    it('returns an applicant detail scoped to its vacancy', async () => {
+      const { service, prisma } = createApplicantsService();
+
+      const detail = await service.obtenerPostulante(
+        vacancyId,
+        applicationId,
+        userId,
+      );
+
+      expect(detail.id).toBe(applicationId);
+      expect(prisma.postulacion.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: applicationId, id_vacante: vacancyId },
+        }),
+      );
+    });
+
+    it('returns not found when the applicant does not belong to the vacancy', async () => {
+      const { service } = createApplicantsService({ detail: null });
+
+      await expect(
+        service.obtenerPostulante(vacancyId, applicationId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   it('crea vacante y requisitos usando la empresa vinculada al usuario', async () => {
     const created = await service.crear(
       validDto({ idEmpresa: undefined }),
@@ -110,10 +293,11 @@ function createPrismaMock() {
 
   const prisma: PrismaMock = {
     empresa: {
-      findFirst: jest.fn(async ({ where }: { where: { id_usuario: string } }) =>
-        where.id_usuario === USER_ID
-          ? { id: COMPANY_ID, razon_social: 'TecnoAndes S.R.L.' }
-          : null,
+      findFirst: jest.fn(
+        async ({ where }: { where: { id_usuario: string } }) =>
+          where.id_usuario === USER_ID
+            ? { id: COMPANY_ID, razon_social: 'TecnoAndes S.R.L.' }
+            : null,
       ),
     },
     vacante: {
@@ -132,12 +316,14 @@ function createPrismaMock() {
       ),
     },
     requerimientoLaboral: {
-      create: jest.fn(async ({ data }: { data: Omit<MockRequirement, 'id'> }) => {
-        const id = `requirement-${++nextId}`;
-        const requirement: MockRequirement = { id, ...data };
-        requirements.set(id, requirement);
-        return requirement;
-      }),
+      create: jest.fn(
+        async ({ data }: { data: Omit<MockRequirement, 'id'> }) => {
+          const id = `requirement-${++nextId}`;
+          const requirement: MockRequirement = { id, ...data };
+          requirements.set(id, requirement);
+          return requirement;
+        },
+      ),
     },
     vacanteRequerimientoLaboral: {
       create: jest.fn(
@@ -168,7 +354,9 @@ function hydrateVacancy(
   requirements: Map<string, MockRequirement>,
   vacancyRequirements: Map<string, string[]>,
 ) {
-  if (!vacancy) {return null;}
+  if (!vacancy) {
+    return null;
+  }
   return {
     ...vacancy,
     empresa: { razon_social: 'TecnoAndes S.R.L.' },

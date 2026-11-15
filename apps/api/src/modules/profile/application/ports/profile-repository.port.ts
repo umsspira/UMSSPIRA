@@ -7,6 +7,7 @@ import type {
   ProfileRecord,
   ProfileSection,
   ProfileSnapshot,
+  ProjectRecord,
 } from '../../domain/entities/profile-record';
 import type { ProfessionalDescription } from '../../domain/entities/professional-description';
 import type {
@@ -15,6 +16,7 @@ import type {
   ExperienceInput,
   ProfileChange,
   ProfileScope,
+  ProjectInput,
 } from '../contracts/profile-inputs';
 
 export const PROFILE_REPOSITORY = Symbol('PROFILE_REPOSITORY');
@@ -30,6 +32,7 @@ export interface ProfileRepository {
   createEducation(scope: ProfileScope, input: EducationInput): Promise<EducationRecord>;
   createExperience(scope: ProfileScope, input: ExperienceInput): Promise<ExperienceRecord>;
   createCertification(scope: ProfileScope, input: CertificationCreationInput): Promise<CertificationRecord>;
+  createProject(scope: ProfileScope, input: ProjectInput): Promise<ProjectRecord>;
   find(scope: ProfileScope, section: ProfileSection, id: string): Promise<ProfileRecord>;
   update(scope: ProfileScope, id: string, change: ProfileChange): Promise<ProfileRecord>;
   remove(scope: ProfileScope, section: ProfileSection, id: string): Promise<void>;
@@ -44,4 +47,13 @@ export interface ProfileRepository {
   findDescription(scope: ProfileScope): Promise<ProfessionalDescription>;
   // Actualiza la fila de perfil_area del titulado o la crea sin área; no recalcula el radar (Épica 3)
   saveDescription(scope: ProfileScope, text: string): Promise<ProfessionalDescription>;
+  // Foto de perfil del titulado (HU-16): una sola por titulado, se reemplaza al subir otra
+  savePhoto(scope: ProfileScope, file: ProfilePhotoFile): Promise<void>;
+  readPhoto(scope: ProfileScope): Promise<ProfilePhotoFile>;
+}
+
+export interface ProfilePhotoFile {
+  mime: string;
+  bytes: Uint8Array;
+  size: number;
 }

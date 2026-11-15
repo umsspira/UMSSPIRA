@@ -58,7 +58,9 @@ class FakeElasticsearchClient {
       id: string;
       document: VacancyIndexDocument;
     }) => {
-      if (this.failIndexing) {throw new Error('cluster privado');}
+      if (this.failIndexing) {
+        throw new Error('cluster privado');
+      }
       this.indexRequests.push(request);
       this.documents.set(`${request.index}/${request.id}`, request.document);
       return { result: 'created' };
@@ -81,7 +83,9 @@ class FakeElasticsearchClient {
       : documents.filter((document) => {
           const clauses = query.bool?.should ?? [];
           return clauses.some((clause) => {
-            if (clause.term) {return document.id === clause.term.id;}
+            if (clause.term) {
+              return document.id === clause.term.id;
+            }
             const titleQuery = clause.match?.titulo.query.toLowerCase();
             return titleQuery
               ? document.titulo.toLowerCase().includes(titleQuery)
@@ -89,7 +93,9 @@ class FakeElasticsearchClient {
           });
         });
 
-    return { hits: { hits: matched.map((document) => ({ _source: document })) } };
+    return {
+      hits: { hits: matched.map((document) => ({ _source: document })) },
+    };
   });
 }
 
@@ -99,23 +105,28 @@ function createServices() {
     new ConfigService({ ELASTICSEARCH_INDEX_VACANTES: 'vacantes-test' }),
     fakeClient as unknown as Client,
   );
-  const obtenerPorId = jest.fn(async () => vacancySource());
-  const vacantesService = { obtenerPorId } as unknown as VacantesService;
+  const obtenerVacantePorId = jest.fn(async () => vacancySource());
+  const vacantesService = { obtenerVacantePorId } as unknown as VacantesService;
   const indexService = new VacantesIndexService(
     vacantesService,
     elasticsearchService,
   );
 
-  return { fakeClient, elasticsearchService, indexService, obtenerPorId };
+  return {
+    fakeClient,
+    elasticsearchService,
+    indexService,
+    obtenerVacantePorId,
+  };
 }
 
 describe('VacantesIndexService - HU5-S1-04', () => {
   it('AC1 indexa una vacante previamente persistida', async () => {
-    const { fakeClient, indexService, obtenerPorId } = createServices();
+    const { fakeClient, indexService, obtenerVacantePorId } = createServices();
 
     const response = await indexService.indexarVacante(VACANCY_ID);
 
-    expect(obtenerPorId).toHaveBeenCalledWith(VACANCY_ID);
+    expect(obtenerVacantePorId).toHaveBeenCalledWith(VACANCY_ID);
     expect(fakeClient.documents.size).toBe(1);
     expect(response).toEqual({
       indexed: true,
@@ -192,14 +203,14 @@ describe('VacantesIndexService - HU5-S1-04', () => {
   });
 
   it('conserva el 404 cuando la vacante fuente no existe', async () => {
-    const { fakeClient, indexService, obtenerPorId } = createServices();
-    obtenerPorId.mockRejectedValueOnce(
+    const { fakeClient, indexService, obtenerVacantePorId } = createServices();
+    obtenerVacantePorId.mockRejectedValueOnce(
       new NotFoundException('La vacante no existe.'),
     );
 
-    await expect(indexService.indexarVacante(VACANCY_ID)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      indexService.indexarVacante(VACANCY_ID),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(fakeClient.index).not.toHaveBeenCalled();
   });
 

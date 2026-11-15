@@ -408,6 +408,7 @@ model Titulado {
   calculo_radar_registros            CalculoRadar[]
   palabra_clave_no_mapeada_registros PalabraClaveNoMapeada[]
   proyecto_registros                 Proyecto[]              @relation("proyecto_id_titulado_titulado")
+  foto_perfil                        TituladoFoto?
 
   certificacion_creacion_registros CertificacionCreacion[]
 
@@ -854,6 +855,19 @@ model Proyecto {
 
   @@index([id_titulado])
   @@map("proyecto")
+}
+
+// Foto de perfil del titulado (HU-16): una por titulado, JPG de hasta 5 MB, mismo patrón que archivo_perfil
+model TituladoFoto {
+  id_titulado  String   @id @db.Uuid
+  mime         String   @db.VarChar(50)
+  contenido    Bytes    @db.ByteA
+  size_bytes   Int
+  fecha_subida DateTime @default(now()) @db.Timestamptz(6)
+
+  titulado Titulado @relation(fields: [id_titulado], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "titulado_foto_id_titulado_fkey")
+
+  @@map("titulado_foto")
 }
 
 model ArchivoPerfil {

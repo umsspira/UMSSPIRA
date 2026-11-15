@@ -4,11 +4,16 @@ import { useEffect, useState } from 'react';
 import { Download, Loader2, X } from 'lucide-react';
 
 import { enlaceDeDescarga, obtenerEnlaceRespaldo } from '@/modules/profile/services/perfil-api';
+import type { BackupType } from '@/modules/profile/utils/validate-backup-file';
+import { BackupPreview } from './backup-preview';
+import { BackupZoom } from './backup-zoom';
 
 type BackupViewerModalProps = {
   certificationId: string;
   // Se muestra como título del visor
   certificationName: string;
+  // HU-18: un PDF se abre con el lector del navegador; sin tipo se muestra como foto
+  backupType?: BackupType;
   onClose: () => void;
 };
 
@@ -17,8 +22,8 @@ const secondaryButtonClassName =
 const primaryButtonClassName =
   'inline-flex items-center justify-center gap-2 rounded-lg bg-truffle-trouble px-5 py-2.5 text-sm font-bold text-white transition hover:brightness-95';
 
-// Visor de la foto JPG real del respaldo (HU-10). Se monta al abrirse, así cada apertura pide un enlace nuevo
-export function BackupViewerModal({ certificationId, certificationName, onClose }: BackupViewerModalProps) {
+// Visor del respaldo real (HU-10): foto JPG o documento PDF (HU-18). Se monta al abrirse, así cada apertura pide un enlace nuevo
+export function BackupViewerModal({ certificationId, certificationName, backupType, onClose }: BackupViewerModalProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   // El enlace llega antes que la foto: "Cargando" se mantiene hasta que la imagen termina de cargar
@@ -104,14 +109,17 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
             </p>
           )}
           {imageUrl && !hasError && (
-            // eslint-disable-next-line @next/next/no-img-element -- el enlace firmado vence, no se optimiza con next/image
-            <img
-              src={imageUrl}
-              alt={`Respaldo de ${certificationName}`}
-              onLoad={() => setIsImageLoaded(true)}
-              onError={() => setHasError(true)}
-              className={`max-h-[60dvh] w-full rounded-lg object-contain sm:max-h-[70vh] ${isImageLoaded ? '' : 'hidden'}`}
-            />
+            // HU-21, T21.7: zoom «+» y «−» sobre el respaldo ya cargado, foto o PDF (HU-18)
+            <BackupZoom isReady={isImageLoaded}>
+              <BackupPreview
+                url={imageUrl}
+                title={certificationName}
+                type={backupType}
+                isLoaded={isImageLoaded}
+                onLoad={() => setIsImageLoaded(true)}
+                onError={() => setHasError(true)}
+              />
+            </BackupZoom>
           )}
         </div>
 
@@ -120,7 +128,7 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
           <button type="button" onClick={onClose} className={secondaryButtonClassName}>
             Cerrar
           </button>
-          {/* La API responde el JPG original como adjunto con descargar=1 */}
+          {/* La API responde el archivo original (JPG o PDF) como adjunto con descargar=1 */}
           {imageUrl && !hasError && (
             <a href={enlaceDeDescarga(imageUrl)} download className={primaryButtonClassName}>
               <Download className="h-4 w-4" aria-hidden="true" />

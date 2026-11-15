@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
 import { API_BASE_URL } from '@/shared/config/api';
+import { Cargando, EstadoError } from '../../../_components/estado-pantalla';
 
 export default function EditarVacantePage() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function EditarVacantePage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [errorCarga, setErrorCarga] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   
   const [titulo, setTitulo] = useState('');
   const [modalidad, setModalidad] = useState('Híbrido');
@@ -26,6 +29,8 @@ export default function EditarVacantePage() {
 
   useEffect(() => {
     const fetchVacante = async () => {
+      setIsLoading(true);
+      setErrorCarga(false);
       try {
         const token = getAccessToken();
         const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${id}`, {
@@ -55,15 +60,18 @@ export default function EditarVacantePage() {
             if (['PUBLICADO', 'PUBLICADA', 'ACTIVA'].includes(String(encontrada.estado).toUpperCase())) setEstado('ACTIVA');
             else setEstado(encontrada.estado);
           }
+        } else {
+          setErrorCarga(true);
         }
       } catch (error) {
         console.error("Error cargando vacante", error);
+        setErrorCarga(true); // CA-21
       } finally {
         setIsLoading(false);
       }
     };
     fetchVacante();
-  }, [id]);
+  }, [id, reloadKey]);
 
   const handleGuardar = async () => {
     setIsSaving(true);
@@ -97,23 +105,24 @@ export default function EditarVacantePage() {
     }
   };
 
-  if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</div>;
+  if (isLoading) return <Cargando texto="Cargando..." />;
+  if (errorCarga) return <EstadoError mensaje="No se pudo cargar la vacante. Revisa tu conexión e inténtalo de nuevo." onReintentar={() => setReloadKey((k) => k + 1)} />;
 
   return (
-    <div style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
+    <div className="p-4 md:p-8 overflow-x-hidden" style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         
-        <Link href="/empresa/mis-vacantes" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#4b5563', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
+        <Link href="/empresa/mis-vacantes" className="min-h-11 md:min-h-0" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#4b5563', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
           <ArrowLeft size={16} /> Volver a Mis vacantes
         </Link>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: '#fff', border: '1px solid var(--oatmeal)', borderRadius: '0.75rem', color: 'var(--flame)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
+            <div style={{ flexShrink: 0, padding: '0.75rem', backgroundColor: '#fff', border: '1px solid var(--oatmeal)', borderRadius: '0.75rem', color: 'var(--flame)' }}>
               <FolderOpen size={28} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#111827', margin: 0 }}>
+              <h1 style={{ fontSize: 'clamp(1.35rem, 5.5vw, 1.75rem)', fontWeight: '800', color: '#111827', margin: 0 }}>
                 Editar vacante
               </h1>
               <p style={{ color: '#4b5563', fontSize: '0.95rem', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
@@ -128,13 +137,13 @@ export default function EditarVacantePage() {
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', alignItems: 'start' }}>
+        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[2fr_1fr] md:gap-8">
           
-          <div style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', padding: '2.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+          <div className="min-w-0 p-5 md:p-10" style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#111827', marginBottom: '0.5rem' }}>Título <span style={{ color: '#dc2626' }}>*</span></label>
                   <input 
@@ -158,7 +167,7 @@ export default function EditarVacantePage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#111827', marginBottom: '0.5rem' }}>Nivel de experiencia <span style={{ color: '#dc2626' }}>*</span></label>
                   <select 
@@ -184,9 +193,10 @@ export default function EditarVacantePage() {
                 <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>Incluye tecnologías, herramientas y conocimientos necesarios.</p>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', borderTop: '1px solid var(--oatmeal)', paddingTop: '1.5rem' }}>
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4" style={{ marginTop: '1rem', borderTop: '1px solid var(--oatmeal)', paddingTop: '1.5rem' }}>
                 <button 
                   onClick={() => router.push('/empresa/mis-vacantes')}
+                  className="min-h-11 w-full justify-center sm:w-auto md:min-h-0"
                   style={{ padding: '0.6rem 1.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#374151', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                 >
                   <X size={16} /> Cancelar
@@ -194,6 +204,7 @@ export default function EditarVacantePage() {
                 <button 
                   onClick={handleGuardar}
                   disabled={isSaving}
+                  className="min-h-11 w-full justify-center sm:w-auto md:min-h-0"
                   style={{ padding: '0.6rem 1.5rem', border: 'none', backgroundColor: 'var(--flame)', color: '#fff', borderRadius: '0.5rem', fontWeight: 'bold', cursor: isSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isSaving ? 0.7 : 1 }}
                 >
                   <Save size={16} /> {isSaving ? 'Guardando...' : 'Guardar cambios'}
@@ -242,4 +253,4 @@ export default function EditarVacantePage() {
       </div>
     </div>
   );
-}
+}
