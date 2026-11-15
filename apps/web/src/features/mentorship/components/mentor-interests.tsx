@@ -14,6 +14,12 @@ import {
   ServerIcon,
   MonitorIcon,
   DatabaseIcon,
+  CloudIcon,
+  BrainIcon,
+  BugIcon,
+  ShieldIcon,
+  BriefcaseIcon,
+  CircleDotIcon,
   BadgeCheckIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
@@ -53,6 +59,31 @@ interface Props {
   minimumAreas?: number;
 }
 
+function normalizedName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/** Icono estable por área: evita que todas las tarjetas usen el mismo. */
+function areaIcon(name: string) {
+  const value = normalizedName(name);
+  if (value.includes('backend')) return ServerIcon;
+  if (value.includes('frontend')) return MonitorIcon;
+  if (value.includes('base') && value.includes('datos')) return DatabaseIcon;
+  if (value.includes('cloud') || value.includes('devops')) return CloudIcon;
+  if (value.includes('datos') || value.includes('inteligencia') || value.includes(' ia')) return BrainIcon;
+  if (value.includes('qa') || value.includes('prueba') || value.includes('testing')) return BugIcon;
+  if (value.includes('seguridad') || value.includes('ciber')) return ShieldIcon;
+  if (value.includes('gestion')) return BriefcaseIcon;
+  return CircleDotIcon;
+}
+
+function pluralTopics(count: number): string {
+  return `${count} ${count === 1 ? 'tópico' : 'tópicos'}`;
+}
+
 export function MentorInterests({
   catalog,
   initialConfiguration,
@@ -76,6 +107,9 @@ export function MentorInterests({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const chipRefs = useRef(new Map<string, HTMLButtonElement>());
+  const pendingFocus = useRef<string | null>(null);
+  const removedAreaTopics = useRef(new Map<string, string[]>());
 
   // Estados para intereses personalizados (HU 6.22)
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
@@ -89,6 +123,9 @@ export function MentorInterests({
   }, [catalog]);
 
   const dirty = !sameConfiguration(saved, draft);
+  // Mantener visibles las áreas quitadas del borrador hasta confirmar el guardado.
+  const visibleAreas = currentCatalog.filter((area) =>
+    saved.areaIds.includes(area.id) || draft.areaIds.includes(area.id));
   // HU 6.13: el enlace del checklist enfoca el primer tópico sugerido cuando aún no hay intereses.
   const firstSuggestedId = draft.topicIds.length
     ? undefined
@@ -104,6 +141,21 @@ export function MentorInterests({
   const removingArea = currentCatalog.find((area) => dialog === `area:${area.id}`);
   const affectedTopics = removingArea?.topics.filter((topic) => draft.topicIds.includes(topic.id)) || [];
   const navigate = (href: string) => (onNavigate ? onNavigate(href) : router.push(href));
+  const registerChip = (id: string) => (element: HTMLButtonElement | null) => {
+    if (element) chipRefs.current.set(id, element);
+    else chipRefs.current.delete(id);
+  };
+
+  // Mantiene el foco del chip después de alternarlo.
+  useEffect(() => {
+    const id = pendingFocus.current;
+    if (!id) return;
+    const element = chipRefs.current.get(id);
+    if (element) {
+      element.focus();
+      pendingFocus.current = null;
+    }
+  });
 
   useEffect(() => {
     if (!dirty) return;
@@ -127,6 +179,16 @@ export function MentorInterests({
     setError('');
   }
 
+  function reactivateArea(area: InterestArea) {
+    const topics = removedAreaTopics.current.get(area.id) ??
+      saved.topicIds.filter((id) => area.topics.some((topic) => topic.id === id));
+    change({
+      areaIds: [...draft.areaIds, area.id],
+      topicIds: Array.from(new Set([...draft.topicIds, ...topics])),
+    });
+    removedAreaTopics.current.delete(area.id);
+  }
+
   function leave(href: string) {
     if (savingRef.current) return;
     if (!dirty) navigate(href);
@@ -148,6 +210,7 @@ export function MentorInterests({
       );
       setSaved(confirmed);
       setDraft(confirmed);
+      removedAreaTopics.current.clear();
       setSuccess(true);
       setStatusMessage('');
       setDialog(null);
@@ -378,7 +441,7 @@ export function MentorInterests({
         <p>Toca un tópico para agregarlo o quitarlo de tu perfil, o agrega tus propios temas.</p>
       </div>
 
-      {!currentCatalog.length && <p>No hay tópicos disponibles. Configura tus áreas técnicas para comenzar.</p>}
+      {!visibleAreas.length && <p>No hay áreas técnicas seleccionadas. Configura tus áreas técnicas para ver sus tópicos.</p>}
 
       {statusMessage && (
         <div role="status" className="interests-success">
@@ -392,17 +455,13 @@ export function MentorInterests({
       )}
 
       <div className="interests-grid">
-        {currentCatalog.map((area) => {
-          const enabled = draft.areaIds.includes(area.id);
+        {visibleAreas.map((area) => {
+          const enabled = draft.areaIds.includes(area.id) && area.locked !== true;
           const selected = area.topics.filter((topic) => draft.topicIds.includes(topic.id));
+          const suggested = area.topics.filter((topic) => !topic.isCustom && !draft.topicIds.includes(topic.id));
           const customCount = selected.filter((t) => t.isCustom).length;
           const isAtLimit = customCount >= MAX_CUSTOM_TOPICS_PER_AREA;
-          const name = area.name.toLocaleLowerCase('es');
-          const AreaIcon = name.includes('backend')
-            ? ServerIcon
-            : name.includes('frontend')
-              ? MonitorIcon
-              : DatabaseIcon;
+          const AreaIcon = areaIcon(area.name);
           const areaFeedback = customFeedback[area.id];
           const areaError = customErrors[area.id];
           const currentInput = customInputs[area.id] || '';
@@ -430,30 +489,30 @@ export function MentorInterests({
                       )}
                     </span>
                   </div>
-                  <p>{area.description}</p>
+                  {area.description && <p>{area.description}</p>}
                 </div>
               </div>
-
               {enabled && area.topics.length === 0 && (
                 <p>Esta área todavía no tiene tópicos disponibles en el catálogo.</p>
               )}
 
               {enabled ? (
                 <>
-                  <h4>En tu perfil · {selected.length} tópicos</h4>
+                  <h4>En tu perfil · {pluralTopics(selected.length)}</h4>
                   {selected.length === 0 && <p>Aún no seleccionaste intereses en esta área.</p>}
                   <div className="interest-topics">
                     {selected.map((topic) => (
                       <div key={topic.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
                         <button
                           type="button"
+                          ref={registerChip(topic.id)}
                           aria-pressed="true"
                           disabled={saving}
-                          onClick={() =>
-                            topic.isCustom
-                              ? setDeletingTopic(topic)
-                              : change({ ...draft, topicIds: draft.topicIds.filter((id) => id !== topic.id) })
-                          }
+                          onClick={() => {
+                            pendingFocus.current = topic.id;
+                            if (topic.isCustom) setDeletingTopic(topic);
+                            else change({ ...draft, topicIds: draft.topicIds.filter((id) => id !== topic.id) });
+                          }}
                         >
                           {topic.name}
                           {topic.isCustom && <span className="interest-custom-badge">Personalizado</span>}
@@ -477,22 +536,27 @@ export function MentorInterests({
 
                   <h4>Sugeridos</h4>
                   <div className="interest-topics">
-                    {area.topics
-                      .filter((topic) => !topic.isCustom && !draft.topicIds.includes(topic.id))
-                      .map((topic) => (
-                        <button
-                          id={topic.id === firstSuggestedId ? 'first-incomplete' : undefined}
-                          key={topic.id}
-                          type="button"
-                          aria-pressed="false"
-                          disabled={saving}
-                          onClick={() => change({ ...draft, topicIds: [...draft.topicIds, topic.id] })}
-                        >
-                          <PlusIcon size={14} aria-hidden="true" />
-                          {topic.name}
-                        </button>
-                      ))}
+                    {suggested.map((topic) => (
+                      <button
+                        id={topic.id === firstSuggestedId ? 'first-incomplete' : undefined}
+                        key={topic.id}
+                        ref={registerChip(topic.id)}
+                        type="button"
+                        aria-pressed="false"
+                        disabled={saving}
+                        onClick={() => {
+                          pendingFocus.current = topic.id;
+                          change({ ...draft, topicIds: [...draft.topicIds, topic.id] });
+                        }}
+                      >
+                        <PlusIcon size={14} aria-hidden="true" />
+                        {topic.name}
+                      </button>
+                    ))}
                   </div>
+                  {suggested.length === 0 && (
+                    <p>No hay más tópicos sugeridos en esta área.</p>
+                  )}
 
                   {/* CAF-01: Campo para agregar otro tema */}
                   <div className="custom-topic-section">
@@ -576,18 +640,20 @@ export function MentorInterests({
                 </>
               ) : (
                 <>
-                  <p>
-                    Área no incluida en tu selección técnica. Para seleccionar estos tópicos, primero debes agregar esta
-                    área en Áreas técnicas.
-                  </p>
+                  <h4>En tu perfil · {pluralTopics(0)}</h4>
+                  <p>{saved.areaIds.includes(area.id)
+                    ? 'Quitaste esta área de la selección actual. Puedes reactivarla aquí sin perder los demás cambios.'
+                    : 'Área no incluida en tu selección técnica. Para seleccionar estos tópicos, primero debes agregar esta área en Áreas técnicas.'}</p>
                   <div className="interest-topics">
                     {area.topics.map((topic) => (
                       <button key={topic.id} type="button" disabled>
+                        <LockKeyholeIcon size={14} aria-hidden="true" />
                         {topic.name}
                       </button>
                     ))}
                   </div>
-                  <SecondaryButton disabled={saving} onClick={() => leave(areasHref)}>
+                  <SecondaryButton disabled={saving} onClick={() =>
+                    saved.areaIds.includes(area.id) ? reactivateArea(area) : leave(areasHref)}>
                     Activar esta área técnica
                   </SecondaryButton>
                 </>
@@ -598,7 +664,7 @@ export function MentorInterests({
       </div>
 
       <p className="interests-catalog-note">
-        Solo se muestran tópicos de tus áreas técnicas.{' '}
+        Solo puedes seleccionar tópicos de tus áreas técnicas.{' '}
         <button type="button" disabled={saving} onClick={() => leave(areasHref)}>
           Agregar otra área
         </button>
@@ -660,19 +726,29 @@ export function MentorInterests({
           <ArrowLeftIcon size={16} aria-hidden="true" />
           Volver a Áreas técnicas
         </SecondaryButton>
-        <span role="status">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span>
-        <SecondaryButton disabled={!dirty || saving} onClick={() => setDialog('discard')}>
-          Descartar cambios
-        </SecondaryButton>
-        <PrimaryButton disabled={!dirty} loading={saving} onClick={() => setDialog('save')}>
-          Guardar configuración ({draft.topicIds.length})
-        </PrimaryButton>
-        {success && (
-          <SecondaryButton className="interests-return-profile" onClick={() => leave('/mentorship/profile')}>
-            <CheckIcon size={16} aria-hidden="true" />
-            Volver a mi perfil
-          </SecondaryButton>
-        )}
+        <div className="interests-actions-panel">
+          <div className="interests-actions-buttons">
+            <SecondaryButton disabled={!dirty || saving} onClick={() => setDialog('discard')}>
+              Descartar cambios
+            </SecondaryButton>
+            {success ? (
+              <PrimaryButton className="interests-return-profile" onClick={() => leave('/mentorship/profile')}>
+                <CheckIcon size={16} aria-hidden="true" />
+                Volver a mi perfil
+              </PrimaryButton>
+            ) : (
+              <PrimaryButton disabled={!dirty} loading={saving} loadingLabel="Guardando…"
+                iconRight={ArrowRightIcon} onClick={() => setDialog('save')}>
+                Guardar configuración ({draft.topicIds.length})
+              </PrimaryButton>
+            )}
+          </div>
+          {!success && (
+            <span role="status" className={`interests-save-status${dirty ? ' interests-save-status-dirty' : ''}`}>
+              {dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}
+            </span>
+          )}
+        </div>
       </footer>
 
       {/* Modal guardar configuración */}
@@ -709,6 +785,7 @@ export function MentorInterests({
         onCancel={() => setDialog(null)}
         onConfirm={() => {
           setDraft(saved);
+          removedAreaTopics.current.clear();
           setDialog(null);
           setSuccess(false);
           if (dialog === 'leave') navigate(destination);
@@ -725,6 +802,7 @@ export function MentorInterests({
         onCancel={() => setDialog(null)}
         onConfirm={() => {
           if (removingArea) {
+            removedAreaTopics.current.set(removingArea.id, affectedTopics.map((topic) => topic.id));
             change({ ...draft, areaIds: draft.areaIds.filter((id) => id !== removingArea.id) });
           }
           setDialog(null);

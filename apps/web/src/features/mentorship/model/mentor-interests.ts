@@ -8,6 +8,8 @@ export interface InterestArea {
   id: string;
   name: string;
   description: string;
+  /** HU 6.21: el backend indica si el área está fuera de la selección del mentor. */
+  locked?: boolean;
   topics: InterestTopic[];
 }
 

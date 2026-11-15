@@ -11,6 +11,7 @@ import type {
   MentorWeeklySchedule,
 } from '../../domain/entities/mentor';
 import type { MentorFilterOptions } from '../../application/contracts/mentor-directory-filters';
+import { describeArea } from '../../domain/policies/area-description.policy';
 
 const day = (date: Date | null) => date?.toISOString().slice(0, 10) ?? null;
 
@@ -104,7 +105,11 @@ export function presentInterest(interest: MentorInterest) {
 
 export function presentMentorAreas(state: MentorAreas) {
   return {
-    areas: state.catalog.map((area) => ({ id: area.id, nombre: area.name, descripcion: null })),
+    areas: state.catalog.map((area) => ({
+      id: area.id,
+      nombre: area.name,
+      descripcion: describeArea(area.name),
+    })),
     selectedIds: state.selectedIds,
     intereses: state.interests.map((interest) => ({
       id_area: interest.area.id,
@@ -113,9 +118,34 @@ export function presentMentorAreas(state: MentorAreas) {
   };
 }
 
+/** HU 6.21: respuesta del guardado atómico de intereses. */
+export function presentSavedInterests(state: MentorAreas) {
+  return {
+    areas: state.catalog.map((area) => ({
+      id: area.id,
+      nombre: area.name,
+      descripcion: describeArea(area.name),
+    })),
+    selectedIds: state.selectedIds,
+    intereses: state.interests.map((interest) => ({
+      id: interest.id,
+      id_area: interest.area.id,
+      nombre: interest.name,
+      es_personalizado: interest.esPersonalizado ?? false,
+    })),
+  };
+}
+
 export function presentInterestCatalog(groups: InterestCatalogGroup[]) {
   return groups.map((group) => ({
-    area: { id: group.area.id, nombre: group.area.name },
+    personalizados_disponibles: group.customInterestsAvailable ?? true,
+    area: {
+      id: group.area.id,
+      nombre: group.area.name,
+      descripcion: group.area.description,
+      seleccionada: group.area.selected,
+      bloqueada: group.area.locked,
+    },
     intereses: group.interests.map((interest) => ({
       ...presentInterest(interest),
       seleccionado: interest.selected,

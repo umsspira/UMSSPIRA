@@ -21,6 +21,7 @@ describe('Custom Interests Use Cases', () => {
       setAreas: jest.fn(),
       interestCatalog: jest.fn(),
       interests: jest.fn(),
+      saveInterests: jest.fn(),
       addInterests: jest.fn(),
       removeInterest: jest.fn(),
       createCustomInterest: jest.fn(),
