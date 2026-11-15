@@ -13,6 +13,8 @@ export interface AreaScoreRecord {
   ponderacion: number | null;
   // Detalle de las palabras clave que más aportaron al área (HU-8 / Explicabilidad)
   palabrasClaveTop: KeywordContribution[];
+  // Contribuciones completas por keyword en el área (HU-13 / Migración M2)
+  contribucionesKeyword?: KeywordContribution[];
 }
 
 /**
@@ -25,6 +27,7 @@ export interface RadarCalculationSnapshot {
   hashEntrada: string | null;
   estado: 'COMPLETADO' | 'VACIO';
   versionAlgoritmo: string;
+  versionDiccionario?: string | null;
   fechaCalculo: Date;
   afinidad: Array<{
     areaId: string;
@@ -32,6 +35,7 @@ export interface RadarCalculationSnapshot {
     porcentaje: number;
     ponderacion: number | null;
     palabrasClaveTop: KeywordContribution[];
+    contribucionesKeyword?: KeywordContribution[];
   }>;
 }
 
@@ -84,6 +88,7 @@ export interface RadarRepositoryPort {
     hashEntrada: string;
     estado: 'COMPLETADO' | 'VACIO';
     versionAlgoritmo: string;
+    versionDiccionario?: string | null;
     areas: AreaScoreRecord[];
     unmapped: Array<{ term: string; count: number }>;
   }): Promise<RadarCalculationSnapshot>;

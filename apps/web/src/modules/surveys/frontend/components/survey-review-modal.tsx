@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { SurveyOfflineBanner } from "./survey-offline-banner";
+import { useNetworkStatus } from "../hooks/use-network-status";
 
 export interface SurveyReviewAnswer {
   id: string;
@@ -20,6 +21,7 @@ interface SurveyReviewModalProps {
   submitMessage?: string | null;
   isConnectionError?: boolean;
   showNoWorkWarning?: boolean;
+  isOffline?: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -32,11 +34,14 @@ export function SurveyReviewModal({
   submitMessage = null,
   isConnectionError = false,
   showNoWorkWarning = false,
+  isOffline: propIsOffline,
   onClose,
   onConfirm,
 }: SurveyReviewModalProps) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const { isOffline: networkIsOffline } = useNetworkStatus();
+  const offline = propIsOffline ?? networkIsOffline;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -113,7 +118,7 @@ export function SurveyReviewModal({
 
         <div className="space-y-3 px-7 pt-3 sm:px-14">
           {/* T3.6: el aviso offline debe ser visible incluso con el modal abierto. */}
-          <SurveyOfflineBanner />
+          <SurveyOfflineBanner isOffline={offline} />
           {isSubmitting && (
             <p role="status" aria-live="polite" className="mb-4 rounded-lg border border-abyssal-blue/30 bg-palladian p-3 text-abyssal-blue">
               Enviando encuesta...
@@ -195,7 +200,8 @@ export function SurveyReviewModal({
           {submitStatus !== 'success' && <button
             type="button"
             onClick={onConfirm}
-            disabled={isSubmitting || answers.length === 0}
+            disabled={isSubmitting || answers.length === 0 || offline}
+            title={offline ? 'No es posible enviar la encuesta sin conexión a Internet' : undefined}
             className="min-w-0 flex-1 rounded-xl bg-[#1b2632] px-3 py-4 text-base font-semibold text-white hover:bg-[#2c3b4d] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:px-8 sm:text-xl"
           >
             {isSubmitting ? "Enviando..." : submitStatus === 'error' ? "Reintentar envío" : "Confirmar y enviar"}

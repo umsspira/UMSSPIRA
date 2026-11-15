@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/shared/components/button';
 
 interface ExitRegistrationDialogProps {
@@ -11,31 +11,60 @@ interface ExitRegistrationDialogProps {
 
 export function ExitRegistrationDialog({ isOpen, onConfirm, onCancel }: ExitRegistrationDialogProps) {
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
-  // Al abrirse, el foco va a la opción segura (conservar los datos).
+  // Al abrirse, guarda el control de origen y enfoca la opción segura.
   useEffect(() => {
-    if (isOpen) cancelButtonRef.current?.focus();
+    if (isOpen) {
+      triggerRef.current = document.activeElement as HTMLElement | null;
+      cancelButtonRef.current?.focus();
+    }
   }, [isOpen]);
 
-  // Escape equivale a cancelar: no se pierde nada.
+  const handleCancel = useCallback(() => {
+    onCancel();
+    triggerRef.current?.focus();
+  }, [onCancel]);
+
+  // Atrapa el foco dentro del diálogo y permite cerrar con Escape retornando el foco.
   useEffect(() => {
     if (!isOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel();
+      if (event.key === 'Escape') {
+        handleCancel();
+      } else if (event.key === 'Tab') {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+        const focusable = dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCancel]);
+  }, [isOpen, handleCancel]);
 
   if (!isOpen) return null;
 
   return (
     <div
       role="presentation"
-      onClick={onCancel}
+      onClick={handleCancel}
       className="fixed inset-0 z-50 flex items-center justify-center bg-abyssal-blue/60 px-4"
     >
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="exit-registration-title"
@@ -50,7 +79,7 @@ export function ExitRegistrationDialog({ isOpen, onConfirm, onCancel }: ExitRegi
           Se perderán los datos ingresados.
         </p>
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button ref={cancelButtonRef} type="button" variant="secondary" onClick={onCancel}>
+          <Button ref={cancelButtonRef} type="button" variant="secondary" onClick={handleCancel}>
             Seguir en el registro
           </Button>
           <Button type="button" onClick={onConfirm}>

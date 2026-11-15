@@ -2,6 +2,7 @@ export interface ObservedApplicationObservation {
   categoria: string | null;
   justificacion: string | null;
   fecha: string | null;
+  motivos: string[];
 }
 
 export interface ObservedApplicationDocument {

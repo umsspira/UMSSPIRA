@@ -40,6 +40,7 @@ describe('ObservedApplicationController', () => {
         deseaMentor: true,
         observacion: {
           categoria: 'documento_ilegible',
+          motivos: [],
           justificacion: 'Documento borroso',
           fecha: '2026-10-20T10:00:00Z',
         },

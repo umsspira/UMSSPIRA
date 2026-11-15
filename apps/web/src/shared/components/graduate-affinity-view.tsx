@@ -83,11 +83,15 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   enableSimulationControls,
   showDemoNotice,
 }) => {
+  // Los controles de simulación son exclusivos de demos locales. La bandera
+  // nunca se honra en un build de producción, aunque quede definida por error.
   const isSimulationControlsEnabled =
     enableSimulationControls ??
-    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS === 'true';
-  const isDemoMode =
-    showDemoNotice ?? process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK === 'true';
+    (process.env.NODE_ENV !== 'production' &&
+      process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS === 'true');
+  // El aviso solo aparece cuando una pantalla se declara explícitamente como
+  // demostración; la vista operativa nunca muestra datos de ejemplo.
+  const isDemoMode = showDemoNotice ?? false;
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [profileState, setProfileState] = useState<'calculated' | 'customizing'>('calculated');
@@ -341,6 +345,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     previousAffinity: item.previousAffinity ?? null,
     evidence: item.evidence ?? [],
     topKeywords: item.topKeywords ?? [],
+    explanation: item.explanation ?? null,
   }));
 
   const areasWithAffinity = orderedCandidateAreas.filter((item) => item.affinity > 0);
@@ -564,6 +569,9 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   onSelectArea={setSelectedAreaId}
                   areas={inspectionAreas}
                   certificationsPanel={selectedAreaId && AFFINITY_AREAS.includes(selectedAreaId as AffinityArea) ? <RadarCertificationsPanel area={selectedAreaId as AffinityArea} calculationKey={lastCalculatedAt} /> : undefined}
+                  isExplanationLoading={isLoading}
+                  hasExplanationError={hasRadarError}
+                  onRetryExplanation={() => { void handleRetry(); }}
                 />
               )}
             </div>
