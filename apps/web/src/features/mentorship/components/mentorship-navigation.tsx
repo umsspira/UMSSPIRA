@@ -19,7 +19,7 @@ interface NavigationLink {
 const generalLinks: NavigationLink[] = [
   { href: '/mentorship', label: 'Inicio' },
   { href: '/mentorship/directory', label: 'Explorar mentores' },
-  { href: '/mentorship/requests', label: 'Mis solicitudes' },
+  { href: '/mentorship/requests?view=sent', label: 'Mis solicitudes' },
 ];
 
 const mentorLinks: NavigationLink[] = [
@@ -38,7 +38,8 @@ function isMentorOnlyPath(pathname: string) {
 }
 
 function isLinkActive(pathname: string, href: string) {
-  return pathname === href || (href !== '/mentorship' && pathname.startsWith(`${href}/`));
+  const [hrefPath] = href.split('?');
+  return pathname === hrefPath || (hrefPath !== '/mentorship' && pathname.startsWith(`${hrefPath}/`));
 }
 
 function errorMessage(error: unknown) {

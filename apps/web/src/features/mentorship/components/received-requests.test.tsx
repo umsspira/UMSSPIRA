@@ -6,7 +6,8 @@ import { getReceivedRequest, listReceivedRequests, ReceivedRequestsError, respon
 
 const mockReplace = jest.fn();
 const mockRouter = { replace: mockReplace };
-jest.mock('next/navigation', () => ({ useRouter: () => mockRouter, useSearchParams: () => new URLSearchParams() }));
+const mockSearchParams = new URLSearchParams();
+jest.mock('next/navigation', () => ({ useRouter: () => mockRouter, useSearchParams: () => mockSearchParams }));
 jest.mock('../services/mentorship-api', () => ({ getMentorProfile: jest.fn() }));
 jest.mock('../services/received-requests-api', () => ({
   getReceivedRequest: jest.fn(),
@@ -30,6 +31,7 @@ const request = (
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockSearchParams.delete('view');
   (getMentorProfile as jest.Mock).mockResolvedValue({ isActive: true });
   (listReceivedRequests as jest.Mock).mockImplementation(async (status: string, page = 1) => {
     const item = status === 'PENDIENTE' ? request() : null;
@@ -48,6 +50,24 @@ it('muestra la bandeja en una tabla compacta con solicitante, fecha y motivo', a
   expect(screen.queryByText(/Modo de prueba/)).not.toBeInTheDocument();
   expect(screen.getByRole('table')).toBeInTheDocument();
   expect(listReceivedRequests).toHaveBeenCalledWith('PENDIENTE', 1, expect.anything(), 5);
+});
+
+it('muestra las solicitudes enviadas con fecha completa y orden descendente', () => {
+  mockSearchParams.set('view', 'sent');
+  render(<ReceivedRequests />);
+
+  const table = screen.getByRole('table');
+  const rows = within(table).getAllByRole('row');
+  expect(rows).toHaveLength(6);
+  expect(within(rows[1]).getByText('Enviada el')).toBeInTheDocument();
+  expect(within(rows[1]).getByText('23/10/2026')).toBeInTheDocument();
+  expect(within(rows[2]).getByText('22/10/2026')).toBeInTheDocument();
+  expect(screen.getByText('Mostrando 1–5 de 7 · Más recientes primero')).toBeInTheDocument();
+  expect(listReceivedRequests).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Página 2' }));
+  expect(within(screen.getByRole('table')).getByText('09/10/2026')).toBeInTheDocument();
+  expect(within(screen.getByRole('table')).getByText('05/10/2026')).toBeInTheDocument();
 });
 
 it('filtra por aceptadas desde el servicio', async () => {
@@ -84,7 +104,7 @@ it('muestra como máximo cinco solicitudes por página y permite avanzar a la p�
 
   expect(await screen.findByText('Aceptado 1')).toBeInTheDocument();
   expect(screen.queryByText('Solicitante 1')).not.toBeInTheDocument();
-  expect(within(table).getAllByRole('row')).toHaveLength(5);
+  await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(5));
   expect(listReceivedRequests).toHaveBeenCalledWith('PENDIENTE', 2, expect.anything(), 5);
 });
 
@@ -128,15 +148,19 @@ it('acepta tras confirmar y muestra el estado nuevo y la fecha de respuesta', as
   expect(respondToReceivedRequest).toHaveBeenCalledWith('request-1', 'accept');
   fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
   expect(await screen.findByText('Aceptada')).toBeInTheDocument();
-  expect(screen.getByText(/Respondida: 2026-10-21/)).toBeInTheDocument();
+  expect(screen.getByText('20/10/2026')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument();
 });
 
 it('rechaza tras confirmar y muestra el mensaje exacto', async () => {
-  (respondToReceivedRequest as jest.Mock).mockResolvedValue(request('RECHAZADO'));
+  let responseStatus = 'PENDIENTE';
+  (respondToReceivedRequest as jest.Mock).mockImplementation(async () => {
+    responseStatus = 'RECHAZADO';
+    return request('RECHAZADO');
+  });
   (listReceivedRequests as jest.Mock).mockImplementation(async (status: string) => {
-    const item = status === 'RECHAZADO' ? request('RECHAZADO') : status === 'PENDIENTE' ? request() : null;
-    return { items: item ? [item] : [], page: 1, pageSize: 20, total: item ? 1 : 0, totalPages: 1 };
+    const item = status === responseStatus ? request(responseStatus as 'PENDIENTE' | 'RECHAZADO') : null;
+    return { items: item ? [item] : [], page: 1, pageSize: 5, total: item ? 1 : 0, totalPages: 1 };
   });
   render(<ReceivedRequests />);
   await screen.findByText('Juan Pérez');
@@ -148,10 +172,16 @@ it('rechaza tras confirmar y muestra el mensaje exacto', async () => {
 
 it('muestra conflicto y actualiza estado cuando la respuesta perdió la carrera', async () => {
   (respondToReceivedRequest as jest.Mock).mockRejectedValue(new ReceivedRequestsError('conflict', 409, 'SOLICITUD_NO_PENDIENTE'));
-  (getReceivedRequest as jest.Mock).mockResolvedValue(request('RECHAZADO'));
+  let showRejected = false;
+  (getReceivedRequest as jest.Mock).mockImplementation(async () => {
+    showRejected = true;
+    return request('RECHAZADO');
+  });
   (listReceivedRequests as jest.Mock).mockImplementation(async (status: string) => {
-    const item = status === 'PENDIENTE' ? request() : status === 'RECHAZADO' ? request('RECHAZADO') : null;
-    return { items: item ? [item] : [], page: 1, pageSize: 20, total: item ? 1 : 0, totalPages: 1 };
+    const item = status === 'PENDIENTE' && !showRejected
+      ? request()
+      : status === 'RECHAZADO' && showRejected ? request('RECHAZADO') : null;
+    return { items: item ? [item] : [], page: 1, pageSize: 5, total: item ? 1 : 0, totalPages: 1 };
   });
   render(<ReceivedRequests />);
   await screen.findByText('Juan Pérez');
@@ -171,6 +201,18 @@ it('mantiene pendiente y permite reintentar después de un error del servidor', 
   expect(await within(screen.getByRole('dialog')).findByText('No se pudo registrar tu respuesta. Intenta nuevamente.')).toBeInTheDocument();
   expect(screen.getByText('Pendiente')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
+});
+
+it('muestra el motivo devuelto por la API cuando no puede aceptar la solicitud', async () => {
+  (respondToReceivedRequest as jest.Mock).mockRejectedValueOnce(
+    new ReceivedRequestsError('Se requiere una participación activa como mentor', 403),
+  );
+  render(<ReceivedRequests />);
+  await screen.findByText('Juan Pérez');
+  fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar' }));
+  expect(await within(screen.getByRole('dialog')).findByText('Se requiere una participación activa como mentor')).toBeInTheDocument();
+  expect(screen.getByText('Pendiente')).toBeInTheDocument();
 });
 
 it('redirige a un usuario que no participa activamente como mentor', async () => {

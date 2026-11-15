@@ -38,7 +38,7 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
   { id: 'mentorship', label: 'Mentorías', items: [
     { id: 'inst-mentorias', label: 'Sobre las mentorías', href: '/portal/institucional?tab=mentorias', guestOnly: true },
     { id: 'mentorship', label: 'Red de mentorías', href: '/mentorship', roles: signedIn },
-    { id: 'mentor-requests', label: 'Mis solicitudes', href: '/mentorship/requests', roles: graduates },
+    { id: 'mentor-requests', label: 'Mis solicitudes', href: '/mentorship/requests?view=sent', roles: graduates },
   ] },
   { id: 'events', label: 'Eventos', items: [
     { id: 'inst-events', label: 'Eventos institucionales', href: '/portal/institucional?tab=eventos', guestOnly: true },

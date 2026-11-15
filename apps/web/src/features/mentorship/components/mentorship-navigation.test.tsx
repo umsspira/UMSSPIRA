@@ -29,7 +29,7 @@ it('muestra solo opciones generales y de activación si el titulado es elegible 
 
   expect(await screen.findByRole('link', { name: 'Activar participación como mentor' })).toHaveAttribute('href', '/mentorship/profile');
   expect(screen.getByRole('link', { name: 'Explorar mentores' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Mis solicitudes' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Mis solicitudes' })).toHaveAttribute('href', '/mentorship/requests?view=sent');
   expect(screen.queryByRole('link', { name: 'Solicitudes recibidas' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Mis áreas técnicas' })).not.toBeInTheDocument();
 });
@@ -51,6 +51,13 @@ it('muestra todas las opciones de mentor activo', async () => {
   expect(screen.getByRole('link', { name: 'Mis áreas técnicas' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Mi disponibilidad' })).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Activar participación como mentor' })).not.toBeInTheDocument();
+});
+
+it('marca Mis solicitudes como activa al abrir la vista enviada', async () => {
+  mockPathname = '/mentorship/requests';
+  render(<MentorshipNavigation><p>Historial enviado</p></MentorshipNavigation>);
+
+  expect(await screen.findByRole('link', { name: 'Mis solicitudes' })).toHaveAttribute('aria-current', 'page');
 });
 
 it('oculta el contenido exclusivo mientras verifica permiso y redirige si la cuenta no es mentora', async () => {

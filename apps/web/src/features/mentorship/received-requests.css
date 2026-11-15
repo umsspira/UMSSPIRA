@@ -109,6 +109,9 @@
 .sent-mentor strong { font-size: .69rem; }
 .sent-mentor small { margin-top: .1rem; color: #848b91; font-size: .6rem; }
 .sent-table .sent-reason { min-width: 11rem; max-width: 15rem; color: #727a82; font-size: .65rem; line-height: 1.4; }
+.sent-date-label, .sent-date { display: block; white-space: nowrap; }
+.sent-date-label { margin-bottom: .15rem; color: #848b91; font-size: .6rem; }
+.sent-date { color: #354456; font-size: .67rem; font-weight: 600; }
 .sent-cancel { min-height: 1.9rem; padding: .3rem .55rem; border-color: #e7c4b8; color: #a84637; font-size: .65rem; white-space: nowrap; }
 .sent-no-action { color: #abb0b4; font-size: .63rem; white-space: nowrap; }
 @media (max-width: 600px) {
