@@ -1,0 +1,49 @@
+meta {
+  name: Revalidacion-T9.3
+  seq: 14
+}
+
+docs {
+  Revalidacion de la tarea T9.3 (HU-9) sobre /api/v1/auth/me, GET /api/v1/radar y
+  POST /api/v1/radar/recalculate con cuentas de titulado, empresa y administrador.
+
+  Criterios cubiertos:
+  - CA-HU9-02: /auth/me del titulado incluye nlp:extract, radar:self:read y
+    radar:self:write; la empresa carece de los tres.
+  - CA-HU9-03: GET /radar responde 200 con titulado, 403 sin radar:self:read y 401
+    sin token. Un 404 incumple el criterio.
+  - CA-HU9-04: POST /radar/recalculate responde 200 con titulado, 403 sin
+    radar:self:write y 401 sin token. Un 404 incumple el criterio.
+  - CA-HU9-05: POST /radar/recalculate responde 503 si el diccionario no carga.
+    Esta comprobacion requiere una base sin diccionario; no se ejecuta en la
+    coleccion para no alterar datos.
+
+  El resultado esperado del administrador no esta definido por ningun CA. Se
+  registra como comportamiento observado en codigo y queda [POR CONFIRMAR con PO/BE].
+
+  Ejecuta los casos en orden: 001, 002 y 003 inician sesion y guardan los tokens en
+  variables de ejecucion; 004 a 012 usan esos tokens. Ningun token ni clave se
+  guarda en el repositorio.
+
+  Completa las credenciales en vars:pre-request (o en un entorno local de Bruno).
+  Los valores de correo y contrasena son datos ficticios de demostracion; no
+  escribas tokens reales en este archivo.
+}
+
+vars:pre-request {
+  tituladoEmail:
+  tituladoPassword:
+  empresaEmail:
+  empresaPassword:
+  administradorEmail:
+  administradorPassword:
+}
+
+vars:secret [
+  tituladoPassword,
+  empresaPassword,
+  administradorPassword,
+  tituladoToken,
+  empresaToken,
+  administradorToken
+]

@@ -1,40 +1,32 @@
-
 import { defineConfig, devices } from '@playwright/test';
+
+const PORT = 3001;
+const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
+  timeout: 60_000,
   fullyParallel: false,
   retries: 0,
-
-  reporter: [
-    ['list'],
-    ['html', { open: 'never' }],
-  ],
-
-  outputDir: './test-results',
-
+  reporter: [['html', { outputFolder: 'playwright-report', open: 'never' }], ['list']],
   use: {
-    baseURL: 'http://localhost:3001',
-    trace: 'retain-on-failure',
+    baseURL: BASE_URL,
+    trace: 'on-first-retry',
+    video: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-
   projects: [
-    {
-      name: 'mobile-chromium-360',
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 360, height: 800 },
-        isMobile: true,
-        hasTouch: true,
-      },
-    },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
+    { name: 'mobile-firefox', use: { ...devices['Pixel 7'], browserName: 'firefox' } },
   ],
-
-  webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:3001/register',
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: 'pnpm dev',
+        url: BASE_URL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
 });

@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { Loader2Icon } from 'lucide-react';
 import { useMentorDirectory } from '../../hooks/use-mentor-directory';
 import { emptyDirectoryFilters } from '../../model/mentor-directory';
@@ -17,11 +16,6 @@ export function MentorDirectoryPage() {
     : `${directory.total} ${directory.total === 1 ? 'mentor encontrado' : 'mentores encontrados'}`;
 
   return <main className="mentorship-shell directory-shell">
-    <nav className="mentorship-breadcrumb" aria-label="Ruta de navegación"><ol className="breadcrumb-list">
-      <li><Link href="/" className="breadcrumb-link">Inicio</Link></li><li aria-hidden="true">/</li>
-      <li><Link href="/mentorship" className="breadcrumb-link">Mentorías</Link></li><li aria-hidden="true">/</li>
-      <li className="breadcrumb-current" aria-current="page">Directorio de mentores</li>
-    </ol></nav>
     <header className="directory-header"><h1>Directorio de mentores</h1>
       <p>Encuentra profesionales de la comunidad UMSS que pueden orientarte en tu desarrollo académico y profesional.</p>
     </header>

@@ -76,15 +76,22 @@ const extractKeywords = (areas: CandidateArea[]): string[] =>
 
 export interface GraduateAffinityViewProps {
   enableSimulationControls?: boolean;
+  showDemoNotice?: boolean;
 }
 
 export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   enableSimulationControls,
+  showDemoNotice,
 }) => {
+  // Los controles de simulación son exclusivos de demos locales. La bandera
+  // nunca se honra en un build de producción, aunque quede definida por error.
   const isSimulationControlsEnabled =
     enableSimulationControls ??
-    process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS === 'true';
-
+    (process.env.NODE_ENV !== 'production' &&
+      process.env.NEXT_PUBLIC_ENABLE_SIMULATION_CONTROLS === 'true');
+  // El aviso solo aparece cuando una pantalla se declara explícitamente como
+  // demostración; la vista operativa nunca muestra datos de ejemplo.
+  const isDemoMode = showDemoNotice ?? false;
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [profileState, setProfileState] = useState<'calculated' | 'customizing'>('calculated');
@@ -100,14 +107,9 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [lastCalculatedAt, setLastCalculatedAt] = useState<string | null>(null);
 
-  const [candidateAreas, setCandidateAreas] = useState<CandidateArea[]>([
-    { area: 'software-development', affinity: 95 },
-    { area: 'cloud-devops', affinity: 64 },
-    { area: 'data-ai', affinity: 71 },
-    { area: 'quality-assurance', affinity: 58 },
-    { area: 'cybersecurity-networks', affinity: 42 },
-    { area: 'it-management', affinity: 50 },
-  ]);
+  const [candidateAreas, setCandidateAreas] = useState<CandidateArea[]>(
+    AFFINITY_AREAS.map((area) => ({ area, affinity: 0 })),
+  );
   const [loadedKeywords, setLoadedKeywords] = useState<string[]>([]);
 
   const { hasPendingChanges, markPendingChanges, clearPendingChanges } = useRecalculateState();
@@ -343,6 +345,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     previousAffinity: item.previousAffinity ?? null,
     evidence: item.evidence ?? [],
     topKeywords: item.topKeywords ?? [],
+    explanation: item.explanation ?? null,
   }));
 
   const areasWithAffinity = orderedCandidateAreas.filter((item) => item.affinity > 0);
@@ -364,6 +367,15 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {isDemoMode && (
+          <div
+            role="status"
+            data-testid="affinity-demo-notice"
+            className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] text-amber-900"
+          >
+            Demostración: los datos de esta pantalla son de ejemplo y no corresponden a tu perfil.
+          </div>
+        )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
@@ -442,7 +454,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                         Completa tu perfil para<br />descubrir tu afinidad profesional
                       </h3>
                       <p className="text-xs text-slate-500 mb-5 max-w-[260px] mx-auto leading-relaxed">
-                        Aún no podemos calcular tus áreas de mayor afinidad. Necesitamos algunos datos de tu perfil para generar tu mapa de afinidad.
+                        Aún no podemos mostrar coincidencias. Completa y guarda la información de tu perfil para generar tu radar.
                       </p>
                       <button 
                         type="button"
@@ -469,7 +481,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   <div className="mt-6 bg-palladian rounded-xl border border-oatmeal/60 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
-                      <span className="text-sm font-bold text-gray-800">Áreas con mayor afinidad identificadas:</span>
+                      <span className="text-sm font-bold text-gray-800">Áreas con mayor coincidencia de palabras:</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {topAffinityAreas.map((area, index) => (
@@ -516,7 +528,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
 
               <div className="pt-6 border-t border-palladian mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p className="text-[13px] text-blue-fantastic">
-                  Áreas profesionales, porcentaje de afinidad y palabras clave relacionadas con tu perfil.
+                  Áreas profesionales y coincidencias de palabras clave encontradas en la información de tu perfil.
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -562,6 +574,9 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   onSelectArea={setSelectedAreaId}
                   areas={inspectionAreas}
                   certificationsPanel={selectedAreaId && AFFINITY_AREAS.includes(selectedAreaId as AffinityArea) ? <RadarCertificationsPanel area={selectedAreaId as AffinityArea} calculationKey={lastCalculatedAt} /> : undefined}
+                  isExplanationLoading={isLoading}
+                  hasExplanationError={hasRadarError}
+                  onRetryExplanation={() => { void handleRetry(); }}
                 />
               )}
             </div>

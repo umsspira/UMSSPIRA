@@ -42,10 +42,19 @@ tests {
     expect(res.body.data.keywords).to.not.be.empty;
   });
 
-  test("Cada keyword tiene term (string) y count (number)", function() {
+  test("Cada keyword tiene term (string) y count (number) sin exponer areas ni pesos (CA-HU10-02, CA-HU10-04)", function() {
     res.body.data.keywords.forEach(function(k) {
       expect(k).to.have.property("term").that.is.a("string");
       expect(k).to.have.property("count").that.is.a("number");
+      expect(k).to.not.have.property("areas");
+      expect(k).to.not.have.property("weight");
+      expect(k).to.not.have.property("weights");
+    });
+    res.body.data.unmapped.forEach(function(u) {
+      expect(u).to.have.property("term").that.is.a("string");
+      expect(u).to.have.property("count").that.is.a("number");
+      expect(u).to.not.have.property("areas");
+      expect(u).to.not.have.property("weight");
     });
   });
 
@@ -64,4 +73,5 @@ docs {
   CA-HU5-01: texto con keywords mapeadas -> HTTP 200 con data.keywords no vacias.
   CA-HU5-06: cada keyword tiene term (string) y count (number) — sin tope aplicado aqui.
   CA-HU5-17: tiempo de respuesta < 1 000 ms.
+  CA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto tras mover el mapeo de areas a radar; NLP solo devuelve term y count.
 }

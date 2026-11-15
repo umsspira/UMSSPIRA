@@ -13,12 +13,8 @@ const customJestConfig = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-
   // Las pruebas E2E pertenecen a Playwright, no a Jest.
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '<rootDir>/e2e/',
-  ],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/', '/.next/'],
 };
 
 module.exports = createJestConfig(customJestConfig);

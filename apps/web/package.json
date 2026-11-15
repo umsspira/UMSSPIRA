@@ -14,7 +14,9 @@
     "test:watch": "jest --watch",
     "ocr:prepare": "node scripts/prepare-ocr.mjs",
     "ocr:models": "node scripts/download-ocr-models.mjs",
-    "test:ocr-browser": "node scripts/verify-ocr-browser.cjs"
+    "test:ocr-browser": "node scripts/verify-ocr-browser.cjs",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -48,6 +50,7 @@
     "autoprefixer": "^10.6.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
+    "fake-indexeddb": "^6.2.8",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
     "postcss": "^8",
