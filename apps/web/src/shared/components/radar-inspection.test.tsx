@@ -1,27 +1,36 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { AffinityAreaExplanation } from '@umsspira/shared-types';
 import RadarInspection, { type AreaData } from './radar-inspection';
 
-// Mock del JSON para controlar los escenarios de prueba
-jest.mock('../mocks/affinity-vector-mock.json', () => ({
-  areas: [
+const explanationFixture: AffinityAreaExplanation = {
+  cause: 'profile',
+  changes: [
     {
-      area: 'software-development',
-      name: 'Desarrollo de Software',
-      affinity: 85.6,
-      evidence: [
-        { type: 'certification', title: 'Certificado React Avanzado' },
-        { type: 'project', title: 'Sistema de Gestión' }
-      ]
+      keyword: 'AWS',
+      previousPoints: 0,
+      currentPoints: 10,
+      deltaPercentagePoints: 25,
     },
     {
-      area: 'cloud-devops',
-      name: 'Cloud/DevOps',
-      affinity: 70,
-      evidence: [] // Área sin respaldos (HU2-C9)
-    }
-  ]
-}));
+      keyword: 'Solutions Architect',
+      previousPoints: 0,
+      currentPoints: 4,
+      deltaPercentagePoints: 10,
+    },
+  ],
+};
+
+const inspectionFixture: AreaData[] = [
+  {
+    area: 'software-development', affinity: 85.6,
+    evidence: [
+      { type: 'certification', title: 'Certificado React Avanzado' },
+      { type: 'project', title: 'Sistema de Gestión' },
+    ],
+  },
+  { area: 'cloud-devops', affinity: 70, evidence: [] },
+];
 
 describe('RadarInspection Component', () => {
   const mockOnSelectArea = jest.fn();
@@ -42,7 +51,7 @@ describe('RadarInspection Component', () => {
 
     // Verificamos que se muestre el texto de estado vacío obligatorio
     expect(
-      screen.getByText(/Sin datos de historial laboral/i)
+      screen.getByText(/Sin datos de afinidad disponibles/i)
     ).toBeInTheDocument();
 
     // Verificamos rigurosamente que NO se renderice ningún botón
@@ -50,10 +59,10 @@ describe('RadarInspection Component', () => {
   });
 
   test('C4, C6 & C3: Muestra las áreas con sus nombres oficiales, porcentajes enteros y permite seleccionar un área', () => {
-    render(<RadarInspection selectedAreaId={null} onSelectArea={mockOnSelectArea} />);
+    render(<RadarInspection selectedAreaId={null} onSelectArea={mockOnSelectArea} areas={inspectionFixture} />);
 
     // Verifica que se muestre el texto de ayuda y los nombres de las áreas mapeadas
-    expect(screen.getByText('Haz clic en un área para inspeccionar sus respaldos')).toBeInTheDocument();
+    expect(screen.getByText('Haz clic en un área para ver sus palabras clave')).toBeInTheDocument();
     expect(screen.getByText('Desarrollo de Software')).toBeInTheDocument();
     expect(screen.getByText('Cloud, DevOps & Infraestructura')).toBeInTheDocument();
 
@@ -66,7 +75,7 @@ describe('RadarInspection Component', () => {
   });
 
   test('C4: Muestra únicamente los respaldos del área seleccionada', () => {
-    render(<RadarInspection selectedAreaId="software-development" onSelectArea={mockOnSelectArea} />);
+    render(<RadarInspection selectedAreaId="software-development" onSelectArea={mockOnSelectArea} areas={inspectionFixture} />);
 
     // Debe mostrar los respaldos de desarrollo de software
     expect(screen.getByText('Certificado React Avanzado')).toBeInTheDocument();
@@ -75,7 +84,7 @@ describe('RadarInspection Component', () => {
 
   test('C5: Permite reemplazar la selección anterior enviando el nuevo ID o null al hacer clic', () => {
     const { rerender } = render(
-      <RadarInspection selectedAreaId="software-development" onSelectArea={mockOnSelectArea} />
+      <RadarInspection selectedAreaId="software-development" onSelectArea={mockOnSelectArea} areas={inspectionFixture} />
     );
 
     // Si hacemos clic en "Volver al resumen" o en otra área, se dispara la prop
@@ -84,16 +93,16 @@ describe('RadarInspection Component', () => {
     expect(mockOnSelectArea).toHaveBeenCalledWith(null);
 
     // Simulamos cambio de selección por props
-    rerender(<RadarInspection selectedAreaId="cloud-devops" onSelectArea={mockOnSelectArea} />);
+    rerender(<RadarInspection selectedAreaId="cloud-devops" onSelectArea={mockOnSelectArea} areas={inspectionFixture} />);
     expect(screen.getByText('Área: Cloud, DevOps & Infraestructura')).toBeInTheDocument();
   });
 
   test('C9: Muestra el mensaje adecuado cuando el área seleccionada no tiene respaldos asociados', () => {
-    render(<RadarInspection selectedAreaId="cloud-devops" onSelectArea={mockOnSelectArea} />);
+    render(<RadarInspection selectedAreaId="cloud-devops" onSelectArea={mockOnSelectArea} areas={inspectionFixture} />);
 
-    // Si no tiene evidencia: [], debe mostrar los mensajes de ausencia de respaldos
-    expect(screen.getAllByText(/No hay certificaciones registradas para esta área/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Esta área no tiene respaldos asociados/i)).toBeInTheDocument();
+    expect(screen.getByText(/No se recibió información de respaldos para esta área/)).toBeInTheDocument();
+    expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Esta área no tiene respaldos asociados/)).not.toBeInTheDocument();
   });
 });
 
@@ -199,5 +208,157 @@ describe('RadarInspection - indicador de variación en las barras del resumen', 
     expect(
       screen.getByText('Área: Cloud, DevOps & Infraestructura'),
     ).toBeInTheDocument();
+  });
+});
+
+describe('Información real sin vinculación de respaldos', () => {
+  it.each([{ evidence: undefined }, { evidence: [] }])('conserva el porcentaje y los aportes cuando evidence es $evidence', ({ evidence }) => {
+    render(<RadarInspection selectedAreaId="software-development" onSelectArea={jest.fn()} areas={[{
+      area: 'software-development', affinity: 35, evidence,
+      topKeywords: [{keyword: 'typescript', frequency: 2, weight: 5, points: 10, percentage: 25}],
+    }]} />);
+    expect(screen.getByText('35%')).toBeInTheDocument();
+    expect(screen.getAllByText('typescript')).toHaveLength(1);
+    expect(screen.getByText(/No se recibió información de respaldos/)).toBeInTheDocument();
+    expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
+    expect(screen.getByText(/título e institución.*cargo y empresa.*nombre y entidad emisora.*descripción profesional.*nombre, descripción y tecnologías de los proyectos/)).toBeInTheDocument();
+    expect(screen.queryByText(/electivas aprobadas|certificaciones validadas/)).not.toBeInTheDocument();
+  });
+
+  it('no carga un mock implícito si no se reciben áreas', () => {
+    render(<RadarInspection selectedAreaId={null} onSelectArea={jest.fn()} />);
+    expect(screen.getByText('Sin datos de afinidad disponibles')).toBeInTheDocument();
+    expect(screen.queryByText('Desarrollo de Software')).not.toBeInTheDocument();
+  });
+});
+
+
+it('un 0 % describe los aportes detectados, sin afirmar que no existen certificaciones', () => {
+  render(<RadarInspection selectedAreaId="quality-assurance" onSelectArea={jest.fn()} areas={[{ area: 'quality-assurance', affinity: 0 }]} />);
+  expect(screen.getByText(/No se detectaron aportes para esta área/)).toBeInTheDocument();
+  expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
+});
+
+describe('T11.5 · Revisión contra la tabla de fuentes y cierre de F-10 y F-05', () => {
+  it('incluye las fuentes reales, avisos de interpretación, información guardada y negaciones sin emojis ni campos no analizados', () => {
+    const { container } = render(
+      <RadarInspection
+        selectedAreaId="software-development"
+        onSelectArea={jest.fn()}
+        areas={[
+          {
+            area: 'software-development',
+            affinity: 35,
+            topKeywords: [
+              { keyword: 'typescript', frequency: 2, weight: 5, points: 10, percentage: 25 },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        /título e institución de formación, cargo y empresa de experiencia laboral, nombre y entidad emisora de certificaciones, descripción profesional, y nombre, descripción y tecnologías de los proyectos/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Las fechas, los archivos adjuntos y los enlaces de los proyectos quedan fuera del cálculo/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no mide ni certifica tu nivel de competencia/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Solo se utiliza la información guardada en tu perfil\. Los cambios que aún no hayas guardado no se incluyen en el cálculo/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/El sistema no interpreta negaciones/i),
+    ).toBeInTheDocument();
+
+    const text = container.textContent ?? '';
+    const hasEmoji = Array.from(text).some((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint >= 0x1f300 && codePoint <= 0x1faff;
+    });
+    expect(hasEmoji).toBe(false);
+    expect(text).not.toMatch(/certificaciones validadas|electivas aprobadas|CV|foto de perfil/i);
+  });
+});
+
+describe('T13.5 · bloque de explicación dentro del panel de inspección', () => {
+  const areasWithExplanation: AreaData[] = [
+    {
+      area: 'cloud-devops',
+      affinity: 35,
+      previousAffinity: 0,
+      explanation: explanationFixture,
+    },
+  ];
+
+  it('muestra el bloque solo para el área seleccionada', () => {
+    const { rerender } = render(
+      <RadarInspection
+        selectedAreaId={null}
+        onSelectArea={jest.fn()}
+        areas={areasWithExplanation}
+      />,
+    );
+
+    expect(screen.queryByText('¿Por qué cambió?')).not.toBeInTheDocument();
+
+    rerender(
+      <RadarInspection
+        selectedAreaId="cloud-devops"
+        onSelectArea={jest.fn()}
+        areas={areasWithExplanation}
+      />,
+    );
+
+    expect(screen.getByText('¿Por qué cambió?')).toBeInTheDocument();
+    expect(screen.getByText('+25 puntos porcentuales')).toBeInTheDocument();
+  });
+
+  it('no muestra el bloque cuando el área no tiene explicación', () => {
+    render(
+      <RadarInspection
+        selectedAreaId="cloud-devops"
+        onSelectArea={jest.fn()}
+        areas={[{ area: 'cloud-devops', affinity: 35, previousAffinity: 0 }]}
+      />,
+    );
+
+    expect(screen.queryByText('¿Por qué cambió?')).not.toBeInTheDocument();
+  });
+
+  it('refleja los estados de carga y error del panel', () => {
+    const { rerender } = render(
+      <RadarInspection
+        selectedAreaId="cloud-devops"
+        onSelectArea={jest.fn()}
+        areas={areasWithExplanation}
+        isExplanationLoading
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Cargando la explicación de los cambios',
+    );
+
+    rerender(
+      <RadarInspection
+        selectedAreaId="cloud-devops"
+        onSelectArea={jest.fn()}
+        areas={areasWithExplanation}
+        hasExplanationError
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No se pudo cargar la explicación de los cambios de esta área.',
+    );
   });
 });

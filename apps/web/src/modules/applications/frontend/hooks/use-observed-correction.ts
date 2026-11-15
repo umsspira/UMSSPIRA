@@ -10,7 +10,6 @@ import { personalDataSchema } from "@/modules/registration/frontend/validation/p
 export type CorrectionValues = {
   firstName: string;
   lastName: string;
-  birthDate: string;
   ci: string;
   complement: string;
   issuedIn: string;
@@ -48,7 +47,6 @@ const SCHEMA_KEY = {
 } as const;
 
 function validateField(name: keyof CorrectionValues, value: string): string | null {
-  if (name === "birthDate") return value.trim() ? null : REQUIRED_MESSAGE;
   if (name === "documentType") {
     return value.trim() ? null : DOCUMENT_ERROR_MESSAGES.missingType;
   }

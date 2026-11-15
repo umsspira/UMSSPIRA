@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import { validateDocument } from '../../domain/policies/document.policy';
+import { toObservationContent } from '../../domain/policies/observation-content';
 import type {
   ObservedApplicationDetail,
   ReplaceObservedDocumentResponse,
@@ -15,6 +16,13 @@ import type {
   UpdateObservedDataUseCaseInput,
   UploadedDocument,
 } from '../../application/contracts/registration-inputs';
+import type { RegistrationFile } from '../../domain/entities/registration';
+import { toRegistrationFile } from '../translators/registration.translator';
+function currentVersion(
+  row: { version_vigente?: number | null },
+): number {
+  return row.version_vigente ?? 1;
+}
 
 @Injectable()
 export class PrismaObservedApplicationRepository implements ObservedApplicationPort {
@@ -31,8 +39,10 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
         dictamen_registros: {
           orderBy: { fecha_creacion: 'desc' },
           take: 1,
+          include: {
+            motivos: { include: { motivo: true }, orderBy: { id_motivo: 'asc' } },
+          },
         },
-        version_registros: true,
       },
     });
 
@@ -44,7 +54,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
       );
     }
 
-    const currentVersion = row.version_registros.length + 1;
+    const version = currentVersion(row);
 
     let docInfo = null;
     if (row.documento_respaldo) {
@@ -69,16 +79,23 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
     }
 
     const latestReview = row.dictamen_registros[0];
+    const content = toObservationContent({
+      reasons: (latestReview?.motivos ?? []).map((link) => link.motivo.etiqueta),
+      category: latestReview?.categoria,
+      explanation: latestReview?.justificacion,
+    });
     const observacion = {
       categoria: latestReview?.categoria ?? null,
       justificacion: latestReview?.justificacion ?? null,
       fecha: latestReview?.fecha_creacion?.toISOString() ?? null,
+      // Observaciones nuevas: etiquetas de los motivos. Antiguas: la categoría única.
+      motivos: content.reasons,
     };
 
     const d = row.detalle_solicitud;
     return {
       id: row.id,
-      version: currentVersion,
+      version,
       nombres: d?.nombre ?? '',
       apellidos: d?.apellido ?? '',
       ci: d?.ci ?? '',
@@ -99,6 +116,43 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
       observacion,
       documento: docInfo,
     };
+  }
+
+  async getDocumentContent(applicationId: string): Promise<RegistrationFile> {
+    const row = await this.prisma.solicitud.findUnique({
+      where: { id: applicationId },
+      include: { documento_respaldo: true },
+    });
+
+    if (!row || (row.estado !== 'OBSERVED' && row.estado !== 'OBSERVADA')) {
+      throw new BusinessRuleError(
+        'missing',
+        'APPLICATION_NOT_FOUND',
+        'La solicitud no existe o no está disponible',
+      );
+    }
+
+    const storagePath = row.documento_respaldo?.ruta_storage;
+    if (!storagePath) {
+      throw new BusinessRuleError(
+        'missing',
+        'DOCUMENT_NOT_FOUND',
+        'No se encontró el documento de respaldo',
+      );
+    }
+
+    const file = await this.prisma.archivoRegistro.findUnique({
+      where: { id: storagePath },
+    });
+    if (!file) {
+      throw new BusinessRuleError(
+        'missing',
+        'DOCUMENT_NOT_FOUND',
+        'No se encontró el archivo del documento',
+      );
+    }
+
+    return toRegistrationFile(file);
   }
 
   async updateObservedApplication(
@@ -125,8 +179,8 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           );
         }
 
-        const currentVersion = row.version_registros.length + 1;
-        if (input.expectedVersion !== currentVersion) {
+        const version = currentVersion(row);
+        if (input.expectedVersion !== version) {
           throw new BusinessRuleError(
             'conflict',
             'VERSION_CONFLICT',
@@ -156,13 +210,20 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
             : null,
         };
 
-        await tx.solicitudVersion.create({
-          data: {
+        await tx.solicitudVersion.upsert({
+          where: {
+            id_solicitud_numero_version: {
             id_solicitud: applicationId,
-            numero_version: currentVersion,
+            numero_version: version,
+          },
+        },
+          create: {
+            id_solicitud: applicationId,
+            numero_version: version,
             snapshot_detalle: snapshot,
             id_documento_respaldo: row.id_documento_respaldo,
           },
+        update: {},
         });
 
         if (row.id_detalle_solicitud) {
@@ -190,6 +251,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           where: { id: applicationId },
           data: {
             fecha_actualizacion: new Date(),
+            version_vigente: version + 1,
           },
         });
 
@@ -207,7 +269,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           });
         }
 
-        const nextVersion = currentVersion + 1;
+        const nextVersion = version + 1;
         return {
           id: applicationId,
           version: nextVersion,
@@ -220,6 +282,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
       { timeout: 15000 },
     );
   }
+
   async replaceDocument(
     applicationId: string,
     file: UploadedDocument,
@@ -257,8 +320,10 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
         if (row.id_documento_respaldo) {
           await tx.documentoRespaldo.update({
             where: { id: row.id_documento_respaldo },
-            data: { es_valido: false },
-          });
+            data: {
+              es_vigente: false,
+            },
+        });
         }
 
         const cleanName = file.originalname
@@ -297,6 +362,42 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
             tamanio_mb: Math.ceil(file.buffer.length / 1048576),
             fecha_creacion: new Date(),
             es_valido: true,
+            es_vigente: true, // INT-03: marcar nuevo vigente
+          },
+        });
+
+        const version = currentVersion(row);
+        const nextVersion = version + 1;
+
+        // Asegurar que la versión anterior conserve
+        // la referencia al respaldo que utilizaba.
+        await tx.solicitudVersion.upsert({
+          where: {
+            id_solicitud_numero_version: {
+              id_solicitud: applicationId,
+              numero_version: version,
+            },
+          },
+          create: {
+            id_solicitud: applicationId,
+            numero_version: version,
+            snapshot_detalle: {
+              id_documento_respaldo: row.id_documento_respaldo,
+            },
+            id_documento_respaldo: row.id_documento_respaldo,
+          },
+          update: {},
+        });
+
+        await tx.solicitudVersion.create({
+          data: {
+            id_solicitud: applicationId,
+            numero_version: nextVersion,
+            snapshot_detalle: {
+              id_documento_respaldo: newDoc.id,
+              reemplazado_en: new Date().toISOString(),
+            },
+            id_documento_respaldo: newDoc.id,
           },
         });
 
@@ -305,6 +406,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           data: {
             id_documento_respaldo: newDoc.id,
             fecha_actualizacion: new Date(),
+            version_vigente: nextVersion, // INT-03: incrementar versión
           },
         });
 
@@ -320,6 +422,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
       { timeout: 15000 },
     );
   }
+
   async submitCorrection(
     applicationId: string,
     input: SubmitCorrectionUseCaseInput,
@@ -332,7 +435,6 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           where: { id: applicationId },
           include: {
             detalle_solicitud: true,
-            version_registros: true,
           },
         });
 
@@ -348,7 +450,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           return {
             id: applicationId,
             estado: row.estado,
-            version: row.version_registros.length + 1,
+            version: currentVersion(row),
             message: 'La corrección ya fue enviada y se encuentra pendiente de revisión',
           };
         }
@@ -361,8 +463,8 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           );
         }
 
-        const currentVersion = row.version_registros.length + 1;
-        if (input.expectedVersion !== currentVersion) {
+        const version = currentVersion(row);
+        if (input.expectedVersion !== version) {
           throw new BusinessRuleError(
             'conflict',
             'VERSION_CONFLICT',
@@ -400,11 +502,40 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
             : null,
         };
 
-        await tx.solicitudVersion.create({
-          data: {
-            id_solicitud: applicationId,
-            numero_version: currentVersion,
+        const versionKey = {
+          id_solicitud: applicationId,
+          numero_version: version,
+        };
+
+        const existingVersion = await tx.solicitudVersion.findUnique({
+          where: {
+            id_solicitud_numero_version: versionKey,
+          },
+        });
+
+        const previousSnapshot = existingVersion?.snapshot_detalle;
+
+        const previousFields =
+          previousSnapshot &&
+          typeof previousSnapshot === 'object' &&
+          !Array.isArray(previousSnapshot)
+            ? previousSnapshot
+            : {};
+
+        await tx.solicitudVersion.upsert({
+          where: {
+            id_solicitud_numero_version: versionKey,
+          },
+          create: {
+            ...versionKey,
             snapshot_detalle: snapshot,
+            id_documento_respaldo: row.id_documento_respaldo,
+          },
+          update: {
+            snapshot_detalle: {
+              ...previousFields,
+              ...snapshot,
+            },
             id_documento_respaldo: row.id_documento_respaldo,
           },
         });
@@ -414,6 +545,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           data: {
             estado: 'PENDIENTE',
             fecha_actualizacion: new Date(),
+            version_vigente: version,
           },
         });
 
@@ -430,7 +562,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
         return {
           id: applicationId,
           estado: 'PENDIENTE',
-          version: currentVersion + 1,
+          version,
           message: 'Corrección entregada exitosamente',
         };
       },

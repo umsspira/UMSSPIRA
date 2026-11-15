@@ -18,7 +18,10 @@ import {
   guardarDescripcion,
   subirRespaldo,
 } from '@/modules/profile/services/perfil-api';
+import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
+import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
+import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
 import {
   profileCompleteness,
@@ -27,6 +30,7 @@ import {
 import type {
   CertificationRecord,
   EducationRecord,
+  DeleteRecordErrorCode,
   ExperienceRecord,
 } from '@/modules/profile/types/profile-record';
  
@@ -40,14 +44,48 @@ export function AcordeonPerfil({
   seccionInicial?: CompletenessSectionId;
 }) {
   // Los registros vienen del estado compartido del perfil, así lo agregado aquí aparece en el resumen
-  const { records, description, addEducation, addExperience, addCertification, setDescription } =
-    useProfileStore();
+  const {
+    records,
+    description,
+    isLoading,
+    loadError,
+    retryLoad,
+    addEducation,
+    addExperience,
+    addCertification,
+    setDescription,
+    removeRecord,
+  } = useProfileStore();
   const router = useRouter();
   const [avisoBorrador, setAvisoBorrador] = useState(false);
+  // Errores sin corregir por sección, para el contador del encabezado (HU-02, AC 6)
+  const [erroresFormacion, setErroresFormacion] = useState(0);
+  const [erroresExperiencia, setErroresExperiencia] = useState(0);
+  const [erroresCertificaciones, setErroresCertificaciones] = useState(0);
   // Avance (0 a 100) de la subida del respaldo mientras se guarda una certificación
   const [progresoSubida, setProgresoSubida] = useState<number>();
+  // Certificación que se va a eliminar desde Completar perfil (BUG HU8-02), con el mismo modal que Mis registros
+  const [certificacionAEliminar, setCertificacionAEliminar] = useState<CertificationRecord | null>(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState<DeleteRecordErrorCode | null>(null);
+
+  async function confirmarEliminar() {
+    if (!certificacionAEliminar) return;
+    setEliminando(true);
+    setErrorEliminar(null);
+    try {
+      // El servicio avisa a la Épica 3 que hay cambios pendientes para el radar
+      await deleteProfileRecord('certification', certificacionAEliminar);
+      removeRecord('certification', certificacionAEliminar.id);
+      setCertificacionAEliminar(null);
+    } catch (error) {
+      setErrorEliminar(error instanceof DeleteRecordException ? error.code : 'network');
+    } finally {
+      setEliminando(false);
+    }
+  }
   // Certificación ya creada cuyo respaldo no se pudo subir: al reintentar se sube solo la foto, sin duplicar (T8.6)
-  const pendienteRef = useRef<{ clave: string; creada: CertificationRecord } | null>(null);
+  const pendienteRef = useRef<{ clave: string; idOperacion: string; creada?: CertificationRecord } | null>(null);
  
   useEffect(() => {
     if (!avisoBorrador) return;
@@ -80,6 +118,7 @@ export function AcordeonPerfil({
   const certificaciones = useMemo<Certificacion[]>(
     () =>
       (records.certification as CertificationRecord[]).map((registro) => ({
+        id: registro.id,
         nombre: registro.name,
         entidadEmisora: registro.issuer,
         anioEmision: registro.issueYear,
@@ -93,6 +132,32 @@ export function AcordeonPerfil({
   const secciones = profileCompleteness(records, description).sections;
   const completas = secciones.filter((seccion) => seccion.complete).length;
  
+  // Los formularios se habilitan solo con el perfil ya cargado: si se guardara antes, la respuesta
+  // inicial (más vieja) reemplazaría la lista y ocultaría lo recién guardado. Si falla, se reintenta
+  if (isLoading || loadError) {
+    return (
+      <div className="flex flex-col gap-6">
+        <h1 className="text-2xl font-bold text-blue-fantastic md:text-[28px]">Completar Perfil Profesional</h1>
+        {isLoading ? (
+          <p role="status" className="rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-10 text-center text-sm text-blue-fantastic/70">
+            Cargando tu perfil…
+          </p>
+        ) : (
+          <div role="alert" className="flex flex-col items-start gap-3 rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-6 text-sm">
+            <p>No se pudo cargar tu perfil. {loadError}</p>
+            <button
+              type="button"
+              onClick={retryLoad}
+              className="rounded-lg bg-burning-flame px-4 py-2 font-bold text-abyssal-blue"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Cabecera con progreso (v3: "Completar Perfil Profesional") */}
@@ -153,9 +218,11 @@ export function AcordeonPerfil({
         titulo="Formación académica"
         descripcion="Tu formación académica principal"
         cantidad={formaciones.length}
+        errores={erroresFormacion}
       >
         <FormacionAcademicaForm
           formaciones={formaciones}
+          onErroresChange={setErroresFormacion}
           onAgregar={async (formacion) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addEducation(await crearFormacion(formacion));
@@ -168,9 +235,11 @@ export function AcordeonPerfil({
         titulo="Experiencia laboral"
         descripcion="Tu experiencia profesional más relevante"
         cantidad={experiencias.length}
+        errores={erroresExperiencia}
       >
         <FormularioExperiencia
           experiencias={experiencias}
+          onErroresChange={setErroresExperiencia}
           onAgregar={async (experiencia) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addExperience(await crearExperiencia(experiencia));
@@ -183,11 +252,31 @@ export function AcordeonPerfil({
         titulo="Certificaciones"
         descripcion="Credenciales que respaldan tu perfil"
         cantidad={certificaciones.length}
+        errores={erroresCertificaciones}
       >
         <FormularioCertificaciones
           certificaciones={certificaciones}
+          onErroresChange={setErroresCertificaciones}
           returnTo={returnTo}
           progreso={progresoSubida}
+          onCancelar={() => {
+            // Si la certificación ya se creó y solo falló la foto, sigue guardada: se muestra y no se borra (T8.6)
+            const creada = pendienteRef.current?.creada;
+            if (creada) addCertification(creada);
+            pendienteRef.current = null;
+            router.push(returnTo ?? '/profile');
+          }}
+          hrefEditar={(id) => {
+            // Al terminar de editar se vuelve a esta sección conservando el regreso a Afinidad (returnTo)
+            const regreso = `/profile/completar?seccion=certificaciones${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ''}`;
+            return `/profile/certifications/${id}/edit?returnTo=${encodeURIComponent(regreso)}`;
+          }}
+          onEliminar={(id) => {
+            setErrorEliminar(null);
+            setCertificacionAEliminar(
+              (records.certification as CertificationRecord[]).find((registro) => registro.id === id) ?? null,
+            );
+          }}
           onAgregar={async (certificacion) => {
             setProgresoSubida(undefined);
             const clave = JSON.stringify([
@@ -197,11 +286,12 @@ export function AcordeonPerfil({
               certificacion.grado,
             ]);
             // 1) se crea la certificación (o se reutiliza la que ya quedó creada) y 2) con su id se sube la foto
-            let creada = pendienteRef.current?.clave === clave ? pendienteRef.current.creada : null;
-            if (!creada) {
-              creada = await crearCertificacion(certificacion);
-              pendienteRef.current = { clave, creada };
+            if (!pendienteRef.current || pendienteRef.current.clave !== clave) {
+              pendienteRef.current = { clave, idOperacion: crearIdOperacion() };
             }
+            const intento = pendienteRef.current;
+            const creada = intento.creada ?? await crearCertificacion(certificacion, intento.idOperacion);
+            intento.creada = creada;
             if (certificacion.respaldo) {
               await subirRespaldo(creada.id, certificacion.respaldo, setProgresoSubida);
             }
@@ -221,6 +311,16 @@ export function AcordeonPerfil({
           }}
         />
       </SeccionAcordeon>
+      {certificacionAEliminar && (
+        <DeleteRecordModal
+          section="certification"
+          record={certificacionAEliminar}
+          isDeleting={eliminando}
+          errorCode={errorEliminar}
+          onConfirm={() => void confirmarEliminar()}
+          onCancel={() => setCertificacionAEliminar(null)}
+        />
+      )}
       <SeccionAcordeon
         numero={4}
         abiertaInicial={seccionInicial === 'descripcion-profesional'}

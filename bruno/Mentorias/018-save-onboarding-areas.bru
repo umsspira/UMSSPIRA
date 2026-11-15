@@ -1,0 +1,33 @@
+meta {
+  name: Guardar paso 1 — áreas técnicas
+  type: http
+  seq: 18
+}
+
+put {
+  url: {{baseUrl}}/api/v1/mentorship/onboarding/areas
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "areaIds": [
+      "00000000-0000-4000-8000-000000000000"
+    ]
+  }
+}
+
+docs {
+  Paso 1 del onboarding. Reemplaza las áreas seleccionadas (entre 1 y 5, áreas raíz activas). Guardado atómico e idempotente.
+
+  Permiso: mentores:self:write. La identidad sale del token; usuario_id/mentor_id del body se ignoran. Errores: 403 MENTOR_NO_HABILITADO, 422 DATOS_PASO_INVALIDOS.
+}

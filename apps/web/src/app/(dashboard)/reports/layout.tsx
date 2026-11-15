@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { AdminReportsNavigation } from "@/modules/auth/frontend/components/admin-reports-navigation";
-import { SessionExpiredDialog } from "@/modules/auth/frontend/components/session-expired-dialog";
+import { ReportsSessionBoundary } from "@/modules/auth/frontend/components/reports-session-boundary";
 
 /**
  * HU-004: capa de navegación institucional, independiente del contenido
@@ -8,7 +8,8 @@ import { SessionExpiredDialog } from "@/modules/auth/frontend/components/session
  */
 export default function ReportsLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-w-0 flex-1">
+    <ReportsSessionBoundary>
+      <div className="min-w-0 flex-1">
       <div className="mx-auto w-full px-6 pt-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-truffle-trouble">
           Administrador de Carrera
@@ -19,7 +20,7 @@ export default function ReportsLayout({ children }: { children: ReactNode }) {
         <AdminReportsNavigation />
       </div>
       {children}
-      <SessionExpiredDialog />
-    </div>
+      </div>
+    </ReportsSessionBoundary>
   );
 }

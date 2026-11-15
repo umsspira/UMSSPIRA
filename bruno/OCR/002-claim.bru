@@ -1,0 +1,36 @@
+meta {
+  name: Reservar siguiente trabajo
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/claim
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("HTTP 201", function () { expect(res.getStatus()).to.equal(201); });
+  test("Trabajo pendiente disponible", function () { expect(res.getBody().data).to.have.property("id"); });
+  if (res.getStatus() === 201 && res.getBody().data) {
+    const job = res.getBody().data;
+    bru.setVar("ocrJobId", job.id); bru.setVar("ocrToken", job.token); bru.setVar("ocrApplicationId", job.applicationId);
+  }
+}
+
+docs {
+  Ejecutar con una solicitud ficticia pendiente y sin bandejas procesando. Guarda ocrJobId, ocrToken y ocrApplicationId para las siguientes peticiones; si no hay trabajos, data es null.
+}

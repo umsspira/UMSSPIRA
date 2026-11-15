@@ -30,7 +30,9 @@ describe('ActivatePasswordStep', () => {
       />,
     );
 
-    expect(screen.getByText(/crea tu nueva contraseña/i)).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /crea tu nueva contraseña/i }),
+    ).toHaveClass('font-sans');
     expect(screen.getByLabelText(/^nueva contraseña \*/i)).toBeTruthy();
     expect(screen.getByLabelText(/^verificar contraseña \*/i)).toBeTruthy();
 
@@ -208,7 +210,9 @@ describe('ActivatePasswordStep', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('activation-success-view')).toBeTruthy();
-      expect(screen.getByText(/cuenta activada exitosamente/i)).toBeTruthy();
+      expect(
+        screen.getByRole('heading', { level: 2, name: /cuenta activada exitosamente/i }),
+      ).toHaveClass('font-sans');
       expect(screen.getByRole('link', { name: /iniciar sesión/i })).toHaveAttribute(
         'href',
         '/login',

@@ -1,0 +1,29 @@
+meta {
+  name: Descargar el respaldo vigente del expediente corregido
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/applications/{{correctedApplicationId}}/document/content
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("Entrega el respaldo vigente sin caché", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getHeader("content-type")).to.contain(bru.getVar("correctedFileMime"));
+    expect(res.getHeader("content-disposition")).to.contain(encodeURIComponent(bru.getVar("correctedFileName")));
+    expect(res.getHeader("cache-control")).to.equal("no-store");
+  });
+}
+
+docs {
+  Ejecutar después de 011 con las mismas variables. Comparar el contenido recibido con el archivo
+  reemplazado por el titulado, no con el original. Esta petición no modifica el expediente.
+}

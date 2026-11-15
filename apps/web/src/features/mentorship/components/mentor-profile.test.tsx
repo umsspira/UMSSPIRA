@@ -3,22 +3,61 @@ import { fireEvent, render, screen, within, waitFor } from '@testing-library/rea
 import { MentorProfile } from './mentor-profile';
 import { InactivePanel } from './inactive-panel';
 import { getMentorProfile, updateMentorParticipation } from '../services/mentorship-api';
+import { getMentorAreas } from '../services/mentor-areas-api';
+import { getMentorInterests } from '../services/mentor-interests-api';
+import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
+import { getMentorOnboarding, type MentorOnboardingState } from '../services/mentor-onboarding-api';
 
 jest.mock('../services/mentorship-api');
+jest.mock('../services/mentor-areas-api', () => ({ getMentorAreas: jest.fn().mockResolvedValue({ areas: [], selectedIds: [] }) }));
+jest.mock('../services/mentor-interests-api', () => ({ getMentorInterests: jest.fn().mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } }) }));
+jest.mock('../services/mentor-availability-api', () => ({ getMentorAvailability: jest.fn().mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null }) }));
+jest.mock('../services/mentor-schedule-api', () => ({ getMentorSchedule: jest.fn().mockResolvedValue({ schedule: [], fecha_actualizacion: null }) }));
+jest.mock('../services/mentor-profile-info-api', () => ({ getMentorProfileInformation: jest.fn().mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null }) }));
+jest.mock('../services/mentor-onboarding-api', () => ({ getMentorOnboarding: jest.fn() }));
 const getProfile = jest.mocked(getMentorProfile);
 const updateParticipation = jest.mocked(updateMentorParticipation);
+const getAreas = jest.mocked(getMentorAreas);
+const getInterests = jest.mocked(getMentorInterests);
+const getAvailability = jest.mocked(getMentorAvailability);
+const getInformation = jest.mocked(getMentorProfileInformation);
+const getOnboarding = jest.mocked(getMentorOnboarding);
 const inactive = { isActive: false, requirements: { egresado: true } };
+const onboardingPending: MentorOnboardingState = {
+  isComplete: false,
+  currentStep: 1,
+  totalSteps: 3,
+  completedSteps: [],
+  steps: [
+    { step: 1, key: 'areas', label: 'Áreas técnicas', completed: false },
+    { step: 2, key: 'interests', label: 'Intereses', completed: false },
+    { step: 3, key: 'availability', label: 'Disponibilidad', completed: false },
+  ],
+  areas: { catalog: [], selectedIds: [], intereses: [] },
+  interests: { selectedIds: [], catalog: [] },
+  availability: { availabilityStatus: null, schedules: [] },
+};
 
 beforeEach(() => {
   jest.resetAllMocks();
   getProfile.mockResolvedValue(inactive);
+  getAreas.mockResolvedValue({ areas: [], selectedIds: [] });
+  getInterests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } });
+  getAvailability.mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null });
+  getInformation.mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null });
+  getOnboarding.mockResolvedValue(onboardingPending);
 });
 
 it('activa y desactiva con los estados confirmados por la API', async () => {
   updateParticipation.mockResolvedValueOnce({ ...inactive, isActive: true }).mockResolvedValueOnce(inactive);
   render(<MentorProfile />);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Activar como mentor' })).toBeEnabled());
+  expect(screen.getByRole('button', { name: 'Activar como mentor' })).toHaveAttribute('id', 'first-incomplete');
+  expect(await screen.findByRole('heading', { name: 'Completa tu perfil de mentor' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Activar como mentor' }));
+  expect(await screen.findByText('Comienza tu configuración')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /Comenzar mi configuración/ })).toHaveAttribute('href', '/mentorship/onboarding');
   await screen.findByText('Tu participación como mentor está activa');
   fireEvent.click(screen.getByRole('button', { name: 'Desactivar participación' }));
   fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
