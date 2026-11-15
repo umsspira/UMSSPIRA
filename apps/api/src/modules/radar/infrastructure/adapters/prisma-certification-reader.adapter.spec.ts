@@ -22,4 +22,23 @@ describe('PrismaCertificationReaderAdapter', () => {
       { id: 'cloud', title: 'Cloud', issuer: 'Google', issuedYear: null, hasBackup: false },
     ]);
   });
+
+  it('los proyectos no cambian el contador de respaldos: solo se leen certificaciones', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      { id: 'aws', nombre: 'AWS', entidad_emisora: 'Amazon', anio_emision: 2026, certificacion_respaldo_registros: [{ archivo: { id_respaldo: 'jpg' } }] },
+    ]);
+    const proyectoFindMany = jest.fn().mockResolvedValue([
+      { nombre: 'Tienda', descripcion: 'Catálogo web', tecnologias: 'React, TypeScript' },
+    ]);
+    const adapter = new PrismaCertificationReaderAdapter({
+      certificacion: { findMany },
+      proyecto: { findMany: proyectoFindMany },
+    } as unknown as PrismaService);
+
+    const result = await adapter.getCertifications('owner-id');
+
+    expect(proyectoFindMany).not.toHaveBeenCalled();
+    expect(result.filter(({ hasBackup }) => hasBackup)).toHaveLength(1);
+    expect(result).toHaveLength(1);
+  });
 });

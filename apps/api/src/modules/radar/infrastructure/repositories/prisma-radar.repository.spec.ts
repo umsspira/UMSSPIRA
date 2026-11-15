@@ -66,7 +66,9 @@ describe('PrismaRadarRepository', () => {
     expect(transaction.palabraClaveNoMapeada.upsert).not.toHaveBeenCalled();
     expect(transaction.$executeRaw).toHaveBeenCalledTimes(1);
     expect(transaction.$executeRaw.mock.calls[0]).toEqual([
-      expect.any(Array), 'graduate-id', expect.any(Date),
+      expect.any(Array),
+      'graduate-id',
+      expect.any(Date),
       JSON.stringify([{ termino: 'desconocido', frecuencia: 2 }]),
     ]);
     expect(transaction.palabraClaveNoMapeada.deleteMany).toHaveBeenCalledWith({
@@ -108,31 +110,6 @@ describe('PrismaRadarRepository', () => {
     });
     expect(transaction.palabraClaveNoMapeada.upsert).not.toHaveBeenCalled();
     expect(transaction.$executeRaw).not.toHaveBeenCalled();
-  });
-
-  it('lee los pesos usando el termino canonico y no el UUID de la keyword', async () => {
-    const prisma = {
-      palabraClaveArea: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id_area: 'area-software',
-            peso: 5,
-            palabra_clave: { termino_normalizado: 'javascript' },
-          },
-          {
-            id_area: 'area-data',
-            peso: 4,
-            palabra_clave: { termino_normalizado: 'python' },
-          },
-        ]),
-      },
-    };
-    const repository = new PrismaRadarRepository(prisma as unknown as PrismaService);
-
-    await expect(repository.getAreaWeights()).resolves.toEqual({
-      'area-software': [{ term: 'javascript', peso: 5 }],
-      'area-data': [{ term: 'python', peso: 4 }],
-    });
   });
 
   it('convierte palabras_clave_top nulo en arreglo vacio al leer una fila antigua', async () => {
@@ -191,8 +168,8 @@ describe('PrismaRadarRepository', () => {
       },
     };
     const prisma = {
-      $transaction: jest.fn(
-        (callback: (client: typeof transaction) => Promise<unknown>) => callback(transaction),
+      $transaction: jest.fn((callback: (client: typeof transaction) => Promise<unknown>) =>
+        callback(transaction),
       ),
     };
     const repository = new PrismaRadarRepository(prisma as unknown as PrismaService);

@@ -29,4 +29,8 @@ apps/api/.agents/
 apps/api/.claude/
 apps/api/.windsurf/
 apps/api/skills-lock.json
+
+# Entornos locales de Bruno: pueden contener credenciales y tokens
+bruno/environments/
+
 holaaa

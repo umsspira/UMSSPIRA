@@ -54,6 +54,9 @@
                   "    pm.expect(item.term.length).to.be.above(0);",
                   "    pm.expect(item.count).to.be.a(\"number\");",
                   "    pm.expect(item.count).to.be.above(0);",
+                  "    pm.expect(item).to.not.have.property(\"areas\");",
+                  "    pm.expect(item).to.not.have.property(\"weight\");",
+                  "    pm.expect(item).to.not.have.property(\"weights\");",
                   "  }",
                   "});",
                   "pm.test(\"Resuelve variantes de Node.js\", () => {",
@@ -97,7 +100,7 @@
                 "type": "string"
               }
             },
-            "description": "Usa el accessToken de un titulado o administrador. Normaliza alias, símbolos y la misma mención; deja las palabras desconocidas en unmapped.\n\nPermiso: nlp:extract.",
+            "description": "Usa el accessToken de un titulado o administrador. Normaliza alias, símbolos y la misma mención; deja las palabras desconocidas en unmapped.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -334,6 +337,9 @@
                   "    pm.expect(item.term.length).to.be.above(0);",
                   "    pm.expect(item.count).to.be.a(\"number\");",
                   "    pm.expect(item.count).to.be.above(0);",
+                  "    pm.expect(item).to.not.have.property(\"areas\");",
+                  "    pm.expect(item).to.not.have.property(\"weight\");",
+                  "    pm.expect(item).to.not.have.property(\"weights\");",
                   "  }",
                   "});"
                 ],
@@ -649,6 +655,25 @@
                   "    });",
                   "  });",
                   "  pm.expect(areas.some((a) => a.topKeywords.length > 0)).to.equal(true);",
+                  "});",
+                  "",
+                  "pm.test(\"HU-13: contrato de explicación y versión del diccionario\", () => {",
+                  "  const vector = pm.response.json().data;",
+                  "  pm.expect(Object.prototype.hasOwnProperty.call(vector, \"dictionaryVersion\")).to.equal(true);",
+                  "  if (vector.dictionaryVersion !== null) pm.expect(vector.dictionaryVersion).to.be.a(\"string\").and.not.empty;",
+                  "  vector.areas.forEach((area) => {",
+                  "    pm.expect(Object.prototype.hasOwnProperty.call(area, \"explanation\")).to.equal(true);",
+                  "    if (area.explanation === null) return;",
+                  "    pm.expect(area.explanation.cause).to.be.oneOf([\"profile\", \"algorithm\", \"dictionary\"]);",
+                  "    pm.expect(area.explanation.changes).to.be.an(\"array\").and.not.empty;",
+                  "    area.explanation.changes.forEach((change) => {",
+                  "      pm.expect(change.keyword).to.be.a(\"string\").and.not.empty;",
+                  "      for (const field of [\"previousPoints\", \"currentPoints\", \"deltaPercentagePoints\"]) {",
+                  "        pm.expect(Number.isFinite(change[field])).to.equal(true);",
+                  "      }",
+                  "      pm.expect(change.deltaPercentagePoints).to.be.closeTo((change.currentPoints - change.previousPoints) * 100 / 40, 0.01);",
+                  "    });",
+                  "  });",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -666,7 +691,7 @@
                 "type": "string"
               }
             },
-            "description": "Usa el accessToken de un titulado con perfil cargado (ej. titulado@umss.edu.bo).\nDevuelve { data: AffinityVectorResponse } con 6 areas. La primera llamada de un titulado calcula el radar (lazy GET).\nGuarda graduateId en radarGraduateId para el caso 005.\n\nPermiso: radar:self:read.\nCA-HU7-01: estado ok y esquema del vector.",
+            "description": "Usa el accessToken de un titulado con perfil cargado (ej. titulado@umss.edu.bo).\nDevuelve { data: AffinityVectorResponse } con 6 areas. La primera llamada de un titulado calcula el radar (lazy GET).\nGuarda graduateId en radarGraduateId para el caso 005.\n\nPermiso: radar:self:read.\nCA-HU7-01: estado ok y esquema del vector.\nCA-HU10-04, CA-HU10-05 (T10.7): contrato de GET /api/v1/radar verificado tras desacoplar NLP.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar",
               "protocol": "",
@@ -931,6 +956,25 @@
                   "      }",
                   "    });",
                   "  });",
+                  "});",
+                  "",
+                  "pm.test(\"HU-13: contrato de explicación y versión del diccionario\", () => {",
+                  "  const vector = pm.response.json().data;",
+                  "  pm.expect(Object.prototype.hasOwnProperty.call(vector, \"dictionaryVersion\")).to.equal(true);",
+                  "  if (vector.dictionaryVersion !== null) pm.expect(vector.dictionaryVersion).to.be.a(\"string\").and.not.empty;",
+                  "  vector.areas.forEach((area) => {",
+                  "    pm.expect(Object.prototype.hasOwnProperty.call(area, \"explanation\")).to.equal(true);",
+                  "    if (area.explanation === null) return;",
+                  "    pm.expect(area.explanation.cause).to.be.oneOf([\"profile\", \"algorithm\", \"dictionary\"]);",
+                  "    pm.expect(area.explanation.changes).to.be.an(\"array\").and.not.empty;",
+                  "    area.explanation.changes.forEach((change) => {",
+                  "      pm.expect(change.keyword).to.be.a(\"string\").and.not.empty;",
+                  "      for (const field of [\"previousPoints\", \"currentPoints\", \"deltaPercentagePoints\"]) {",
+                  "        pm.expect(Number.isFinite(change[field])).to.equal(true);",
+                  "      }",
+                  "      pm.expect(change.deltaPercentagePoints).to.be.closeTo((change.currentPoints - change.previousPoints) * 100 / 40, 0.01);",
+                  "    });",
+                  "  });",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -948,7 +992,7 @@
                 "type": "string"
               }
             },
-            "description": "Usa el accessToken de un titulado. Recalcula con los textos actuales del perfil.\nSi el perfil no cambio desde el ultimo calculo, devuelve el calculo existente (recalculated = false).\nGuarda calculatedAt en radarCalculatedAt para el caso 007.\n\nPermiso: radar:self:write.\nCA-HU7-12: recalcular y esquema del vector.",
+            "description": "Usa el accessToken de un titulado. Recalcula con los textos actuales del perfil.\nSi el perfil no cambio desde el ultimo calculo, devuelve el calculo existente (recalculated = false).\nGuarda calculatedAt en radarCalculatedAt para el caso 007.\n\nPermiso: radar:self:write.\nCA-HU7-12: recalcular y esquema del vector.\nCA-HU10-04, CA-HU10-05 (T10.7): contrato de POST /api/v1/radar/recalculate verificado tras desacoplar NLP.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/radar/recalculate",
               "protocol": "",
@@ -3923,7 +3967,7 @@
                 "type": "string"
               }
             },
-            "description": "Extrae keywords del texto del perfil. Requiere JWT con permiso nlp:extract.\n\nEspera 200 con { keywords: [{term, count}], unmapped: [{term, count}] }.\n\nPermiso: nlp:extract.",
+            "description": "Extrae keywords del texto del perfil. Requiere JWT con permiso nlp:extract.\n\nEspera 200 con { keywords: [{term, count}], unmapped: [{term, count}] }.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4116,7 +4160,7 @@
                 "type": "string"
               }
             },
-            "description": "Texto de 5 001 caracteres. Debe responder 400 Bad Request con mensaje de validación.\n\nCA-6: texto > 5 000 caracteres → 400.\n\nPermiso: nlp:extract.",
+            "description": "Texto de 5 001 caracteres. Debe responder 400 Bad Request con mensaje de validación.\n\nCA-6: texto > 5 000 caracteres → 400.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4192,7 +4236,7 @@
                 "type": "string"
               }
             },
-            "description": "Texto vacío o ausente. Debe responder 400 Bad Request.\n\nCA-6: texto faltante o vacío → 400.\n\nPermiso: nlp:extract.",
+            "description": "Texto vacío o ausente. Debe responder 400 Bad Request.\n\nCA-6: texto faltante o vacío → 400.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4252,7 +4296,7 @@
                 "type": "string"
               }
             },
-            "description": "Texto sin palabras que coincidan con el diccionario. keywords debe ser [] y unmapped puede tener candidatos.\n\nCA-7: perfil sin keywords mapeadas → keywords es lista vacía.\n\nPermiso: nlp:extract.",
+            "description": "Texto sin palabras que coincidan con el diccionario. keywords debe ser [] y unmapped puede tener candidatos.\n\nCA-7: perfil sin keywords mapeadas → keywords es lista vacía.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4330,7 +4374,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Texto compuesto solo por espacios.\n\nCA-HU5-10: texto vacio o solo espacios -> HTTP 200 con listas vacias.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Texto compuesto solo por espacios.\n\nCA-HU5-10: texto vacio o solo espacios -> HTTP 200 con listas vacias.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4390,7 +4434,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Normalizacion de mayusculas, minusculas y tildes.\n\nCA-HU5-02: variantes -> termino canonico unificado con count sumado.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Normalizacion de mayusculas, minusculas y tildes.\n\nCA-HU5-02: variantes -> termino canonico unificado con count sumado.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4451,7 +4495,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Tratamiento de simbolos tecnicos.\n\nCA-HU5-03: + y # finales se conservan; punto interno en node.js se conserva.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Tratamiento de simbolos tecnicos.\n\nCA-HU5-03: + y # finales se conservan; punto interno en node.js se conserva.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4512,7 +4556,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Alias cortos ml->machine learning, js->javascript y termino compuesto 'gobierno de ti'.\n\nCA-HU5-05: terminos compuestos con alias cortos y stopwords internas.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Alias cortos ml->machine learning, js->javascript y termino compuesto 'gobierno de ti'.\n\nCA-HU5-05: terminos compuestos con alias cortos y stopwords internas.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4571,7 +4615,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Los n-gramas no cruzan el limite de segmento (salto de linea).\n\nCA-HU5-11: 'gobierno de\\nti' no debe reconocerse como 'gobierno de ti'.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Los n-gramas no cruzan el limite de segmento (salto de linea).\n\nCA-HU5-11: 'gobierno de\\nti' no debe reconocerse como 'gobierno de ti'.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4630,7 +4674,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - text con tipo numerico -> 400.\n\nCA-HU5-19: el endpoint acepta UNICAMENTE text de tipo texto.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - text con tipo numerico -> 400.\n\nCA-HU5-19: el endpoint acepta UNICAMENTE text de tipo texto.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4689,7 +4733,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Cuerpo sin el campo text -> 400.\n\nCA-HU5-19: campo text requerido.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Cuerpo sin el campo text -> 400.\n\nCA-HU5-19: campo text requerido.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4748,7 +4792,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Cuerpo con campos extra -> 400 (schema Zod estricto).\n\nCA-HU5-19: el endpoint acepta UNICAMENTE el campo text.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Cuerpo con campos extra -> 400 (schema Zod estricto).\n\nCA-HU5-19: el endpoint acepta UNICAMENTE el campo text.\nCA-HU5-20: formato de error { error: { code, message } }.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4808,7 +4852,7 @@
                 "type": "string"
               }
             },
-            "description": "HU-5 T1.7 - Orden descendente por count y limite de 50 en unmapped.\n\nCA-HU5-08: keywords y unmapped ordenados de mayor a menor count; empate -> alfabetico; unmapped max 50.\n\nPermiso: nlp:extract.",
+            "description": "HU-5 T1.7 - Orden descendente por count y limite de 50 en unmapped.\n\nCA-HU5-08: keywords y unmapped ordenados de mayor a menor count; empate -> alfabetico; unmapped max 50.\n\nPermiso: nlp:extract.\nCA-HU10-02, CA-HU10-04 (T10.7): contrato HTTP intacto; devuelve solo term y count sin areas ni pesos.",
             "url": {
               "raw": "{{baseUrl}}/api/v1/nlp/extract",
               "protocol": "",
@@ -4834,6 +4878,589 @@
               }
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "Revalidacion-T9.3",
+      "description": "Revalidacion T9.3 (HU-9): /auth/me, GET /radar y POST /radar/recalculate con titulado, empresa y administrador. CA-HU9-02, CA-HU9-03 y CA-HU9-04. El resultado del administrador queda [POR CONFIRMAR con PO/BE]. Ejecuta 001 a 003 para obtener los tokens en tiempo de ejecucion; no se guardan tokens reales en el repositorio.",
+      "item": [
+        {
+          "name": "Iniciar sesion titulado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Inicia sesion con la cuenta de titulado y guarda data.accessToken en {{tituladoToken}} en tiempo de ejecucion. Completa tituladoEmail y tituladoPassword en las variables de la coleccion o en un entorno local. No escribas tokens reales en el repositorio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{tituladoEmail}}\",\n  \"password\": \"{{tituladoPassword}}\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"tituladoToken\", body.data.accessToken);",
+                  "pm.test(\"Guarda el token de titulado en tiempo de ejecucion\", () => pm.expect(body.data.accessToken).to.be.a(\"string\").and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesion empresa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Inicia sesion con la cuenta de empresa y guarda data.accessToken en {{empresaToken}} en tiempo de ejecucion. Completa empresaEmail y empresaPassword en las variables de la coleccion o en un entorno local. No escribas tokens reales en el repositorio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{empresaEmail}}\",\n  \"password\": \"{{empresaPassword}}\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"empresaToken\", body.data.accessToken);",
+                  "pm.test(\"Guarda el token de empresa en tiempo de ejecucion\", () => pm.expect(body.data.accessToken).to.be.a(\"string\").and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesion administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false,
+                "type": "default"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Inicia sesion con la cuenta de administrador y guarda data.accessToken en {{administradorToken}} en tiempo de ejecucion. Completa administradorEmail y administradorPassword en las variables de la coleccion o en un entorno local. No escribas tokens reales en el repositorio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{administradorEmail}}\",\n  \"password\": \"{{administradorPassword}}\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"administradorToken\", body.data.accessToken);",
+                  "pm.test(\"Guarda el token de administrador en tiempo de ejecucion\", () => pm.expect(body.data.accessToken).to.be.a(\"string\").and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "004 CA-HU9-02 auth/me titulado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tituladoToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-02: /auth/me del titulado incluye nlp:extract, radar:self:read y radar:self:write.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Rol titulado\", () => pm.expect(body.data.role).to.eql(\"titulado\"));",
+                  "pm.test(\"Incluye los tres permisos\", () => { const p = body.data.permissions; pm.expect(p).to.include(\"nlp:extract\"); pm.expect(p).to.include(\"radar:self:read\"); pm.expect(p).to.include(\"radar:self:write\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "005 CA-HU9-02 auth/me empresa",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{empresaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-02: /auth/me de la empresa carece de nlp:extract, radar:self:read y radar:self:write.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Rol empresa\", () => pm.expect(body.data.role).to.eql(\"empresa\"));",
+                  "pm.test(\"Carece de los tres permisos\", () => { const p = body.data.permissions; pm.expect(p).to.not.include(\"nlp:extract\"); pm.expect(p).to.not.include(\"radar:self:read\"); pm.expect(p).to.not.include(\"radar:self:write\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "006 auth/me administrador (observado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{administradorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "[POR CONFIRMAR con PO/BE]: ningun CA define el resultado esperado del administrador. Registra el comportamiento observado en codigo.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Rol administrador\", () => pm.expect(body.data.role).to.eql(\"administrador\"));",
+                  "pm.test(\"Incluye nlp:extract y carece de los permisos de radar\", () => { const p = body.data.permissions; pm.expect(p).to.include(\"nlp:extract\"); pm.expect(p).to.not.include(\"radar:self:read\"); pm.expect(p).to.not.include(\"radar:self:write\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "007 CA-HU9-03 GET radar titulado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tituladoToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-03: GET /radar con titulado (radar:self:read) responde 200. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Respuesta envuelta en data con seis areas\", () => { pm.expect(body.data).to.be.an(\"object\"); pm.expect(body.data.areas).to.be.an(\"array\").with.lengthOf(6); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "008 CA-HU9-03 GET radar sin permiso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{empresaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-03: GET /radar con una cuenta autenticada sin radar:self:read responde 403. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Codigo FORBIDDEN\", () => pm.expect(body.error.code).to.eql(\"FORBIDDEN\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "009 CA-HU9-03 GET radar sin token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "CA-HU9-03: GET /radar sin token responde 401. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Codigo UNAUTHENTICATED\", () => pm.expect(body.error.code).to.eql(\"UNAUTHENTICATED\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "010 CA-HU9-04 POST recalculate titulado",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tituladoToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-04: POST /radar/recalculate con titulado (radar:self:write) responde 200. Un 404 incumple el criterio. Este caso persiste un calculo en la cuenta ficticia del titulado.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar/recalculate",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar",
+                "recalculate"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Respuesta envuelta en data con recalculated booleano\", () => { pm.expect(body.data).to.be.an(\"object\"); pm.expect(body.data.recalculated).to.be.a(\"boolean\"); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "011 CA-HU9-04 POST recalculate sin permiso",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{empresaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "CA-HU9-04: POST /radar/recalculate con una cuenta autenticada sin radar:self:write responde 403. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar/recalculate",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar",
+                "recalculate"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Codigo FORBIDDEN\", () => pm.expect(body.error.code).to.eql(\"FORBIDDEN\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "012 CA-HU9-04 POST recalculate sin token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "CA-HU9-04: POST /radar/recalculate sin token responde 401. Un 404 incumple el criterio.",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar/recalculate",
+              "protocol": "",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar",
+                "recalculate"
+              ],
+              "query": [],
+              "variable": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Nunca responde 404\", () => pm.expect(pm.response.code).to.not.eql(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Codigo UNAUTHENTICATED\", () => pm.expect(body.error.code).to.eql(\"UNAUTHENTICATED\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     }
@@ -5028,6 +5655,51 @@
     {
       "key": "radarTopKeywordsJson",
       "value": ""
+    },
+    {
+      "key": "tituladoEmail",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "tituladoPassword",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "empresaEmail",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "empresaPassword",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "administradorEmail",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "administradorPassword",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "tituladoToken",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "empresaToken",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "administradorToken",
+      "value": "",
+      "type": "secret"
     }
   ]
 }

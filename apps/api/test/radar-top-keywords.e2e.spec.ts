@@ -1,4 +1,5 @@
 import { RADAR_CERTIFICATION_READER_PORT } from '../src/modules/radar/application/ports/certification-reader.port';
+import { RADAR_AREA_WEIGHT_READER_PORT } from '../src/modules/radar/application/ports/area-weight-reader.port';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -111,6 +112,10 @@ async function createApp(): Promise<INestApplication> {
     .useValue(new InMemoryKeywordDictionary())
     .overrideProvider(RADAR_REPOSITORY_PORT)
     .useValue(radarRepository)
+    .overrideProvider(RADAR_AREA_WEIGHT_READER_PORT)
+    .useValue({
+      getAreaWeights: async () => radarRepository.areaWeights,
+    })
     .overrideProvider(PROFILE_TEXT_READER_PORT)
     .useValue(profileReader)
     .overrideProvider(KEYWORD_EXTRACTOR_PORT)
