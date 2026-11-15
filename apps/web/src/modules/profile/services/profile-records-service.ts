@@ -1,12 +1,14 @@
 import { PERFIL_URL } from '@/modules/profile/services/perfil-api';
 import type { DeleteRecordErrorCode, ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
 import { ApiError, apiFetch } from '@/shared/services/api-client';
+import { markPendingProfileChanges } from '@/shared/services/pending-profile-changes';
 
 // Nombre de cada sección en las rutas del backend (PROFILE_SECTIONS del módulo profile de la API)
 const API_SECTIONS: Record<RecordSection, string> = {
   education: 'formacion-academica',
   experience: 'experiencia-laboral',
   certification: 'certificaciones',
+  project: 'proyectos',
 };
 
 export class DeleteRecordException extends Error {
@@ -22,9 +24,13 @@ export class DeleteRecordException extends Error {
 export async function deleteProfileRecord(section: RecordSection, record: ProfileRecord): Promise<void> {
   try {
     await apiFetch<void>(`${PERFIL_URL}/${API_SECTIONS[section]}/${record.id}`, { method: 'DELETE' });
+    markPendingProfileChanges();
   } catch (error) {
     // 404 = ya no existe en la base: el resultado es el mismo que haberlo eliminado
-    if (error instanceof ApiError && error.status === 404) return;
+    if (error instanceof ApiError && error.status === 404) {
+      markPendingProfileChanges();
+      return;
+    }
     throw new DeleteRecordException(error instanceof ApiError && error.status === 403 ? 'forbidden' : 'network');
   }
 }

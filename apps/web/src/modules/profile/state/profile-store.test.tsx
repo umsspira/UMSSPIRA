@@ -2,11 +2,15 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import { ProfileRecordsManager } from '@/modules/profile/components/profile-records-manager';
-import { PROFILE_RECORDS_MOCK } from '@/modules/profile/data/profile-records-data';
+import { PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
 import ProfileSummary from '@/modules/profile/ver/profile-summary';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';
 
 import { ProfileStoreProvider, useProfileStore } from './profile-store';
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+}));
 
 function AddEducationButton() {
   const { addEducation } = useProfileStore();
@@ -115,8 +119,45 @@ describe('ProfileStoreProvider · carga desde la API', () => {
     );
 
     expect(await screen.findByText('Ingeniero de sistemas.')).toBeInTheDocument();
-    // Experiencia y certificaciones llegan vacías desde la API
-    expect(screen.getAllByText('Sin registros')).toHaveLength(2);
+    // Experiencia, certificaciones y proyectos (HU-19) llegan vacíos desde la API
+    expect(screen.getAllByText('Sin registros')).toHaveLength(3);
+  });
+
+  it('el resumen muestra el nombre y la carrera del titulado con sesión, no los de prueba', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: { ...perfil, titulado: { id: 'titulado-1', nombre: 'Ana Rojas', carrera: 'Ingeniería de Sistemas', promocion: null } },
+      }),
+    });
+
+    render(
+      <ProfileStoreProvider>
+        <ProfileSummary />
+      </ProfileStoreProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Ana Rojas' })).toBeInTheDocument();
+    expect(screen.getByText('Ingeniería de Sistemas')).toBeInTheDocument();
+    expect(screen.queryByText(/Carlos Mendoza/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Promoción/)).not.toBeInTheDocument();
+  });
+
+  it('sin nombre registrado el resumen se titula "Mi perfil"', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { ...perfil, titulado: { id: 'titulado-1', nombre: null, carrera: null, promocion: null } } }),
+    });
+
+    render(
+      <ProfileStoreProvider>
+        <ProfileSummary />
+      </ProfileStoreProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Mi perfil' })).toBeInTheDocument();
   });
 
   it('no consulta la API si recibe registros iniciales', () => {

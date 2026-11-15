@@ -1,0 +1,33 @@
+meta {
+  name: Guardar paso 2 — intereses
+  type: http
+  seq: 19
+}
+
+put {
+  url: {{baseUrl}}/api/v1/mentorship/onboarding/interests
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "interestIds": [
+      "00000000-0000-4000-8000-000000000000"
+    ]
+  }
+}
+
+docs {
+  Paso 2 del onboarding. Reemplaza los intereses, que deben pertenecer a las áreas guardadas en el paso 1.
+
+  Permiso: mentores:self:write. Errores: 403 MENTOR_NO_HABILITADO, 409 PASO_PREVIO_INCOMPLETO si falta el paso 1, 422 DATOS_PASO_INVALIDOS.
+}

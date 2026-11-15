@@ -70,7 +70,7 @@ describe('SurveyProgressBar', () => {
   });
 
   it('expone el porcentaje en la barra para lectores de pantalla', () => {
-    render(<SurveyProgressBar values={{ ...VACIO, cargo: 'A', empresa: 'B', modalidad: 'Remoto' }} />);
+    render(<SurveyProgressBar values={{ ...VACIO, cargo: 'Cargo', empresa: 'Empresa', modalidad: 'Remoto' }} />);
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('50');
     expect(screen.getByText('50 % completado')).toBeTruthy();
   });

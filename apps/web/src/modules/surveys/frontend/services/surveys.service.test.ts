@@ -1,8 +1,11 @@
 import { apiFetch, ApiError } from '@/shared/services/api-client';
 import {
   buildSurveySubmissionBody,
+  getSurveySubmissionStatus,
+  getSurveyStatusInfo,
   submitSurvey,
   SURVEY_SUBMISSION_PATH,
+  SURVEY_SUBMISSION_STATUS_PATH,
   SURVEY_SENT_MESSAGE,
   SURVEY_SEND_ERROR_MESSAGE,
 } from './surveys.service';
@@ -26,6 +29,35 @@ const laboral = {
 beforeEach(() => mockedApiFetch.mockReset());
 
 describe('HU-EP09-03 / T3.4 — servicio de envío', () => {
+  it('consulta el estado persistido de la encuesta sin usar caché', async () => {
+    mockedApiFetch.mockResolvedValueOnce({ submitted: true });
+    await expect(getSurveySubmissionStatus()).resolves.toBe(true);
+    expect(mockedApiFetch).toHaveBeenCalledWith(SURVEY_SUBMISSION_STATUS_PATH, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+  });
+
+  it('rechaza una respuesta inválida al consultar el estado', async () => {
+    mockedApiFetch.mockResolvedValueOnce({ submitted: 'yes' });
+    await expect(getSurveySubmissionStatus()).rejects.toThrow(
+      'No se pudo verificar el estado de la encuesta',
+    );
+  });
+
+  it('consulta la información completa del estado de la encuesta (T5.4 / Mejora 1.2)', async () => {
+    mockedApiFetch.mockResolvedValueOnce({
+      submitted: false,
+      hasActiveSurvey: false,
+      surveyId: null,
+    });
+    await expect(getSurveyStatusInfo()).resolves.toEqual({
+      submitted: false,
+      hasActiveSurvey: false,
+      surveyId: null,
+    });
+  });
+
   it('usa POST del cliente HTTP autenticado existente', async () => {
     mockedApiFetch.mockResolvedValueOnce({ data: { id: 'nueva' } });
     await submitSurvey(laboral);

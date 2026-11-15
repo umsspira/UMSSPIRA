@@ -98,8 +98,8 @@ describe('validarRangoFechas', () => {
  
 describe('validarRespaldo', () => {
   it('usa los textos del criterio', () => {
-    expect(MENSAJE_RESPALDO_FORMATO).toBe('Formato no permitido. Solo JPG');
-    expect(MENSAJE_RESPALDO_TAMANIO).toBe('El archivo no puede superar 5 MB');
+    expect(MENSAJE_RESPALDO_FORMATO).toBe('Solo se aceptan archivos PDF o JPG de hasta 5 MB');
+    expect(MENSAJE_RESPALDO_TAMANIO).toBe('Solo se aceptan archivos PDF o JPG de hasta 5 MB');
   });
  
   it('acepta un JPG de hasta 5 MB', () => {
@@ -107,8 +107,8 @@ describe('validarRespaldo', () => {
     expect(validarRespaldo(archivo('certificado.JPEG', 'image/jpeg', TAMANIO_MAXIMO_RESPALDO))).toBeUndefined();
   });
  
-  it('rechaza PDF y PNG por formato, aunque superen 5 MB (caso de QA)', () => {
-    expect(validarRespaldo(archivo('certificado.pdf', 'application/pdf', 6 * 1024 * 1024))).toBe(MENSAJE_RESPALDO_FORMATO);
+  it('rechaza PNG por formato, aunque supere 5 MB (HU-18)', () => {
+    expect(validarRespaldo(archivo('certificado.png', 'image/png', 6 * 1024 * 1024))).toBe(MENSAJE_RESPALDO_FORMATO);
     expect(validarRespaldo(archivo('certificado.png', 'image/png'))).toBe(MENSAJE_RESPALDO_FORMATO);
   });
  

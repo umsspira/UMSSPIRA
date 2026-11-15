@@ -1,7 +1,12 @@
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ConfirmationContent } from './confirmation-content';
+import { downloadReceiptPdf } from '../lib/receipt-pdf';
 import { useRegistrationStore } from '@/modules/registration/frontend/store';
+
+jest.mock('../lib/receipt-pdf', () => ({
+  downloadReceiptPdf: jest.fn().mockResolvedValue(undefined),
+}));
 
 const CONFIRMATION = {
   estado: 'PENDING',
@@ -19,6 +24,7 @@ describe('ConfirmationContent', () => {
   beforeEach(() => {
     localStorage.clear();
     useRegistrationStore.getState().reset();
+    jest.clearAllMocks();
   });
 
   it('muestra los datos de la solicitud entregada sin el código interno TIT (CA-07.6)', async () => {
@@ -38,5 +44,35 @@ describe('ConfirmationContent', () => {
     render(<ConfirmationContent />);
 
     expect(await screen.findByText('No encontramos una solicitud reciente')).toBeInTheDocument();
+  });
+
+  it('descarga la constancia en PDF sin abrir el diálogo de impresión', async () => {
+    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+    useRegistrationStore.getState().setConfirmation(CONFIRMATION);
+    render(<ConfirmationContent />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Guardar constancia en PDF/i }));
+
+    await waitFor(() => expect(downloadReceiptPdf).toHaveBeenCalledTimes(1));
+    expect(downloadReceiptPdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullName: 'Juan Carlos Pérez Mamani',
+        ci: '6842109 CB',
+        documentTypeLabel: 'Título en Provisión Nacional',
+        status: 'Pendiente',
+      }),
+    );
+    expect(printSpy).not.toHaveBeenCalled();
+    printSpy.mockRestore();
+  });
+
+  it('muestra un aviso si falla la generación del PDF', async () => {
+    (downloadReceiptPdf as jest.Mock).mockRejectedValueOnce(new Error('fail'));
+    useRegistrationStore.getState().setConfirmation(CONFIRMATION);
+    render(<ConfirmationContent />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Guardar constancia en PDF/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos generar la constancia');
   });
 });
