@@ -12,5 +12,8 @@ module.exports = {
     '^web-push$': '<rootDir>/test/__mocks__/web-push.cjs',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
+  // La CI (GitHub define CI=true) mide la cobertura; en local se usa npx jest --coverage.
+  collectCoverage: process.env.CI === 'true',
+  coverageReporters: ['text-summary'],
 };
 
