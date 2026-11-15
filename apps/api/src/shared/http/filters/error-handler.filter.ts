@@ -19,6 +19,10 @@ const HTTP_ERRORS: Record<number, { code: string; message: string }> = {
   409: { code: 'CONFLICT', message: 'La operación entra en conflicto con el estado actual' },
   413: { code: 'PAYLOAD_TOO_LARGE', message: 'El contenido supera el tamaño permitido' },
   429: { code: 'TOO_MANY_REQUESTS', message: 'Se han enviado demasiadas solicitudes' },
+  503: {
+    code: 'SERVICE_UNAVAILABLE',
+    message: 'El índice de vacantes no está disponible. Verifica su configuración e inténtalo de nuevo.',
+  },
 };
 
 @Catch()
@@ -88,14 +92,21 @@ export class ErrorHandlerFilter implements ExceptionFilter {
       return;
     }
 
-    if (error instanceof HttpException && error.getStatus() < 500) {
+    if (error instanceof HttpException) {
       const status = error.getStatus();
-      const detail = HTTP_ERRORS[status] ?? {
-        code: 'HTTP_ERROR',
-        message: 'No se pudo procesar la solicitud',
-      };
-      response.status(status).json({ error: detail });
-      return;
+      if (HTTP_ERRORS[status]) {
+        response.status(status).json({ error: HTTP_ERRORS[status] });
+        return;
+      }
+      if (status < 500) {
+        response.status(status).json({
+          error: {
+            code: 'HTTP_ERROR',
+            message: 'No se pudo procesar la solicitud',
+          },
+        });
+        return;
+      }
     }
 
     // Un error de aplicación sin traducción explícita es un fallo de configuración.

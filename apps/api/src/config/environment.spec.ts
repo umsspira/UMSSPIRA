@@ -72,4 +72,26 @@ describe('Configuración del entorno', () => {
   it('rechaza puertos inválidos', () => {
     expect(() => validateEnvironment({ ...database, PORT: '0' })).toThrow('PORT');
   });
+
+  it('valida la configuración opcional del índice de vacantes', () => {
+    const env = validateEnvironment({
+      ...database,
+      ELASTICSEARCH_URL: 'https://elasticsearch.example.edu.bo',
+      ELASTICSEARCH_INDEX: 'vacantes-test',
+      ELASTICSEARCH_API_KEY: 'test-key',
+    });
+
+    expect(env.ELASTICSEARCH_URL).toBe('https://elasticsearch.example.edu.bo');
+    expect(env.ELASTICSEARCH_INDEX).toBe('vacantes-test');
+    expect(env.ELASTICSEARCH_API_KEY).toBe('test-key');
+  });
+
+  it('rechaza índices con nombres inválidos', () => {
+    expect(() =>
+      validateEnvironment({
+        ...database,
+        ELASTICSEARCH_INDEX: 'Vacantes con espacios',
+      }),
+    ).toThrow('ELASTICSEARCH_INDEX');
+  });
 });

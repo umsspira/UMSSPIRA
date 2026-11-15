@@ -8,6 +8,20 @@ export interface CreateJobPostingInput {
   descripcionTecnica: string;
 }
 
+export interface AvailableJobPosting {
+  id: string;
+  titulo: string;
+  empresa: string;
+  logoEmpresa: string | null;
+  descripcion: string;
+  area: string | null;
+  modalidad: string;
+  nivelExperiencia: string;
+  ubicacion: string | null;
+  fechaPublicacion: string | null;
+  porcentajeAfinidad: number | null;
+}
+
 export async function createJobPosting(
   input: CreateJobPostingInput,
 ): Promise<unknown> {
@@ -15,4 +29,9 @@ export async function createJobPosting(
     method: "POST",
     body: JSON.stringify({ ...input, empresaId: await getCurrentCompanyId() }),
   });
+}
+
+export async function getAvailableJobPostings(): Promise<AvailableJobPosting[]> {
+  const postings = await apiFetch<AvailableJobPosting[]>("/api/v1/job-postings");
+  return Array.isArray(postings) ? postings : [];
 }

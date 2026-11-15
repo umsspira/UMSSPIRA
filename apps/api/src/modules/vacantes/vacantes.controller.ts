@@ -1,7 +1,18 @@
-import { Controller, Get, Patch, Delete, Param, Body } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Patch, Delete, Param, Body } from '@nestjs/common';
+import { z } from 'zod';
 import { CurrentActor } from '../../shared/http/auth/decorators/current-actor.decorator';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
 import { VacantesService, UpdateVacanteData } from './vacantes.service';
+
+const updateVacanteSchema = z
+  .object({
+    titulo: z.string().trim().min(1).max(150).optional(),
+    modalidad: z.string().trim().min(1).max(50).optional(),
+    nivel_experiencia: z.string().trim().min(1).max(100).optional(),
+    descripcion_tecnica: z.string().trim().min(1).max(20000).optional(),
+    estado: z.string().trim().min(1).max(30).optional(),
+  })
+  .strict();
 
 @Controller('vacantes')
 export class VacantesController {
@@ -25,10 +36,18 @@ export class VacantesController {
   @Patch(':id')
   async actualizar(
     @Param('id') id: string,
-    @Body() body: UpdateVacanteData,
+    @Body() body: unknown,
     @CurrentActor() actor: ActorContext
   ) {
-    return this.vacantesService.actualizarVacante(id, actor.id, body);
+    const parsedBody = updateVacanteSchema.safeParse(body);
+    if (!parsedBody.success) {
+      throw new BadRequestException('Los datos de actualización de la vacante no son válidos.');
+    }
+    return this.vacantesService.actualizarVacante(
+      id,
+      actor.id,
+      parsedBody.data satisfies UpdateVacanteData,
+    );
   }
 
   @Delete(':id')

@@ -11,6 +11,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     'mentores:manage',
     'nlp:extract',
     'empresas:invite',
+    'vacantes:read',
   ],
   titulado: [
     'user:self:read',
@@ -22,6 +23,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     'nlp:extract',
     'radar:self:read',
     'radar:self:write',
+    'vacantes:read',
   ],
   empresa: [
     'user:self:read',
@@ -29,6 +31,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     'empresas:self:read',
     'empresas:self:write',
     'vacantes:create',
+    'vacantes:read',
     'eventos:read',
   ],
 };
