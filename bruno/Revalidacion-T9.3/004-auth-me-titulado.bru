@@ -1,0 +1,41 @@
+meta {
+  name: 004 CA-HU9-02 auth/me titulado
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tituladoToken}}
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Nunca responde 404", function() {
+    expect(res.status).to.not.equal(404);
+  });
+
+  test("Rol titulado", function() {
+    expect(res.body.data.role).to.equal("titulado");
+  });
+
+  test("Incluye nlp:extract, radar:self:read y radar:self:write", function() {
+    const permisos = res.body.data.permissions;
+    expect(permisos).to.include("nlp:extract");
+    expect(permisos).to.include("radar:self:read");
+    expect(permisos).to.include("radar:self:write");
+  });
+}
+
+docs {
+  CA-HU9-02: /auth/me del titulado incluye nlp:extract, radar:self:read y
+  radar:self:write. Requiere ejecutar antes 001-login-titulado.
+}

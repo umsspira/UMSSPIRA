@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 const MODULES = new Set([
   'auth', 'user', 'companies', 'job-postings', 'registrations', 'applications',
   'email-verification', 'documents', 'perfil', 'events', 'mentorship', 'reports', 'surveys',
-  'nlp', 'radar', 'vacantes',
+  'nlp', 'radar', 'chat', 'vacantes',
 ]);
 
 async function proxy(request: NextRequest, context: { params: { path: string[] } }): Promise<Response> {
@@ -37,7 +37,6 @@ async function proxy(request: NextRequest, context: { params: { path: string[] }
     if (retry) outgoing.set('Retry-After', retry);
     return new Response(upstream.body, { status: upstream.status, headers: outgoing });
   } catch (error: any) {
-    console.error("ERROR REAL DEL PROXY:", error);
     return Response.json({ error: { code: 'BACKEND_UNAVAILABLE', message: 'No fue posible conectar con el servidor' } }, { status: 503 });
   }
 }

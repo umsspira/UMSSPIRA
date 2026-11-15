@@ -1,0 +1,45 @@
+meta {
+  name: Iniciar sesion titulado
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{tituladoEmail}}",
+    "password": "{{tituladoPassword}}",
+    "remember": false
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.data) {
+    bru.setVar("tituladoToken", res.body.data.accessToken);
+  }
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Guarda el token del titulado en tiempo de ejecucion", function() {
+    expect(res.body.data.accessToken).to.be.a("string").that.is.not.empty;
+  });
+}
+
+docs {
+  Inicia sesion con la cuenta de titulado y guarda data.accessToken en
+  {{tituladoToken}}. Completa tituladoEmail y tituladoPassword en folder.bru o en
+  un entorno local. No escribas tokens en el repositorio.
+}
