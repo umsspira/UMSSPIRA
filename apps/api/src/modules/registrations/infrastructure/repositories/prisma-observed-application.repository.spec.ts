@@ -82,6 +82,9 @@ describe('PrismaObservedApplicationRepository', () => {
       tokenSubsanacion: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      historialEvento: {
+        create: jest.fn().mockResolvedValue({}),
+      },
     };
 
     const prisma = {
@@ -622,6 +625,15 @@ describe('PrismaObservedApplicationRepository', () => {
 
       expect(response.estado).toBe('PENDIENTE');
       expect(response.version).toBe(2);
+      expect(tx.historialEvento.create).toHaveBeenCalledWith({
+        data: {
+          id_solicitud: applicationId,
+          version: 2,
+          tipo_actor: 'TITULADO',
+          accion: 'ENVIO',
+          detalle: 'Corrección reenviada para revisión.',
+        },
+      });
 
       // Se reutiliza el numero de version actual.
       expect(tx.solicitudVersion.upsert).toHaveBeenCalledWith(

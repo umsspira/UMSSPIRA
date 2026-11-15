@@ -46,6 +46,15 @@ export interface ReviewSummary {
   latestObservation: string | null; canObserve: boolean;
 }
 
+export interface ApplicationHistoryEvent {
+  id: string;
+  version: number;
+  actorType: string;
+  action: string;
+  detail: string | null;
+  createdAt: string;
+}
+
 export interface BoardPage {
   items: BoardItem[];
   total: number;
@@ -124,6 +133,12 @@ export function fetchApplicationsBoard(query: BoardQuery): Promise<BoardResult<B
 // Expediente para el drawer (CA-04.3).
 export function fetchApplicationDetail(id: string): Promise<BoardResult<BoardDetail>> {
   return boardFetch<BoardDetail>(`${APPLICATIONS_URL}/${encodeURIComponent(id)}`);
+}
+
+export function fetchApplicationHistory(id: string): Promise<BoardResult<ApplicationHistoryEvent[]>> {
+  return boardFetch<ApplicationHistoryEvent[]>(
+    `${APPLICATIONS_URL}/${encodeURIComponent(id)}/history`,
+  );
 }
 
 // Acceso temporal al adjunto (URL firmada de 5 minutos, CA-04.3).

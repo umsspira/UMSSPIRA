@@ -43,6 +43,7 @@ import { MailEventsController } from './http/controllers/mail-events.controller'
 import { HistoryEventsService } from './application/services/history-events.service';
 import { HISTORY_EVENTS_PORT } from './application/ports/history-events.port';
 import { PrismaHistoryEventsRepository } from './infrastructure/repositories/prisma-history-events.repository';
+import { GetApplicationHistoryController } from './http/controllers/get-application-history.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -73,6 +74,7 @@ import { PrismaHistoryEventsRepository } from './infrastructure/repositories/pri
     RequestCorrectionLinkController,
     ObservedApplicationController,
     MailEventsController,
+    GetApplicationHistoryController,
   ],
   providers: [
     OcrService,

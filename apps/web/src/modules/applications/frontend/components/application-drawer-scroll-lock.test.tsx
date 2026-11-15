@@ -12,6 +12,7 @@ jest.mock('./application-detail', () => ({
 jest.mock('./observe-dialog', () => ({ ObserveDialog: () => null }));
 jest.mock('./approve-dialog', () => ({ ApproveDialog: () => null }));
 jest.mock('./reject-dialog', () => ({ RejectDialog: () => null }));
+jest.mock('./history-tab', () => ({ HistoryTab: () => null }));
 
 describe('BUG-07 bloqueo del fondo con el expediente abierto', () => {
   beforeEach(() => {

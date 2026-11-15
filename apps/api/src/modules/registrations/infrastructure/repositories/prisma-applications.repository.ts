@@ -359,7 +359,11 @@ async find(actor: ActorContext, id: string) {
         await tx.$queryRaw`SELECT id FROM solicitud WHERE id = ${id}::uuid FOR UPDATE`;
         const row = await tx.solicitud.findFirst({
           where: scopedApplication(actor, id),
-          select: { estado: true, id_documento_respaldo: true },
+          select: {
+            estado: true,
+            id_documento_respaldo: true,
+            version_vigente: true,
+          },
         });
         if (!row) {
           throw new BusinessRuleError(
@@ -445,6 +449,16 @@ async find(actor: ActorContext, id: string) {
             justificacion: note,
             fecha_creacion: now,
             subsanada: false,
+          },
+        });
+        await tx.historialEvento.create({
+          data: {
+            id_solicitud: id,
+            version: row.version_vigente ?? 1,
+            tipo_actor: 'ADMINISTRADOR',
+            actor_id: actor.id,
+            accion: 'DICTAMEN',
+            detalle: `Decisión administrativa: ${input.decision}.`,
           },
         });
         if (validatedMotivos.length > 0) {
