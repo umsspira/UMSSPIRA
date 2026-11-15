@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { AppError } from '../../errors/app-error';
 import { BusinessRuleError } from '../../errors/business-rule-error';
 import { ResourceNotFoundError } from '../../errors/resource-not-found-error';
+import { UnprocessableEntityError } from '../../errors/unprocessable-entity-error';
 import { ValidationError } from '../../errors/validation-error';
 import { translatePrismaError } from '../../infrastructure/database/prisma-error.translator';
 import { HttpError } from '../errors/http-error';
@@ -70,6 +71,13 @@ export class ErrorHandlerFilter implements ExceptionFilter {
 
     if (error instanceof DependencyUnavailableError) {
       response.status(503).json({ error: { code: error.code, message: error.message } });
+      return;
+    }
+
+    if (error instanceof UnprocessableEntityError) {
+      response
+        .status(422)
+        .json({ error: { code: error.code, message: error.message, fields: error.fields } });
       return;
     }
 

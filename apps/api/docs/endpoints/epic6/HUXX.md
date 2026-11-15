@@ -21,6 +21,10 @@
 - `DELETE /api/v1/mentorship/interests/:id` — quitar un interés.
 - `GET /api/v1/mentorship/availability` — disponibilidad propia.
 - `PATCH /api/v1/mentorship/availability` — cambiar disponibilidad.
+- `GET /api/v1/mentorship/onboarding` — avance persistido del asistente (3 pasos).
+- `PUT /api/v1/mentorship/onboarding/areas` — paso 1: áreas técnicas (1–5).
+- `PUT /api/v1/mentorship/onboarding/interests` — paso 2: intereses de las áreas elegidas.
+- `PUT /api/v1/mentorship/onboarding/availability` — paso 3: estado y días/horarios.
 - `GET /api/v1/mentorship/availability/schedule` — horario semanal propio (HU 6.18).
 - `PUT /api/v1/mentorship/availability/schedule` — reemplazar el horario semanal (HU 6.18).
 - `PATCH /api/v1/mentorship/profiles/:id/deactivate` — desactivar desde administración.
