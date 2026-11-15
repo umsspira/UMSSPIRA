@@ -4,6 +4,7 @@ import { activationConditions, getActivationEligibility } from '../model/activat
 
 export function RequirementsList({ requirements }: { requirements: Requirements | null }) {
   const eligibility = requirements ? getActivationEligibility(requirements) : null;
+  const firstPendingIndex = activationConditions.findIndex(condition => requirements?.[condition.id] !== true);
   return (
     <section className="inactive-requirements" aria-labelledby="requirements-title">
       <div className="inactive-section-heading">
@@ -15,7 +16,7 @@ export function RequirementsList({ requirements }: { requirements: Requirements 
         const met = requirements?.[condition.id];
         const Icon = condition.icon;
         return (
-          <li key={condition.id}>
+          <li key={condition.id} id={index === firstPendingIndex ? 'first-incomplete' : undefined} tabIndex={index === firstPendingIndex ? -1 : undefined}>
             <span className="inactive-requirement-icon" aria-hidden="true"><Icon className="icon" /></span>
             <div><h4>{index + 1}. {condition.title}</h4><p>{met === undefined ? 'Se verificará al consultar tu perfil.' : met ? condition.metDescription : condition.pendingDescription}</p></div>
             <span className={`inactive-requirement-status${met ? ' requirements-met' : ''}`}>

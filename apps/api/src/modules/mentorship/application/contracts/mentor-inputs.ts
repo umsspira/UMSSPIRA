@@ -20,6 +20,24 @@ export interface MentorInterestsInput {
   ids: string[];
 }
 
+export interface SaveMentorInterestsInput {
+  areaIds: string[];
+  topicIds: string[];
+}
+
 export interface MentorAvailabilityInput {
   availabilityStatus: 'DISPONIBLE' | 'EN_PAUSA' | 'NO_DISPONIBLE';
+}
+
+export interface CreateCustomInterestInput {
+  areaId: string;
+  texto: string;
+}
+
+export interface UpdateCustomInterestInput {
+  texto: string;
+}
+
+export interface MentorScheduleInput {
+  schedule: { weekday: number; start: string; end: string }[];
 }

@@ -3,31 +3,28 @@ import { getMentorInterests, saveMentorInterests } from './mentor-interests-api'
 
 const originalFetch = global.fetch;
 const fetchMock = jest.fn();
-const area = { id: 'area-1', nombre: 'Backend' };
+const area = { id: 'area-1', nombre: 'Backend', descripcion: 'Servicios y APIs', seleccionada: true, bloqueada: false };
+const otherArea = { id: 'area-2', nombre: 'Frontend', descripcion: '', seleccionada: false, bloqueada: true };
 const topics = [{ id: 'rest', nombre: 'REST', area }, { id: 'node', nombre: 'Node.js', area }];
-let saved: string[];
-let failDelete: boolean;
+const custom = { id: 'custom-1', nombre: 'Mi tema', area, es_personalizado: true };
 
 beforeEach(() => {
   setAccessToken('access-token');
-  saved = ['rest'];
-  failDelete = false;
   fetchMock.mockReset();
   global.fetch = fetchMock;
   fetchMock.mockImplementation(async (url: string, options: RequestInit) => {
-    if (url.endsWith('/catalog')) return response([{ area, intereses: topics.map(t => ({ ...t, seleccionado: saved.includes(t.id) })) }]);
-    if (url.endsWith('/mine')) return response(topics.filter(t => saved.includes(t.id)));
-    if (options.method === 'POST') {
-      const { ids } = JSON.parse(String(options.body));
-      if (ids.some((id: string) => saved.includes(id))) return response({ message: 'Duplicado' }, 409);
-      saved.push(...ids);
-      return response(topics.filter(t => ids.includes(t.id)), 201);
-    }
-    if (options.method === 'DELETE') {
-      if (failDelete) { failDelete = false; return response({ message: 'No se pudo eliminar' }, 500); }
-      const id = url.split('/').pop();
-      saved = saved.filter(value => value !== id);
-      return response({ id, eliminado: true });
+    if (url.endsWith('/catalog')) return response([
+      { area, intereses: [...topics.map(t => ({ ...t, seleccionado: t.id === 'rest' })), { ...custom, seleccionado: true }] },
+      { area: otherArea, intereses: [{ id: 'react', nombre: 'React', area: otherArea, seleccionado: false }] },
+    ]);
+    if (url.endsWith('/mine')) return response([topics[0], custom]);
+    if (options.method === 'PUT') {
+      return response({
+        areas: [area, otherArea],
+        selectedIds: ['area-1'],
+        intereses: [{ id: 'rest', id_area: 'area-1', nombre: 'REST', es_personalizado: false },
+          { id: 'custom-1', id_area: 'area-1', nombre: 'Mi tema', es_personalizado: true }],
+      });
     }
     throw new Error(`Solicitud inesperada: ${options.method} ${url}`);
   });
@@ -39,11 +36,19 @@ function response(body: unknown, status = 200) {
   return { ok: status < 400, status, json: async () => status < 400 ? { data: body } : { error: body } };
 }
 
-it('mapea el catálogo y la selección real y envía el Bearer token', async () => {
+it('mapea todas las áreas raíz con descripción y solo marca las seleccionadas', async () => {
   const state = await getMentorInterests();
-  expect(state.catalog[0]).toEqual({ id: area.id, name: 'Backend', description: '', topics: [{ id: 'rest', name: 'REST' }, { id: 'node', name: 'Node.js' }] });
-  expect(state.configuration).toEqual({ areaIds: [area.id], topicIds: ['rest'] });
-  expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/interests/mine'), expect.objectContaining({ cache: 'no-store', credentials: 'omit', headers: { accept: 'application/json', Authorization: 'Bearer access-token' } }));
+  expect(state.catalog).toEqual([
+    { id: 'area-1', name: 'Backend', description: 'Servicios y APIs', locked: false, topics: [
+      { id: 'rest', name: 'REST' }, { id: 'node', name: 'Node.js' }, { id: 'custom-1', name: 'Mi tema', isCustom: true },
+    ] },
+    { id: 'area-2', name: 'Frontend', description: '', locked: true, topics: [{ id: 'react', name: 'React' }] },
+  ]);
+  expect(state.configuration).toEqual({ areaIds: ['area-1'], topicIds: ['rest', 'custom-1'] });
+  expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/interests/mine'), expect.objectContaining({
+    cache: 'no-store', credentials: 'omit',
+    headers: { accept: 'application/json', Authorization: 'Bearer access-token' },
+  }));
 });
 
 it('no hace solicitudes sin sesión y limpia el token si recibe 401', async () => {
@@ -57,55 +62,49 @@ it('no hace solicitudes sin sesión y limpia el token si recibe 401', async () =
 });
 
 it('rechaza respuestas de catálogo inválidas', async () => {
-  fetchMock.mockImplementation(async (url: string) => response(url.endsWith('/mine') ? [] : [{ area, intereses: [{ id: 'bad', nombre: 'Incorrecto', area: { id: 'other', nombre: 'Otra' } }] }]));
+  fetchMock.mockImplementation(async (url: string) => response(url.endsWith('/mine') ? [] : [
+    { area, intereses: [{ id: 'bad', nombre: 'Incorrecto', area: { id: 'other', nombre: 'Otra' } }] },
+  ]));
   await expect(getMentorInterests()).rejects.toThrow('no corresponden');
 });
 
-it('envía altas y bajas reales y devuelve la configuración confirmada', async () => {
-  const result = await saveMentorInterests({ areaIds: [area.id], topicIds: ['node'] });
-  expect(result).toEqual({ areaIds: [area.id], topicIds: ['node'] });
-  expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/interests$/), expect.objectContaining({ method: 'POST', body: '{"ids":["node"]}' }));
-  expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/interests\/rest$/), expect.objectContaining({ method: 'DELETE' }));
+it('informa que solo los personalizados faltan cuando no existe su esquema', async () => {
+  fetchMock.mockImplementation(async (url: string) => response(url.endsWith('/mine') ? [topics[0]] : [
+    { area, intereses: topics, personalizados_disponibles: false },
+  ]));
+  const state = await getMentorInterests();
+  expect(state.customInterestsAvailable).toBe(false);
+  expect(state.catalog[0].topics).toHaveLength(2);
 });
 
-it('permite dejar intereses vacíos sin enviar POST con ids vacíos', async () => {
-  expect(await saveMentorInterests({ areaIds: [area.id], topicIds: [] })).toEqual({ areaIds: [area.id], topicIds: [] });
-  expect(fetchMock.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(0);
+it('guarda con una sola petición PUT y devuelve el estado confirmado', async () => {
+  const result = await saveMentorInterests({ areaIds: ['area-1'], topicIds: ['rest', 'custom-1'] });
+  expect(result).toEqual({ areaIds: ['area-1'], topicIds: ['rest', 'custom-1'] });
+  const calls = fetchMock.mock.calls.filter(([, options]) => options.method === 'PUT');
+  expect(calls).toHaveLength(1);
+  expect(calls[0][0]).toMatch(/\/interests$/);
+  expect(JSON.parse(String(calls[0][1].body))).toEqual({ areaIds: ['area-1'], topicIds: ['rest', 'custom-1'] });
+  expect(fetchMock.mock.calls.filter(([, options]) => options.method === 'GET')).toHaveLength(0);
 });
 
-it('rechaza quitar la última área antes de modificar el backend', async () => {
+it('rechaza quitar la última área sin llamar al backend', async () => {
   await expect(saveMentorInterests({ areaIds: [], topicIds: [] })).rejects.toThrow('al menos un área');
-  expect(fetchMock.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+  expect(fetchMock).not.toHaveBeenCalled();
 });
 
-it('reintenta tras un fallo parcial sin volver a agregar intereses ya guardados', async () => {
-  failDelete = true;
-  const desired = { areaIds: [area.id], topicIds: ['node'] };
-  await expect(saveMentorInterests(desired)).rejects.toThrow('No se pudo eliminar');
-  expect(saved).toEqual(['rest', 'node']);
-  expect(await saveMentorInterests(desired)).toEqual(desired);
-  expect(fetchMock.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1);
+it('rechaza una respuesta de guardado con formato inválido', async () => {
+  fetchMock.mockImplementation(async () => response({ areas: [], selectedIds: [], intereses: [{ id: 1 }] }));
+  await expect(saveMentorInterests({ areaIds: ['area-1'], topicIds: [] })).rejects.toThrow('formato inválido');
 });
 
-it('guarda las áreas retiradas en HU 6.2 y confirma la limpieza de intereses hijos', async () => {
-  const otherArea = { id: 'area-2', nombre: 'Frontend' };
-  const otherTopic = { id: 'react', nombre: 'React', area: otherArea };
-  let hasOtherArea = true;
-  saved = ['rest', 'react'];
-  fetchMock.mockImplementation(async (url: string, options: RequestInit) => {
-    if (url.endsWith('/catalog')) return response([
-      { area, intereses: [{ ...topics[0], seleccionado: saved.includes('rest') }] },
-      ...(hasOtherArea ? [{ area: otherArea, intereses: [{ ...otherTopic, seleccionado: true }] }] : []),
-    ]);
-    if (url.endsWith('/mine')) return response([...topics, otherTopic].filter(t => saved.includes(t.id)));
-    if (options.method === 'PATCH') {
-      expect(JSON.parse(String(options.body))).toEqual({ areaIds: [area.id] });
-      hasOtherArea = false;
-      saved = ['rest'];
-      return response({ areas: [area, otherArea].map(a => ({ ...a, descripcion: null })), selectedIds: [area.id], intereses: [] });
-    }
-    throw new Error(`Solicitud inesperada: ${options.method}`);
-  });
-  expect(await saveMentorInterests({ areaIds: [area.id], topicIds: ['rest'] })).toEqual({ areaIds: [area.id], topicIds: ['rest'] });
-  expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/my-profile/areas'), expect.objectContaining({ method: 'PATCH' }));
+it('traduce el 403 del backend a un mensaje de permisos', async () => {
+  fetchMock.mockImplementation(async () => response({ message: 'Prohibido' }, 403));
+  await expect(saveMentorInterests({ areaIds: ['area-1'], topicIds: ['rest'] }))
+    .rejects.toThrow('No tienes permiso para configurar estos intereses.');
+});
+
+it('muestra el mensaje del backend cuando el guardado es inválido', async () => {
+  fetchMock.mockImplementation(async () => response({ message: 'El área del interés no está asignada a tu perfil' }, 400));
+  await expect(saveMentorInterests({ areaIds: ['area-1'], topicIds: ['rest'] }))
+    .rejects.toThrow('El área del interés no está asignada a tu perfil');
 });

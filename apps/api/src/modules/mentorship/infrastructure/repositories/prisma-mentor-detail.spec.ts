@@ -47,6 +47,7 @@ function row(overrides: Record<string, unknown> = {}) {
         },
       },
     ],
+    mentor_interes_personalizado_registros: [],
     espacio_disponible_mentor_registros: [
       { dia_semana: 2, horario_inicio: time('18:00'), horario_fin: time('20:00') },
       { dia_semana: 9, horario_inicio: time('08:00'), horario_fin: time('09:00') },
@@ -103,6 +104,42 @@ describe('PrismaMentorRepository.detail', () => {
     });
     expect(profile?.mentor.graduateName).toBe('María Pérez');
     expect(profile?.mentor.experience).toBeNull();
+  });
+
+  it('incluye intereses personalizados solo para áreas técnicas seleccionadas', async () => {
+    findFirst.mockResolvedValue(row({
+      mentor_interes_personalizado_registros: [
+        {
+          id: 'interes-personalizado',
+          id_area: backend.id,
+          nombre: 'Arquitectura de APIs',
+          area: { id: backend.id, nombre: backend.nombre },
+        },
+        {
+          id: 'interes-area-no-seleccionada',
+          id_area: 'area-no-seleccionada',
+          nombre: 'DevOps',
+          area: { id: 'area-no-seleccionada', nombre: 'Otra área' },
+        },
+      ],
+    }));
+
+    const profile = await detail();
+
+    expect(profile?.interests).toEqual([
+      {
+        id: 'interes-personalizado',
+        name: 'Arquitectura de APIs',
+        area: { id: backend.id, name: backend.nombre },
+        esPersonalizado: true,
+      },
+      {
+        id: 'interes-nest',
+        name: 'NestJS',
+        area: { id: backend.id, name: backend.nombre },
+        esPersonalizado: false,
+      },
+    ]);
   });
 
   it('trae las solicitudes pendientes o aceptadas del rango para ocupar horarios', async () => {

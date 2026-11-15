@@ -5,12 +5,6 @@ export default function MentorshipRequestRoute({ params }: { params: { mentorId:
   return (
     <main className="mentorship-shell mentor-availability-shell">
       <PageLayout
-        breadcrumb={[
-          { label: 'Inicio', href: '/' },
-          { label: 'Mentorías', href: '/mentorship' },
-          { label: 'Directorio de mentores', href: '/mentorship/directory' },
-          { label: 'Solicitar sesión' },
-        ]}
         eyebrow="Red universitaria de desarrollo"
         title="Solicitar sesión de mentoría"
         description="Selecciona una fecha y un bloque de una hora. El mentor responderá tu solicitud."

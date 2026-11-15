@@ -13,6 +13,7 @@ export interface MentorProfileInformationData {
 }
 
 export interface MentorProfileInformationState {
+  nombre: string;
   exists: boolean;
   profile: MentorProfileInformationData | null;
 }
@@ -21,7 +22,6 @@ export interface UpdateMentorProfilePayload {
   descripcion: string;
   experiencia: string;
   informacion_relevante?: string | null;
-  foto_perfil?: string | null;
   anios_exp?: number;
 }
 

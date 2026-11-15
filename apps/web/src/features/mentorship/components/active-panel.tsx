@@ -1,9 +1,10 @@
-﻿import Link from 'next/link';
+import Link from 'next/link';
 import type { Requirements } from '@umsspira/shared-types';
 import { ArrowLeftIcon, ArrowRightIcon, AwardIcon, CirclePauseIcon, InboxIcon } from 'lucide-react';
 import { ApprovedChip } from './approved-chip';
 import { StatusBadge } from './status-badge';
 import { MentorConfiguration } from './mentor-configuration';
+import { MentorConfigurationGate } from './mentor-configuration-gate';
 import type { useMentorPublicationProgress } from '../hooks/use-mentor-publication-progress';
 
 type PublicationState = ReturnType<typeof useMentorPublicationProgress>;
@@ -20,7 +21,6 @@ export function ActivePanel({ requirements, publication, onDeactivate }: {
     { label: 'Disponibilidad', complete: publication.progress.availability },
     { label: 'Información del perfil', complete: publication.progress.profileInformation, optional: true },
   ];
-
   return <section aria-labelledby="active-title" className="mentor-card active-panel-card">
     <div className="active-panel-content">
       <div className="active-panel-topbar"><StatusBadge variant="active">Activo</StatusBadge><ApprovedChip approved={requirements.egresado} /></div>
@@ -63,6 +63,7 @@ export function ActivePanel({ requirements, publication, onDeactivate }: {
           <button type="button" onClick={publication.retry}>Reintentar</button>
         </div>}
       </section>
+      <MentorConfigurationGate enabled={!publication.published} />
       <MentorConfiguration progress={publication.progress} />
     </div>
     <div className="active-panel-footer inactive-footer">

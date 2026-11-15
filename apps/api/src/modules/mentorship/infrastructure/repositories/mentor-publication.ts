@@ -27,22 +27,38 @@ export const PUBLISHED_MENTORS_FROM_WHERE = Prisma.sql`
         AND technical_area.padre_id IS NULL
         AND technical_area.esta_activo IS TRUE
     )
-    AND EXISTS (
-      SELECT 1
-      FROM mentor_area AS selected_interest
-      JOIN area AS interest ON interest.id = selected_interest.id_area
-      JOIN area AS technical_area ON technical_area.id = interest.padre_id
-      WHERE selected_interest.id_mentor = m.id
-        AND interest.padre_id IS NOT NULL
-        AND interest.esta_activo IS TRUE
-        AND technical_area.padre_id IS NULL
-        AND technical_area.esta_activo IS TRUE
-        AND EXISTS (
-          SELECT 1
-          FROM mentor_area AS selected_area
-          WHERE selected_area.id_mentor = m.id
-            AND selected_area.id_area = technical_area.id
-        )
+    AND (
+      EXISTS (
+        SELECT 1
+        FROM mentor_area AS selected_interest
+        JOIN area AS interest ON interest.id = selected_interest.id_area
+        JOIN area AS technical_area ON technical_area.id = interest.padre_id
+        WHERE selected_interest.id_mentor = m.id
+          AND interest.padre_id IS NOT NULL
+          AND interest.esta_activo IS TRUE
+          AND technical_area.padre_id IS NULL
+          AND technical_area.esta_activo IS TRUE
+          AND EXISTS (
+            SELECT 1
+            FROM mentor_area AS selected_area
+            WHERE selected_area.id_mentor = m.id
+              AND selected_area.id_area = technical_area.id
+          )
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM mentor_interes_personalizado AS custom_interest
+        JOIN area AS technical_area ON technical_area.id = custom_interest.id_area
+        WHERE custom_interest.id_mentor = m.id
+          AND technical_area.padre_id IS NULL
+          AND technical_area.esta_activo IS TRUE
+          AND EXISTS (
+            SELECT 1
+            FROM mentor_area AS selected_area
+            WHERE selected_area.id_mentor = m.id
+              AND selected_area.id_area = technical_area.id
+          )
+      )
     )
 `;
 

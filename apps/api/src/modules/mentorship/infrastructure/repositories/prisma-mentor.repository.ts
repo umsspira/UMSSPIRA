@@ -108,6 +108,9 @@ export class PrismaMentorRepository implements MentorRepository {
                 },
               },
             },
+            mentor_interes_personalizado_registros: {
+              include: { area: { select: { id: true, nombre: true } } },
+            },
           },
         })
       : [];
@@ -137,10 +140,24 @@ export class PrismaMentorRepository implements MentorRepository {
                 id: area.id,
                 name: area.nombre ?? '',
                 area: { id: area.padre.id, name: area.padre.nombre ?? '' },
+                esPersonalizado: false,
               },
             ]
           : [],
       );
+      const customInterests = (row.mentor_interes_personalizado_registros ?? []).flatMap((custom) =>
+        custom.area && selectedAreaIds.has(custom.id_area)
+          ? [
+              {
+                id: custom.id,
+                name: custom.nombre,
+                area: { id: custom.area.id, name: custom.area.nombre ?? '' },
+                esPersonalizado: true,
+              },
+            ]
+          : [],
+      );
+      const allInterests = [...interests, ...customInterests];
       const availability = toAvailability(row.disponibilidad_mentor_registros[0]).status;
       const experience = row.titulado.experiencia_laboral_registros[0];
       return [
@@ -148,7 +165,7 @@ export class PrismaMentorRepository implements MentorRepository {
           mentor: toMentor(row),
           availability,
           areas,
-          interests,
+          interests: allInterests,
           cargo: experience?.cargo ?? null,
           empresa: experience?.empresa ?? null,
         },
@@ -285,6 +302,9 @@ export class PrismaMentorRepository implements MentorRepository {
           where: { area: { esta_activo: true } },
           include: linkedAreaInclude,
         },
+        mentor_interes_personalizado_registros: {
+          include: { area: { select: { id: true, nombre: true } } },
+        },
         espacio_disponible_mentor_registros: {
           where: { esta_activo: true },
           orderBy: [{ dia_semana: 'asc' }, { horario_inicio: 'asc' }, { id: 'asc' }],
@@ -298,10 +318,10 @@ export class PrismaMentorRepository implements MentorRepository {
     const areas = new Map<string, AreaReference>();
     const interests = new Map<string, MentorInterest>();
     for (const { area } of row.mentor_area_registros) {
-      if (!area) {
+      if (!area || area.esta_activo !== true) {
         continue;
       }
-      if (area.padre_id === null && area.esta_activo === true) {
+      if (area.padre_id === null) {
         areas.set(area.id, { id: area.id, name: area.nombre ?? '' });
       }
     }
@@ -314,12 +334,25 @@ export class PrismaMentorRepository implements MentorRepository {
         area.padre.esta_activo !== true ||
         area.padre.padre_id !== null ||
         !selectedAreaIds.has(area.padre.id)
-      ) {continue;}
+      ) {
+        continue;
+      }
       interests.set(area.id, {
         id: area.id,
         name: area.nombre ?? '',
         area: { id: area.padre.id, name: area.padre.nombre ?? '' },
+        esPersonalizado: false,
       });
+    }
+    for (const custom of row.mentor_interes_personalizado_registros ?? []) {
+      if (custom.area && selectedAreaIds.has(custom.id_area)) {
+        interests.set(custom.id, {
+          id: custom.id,
+          name: custom.nombre,
+          area: { id: custom.area.id, name: custom.area.nombre ?? '' },
+          esPersonalizado: true,
+        });
+      }
     }
     const byName = (a: AreaReference, b: AreaReference) => a.name.localeCompare(b.name, 'es');
     const job = row.titulado.experiencia_laboral_registros[0];

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MentorAreasPage } from './mentor-areas-page';
 import { getMentorAreas, updateMentorAreas, MentorAreasError, type MentorArea } from '../services/mentor-areas-api';
 import { clearAccessToken } from '@/shared/services/auth-session';
@@ -82,6 +82,27 @@ it('guarda las áreas elegidas y confirma el guardado', async () => {
 
   expect(updateAreas).toHaveBeenCalledWith([areas[0].id]);
   expect(await screen.findByRole('status')).toHaveTextContent('Áreas técnicas actualizadas correctamente');
+});
+
+it('guarda las áreas y continúa al paso de intereses', async () => {
+  render(<MentorAreasPage />);
+  const devops = await screen.findByRole('checkbox', { name: 'DevOps' });
+  fireEvent.click(devops);
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
+
+  expect(updateAreas).toHaveBeenCalledWith([areas[0].id]);
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/mentorship/profile/interests'));
+});
+
+it('continúa sin volver a guardar cuando no hay cambios pendientes', async () => {
+  getAreas.mockResolvedValue({ areas, selectedIds: [areas[0].id] });
+  render(<MentorAreasPage />);
+  await screen.findByRole('checkbox', { name: 'DevOps' });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
+
+  expect(updateAreas).not.toHaveBeenCalled();
+  expect(push).toHaveBeenCalledWith('/mentorship/profile/interests');
 });
 
 it('sin sesión solicita autenticación y no ofrece usuarios ficticios', async () => {
