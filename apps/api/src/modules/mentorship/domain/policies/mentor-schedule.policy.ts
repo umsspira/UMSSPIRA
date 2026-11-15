@@ -1,7 +1,7 @@
 import type { MentorBooking, MentorSchedule, MentorSlotDay } from '../entities/mentor';
 
 export const MENTORSHIP_TIME_ZONE = 'America/La_Paz';
-const SESSION_MINUTES = 60;
+export const SESSION_MINUTES = 60;
 
 export interface UpcomingDay {
   date: string;

@@ -1,0 +1,33 @@
+% Cabecera LaTeX para docs/guia-devops-onboarding.pdf
+% Uso: pandoc docs/guia-devops-onboarding.md --pdf-engine=xelatex \
+%        --include-in-header=docs/pdf-header.tex -V colorlinks=true \
+%        -o docs/guia-devops-onboarding.pdf
+%
+% Se mantiene fuera del Markdown a propósito: los valores de `header-includes`
+% se interpretan como texto Markdown y escapan los backslashes del LaTeX.
+
+\usepackage{fancyvrb}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{fancyhdr}
+
+% Encabezado de página con número de página.
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{UMSSPIRA — Guía DevOps}}
+\fancyhead[R]{\small\textit{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Los bloques de código no tienen fvextra disponible: al menos reducimos el cuerpo.
+\fvset{fontsize=\footnotesize}
+
+% Ancho de la columna de números del índice. Con el valor por defecto de la
+% clase article, las secciones 10 a 19 se renderizan como "10CI/CD" (sin
+% espacio). Se amplía el ancho reservado para el número.
+\makeatletter
+\newlength{\umsspira@tocnumwidth}
+\setlength{\umsspira@tocnumwidth}{3.4em}
+\renewcommand*\l@section{\@dottedtocline{1}{1.5em}{\umsspira@tocnumwidth}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{4.9em}{4.2em}}
+\makeatother

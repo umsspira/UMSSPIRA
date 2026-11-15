@@ -19,6 +19,8 @@ import { RecalculateRadarController } from './http/controllers/recalculate-radar
 import { NlpKeywordExtractorAdapter } from './infrastructure/adapters/nlp-keyword-extractor.adapter';
 import { PrismaProfileTextReaderAdapter } from './infrastructure/adapters/prisma-profile-text-reader.adapter';
 import { PrismaRadarRepository } from './infrastructure/repositories/prisma-radar.repository';
+import { RADAR_AREA_WEIGHT_READER_PORT } from './application/ports/area-weight-reader.port';
+import { PrismaAreaWeightReaderAdapter } from './infrastructure/adapters/prisma-area-weight-reader.adapter';
 
 @Module({
   imports: [PrismaModule, NlpModule],
@@ -29,6 +31,8 @@ import { PrismaRadarRepository } from './infrastructure/repositories/prisma-rada
     GetAreaCertificationsUseCase,
     PrismaRadarRepository,
     { provide: RADAR_REPOSITORY_PORT, useExisting: PrismaRadarRepository },
+    PrismaAreaWeightReaderAdapter,
+    { provide: RADAR_AREA_WEIGHT_READER_PORT, useExisting: PrismaAreaWeightReaderAdapter },
     PrismaProfileTextReaderAdapter,
     { provide: PROFILE_TEXT_READER_PORT, useExisting: PrismaProfileTextReaderAdapter },
     NlpKeywordExtractorAdapter,

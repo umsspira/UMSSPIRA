@@ -5,11 +5,6 @@ export default function MentorshipRequestsInboxRoute() {
   return (
     <main className="mentorship-shell mentor-availability-shell">
       <PageLayout
-        breadcrumb={[
-          { label: 'Inicio', href: '/' },
-          { label: 'Mentorías', href: '/mentorship' },
-          { label: 'Mis solicitudes' },
-        ]}
         eyebrow="Red universitaria de desarrollo"
         title="Mis solicitudes"
         description="Aquí verás el estado de tus solicitudes de mentoría."

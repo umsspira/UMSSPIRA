@@ -1,0 +1,21 @@
+meta {
+  name: Consultar estado del onboarding
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/api/v1/mentorship/onboarding
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Devuelve el avance derivado de los datos guardados: isComplete, currentStep, completedSteps, catálogos y selección actual.
+
+  Permiso: mentores:self:write. La identidad sale del token.
+}

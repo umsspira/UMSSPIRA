@@ -1,13 +1,5 @@
-/** Relación de una palabra clave con un área profesional. */
-export interface DictionaryAreaAssociation {
-  id: string;
-  nombre: string | null;
-  peso: number;
-}
-
-/** Una entrada del diccionario, normalizada. `areas` es opcional: si falta o está vacía, la keyword no aporta a ninguna área. */
+/** Una entrada del diccionario NLP: término canónico y sus alias normalizados. */
 export interface DictionaryEntry {
   canonical: string;
   aliases: string[];
-  areas?: DictionaryAreaAssociation[];
 }

@@ -70,6 +70,15 @@ describe("ObservedEditForm", () => {
     expect(screen.getByRole("combobox", { name: /Carrera universitaria/i })).toHaveValue("Sistemas");
   });
 
+  it("elimina el espacio vacío haciendo que el teléfono ocupe toda la fila (BUG-13)", async () => {
+    await setup();
+
+    const phoneInput = screen.getByLabelText(/Teléfono/);
+    const phoneField = phoneInput.parentElement?.parentElement;
+
+    expect(phoneField).toHaveClass("sm:col-span-2");
+  });
+
   it("habilita 'Revisar cambios' al modificar un dato", async () => {
     await setup();
     fireEvent.change(screen.getByLabelText(/Apellidos/), { target: { value: "Quispe" } });

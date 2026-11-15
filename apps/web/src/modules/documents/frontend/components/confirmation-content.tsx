@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -15,6 +14,7 @@ import {
   type RegistrationDocumentType,
 } from '@/modules/registration/frontend/store';
 import { maskEmail } from '@/shared/utils/mask-email';
+import { downloadReceiptPdf } from '../lib/receipt-pdf';
 
 const DOCUMENT_TYPE_LABELS: Record<RegistrationDocumentType, string> = {
   titulo_provision_nacional: 'Título en Provisión Nacional',
@@ -68,6 +68,8 @@ function DetailRow({
 
 export function ConfirmationContent() {
   const [isMounted, setIsMounted] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const confirmation = useRegistrationStore(
     (state) => state.confirmation
@@ -104,6 +106,26 @@ export function ConfirmationContent() {
 
   const status =
     STATUS_LABEL[confirmation.estado] ?? confirmation.estado;
+
+  async function handleDownloadReceipt() {
+    if (!confirmation || isDownloading) return;
+    setIsDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadReceiptPdf({
+        fullName: confirmation.nombreCompleto,
+        ci: confirmation.ci,
+        documentTypeLabel: DOCUMENT_TYPE_LABELS[documentType],
+        status,
+        submittedAt: formatSubmittedAt(confirmation.fechaEnvio),
+        email: maskEmail(confirmation.correo ?? confirmation.correoEnmascarado),
+      });
+    } catch {
+      setDownloadError('No pudimos generar la constancia. Inténtalo nuevamente.');
+    } finally {
+      setIsDownloading(false);
+    }
+  }
 
   return (
     <section className="mx-auto w-full max-w-[640px] overflow-hidden rounded-[20px] border-t-[9px] border-[#ffb365] bg-white px-5 pb-10 pt-8 shadow-[0_16px_40px_rgba(38,31,22,0.08)] sm:px-9 sm:pb-12 sm:pt-9 print:shadow-none">
@@ -215,7 +237,8 @@ export function ConfirmationContent() {
 
         <button
           type="button"
-          onClick={() => window.print()}
+          onClick={handleDownloadReceipt}
+          disabled={isDownloading}
           className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ebe7de] px-4 text-sm font-semibold text-[#53677a] transition hover:bg-[#e1dbcf]"
         >
           <Download
@@ -224,6 +247,11 @@ export function ConfirmationContent() {
           />
           Guardar constancia en PDF
         </button>
+        {downloadError && (
+          <p role="alert" className="text-center text-xs text-red-700">
+            {downloadError}
+          </p>
+        )}
       </div>
 
       <footer className="mt-9 flex items-center justify-center gap-2 text-sm text-[#928a81]">
@@ -236,4 +264,3 @@ export function ConfirmationContent() {
     </section>
   );
 }
-

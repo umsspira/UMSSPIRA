@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search, Cpu, RefreshCw, ArrowLeft } from 'lucide-react';
 import type { RawAreaPoint } from '../utils/affinity-areas';
-import { rankCandidatesByQuery } from '../utils/candidate-search';
 
 export interface SearchCandidateResult {
   graduateId: string;
@@ -27,6 +26,11 @@ interface NlpSearchProps {
   isSearching: boolean;
   setIsSearching: (searching: boolean) => void;
   totalCandidates?: number;
+  // Búsqueda provista por la pantalla. La vista operativa no tiene endpoint;
+  // la demostración pasa el ranking local de sus datos de ejemplo.
+  searchCandidates?: (
+    query: string,
+  ) => SearchCandidateResult[] | Promise<SearchCandidateResult[]>;
 }
 
 export const NlpSearch: React.FC<NlpSearchProps> = ({
@@ -34,6 +38,7 @@ export const NlpSearch: React.FC<NlpSearchProps> = ({
   isSearching,
   setIsSearching,
   totalCandidates = 0,
+  searchCandidates,
 }) => {
   const [jobDescription, setJobDescription] = useState<string>(
     'Senior Full Stack, Cloud & Microservicios'
@@ -43,15 +48,17 @@ export const NlpSearch: React.FC<NlpSearchProps> = ({
     if (e) e.preventDefault();
     if (!jobDescription.trim()) return;
 
+    if (!searchCandidates) {
+      return;
+    }
+
     setIsSearching(true);
 
     try {
-      // TODO: [Épica 2 y cálculo de afinidad] - Sprint 1 simulado, sin backend: la búsqueda solo reordena
-      // a los candidatos del mock según el porcentaje que tienen en las áreas mencionadas.
-      // Cuando exista el backend, aquí se enviará `jobDescription` y se recibirá la lista ya filtrada.
-      const mockData = await import('../mocks/candidates-mock.json');
-      const candidates = mockData.default.candidates as SearchCandidateResult[];
-      onSearchCompleted(rankCandidatesByQuery(candidates, jobDescription), jobDescription);
+      // Mientras no exista el contrato de candidatos de la Épica 4, la pantalla
+      // decide qué búsqueda ejecutar. La demostración solo reordena su fixture.
+      const results = await searchCandidates(jobDescription);
+      onSearchCompleted(results, jobDescription);
     } finally {
       setIsSearching(false);
     }

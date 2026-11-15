@@ -1,16 +1,19 @@
-const nextJest = require('next/jest')
+
+const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({
   dir: './',
-})
+});
 
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+
   testEnvironment: 'jest-environment-jsdom',
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '\\.mts$'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-  }
-}
+  },
+  // Las pruebas E2E pertenecen a Playwright, no a Jest.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/', '<rootDir>/.next/', '\\.mts$'],
+};
 
-module.exports = createJestConfig(customJestConfig)
+module.exports = createJestConfig(customJestConfig);

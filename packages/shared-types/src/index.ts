@@ -24,3 +24,18 @@ export interface Requirements {
   isFulfilled?: boolean;
   [key: string]: any;
 }
+export * from './correction';
+export * from './email';
+
+export * from './ocr';
+export type {
+  MentorOnboardingAreaDto,
+  MentorOnboardingAvailabilityStatus,
+  MentorOnboardingInterestDto,
+  MentorOnboardingInterestGroupDto,
+  MentorOnboardingResponse,
+  MentorOnboardingScheduleDto,
+  MentorOnboardingStepDto,
+  MentorOnboardingStepKey,
+  MentorOnboardingStepNumber,
+} from './mentor';

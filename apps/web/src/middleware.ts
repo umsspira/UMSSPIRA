@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { decideAccess, LOGIN_PATH } from './modules/auth/frontend/services/route-access';
+import { isValidCorrectionTokenFormat } from './modules/applications/frontend/constants/correction.constants';
 
 const VALID_ROLES = new Set(['administrador', 'empresa', 'titulado']);
 const API_URL = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -7,12 +8,28 @@ const API_URL = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL 
 
 
 export async function middleware(request: NextRequest) {
-  // HU-10: el enlace de corrección se valida con el token, no con la sesión.
-  if (request.nextUrl.pathname.startsWith('/applications/correct/')) {
-    return NextResponse.next();
+  const path = request.nextUrl.pathname;
+  const legacyCorrectionMatch = path.match(
+    /^\/applications\/correct\/([^/]+)\/?$/
+  );
+
+  if (legacyCorrectionMatch) {
+    const token = legacyCorrectionMatch[1];
+
+    const destination = isValidCorrectionTokenFormat(token)
+      ? `/register/correction/${token}`
+      : "/register/correction";
+
+    const response = NextResponse.redirect(
+      new URL(destination, request.url),
+      307
+    );
+
+    response.headers.set("Cache-Control", "no-store");
+    return response;
   }
 
-  const path = request.nextUrl.pathname;
+
   const isReport = path === '/reports' || path.startsWith('/reports/');
   const isJobPosting = path === '/job-postings' || path.startsWith('/job-postings/');
   // Sprint 2 T4.1: las encuestas son privadas para el rol titulado.

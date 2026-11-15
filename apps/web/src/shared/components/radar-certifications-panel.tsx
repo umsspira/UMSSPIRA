@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import type { AffinityArea, RadarCertificationEvidence } from '@umsspira/shared-types';
 import { getAreaCertifications } from '../services/affinity-service';
-import { BackupViewerModal } from '@/modules/profile/components/backup-viewer-modal';
+import { RadarBackupViewerModal } from './radar-backup-viewer-modal';
 
 type State = { area: AffinityArea; status: 'loading' | 'error' | 'ready'; items: RadarCertificationEvidence[] };
 
@@ -56,7 +56,7 @@ export function RadarCertificationsPanel({ area, calculationKey }: { area: Affin
           ))}
         </ul>
       )}
-      {viewing && <BackupViewerModal key={viewing.id} certificationId={viewing.id} certificationName={viewing.title} onClose={() => setViewing(null)} />}
+      {viewing && <RadarBackupViewerModal key={viewing.id} certificationId={viewing.id} certificationName={viewing.title} onClose={() => setViewing(null)} />}
     </section>
   );
 }
