@@ -147,3 +147,151 @@ describe('criterios de aceptación de perfiles con el diccionario real', () => {
     expect(scores.every(({ score }) => score === 0)).toBe(true);
   });
 });
+
+interface CandidateEvaluation {
+  canonical: string;
+  meaning: string;
+  ambiguities: string;
+  aliases: string[];
+  proposedWeights: { area: RadarArea; weight: number }[];
+}
+
+function compareProfilesBeforeAndAfter(
+  profileList: readonly { id: string; name: string; text: string }[],
+  candidate: CandidateEvaluation,
+) {
+  const canonical = normalizePhrase(candidate.canonical);
+  const candidateAliases = candidate.aliases.map((alias) => normalizePhrase(alias));
+
+  const nextDictionary: DictionaryEntry[] = [
+    ...dictionary,
+    { canonical, aliases: candidateAliases.filter((alias) => alias !== canonical) },
+  ];
+  const nextWeights: KeywordAreaWeight[] = [
+    ...weights,
+    ...candidate.proposedWeights.map(({ area, weight }) => ({
+      term: canonical,
+      area,
+      weight,
+    })),
+  ];
+
+  const beforeExtractor = new KeywordExtractorService();
+  beforeExtractor.loadDictionary(dictionary);
+
+  const afterExtractor = new KeywordExtractorService();
+  afterExtractor.loadDictionary(nextDictionary);
+
+  return profileList.map((profile) => {
+    const beforeExtracted = beforeExtractor.extract(profile.text);
+    const beforeScores = calculateAffinity(beforeExtracted.keywords, weights);
+
+    const afterExtracted = afterExtractor.extract(profile.text);
+    const afterScores = calculateAffinity(afterExtracted.keywords, nextWeights);
+
+    const scoreDiffs = afterScores
+      .map((afterArea) => {
+        const beforeArea = beforeScores.find((item) => item.area === afterArea.area)!;
+        const deltaScore = afterArea.score - beforeArea.score;
+        const deltaPercentage =
+          Math.round((afterArea.percentage - beforeArea.percentage) * 100) / 100;
+        return {
+          area: afterArea.area,
+          beforeScore: beforeArea.score,
+          afterScore: afterArea.score,
+          beforePercentage: beforeArea.percentage,
+          afterPercentage: afterArea.percentage,
+          deltaScore,
+          deltaPercentage,
+        };
+      })
+      .filter((diff) => Math.abs(diff.deltaScore) > 0.01);
+
+    return {
+      id: profile.id,
+      name: profile.name,
+      beforeUnmapped: beforeExtracted.unmapped,
+      afterUnmapped: afterExtracted.unmapped,
+      afterKeywords: afterExtracted.keywords,
+      changedScore: scoreDiffs.length > 0,
+      scoreDiffs,
+    };
+  });
+}
+
+describe('HU-15 · T15.2: comparación antes y después con perfiles de referencia (P1 a P13)', () => {
+  const openTelemetryCandidate: CandidateEvaluation = {
+    canonical: 'OpenTelemetry',
+    meaning:
+      'Estándar de observabilidad para instrumentación de trazas, métricas y logs en sistemas distribuidos',
+    ambiguities: 'Sin ambigüedad con términos generales ni colisión entre ejes',
+    aliases: ['otel'],
+    proposedWeights: [{ area: 'cloud-devops', weight: 3 }],
+  };
+
+  const referenceProfilesWithIds = profiles.map((profile, index) => ({
+    id: `P${index + 1}`,
+    name: profile.name,
+    text: profile.text,
+  }));
+
+  it('CA-HU15-02: registra la evaluación completa del término candidato (significado, ambigüedades, alias, áreas y pesos)', () => {
+    expect(openTelemetryCandidate.canonical).toBe('OpenTelemetry');
+    expect(openTelemetryCandidate.meaning.length).toBeGreaterThan(10);
+    expect(openTelemetryCandidate.ambiguities.length).toBeGreaterThan(5);
+    expect(openTelemetryCandidate.aliases).toContain('otel');
+    expect(openTelemetryCandidate.proposedWeights).toEqual([
+      { area: 'cloud-devops', weight: 3 },
+    ]);
+  });
+
+  it('CA-HU15-03 y CA-HU15-04: P1 a P13 conservan sus puntajes con tolerancia 0,01 tras incorporar un término nuevo', () => {
+    const comparison = compareProfilesBeforeAndAfter(
+      referenceProfilesWithIds,
+      openTelemetryCandidate,
+    );
+
+    expect(comparison).toHaveLength(13);
+    expect(comparison.filter((item) => item.changedScore)).toEqual([]);
+  });
+
+  it('CA-HU15-03 y CA-HU15-04: identifica y explica el perfil que contiene el candidato aprobado y sus alias', () => {
+    const evaluationSuite = [
+      ...referenceProfilesWithIds,
+      {
+        id: 'PC-01',
+        name: 'perfil con candidato OpenTelemetry y alias otel',
+        text: 'OpenTelemetry y otel en Kubernetes',
+      },
+    ];
+
+    const comparison = compareProfilesBeforeAndAfter(
+      evaluationSuite,
+      openTelemetryCandidate,
+    );
+    const changedProfiles = comparison.filter((item) => item.changedScore);
+
+    expect(changedProfiles).toHaveLength(1);
+    expect(changedProfiles[0].id).toBe('PC-01');
+    expect(changedProfiles[0].beforeUnmapped).toEqual([
+      { term: 'opentelemetry', count: 1 },
+      { term: 'otel', count: 1 },
+    ]);
+    expect(changedProfiles[0].afterUnmapped).toEqual([]);
+    expect(changedProfiles[0].afterKeywords).toContainEqual({
+      term: 'opentelemetry',
+      count: 2,
+    });
+    expect(changedProfiles[0].scoreDiffs).toEqual([
+      {
+        area: 'cloud-devops',
+        beforeScore: 5,
+        afterScore: 11,
+        beforePercentage: 3.03,
+        afterPercentage: 6.32,
+        deltaScore: 6,
+        deltaPercentage: 3.29,
+      },
+    ]);
+  });
+});
