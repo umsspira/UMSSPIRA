@@ -7,6 +7,7 @@ export interface ApplicationDetail {
   };
   currentReviewer?: { name: string | null; email: string };
   id: string;
+  version: number;
   code: string;
   fullName: string;
   firstName: string;
