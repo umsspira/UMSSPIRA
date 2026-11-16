@@ -46,6 +46,7 @@
     "ioredis": "6.0.0",
     "jsonwebtoken": "9.0.3",
     "nodemailer": "^10.1.2",
+    "pdf-lib": "^1.17.1",
     "pdfmake": "0.2.23",
     "pg": "8.23.1",
     "reflect-metadata": "0.1.14",
