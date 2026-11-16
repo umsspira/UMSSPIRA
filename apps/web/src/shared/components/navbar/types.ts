@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
 
 export type NavbarRole = 'titulado' | 'empresa' | 'administrador';
 
@@ -14,6 +15,8 @@ export interface NavbarLink {
   href?: string;
   roles?: readonly NavbarRole[];
   pending?: string;
+  /** Ícono vectorial (lucide-react) que acompaña al destino en los desplegables. */
+  icon?: LucideIcon;
   /** Solo para visitantes: se oculta cuando hay sesión iniciada. */
   guestOnly?: boolean;
   /** No se muestra en el menú, pero sigue sirviendo para saber qué sección está activa. */
