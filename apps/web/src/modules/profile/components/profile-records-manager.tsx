@@ -130,7 +130,7 @@ export function ProfileRecordsManager({
       <ProfilePhotoSection name={store?.header?.name ?? ''} />
 
       <Link
-        href="/profile/records/add"
+        href="/profile/registros/agregar"
         className="inline-flex w-fit items-center gap-2 rounded-lg bg-burning-flame px-5 py-3 text-sm font-bold text-abyssal-blue transition hover:brightness-95"
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
