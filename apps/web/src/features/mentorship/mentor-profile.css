@@ -64,6 +64,103 @@
   height: 1rem;
 }
 
+.mentor-profile-progress {
+  margin-top: 1.25rem;
+  border: 1px solid var(--oatmeal-70);
+  border-radius: .5rem;
+  background: var(--palladian-50);
+  padding: 1rem;
+}
+
+.mentor-profile-progress-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  color: var(--ink);
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.mentor-profile-progress-heading h3 { margin: 0; font: inherit; }
+.mentor-profile-progress-heading > span { color: var(--truffle-dark); font-size: .6875rem; }
+
+.mentor-profile-progress-track {
+  height: .25rem;
+  overflow: hidden;
+  margin-top: .65rem;
+  border-radius: 999px;
+  background: var(--oatmeal);
+}
+
+.mentor-profile-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--flame);
+  transition: width .2s ease;
+}
+
+.mentor-profile-progress ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem 1rem;
+  margin: .875rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mentor-profile-progress li {
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+  color: var(--ink-75);
+  font-size: .6875rem;
+}
+
+.mentor-profile-progress li.is-complete { color: var(--ink); }
+.mentor-profile-progress-marker {
+  display: inline-flex;
+  width: .9rem;
+  height: .9rem;
+  flex: 0 0 .9rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--oatmeal);
+  border-radius: 50%;
+  color: var(--success);
+  font-size: .625rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mentor-profile-progress li.is-complete .mentor-profile-progress-marker {
+  border-color: var(--success);
+  color: var(--success);
+}
+.mentor-profile-progress-optional { color: var(--truffle-dark); font-size: .625rem; }
+
+.mentor-profile-progress-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .75rem;
+  color: var(--truffle-dark);
+  font-size: .75rem;
+}
+
+.mentor-profile-progress-error button {
+  border: 0;
+  background: transparent;
+  color: var(--navy);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 /* Configuracion del perfil */
 
 .active-panel-settings {
@@ -189,6 +286,11 @@
   line-height: .75rem;
 }
 
+.active-panel-option-status.is-optional {
+  background: var(--palladian);
+  color: var(--ink-75);
+}
+
 .active-panel-option-status.is-complete {
   background: rgb(35 112 68 / 12%);
   color: var(--success);
@@ -214,6 +316,10 @@
   margin-top: 1.75rem;
   border-top: 1px solid var(--oatmeal-70);
   padding: 1rem 1.25rem;
+}
+
+@media (max-width: 38rem) {
+  .mentor-profile-progress ol { grid-template-columns: minmax(0, 1fr); }
 }
 
 .active-panel-deactivate {

@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { CurrentActor } from '../../../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../../../shared/http/auth/decorators/require-permissions.decorator';
+import { Roles } from '../../../../shared/http/auth/decorators/roles.decorator';
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import { FilterMentorProfilesUseCase } from '../../application/use-cases/filter-mentor-profiles.use-case';
@@ -15,6 +16,7 @@ export class FilterMentorProfilesController {
   constructor(private readonly useCase: FilterMentorProfilesUseCase) {}
 
   @Get('profiles/filter')
+  @Roles('titulado')
   @RequirePermissions('mentores:self:write')
   async handle(
     @CurrentActor() actor: ActorContext,
