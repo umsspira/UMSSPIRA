@@ -1,0 +1,29 @@
+.ct-page { display: grid; gap: 20px; }
+.ct-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.ct-card { display: grid; gap: 12px; padding: 22px; border: 1px solid #d5cebf; border-radius: 12px; background: #eee9df; color: #1b2632; }
+.ct-card h2 { margin: 0; font-size: 20px; }
+.ct-card p, .ct-card li { margin: 0; color: #3a4654; font-size: 14px; line-height: 21px; }
+.ct-card ol { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
+.ct-card.is-accent { border-left: 4px solid #ffb162; }
+.ct-card.is-error { border-left: 4px solid #a35139; }
+.ct-event { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px; border: 1px solid #d5cebf; border-left: 4px solid #ffb162; border-radius: 12px; background: #eee9df; }
+.ct-event strong { display: block; font-size: 18px; color: #1b2632; }
+.ct-event small { color: #66717a; }
+.ct-chip { display: inline-block; width: fit-content; padding: 5px 12px; border-radius: 999px; background: #c9c1b1; color: #1b2632; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.ct-chip.is-ok { background: #ffb162; }
+.ct-chip.is-error { background: #a35139; color: #fff; }
+.ct-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; margin-top: 8px; }
+.ct-field { display: grid; gap: 4px; }
+.ct-field label { font-size: 12px; font-weight: 700; color: #3a4654; }
+.ct-field output { display: block; padding: 11px 14px; border: 1px solid #c9c1b1; border-radius: 8px; background: #f5f0e6; font-size: 14px; }
+.ct-field output.is-missing { border-color: #a35139; color: #a35139; }
+.ct-note { color: #66717a; font-size: 12px; }
+.ct-certificate { display: grid; align-content: start; gap: 10px; min-height: 280px; padding: 40px; border: 1px solid #66717a; background: #f5f0e6; }
+.ct-certificate::before, .ct-certificate::after { content: ''; display: block; height: 2px; background: #ffb162; }
+.ct-certificate::after { margin-top: auto; }
+.ct-certificate h3 { margin: 0; font-size: 20px; letter-spacing: .02em; }
+.ct-certificate .ct-name { font-size: 18px; font-weight: 700; }
+.ct-certificate small { color: #66717a; }
+.ct-feedback { padding: 12px 14px; border: 1px solid #a35139; border-radius: 8px; color: #a35139; }
+.ct-hidden-input { display: none; }
+@media (max-width: 800px) { .ct-grid { grid-template-columns: 1fr; } .ct-actions { justify-content: stretch; } }

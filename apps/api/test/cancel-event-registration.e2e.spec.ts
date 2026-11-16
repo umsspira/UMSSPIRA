@@ -8,6 +8,7 @@ import request from 'supertest';
 import { EVENTS_REPOSITORY } from '../src/modules/events/application/ports/events-repository.port';
 import { CancelEventRegistrationController } from '../src/modules/events/http/controllers/cancel-event-registration.controller';
 import { eventsProviders } from '../src/modules/events/infrastructure/providers/events.providers';
+import { PUSH_NOTIFICATIONS } from '../src/modules/notifications/application/ports/push-notifications.port';
 import { BusinessRuleError } from '../src/shared/errors/business-rule-error';
 import { AuthenticationGuard } from '../src/shared/http/auth/guards/authentication.guard';
 import { PermissionsGuard } from '../src/shared/http/auth/guards/permissions.guard';
@@ -41,6 +42,7 @@ describe('Endpoint de cancelación de inscripción', () => {
         ...eventsProviders,
         { provide: PrismaService, useValue: {} },
         { provide: GenerateEventPassService, useValue: {} },
+        { provide: PUSH_NOTIFICATIONS, useValue: { notify: jest.fn() } },
         {
           provide: ConfigService,
           useValue: new ConfigService({ CORS_ORIGINS: ['http://localhost:3001'] }),

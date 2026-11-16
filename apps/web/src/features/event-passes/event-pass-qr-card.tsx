@@ -3,12 +3,18 @@
 
 import { useState } from 'react';
 import type { EventPassDto } from '@umsspira/shared-types';
+import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
 import { saveOfflineQrPass } from './offline/offline-qr-storage';
 import { EventPassCard } from '@/modules/events/components/EventPassCard';
 import { OFFLINE_PASS_INVALID_MESSAGE } from './offline/offline-sync';
 
 interface EventPassQrCardProps {
   pass: EventPassDto;
+  savedOffline?: boolean;
+  updated?: boolean;
+  offline?: boolean;
+  backHref?: string;
   /** true cuando el pase viene del dispositivo (sin conexión): no se ofrece guardarlo de nuevo. */
   fromOfflineStorage?: boolean;
 }
@@ -31,6 +37,10 @@ function formatEventDate(value?: string): string {
 
 export function EventPassQrCard({
   pass,
+  savedOffline = false,
+  updated = false,
+  offline = false,
+  backHref = '/mis-pases',
   fromOfflineStorage = false,
 }: EventPassQrCardProps) {
   const isValid =
@@ -91,7 +101,7 @@ const handleSaveOffline = async () => {
 };
 
   const statusLabel = isValid
-    ? 'PASE ACTIVO'
+    ? (offline ? 'ESTADO SIN VERIFICAR' : 'INSCRIPCIÓN CONFIRMADA')
     : pass.status === 'VENCIDO'
       ? 'PASE VENCIDO'
       : pass.status === 'INVALIDADO'
@@ -105,23 +115,59 @@ const handleSaveOffline = async () => {
         ? `${OFFLINE_PASS_INVALID_MESSAGE}. Fue invalidado y ya no permite el acceso al evento.`
         : 'Este pase no está habilitado para acceder al evento.';
 
+  if (!isValid) {
+    return (
+      <div className="hu12-invalid-wrapper">
+        <article className="hu12-invalid-card">
+          <div className="hu12-invalid-visual" aria-label="Pase no válido">
+            <div className="hu12-invalid-pattern" aria-hidden="true">
+              <QRCodeSVG
+                value="PASE NO VALIDO"
+                size={160}
+                fgColor="#eee9df"
+                bgColor="#293b50"
+              />
+            </div>
+            <span>NO VÁLIDO</span>
+          </div>
+          <div className="hu12-invalid-content">
+            <h2>{details?.name || 'Evento sin nombre'}</h2>
+            <p className="hu12-invalid-badge">{statusLabel}</p>
+            <p className="hu12-invalid-description">{statusDescription}</p>
+            <p className="hu12-invalid-id">ID PASE: {pass.id}</p>
+            <Link href={backHref} className="hu12-invalid-back">
+              Volver a mis pases
+            </Link>
+          </div>
+        </article>
+        <section className="hu12-invalid-notice" role="status">
+          <strong>Pase no vigente</strong>
+          <p>El evento o tu inscripción cambió. Este código ya no permite registrar asistencia.</p>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <EventPassCard
       status={isValid ? 'ACTIVO' : 'INVALID'}
       statusLabel={statusLabel}
       statusDescription={statusDescription}
-      hideBackButton
+      savedOffline={savedOffline}
+      updated={updated}
+      offline={offline}
+      backHref={backHref}
       eventName={details?.name || 'Evento sin nombre'}
       userName={details?.userName || 'Titulado'}
       dateTime={formatEventDate(details?.dateTime)}
       location={details?.location || 'Ubicación no disponible'}
       passId={pass.id}
       qrToken={isValid ? pass.qrToken : undefined}
-onSaveOffline={isValid && !fromOfflineStorage ? handleSaveOffline : undefined}
-isSavedOffline={isSavedOffline}
-isSavingOffline={isSavingOffline}
-saveOfflineMessage={saveOfflineMessage}
-      onBack={() => window.history.back()}
+      onBack={() => window.location.assign(backHref)}
+      onSaveOffline={isValid && !fromOfflineStorage ? handleSaveOffline : undefined}
+      isSavedOffline={isSavedOffline}
+      isSavingOffline={isSavingOffline}
+      saveOfflineMessage={saveOfflineMessage}
     />
   );
 }
