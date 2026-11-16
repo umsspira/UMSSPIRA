@@ -13,8 +13,12 @@ export function NavbarLinks({ items, currentPath, resolveHref, onNavigate }: {
 }) {
   return <ul className={styles.linkList}>{items.map(item => {
     const current = item.href ? isCurrentDestination(item.href, currentPath) : false;
+    const Icon = item.icon;
     return <li key={item.id}>
-      {item.href ? <Link href={resolveHref(item.href)} className={`${styles.destination} ${current ? styles.selectedDestination : ''}`} aria-current={current ? 'page' : undefined} onClick={onNavigate} prefetch={false}>{item.label}</Link> : <div className={styles.pendingDestination} aria-disabled="true"><span>{item.label}</span><small>{item.pending ?? 'Próximamente'}</small></div>}
+      {item.href ? <Link href={resolveHref(item.href)} className={`${styles.destination} ${current ? styles.selectedDestination : ''}`} aria-current={current ? 'page' : undefined} onClick={onNavigate} prefetch={false}>
+        {Icon && <Icon className={styles.destinationIcon} size={16} strokeWidth={1.9} aria-hidden="true" />}
+        <span>{item.label}</span>
+      </Link> : <div className={styles.pendingDestination} aria-disabled="true"><span>{item.label}</span><small>{item.pending ?? 'Próximamente'}</small></div>}
     </li>;
   })}</ul>;
 }
