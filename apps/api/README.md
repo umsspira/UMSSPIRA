@@ -46,7 +46,7 @@ El adaptador se elige al arrancar. No existe una sustitución automática por me
 
 ## Configuración de entorno
 
-`.env.example` contiene las mismas siete variables de la configuración local, con las conexiones y la clave vacías. Para comenzar, copia el archivo y completa `DATABASE_URL`, `DIRECT_URL` y `AUTH_JWT_SECRET`. Sus comentarios explican cada valor; los nombres de rama no intervienen.
+`.env.example` contiene las mismas variables de la configuración local, con las conexiones y las claves vacías. Para comenzar, copia el archivo y completa `DATABASE_URL`, `DIRECT_URL` y `AUTH_JWT_SECRET`; las notificaciones Push requieren además el par VAPID. Sus comentarios explican cada valor; los nombres de rama no intervienen.
 
 | Variable | Qué representa | Valor habitual en el equipo |
 | --- | --- | --- |
@@ -57,6 +57,9 @@ El adaptador se elige al arrancar. No existe una sustitución automática por me
 | `DATABASE_URL` | Conexión de la API a PostgreSQL | Pooler de transacciones del proyecto Supabase, puerto `6543` |
 | `DIRECT_URL` | Conexión de migraciones y scripts | Pooler de sesiones del mismo proyecto, puerto `5432` |
 | `AUTH_JWT_SECRET` | Clave de firma de los tokens propios | Se genera una vez por entorno con el comando del ejemplo |
+| `VAPID_PUBLIC_KEY` | Clave pública del par VAPID de Push Web | Se genera una vez por entorno; debe coincidir con `NEXT_PUBLIC_VAPID_PUBLIC_KEY` del frontend |
+| `VAPID_PRIVATE_KEY` | Clave privada del par VAPID | Nunca se publica ni se comparte; regenerarla invalida las suscripciones |
+| `VAPID_SUBJECT` | Contacto del emisor de Push | `mailto:equipo@dominio` o una URL `https://` |
 
 `NODE_ENV` y `APP_ENV` son independientes. Por ejemplo, el servidor compartido puede ejecutar `NODE_ENV=production` y usar `APP_ENV=dev`, porque ejecuta el modo publicado de Node sobre datos ficticios de integración.
 

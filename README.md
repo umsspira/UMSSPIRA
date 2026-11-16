@@ -120,7 +120,9 @@ La infraestructura vive repartida así:
 
 `render.yaml` describe el servicio `umsspira-api`: raíz del monorepo, rama `dev`, compilación exclusiva del backend y health check en `/health`.
 
-Configurar `DATABASE_URL`, `DIRECT_URL`, `AUTH_JWT_SECRET` y `CORS_ORIGINS`. Para enviar correos reales también se necesitan `SMTP_URL` y `MAIL_FROM`. Dejar `PORT` a cargo de Render.
+Configurar `DATABASE_URL`, `DIRECT_URL`, `AUTH_JWT_SECRET` y `CORS_ORIGINS`. Para enviar correos reales también se necesitan `SMTP_URL` y `MAIL_FROM`. Las notificaciones Push exigen `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT`: el par se genera una sola vez con `npx web-push generate-vapid-keys` y no se regenera, porque invalida las suscripciones existentes. Dejar `PORT` a cargo de Render.
+
+El esquema de entorno del backend es estricto: una variable obligatoria que falte detiene el arranque con `Configuración de entorno inválida` y el servicio sale con status 1. `pnpm --filter api test` incluye una prueba que compara las obligatorias con las declaradas en `render.yaml`.
 
 > **Plan gratuito:** el servicio se duerme tras ~15 min sin tráfico y el primer request tarda ~50 s. Si eso molesta en las demostraciones, subir de plan.
 
@@ -136,8 +138,12 @@ Al importar el repo hay que indicar **Root Directory = `apps/web`** y definir `N
 | Render | `DIRECT_URL` | Conexión PostgreSQL de migraciones y seeds |
 | Render | `AUTH_JWT_SECRET` | Clave propia de firma de tokens |
 | Render | `CORS_ORIGINS` | Origen de Vercel. Varios orígenes separados por coma |
+| Render | `VAPID_PUBLIC_KEY` | Clave pública del par VAPID de Push Web |
+| Render | `VAPID_PRIVATE_KEY` | Clave privada del par VAPID; no sale del backend |
+| Render | `VAPID_SUBJECT` | Contacto del emisor: `mailto:` o `https://` |
 | Vercel | `API_INTERNAL_URL` | URL raíz del backend para el proxy de Next.js |
 | Vercel | `NEXT_PUBLIC_API_URL` | URL pública del API en Render |
+| Vercel | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Igual a `VAPID_PUBLIC_KEY` de Render; se inlinea en el build |
 
 ### Antes de mergear una épica
 
