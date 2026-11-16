@@ -31,19 +31,19 @@ export function LogoutButton() {
     try {
       await revokeCurrentSession();
     } catch (revokeError) {
-      if (!isOffline(revokeError)) {
-        setError('No se pudo cerrar la sesión. Inténtalo nuevamente.');
-        setPending(false);
-        return;
+      if (isOffline(revokeError)) {
+        // Sin conexión: se cierra aquí y el servidor la revoca al volver la red.
+        markPendingLogout();
+      } else {
+        // Si fue otro tipo de error (ej. servidor caído), avisamos en consola pero no bloqueamos
+        console.warn("Error de servidor al revocar sesión:", revokeError);
       }
-      // Sin conexión: se cierra aquí y el servidor la revoca al volver la red.
-      markPendingLogout();
+    } finally {
+      clearAllSurveyDrafts();
+      clearSession();
+      authStore.reset();
+      hardRedirect("/login");
     }
-
-    clearAllSurveyDrafts();
-    clearSession();
-    authStore.reset();
-    hardRedirect("/login");
   }
 
   return (
