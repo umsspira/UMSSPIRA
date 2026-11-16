@@ -31,6 +31,11 @@ export interface ApplicationDetail {
   email: string;
   reviewedAt: string;
   } | null;
+  reviewNotification?: {
+    eventId: string;
+    status: 'pendiente' | 'enviada' | 'fallida';
+    attempts: number;
+  } | null;
 }
 
 export interface ApplicationPage {

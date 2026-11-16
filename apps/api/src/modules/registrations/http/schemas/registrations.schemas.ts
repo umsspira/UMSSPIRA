@@ -152,7 +152,7 @@ export const reviewSchema = z
 
     notifyDean: z.literal(false).optional(),
 
-        // Versión del expediente que el administrador tenía en pantalla (CA-14.7).
+    // Versión del expediente que el administrador tenía en pantalla (CA-14.7).
     expectedVersion: z.number().int().positive().optional(),
   })
   .superRefine((data, context) => {
