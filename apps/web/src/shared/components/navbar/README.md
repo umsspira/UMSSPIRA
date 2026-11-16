@@ -95,6 +95,10 @@ ya existente es exclusivo de administración:
 
 Usar un `id` estable y único dentro de la lista. Sin `roles`, el acceso se muestra
 a visitantes y a todos los roles autenticados; no significa «solo autenticados».
+`icon` es opcional y recibe un ícono de `lucide-react`; se dibuja antes de la
+etiqueta en los desplegables de escritorio y móvil. Cada destino debe apuntar a su
+propia ruta: `isCurrentDestination` marca como activo solo el enlace de la vista
+actual, incluyendo los parámetros de consulta declarados.
 Para habilitar un destino pendiente, verificar primero la página real, añadir su
 `href` y retirar `pending`. No copiar los menús para escritorio y móvil: ambos se
 generan desde estas listas. Si cambian las reglas por rol, actualizar también
@@ -108,7 +112,7 @@ declare por sí sola un rol.
 
 | Sesión | Apariencia | Accesos específicos |
 | --- | --- | --- |
-| Visitante | Blanca; Iniciar sesión y Registro. | Comunidad, beneficios, información institucional, oportunidades, red de mentorías y catálogo de eventos. |
+| Visitante | Blanca; Iniciar sesión y Registro. | Comunidad, beneficios, información institucional, oportunidades, sobre las mentorías y catálogo de eventos. |
 | Titulado | Azul; identidad, cuenta y Cerrar sesión. | Área personal; perfil, registros, completar perfil y afinidad; información, áreas, intereses y disponibilidad del mentor. |
 | Empresa | Azul; identidad, cuenta y Cerrar sesión. | Perfil de empresa y publicación de vacantes. No muestra configuración personal de mentor ni gestión administrativa. |
 | Administrador | Azul; identidad, cuenta y Cerrar sesión. | Accesos de titulado y empresa; gestión, creación y borradores de eventos; solicitudes, reportes y panel administrativo en el menú de cuenta. |

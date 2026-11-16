@@ -123,11 +123,11 @@
 
 | Ruta | Pantalla | Protección |
 | --- | --- | --- |
-| `/mentorship` | Red de mentorías (inicio) | middleware |
+| `/mentorship` | Explorar mentores (inicio del módulo) | middleware |
 | `/mentorship/directory` | Directorio / explorar mentores | middleware |
 | `/mentorship/mentors/[mentorId]` | Perfil público de un mentor | middleware |
 | `/mentorship/request/[mentorId]` | Enviar solicitud a un mentor | middleware |
-| `/mentorship/requests` | Bandeja de solicitudes | middleware |
+| `/mentorship/requests` | Mis solicitudes (enviadas) | middleware |
 | `/mentorship/requests/received` | Solicitudes recibidas (`?view=sent` = enviadas) | middleware |
 | `/mentorship/profile` | Mi perfil de mentor | middleware |
 | `/mentorship/profile/information` | Información de mi perfil de mentor | middleware |
