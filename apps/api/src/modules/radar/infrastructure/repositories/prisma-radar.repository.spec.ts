@@ -209,4 +209,50 @@ describe('PrismaRadarRepository', () => {
       ],
     });
   });
+    it('guardar varias veces el mismo cálculo envía siempre los mismos términos y reemplaza la frecuencia (T15.4)', async () => {
+    const transaction = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      calculoRadar: { create: jest.fn().mockResolvedValue({ id: 'calculation-id' }) },
+      afinidadRadar: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      palabraClaveNoMapeada: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (tx: typeof transaction) => Promise<unknown>) =>
+        callback(transaction),
+      ),
+    };
+    const repository = new PrismaRadarRepository(prisma as unknown as PrismaService);
+    const unmapped = [
+      { term: 'opentelemetry', count: 3 },
+      { term: 'terraform-x', count: 1 },
+    ];
+
+    for (let run = 0; run < 3; run += 1) {
+      await repository.saveCalculation({
+        tituladoId: 'graduate-id',
+        hashEntrada: 'hash',
+        estado: 'COMPLETADO',
+        versionAlgoritmo: '1.0.0',
+        areas: [],
+        unmapped,
+      });
+    }
+
+    const inserts = transaction.$executeRaw.mock.calls.filter(([strings]) =>
+      (strings as unknown as string[]).join(' ').includes('palabra_clave_no_mapeada'),
+    );
+    expect(inserts).toHaveLength(3);
+
+    const payloads = inserts.map((call) => call[call.length - 1] as string);
+    expect(new Set(payloads).size).toBe(1);
+    expect(JSON.parse(payloads[0])).toEqual([
+      { termino: 'opentelemetry', frecuencia: 3 },
+      { termino: 'terraform-x', frecuencia: 1 },
+    ]);
+
+    const sql = (inserts[0][0] as unknown as string[]).join(' ');
+    expect(sql).toMatch(/ON CONFLICT \(id_titulado, termino\) DO UPDATE/);
+    expect(sql).toMatch(/frecuencia = EXCLUDED\.frecuencia/);
+    expect(sql).not.toMatch(/frecuencia\s*\+|\+\s*EXCLUDED/);
+  });
 });
