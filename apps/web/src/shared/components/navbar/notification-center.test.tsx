@@ -78,6 +78,34 @@ describe('NotificationCenter (HU13 - ventanas de avisos)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('muestra avisos guardados y marca uno como leído al abrir el evento', async () => {
+    setupBrowser('default');
+    const onNotificationRead = jest.fn();
+    const onNavigate = jest.fn();
+    render(
+      <NotificationCenter
+        items={[{
+          id: 'notification-1',
+          title: 'Evento actualizado',
+          description: 'Cambió la fecha.',
+          href: '/portal/eventos/event-1',
+          unread: true,
+        }]}
+        resolveHref={href => href}
+        onClose={jest.fn()}
+        onNavigate={onNavigate}
+        onNotificationRead={onNotificationRead}
+      />,
+    );
+
+    const eventLink = await screen.findByRole('link', { name: 'Ver evento' });
+    eventLink.addEventListener('click', event => event.preventDefault(), { once: true });
+    fireEvent.click(eventLink);
+
+    expect(onNotificationRead).toHaveBeenCalledWith('notification-1');
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+  });
+
   it('recorre todas las ventanas hasta dejar los avisos activados', async () => {
     const requestPermission = setupBrowser('default');
     renderCenter();

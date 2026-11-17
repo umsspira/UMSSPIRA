@@ -1,8 +1,24 @@
 import { runSeedStage, SeedStageError } from '../scripts/seed/seed-stage';
 import { seedCatalogs } from '../scripts/seed/catalogs';
 import type { PrismaClient } from '../src/generated/prisma/client';
+import * as stages from '../scripts/seed/seed-stage';
 
 describe('Etapas transaccionales del seed', () => {
+  it('carga los tópicos después de las áreas y antes del diccionario Radar', async () => {
+    const stage = jest.spyOn(stages, 'runSeedStage').mockResolvedValue();
+    try {
+      await seedCatalogs({} as PrismaClient);
+      expect(stage.mock.calls.map(([name]) => name)).toEqual([
+        'acceso',
+        'catálogos auxiliares',
+        'áreas',
+        'tópicos de mentoría',
+        'diccionario Radar',
+      ]);
+    } finally {
+      stage.mockRestore();
+    }
+  });
   it('informa la etapa y no expone el error original ni continúa', async () => {
     const error = await runSeedStage('áreas', async () => {
       throw new Error('detalle privado del driver');

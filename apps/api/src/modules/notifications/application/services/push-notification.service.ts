@@ -6,6 +6,7 @@ import type {
 import type { PushNotifications } from '../ports/push-notifications.port';
 import type { PushSender } from '../ports/push-sender.port';
 import type { PushSubscriptionsRepository } from '../ports/push-subscriptions-repository.port';
+import type { EventNotificationsRepository } from '../ports/event-notifications-repository.port';
 
 export class PushNotificationService implements PushNotifications {
   private readonly logger = new Logger(PushNotificationService.name);
@@ -13,6 +14,7 @@ export class PushNotificationService implements PushNotifications {
   constructor(
     private readonly subscriptions: PushSubscriptionsRepository,
     private readonly sender: PushSender,
+    private readonly eventNotifications: EventNotificationsRepository,
   ) {}
 
   async notify(
@@ -22,6 +24,14 @@ export class PushNotificationService implements PushNotifications {
     const uniqueUserIds = [...new Set(userIds)];
     if (uniqueUserIds.length === 0) {
       return { sent: 0, failed: 0, invalidEndpoints: 0 };
+    }
+
+    if (notification.eventId) {
+      try {
+        await this.eventNotifications.createForUsers(uniqueUserIds, notification);
+      } catch (error) {
+        this.logger.warn(`No se pudo guardar la notificación del evento: ${this.errorMessage(error)}`);
+      }
     }
 
     const subscriptions = await this.subscriptions.listForUsers(uniqueUserIds);
