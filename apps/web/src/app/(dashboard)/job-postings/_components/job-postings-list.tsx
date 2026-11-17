@@ -143,7 +143,19 @@ export function JobPostingsList() {
         const rightScore = rightResult?.status === 'ready' ? rightResult.percentage : -1;
         if (leftScore !== rightScore) return rightScore - leftScore;
       }
-      return new Date(right.fechaPublicacion ?? 0).getTime() - new Date(left.fechaPublicacion ?? 0).getTime();
+
+      const publicationTime = (value: string | null): number => {
+        const timestamp = value ? Date.parse(value) : 0;
+        return Number.isFinite(timestamp) ? timestamp : 0;
+      };
+
+      const dateDifference =
+        publicationTime(right.fechaPublicacion) -
+        publicationTime(left.fechaPublicacion);
+
+      if (dateDifference !== 0) return dateDifference;
+
+      return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
     });
   }, [postings, query, modality, sortByAffinity, affinityState]);
 

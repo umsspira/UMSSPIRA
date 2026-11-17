@@ -149,4 +149,19 @@ describe('JobPostingsList', () => {
     expect(rows[1]).toHaveTextContent('Desarrollador JavaScript');
     expect(screen.getByText('Ordenadas por fecha de publicación')).toBeInTheDocument();
   });
+  it('desempata por ID cuando la afinidad y la fecha coinciden', async () => {
+    listPostings.mockResolvedValue([
+      { ...posting, id: 'vacancy-b', titulo: 'Vacante B' },
+      { ...posting, id: 'vacancy-a', titulo: 'Vacante A' },
+    ]);
+
+    render(<JobPostingsList />);
+
+    // Espera a que termine el cálculo de ambas vacantes.
+    expect(await screen.findAllByText('95% Afinidad')).toHaveLength(2);
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Vacante A');
+    expect(rows[2]).toHaveTextContent('Vacante B');
+  });
 });
