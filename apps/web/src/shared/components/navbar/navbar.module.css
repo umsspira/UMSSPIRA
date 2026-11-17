@@ -130,3 +130,42 @@
 .public .active, .public .topLink:hover, .public .trigger:hover { color:#ffb162; }
 .root.public .login { color:#eee9df; border-color:#4b5b6e; }
 .root.public .login:hover { background:#2c3b4d; }
+
+/* ===== HU13: centro de notificaciones y ventanas de avisos push ===== */
+.activityPanel .noticeHeader { padding:16px 16px 12px; border-bottom:1px solid #c9c1b1; }
+.activityPanel .noticeHeader h2 { padding:0; border:0; font-size:16px; }
+.noticeHeader p { margin:4px 0 0; font-size:11px; color:#5b6878; }
+.activityPanel .noticeList { display:grid; gap:10px; padding:12px 14px; max-height:50dvh; overflow:auto; }
+.activityPanel .noticeList li+li { border-top:0; }
+.noticeCard { display:flex; flex-direction:column; padding:12px; border:1px solid #c9c1b1; border-left:3px solid #ffb162; border-radius:8px; background:#f3efe7; }
+.noticeCard strong { display:block; font-size:12px; }
+.noticeCard small { display:block; margin-top:5px; font-size:11px; line-height:1.6; color:#2c3b4d; }
+.root .noticeAction { align-self:flex-end; margin-top:8px; padding:6px 14px; border-radius:6px; background:#ffb162; color:#1b2632; font-size:11px; font-weight:700; text-decoration:none; }
+.root .noticeAction:hover { background:#e99541; }
+.noticeStatus { margin:0; padding:12px 16px; border-top:1px solid #c9c1b1; font-size:11px; color:#5b6878; }
+.noticeActions { display:flex; gap:8px; padding:0 14px 14px; }
+
+.noticeView { padding:16px; color:#2c3b4d; }
+.noticeEyebrow { margin:0 0 6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.activityPanel .noticeTitle { margin:0 0 10px; padding:0; border:0; font-size:18px; font-weight:700; line-height:1.3; }
+.noticeChip, .noticeChipOn { display:inline-block; margin-bottom:4px; padding:4px 11px; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.noticeChip { background:#d9d2c3; }
+.noticeChipOn { background:#ffb162; color:#1b2632; }
+.noticeDivider { margin:12px 0; border:0; border-top:1px solid #c9c1b1; }
+.noticeText { margin:0 0 8px; font-size:12px; line-height:1.6; }
+.noticeHint { margin:10px 0; font-size:11px; line-height:1.6; color:#5b6878; }
+.noticeRow { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; font-size:13px; }
+.noticeBadgeOff, .noticeBadgeOn { font-size:10px; font-weight:700; letter-spacing:.04em; }
+.noticeBadgeOff { color:#94503c; }
+.noticeBadgeOn { color:#237044; }
+.noticeError { margin:8px 0; font-size:12px; font-weight:600; color:#8b0000; }
+.noticeWarn { margin:10px 0; padding:10px; border-radius:6px; background:#f3e3d3; font-size:12px; line-height:1.6; color:#805026; }
+.noticeButtons { display:flex; gap:8px; }
+
+.root .noticePrimary, .root .noticeSecondary { flex:1; min-height:38px; padding:8px 10px; border-radius:6px; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer; }
+.root .noticePrimary { border:1px solid #ffb162; background:#ffb162; color:#1b2632; }
+.root .noticePrimary:hover:not(:disabled) { background:#e99541; }
+.root .noticeSecondary { border:1px solid #c9c1b1; background:transparent; color:#2c3b4d; }
+.root .noticeSecondary:hover:not(:disabled) { background:#e7e1d7; }
+.root .noticePrimary:disabled, .root .noticeSecondary:disabled { opacity:.6; cursor:not-allowed; }
+.root .noticeFull { width:100%; flex:none; }
