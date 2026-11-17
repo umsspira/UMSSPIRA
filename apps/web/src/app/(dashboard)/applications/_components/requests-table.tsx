@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useOcrRunner } from '@/modules/applications/frontend/hooks/use-ocr-runner';
 import { useOcrStatuses, OCR_STATUS_LABELS } from '@/modules/applications/frontend/hooks/use-ocr-statuses';
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '@/modules/applications/frontend/services/application-query';
 import { StatusBadge, type RequestStatus } from '@/shared/components/badge';
@@ -36,10 +39,10 @@ export interface RequestsTableProps {
   pageSize: number;
   onPageSizeChange: (pageSize: number) => void;
   onPageChange: (page: number) => void;
-  onSelect: (id: string) => void;
+  onSelect?: (id: string) => void;
 }
 
-// Tabla de solicitudes con alerta de antigüedad y paginación (CA-04.1).
+// Tabla de solicitudes con alerta de antigüedad y paginación (CA-04.1, CA-14.1).
 export function RequestsTable({
   items,
   total,
@@ -49,7 +52,13 @@ export function RequestsTable({
   onPageChange,
   onSelect,
 }: RequestsTableProps) {
-  const ocrStatuses = useOcrStatuses(items.map(item => item.id));
+  useOcrRunner();
+  const searchParams = useSearchParams();
+  const currentQuery = searchParams?.toString();
+  const getDetailHref = (id: string) =>
+    currentQuery ? `/applications/${id}?${currentQuery}` : `/applications/${id}`;
+
+  const ocrStatuses = useOcrStatuses(items.map((item) => item.id));
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
@@ -82,19 +91,40 @@ export function RequestsTable({
             {items.map((item) => {
               const hours = hoursSince(item.submittedAt);
               const overdue = isOverdue(item);
+              const detailHref = getDetailHref(item.id);
               return (
                 <tr
                   key={item.id}
-                  onClick={() => onSelect(item.id)}
+                  onClick={(event) => {
+                    if ((event.target as HTMLElement)?.closest('a')) return;
+                    onSelect?.(item.id);
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') onSelect(item.id);
+                    if (event.key === 'Enter') {
+                      if ((event.target as HTMLElement)?.closest('a')) return;
+                      onSelect?.(item.id);
+                    }
                   }}
                   tabIndex={0}
                   className={`cursor-pointer border-t border-oatmeal/60 transition-colors hover:bg-palladian/60 ${
                     overdue ? 'border-l-4 border-l-truffle-trouble' : ''
                   }`}
                 >
-                  <td className="px-4 py-3 text-xs font-bold text-abyssal-blue">{item.code}</td>
+                  <td className="px-4 py-3 text-xs font-bold text-abyssal-blue">
+                    <Link
+                      href={detailHref}
+                      onClick={(e) => {
+                        if (onSelect) {
+                          e.preventDefault();
+                          onSelect(item.id);
+                        }
+                      }}
+                      className="hover:underline focus:underline focus:outline-none"
+                      aria-label={`Ver expediente ${item.code}`}
+                    >
+                      {item.code}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     <p className="text-sm font-semibold text-abyssal-blue">{item.fullName}</p>
                     <p className="text-xs text-abyssal-blue/60">{item.email}</p>
