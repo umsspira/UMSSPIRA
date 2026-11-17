@@ -9,6 +9,12 @@ import {
   saveMentorOnboardingInterests,
   type MentorOnboardingState,
 } from '../services/mentor-onboarding-api';
+import { getMentorProfile } from '../services/mentorship-api';
+import { getMentorAreas } from '../services/mentor-areas-api';
+import { getMentorInterests } from '../services/mentor-interests-api';
+import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorSchedule } from '../services/mentor-schedule-api';
+import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 
 jest.mock('../services/mentor-onboarding-api', () => ({
   ...jest.requireActual('../services/mentor-onboarding-api'),
@@ -17,6 +23,12 @@ jest.mock('../services/mentor-onboarding-api', () => ({
   saveMentorOnboardingInterests: jest.fn(),
   saveMentorOnboardingAvailability: jest.fn(),
 }));
+jest.mock('../services/mentorship-api');
+jest.mock('../services/mentor-areas-api');
+jest.mock('../services/mentor-interests-api');
+jest.mock('../services/mentor-availability-api');
+jest.mock('../services/mentor-schedule-api');
+jest.mock('../services/mentor-profile-info-api');
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
@@ -30,6 +42,12 @@ const getState = jest.mocked(getMentorOnboarding);
 const saveAreas = jest.mocked(saveMentorOnboardingAreas);
 const saveInterests = jest.mocked(saveMentorOnboardingInterests);
 const saveAvailability = jest.mocked(saveMentorOnboardingAvailability);
+const getProfile = jest.mocked(getMentorProfile);
+const getAreas = jest.mocked(getMentorAreas);
+const getInterests = jest.mocked(getMentorInterests);
+const getAvailability = jest.mocked(getMentorAvailability);
+const getSchedule = jest.mocked(getMentorSchedule);
+const getInformation = jest.mocked(getMentorProfileInformation);
 
 const area = { id: '10000000-0000-4000-8000-000000000001', nombre: 'Desarrollo de software', descripcion: null };
 const interest = {
@@ -67,6 +85,12 @@ function state(overrides: Partial<MentorOnboardingState> = {}): MentorOnboarding
 
 beforeEach(() => {
   jest.resetAllMocks();
+  getProfile.mockResolvedValue({ isActive: false, requirements: { egresado: true } });
+  getAreas.mockResolvedValue({ areas: [], selectedIds: [] });
+  getInterests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } });
+  getAvailability.mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null });
+  getSchedule.mockResolvedValue({ schedule: [], fecha_actualizacion: null });
+  getInformation.mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null });
   getState.mockResolvedValue(state());
   saveAreas.mockResolvedValue(state({
     currentStep: 2,
@@ -105,12 +129,18 @@ beforeEach(() => {
 
 it('CAF-03: muestra el paso actual, el total y los pasos completados', async () => {
   getState.mockResolvedValue(state({ currentStep: 2, completedSteps: [1] }));
+  getAreas.mockResolvedValue({ areas: [], selectedIds: [area.id] });
   render(<MentorOnboardingWizard />);
 
   expect(await screen.findAllByText('Paso 2 de 3')).not.toHaveLength(0);
-  expect(screen.getByText('1 de 3 pasos completados')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /Paso 1: Áreas técnicas \(completado\)/ })).toBeEnabled();
-  expect(screen.getByRole('button', { name: /Paso 3: Disponibilidad \(pendiente\)/ })).toBeDisabled();
+  const progress = await screen.findByRole('progressbar', { name: 'Progreso del perfil de mentor' });
+  expect(progress).toHaveAttribute('aria-valuenow', '20');
+  expect(screen.getByText(/1 de 5 pasos completados/)).toBeInTheDocument();
+  expect(screen.getByText('Completo')).toBeInTheDocument();
+  expect(screen.getAllByText('Pendiente')).toHaveLength(4);
+  expect(screen.queryByRole('link', { name: 'Completar áreas técnicas' })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Completar intereses de mentoría' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Completar disponibilidad' })).toBeInTheDocument();
 });
 
 it('CAF-06: no avanza ni pierde la selección cuando faltan datos obligatorios', async () => {
@@ -133,7 +163,7 @@ it('CAF-05/CAF-07: guarda y continúa al paso de intereses solo con las áreas e
 
   await waitFor(() => expect(saveAreas).toHaveBeenCalledWith([area.id]));
   expect(await screen.findByRole('heading', { name: 'Intereses de mentoría' })).toBeInTheDocument();
-  expect(screen.getByRole('status')).toHaveTextContent('Paso guardado correctamente');
+  expect(screen.getByText('Paso guardado correctamente')).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: /Backend/ })).toBeInTheDocument();
 });
 

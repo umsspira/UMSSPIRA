@@ -2,9 +2,19 @@ import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MentorAreasPage } from './mentor-areas-page';
 import { getMentorAreas, updateMentorAreas, MentorAreasError, type MentorArea } from '../services/mentor-areas-api';
+import { getMentorProfile } from '../services/mentorship-api';
+import { getMentorInterests } from '../services/mentor-interests-api';
+import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorSchedule } from '../services/mentor-schedule-api';
+import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 import { clearAccessToken } from '@/shared/services/auth-session';
 
 jest.mock('../services/mentor-areas-api', () => ({ ...jest.requireActual('../services/mentor-areas-api'), getMentorAreas: jest.fn(), updateMentorAreas: jest.fn() }));
+jest.mock('../services/mentorship-api');
+jest.mock('../services/mentor-interests-api');
+jest.mock('../services/mentor-availability-api');
+jest.mock('../services/mentor-schedule-api');
+jest.mock('../services/mentor-profile-info-api');
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
@@ -18,6 +28,11 @@ jest.mock('next/navigation', () => ({ useRouter: () => router }));
 
 const getAreas = jest.mocked(getMentorAreas);
 const updateAreas = jest.mocked(updateMentorAreas);
+const getProfile = jest.mocked(getMentorProfile);
+const getInterests = jest.mocked(getMentorInterests);
+const getAvailability = jest.mocked(getMentorAvailability);
+const getSchedule = jest.mocked(getMentorSchedule);
+const getInformation = jest.mocked(getMentorProfileInformation);
 const areas: MentorArea[] = [
   { id: '10000000-0000-4000-8000-000000000001', nombre: 'DevOps', descripcion: 'CI/CD y Docker.' },
   { id: '10000000-0000-4000-8000-000000000002', nombre: 'Bases de datos', descripcion: 'SQL y NoSQL.' },
@@ -30,7 +45,12 @@ const areas: MentorArea[] = [
 beforeEach(() => {
   jest.resetAllMocks();
   clearAccessToken();
+  getProfile.mockResolvedValue({ isActive: false, requirements: { egresado: true } });
   getAreas.mockResolvedValue({ areas, selectedIds: [] });
+  getInterests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } });
+  getAvailability.mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null });
+  getSchedule.mockResolvedValue({ schedule: [], fecha_actualizacion: null });
+  getInformation.mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null });
   updateAreas.mockImplementation(async selectedIds => ({ areas, selectedIds }));
 });
 
@@ -81,7 +101,7 @@ it('guarda las áreas elegidas y confirma el guardado', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
   expect(updateAreas).toHaveBeenCalledWith([areas[0].id]);
-  expect(await screen.findByRole('status')).toHaveTextContent('Áreas técnicas actualizadas correctamente');
+  expect(await screen.findByText('Áreas técnicas actualizadas correctamente')).toBeInTheDocument();
 });
 
 it('guarda las áreas y continúa al paso de intereses', async () => {
@@ -115,7 +135,13 @@ it('sin sesión solicita autenticación y no ofrece usuarios ficticios', async (
 });
 
 it('no inventa un catálogo si la API falla y permite reintentar', async () => {
-  getAreas.mockRejectedValueOnce(new Error('No disponible'));
+  let pageCalls = 0;
+  getAreas.mockImplementation(async (signal?: AbortSignal) => {
+    if (signal) return { areas, selectedIds: [] };
+    pageCalls += 1;
+    if (pageCalls === 1) throw new Error('No disponible');
+    return { areas, selectedIds: [] };
+  });
   render(<MentorAreasPage />);
   expect(await screen.findByRole('alert')).toHaveTextContent('No disponible');
   expect(screen.queryByRole('list', { name: 'Catálogo de áreas técnicas' })).not.toBeInTheDocument();

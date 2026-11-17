@@ -2,16 +2,56 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { MentorInterests } from './mentor-interests';
 import { type InterestArea, type InterestConfiguration } from '../model/mentor-interests';
+import { getMentorProfile } from '../services/mentorship-api';
+import { getMentorAreas } from '../services/mentor-areas-api';
+import { getMentorInterests } from '../services/mentor-interests-api';
+import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorSchedule } from '../services/mentor-schedule-api';
+import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 
 const push = jest.fn();
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
+jest.mock('../services/mentorship-api');
+jest.mock('../services/mentor-areas-api');
+jest.mock('../services/mentor-interests-api');
+jest.mock('../services/mentor-availability-api');
+jest.mock('../services/mentor-schedule-api');
+jest.mock('../services/mentor-profile-info-api');
+
+const profile = jest.mocked(getMentorProfile);
+const areas = jest.mocked(getMentorAreas);
+const interests = jest.mocked(getMentorInterests);
+const availability = jest.mocked(getMentorAvailability);
+const schedule = jest.mocked(getMentorSchedule);
+const information = jest.mocked(getMentorProfileInformation);
+
+function mockCompletenessState() {
+  profile.mockResolvedValue({ isActive: false, requirements: { egresado: true } });
+  areas.mockResolvedValue({ areas: [], selectedIds: [] });
+  interests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } });
+  availability.mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null });
+  schedule.mockResolvedValue({ schedule: [], fecha_actualizacion: null });
+  information.mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null });
+}
+
 const catalog: InterestArea[] = [
   { id: 'web', name: 'Web', description: 'Desarrollo web', topics: [{ id: 'react', name: 'React' }, { id: 'rest', name: 'APIs REST' }] },
   { id: 'datos', name: 'Bases de datos', description: 'Consultas', topics: [{ id: 'pg', name: 'PostgreSQL' }] },
 ];
 const initialConfiguration: InterestConfiguration = { areaIds: ['web'], topicIds: ['react'] };
 let onSave: jest.Mock;
-beforeEach(() => { push.mockReset(); onSave = jest.fn(async config => config); });
+beforeEach(() => {
+  jest.resetAllMocks();
+  push.mockReset();
+  mockCompletenessState();
+  onSave = jest.fn(async config => config);
+});
 function setup() { render(<MentorInterests catalog={catalog} initialConfiguration={initialConfiguration} onSave={onSave} />); }
 function add() { fireEvent.click(screen.getByRole('button', { name: 'APIs REST' })); }
 function openSave() { fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' })); }

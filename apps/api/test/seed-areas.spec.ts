@@ -30,11 +30,11 @@ function database(existing = new Map<string, Record<string, unknown>>()) {
 }
 
 describe('Seed de áreas — N28 y N30', () => {
-  it('crea diez áreas con los nombres y padres de la copia, sin actualizar existentes', async () => {
+  it('crea las áreas e intereses de la copia, sin actualizar existentes', async () => {
     const db = database();
     await seedAreas(db.prisma);
     expect(db.transaction).toHaveBeenCalledTimes(1);
-    expect(db.rows.size).toBe(10);
+    expect(db.rows.size).toBe(25);
     for (const [call] of db.upsert.mock.calls) {
       expect(call.update).toEqual({});
       expect(call.create.esta_activo).toBe(true);
@@ -42,6 +42,23 @@ describe('Seed de áreas — N28 y N30', () => {
     expect(db.rows.get(AREA_IDS.cloudDevops)).toMatchObject({
       nombre: 'Cloud/DevOps', padre_id: null,
     });
+  });
+
+  it('ofrece intereses para las áreas del mentor de demostración (BUG-001)', async () => {
+    const db = database();
+    await seedAreas(db.prisma);
+    const children = [...db.rows.values()].filter(
+      (row) => row.padre_id !== null && row.padre_id !== undefined,
+    );
+    for (const rootId of [
+      AREA_IDS.cloudDevops,
+      AREA_IDS.dataAi,
+      AREA_IDS.qualityAssurance,
+      AREA_IDS.cybersecurityNetworks,
+      AREA_IDS.itManagement,
+    ]) {
+      expect(children.some((child) => child.padre_id === rootId)).toBe(true);
+    }
   });
 
   it('conserva incluso nombres, jerarquías y estados distintos y es idempotente', async () => {

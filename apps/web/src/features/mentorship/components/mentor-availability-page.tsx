@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { PrimaryButton, SecondaryButton } from './mentor-button';
-import { MentorSetupSteps } from './mentor-setup-steps';
+import { MentorProfileCompleteness, notifyMentorProfileChanged } from './mentor-profile-completeness';
 import {
   getMentorAvailability,
   MentorAvailabilityError,
@@ -208,6 +208,7 @@ export function MentorAvailabilityPage() {
         if (selectedStatus === 'NO_DISPONIBLE') setToast('Disponibilidad actualizada con éxito');
       }
       setSavedFeedback(true);
+      notifyMentorProfileChanged();
       window.setTimeout(() => setSavedFeedback(false), 1800);
       if (nextHref) router.push(nextHref);
     } catch (reason) {
@@ -296,7 +297,7 @@ export function MentorAvailabilityPage() {
 
       {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} firstIncomplete={Boolean(savedStatus) && !savedSchedule.length} />}
 
-      <MentorSetupSteps currentStep={3} completedSteps={savedStatus ? 3 : 2} />
+      <MentorProfileCompleteness />
 
       <div className="mentor-availability-actions">
         <Link href="/mentorship/profile/interests" className="mentor-availability-back" onClick={event => {

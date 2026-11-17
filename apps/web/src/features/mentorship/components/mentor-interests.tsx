@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { PrimaryButton, SecondaryButton } from './mentor-button';
-import { MentorSetupSteps } from './mentor-setup-steps';
+import { MentorProfileCompleteness, notifyMentorProfileChanged } from './mentor-profile-completeness';
 import {
   normalizeInterests,
   normalizeTopicText,
@@ -137,7 +137,6 @@ export function MentorInterests({
         .filter((area) => draft.areaIds.includes(area.id))
         .flatMap((area) => area.topics)
         .find((topic) => !topic.isCustom)?.id;
-  const completedSteps = Number(saved.areaIds.length > 0) + Number(saved.topicIds.length > 0);
   const added = draft.topicIds.filter((id) => !saved.topicIds.includes(id));
   const removed = saved.topicIds.filter((id) => !draft.topicIds.includes(id));
   const topicName = (id: string) =>
@@ -216,6 +215,7 @@ export function MentorInterests({
       setDraft(confirmed);
       removedAreaTopics.current.clear();
       setSuccess(true);
+      notifyMentorProfileChanged();
       setStatusMessage('');
       setDialog(null);
       if (nextHref) navigate(nextHref);
@@ -675,7 +675,7 @@ export function MentorInterests({
         </button>
       </p>
 
-      <MentorSetupSteps currentStep={2} completedSteps={completedSteps} />
+      <MentorProfileCompleteness />
 
       {success && (
         <div role="status" className="interests-success">

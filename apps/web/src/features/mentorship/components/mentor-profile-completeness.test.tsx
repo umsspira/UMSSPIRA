@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { MentorProfileCompleteness } from './mentor-profile-completeness';
+import { MentorProfileCompleteness, notifyMentorProfileChanged } from './mentor-profile-completeness';
 import { MentorConfiguration } from './mentor-configuration';
 import { getMentorProfile } from '../services/mentorship-api';
 import { getMentorAreas } from '../services/mentor-areas-api';
@@ -132,6 +132,20 @@ it('actualiza los datos cuando se regresa al indicador mediante la navegacion de
 
   await waitFor(() => expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '20'));
   expect(areas).toHaveBeenCalledTimes(2);
+});
+
+it('recalcula el avance sin recargar cuando una seccion avisa que se guardo (CA-FE-05)', async () => {
+  availability.mockResolvedValueOnce({ availabilityStatus: null, fecha_actualizacion: null })
+    .mockResolvedValueOnce({ availabilityStatus: 'DISPONIBLE', fecha_actualizacion: '2026-11-17' });
+  schedule.mockResolvedValueOnce({ schedule: [], fecha_actualizacion: null })
+    .mockResolvedValueOnce({ schedule: [{ weekday: 1, start: '09:00', end: '10:00' }], fecha_actualizacion: '2026-11-17' });
+  render(<MentorProfileCompleteness />);
+
+  expect(await screen.findByRole('link', { name: 'Completar disponibilidad' })).toBeInTheDocument();
+  await act(async () => { notifyMentorProfileChanged(); });
+
+  await waitFor(() => expect(screen.queryByRole('link', { name: 'Completar disponibilidad' })).not.toBeInTheDocument());
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '20');
 });
 
 it('muestra botones blancos en secciones configuradas y naranjas en las pendientes', () => {

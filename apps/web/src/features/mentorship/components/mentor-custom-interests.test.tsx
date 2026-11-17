@@ -2,9 +2,43 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { MentorInterests } from './mentor-interests';
 import type { InterestArea, InterestConfiguration } from '../model/mentor-interests';
+import { getMentorProfile } from '../services/mentorship-api';
+import { getMentorAreas } from '../services/mentor-areas-api';
+import { getMentorInterests } from '../services/mentor-interests-api';
+import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorSchedule } from '../services/mentor-schedule-api';
+import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 
 const push = jest.fn();
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
+jest.mock('../services/mentorship-api');
+jest.mock('../services/mentor-areas-api');
+jest.mock('../services/mentor-interests-api');
+jest.mock('../services/mentor-availability-api');
+jest.mock('../services/mentor-schedule-api');
+jest.mock('../services/mentor-profile-info-api');
+
+const profile = jest.mocked(getMentorProfile);
+const areas = jest.mocked(getMentorAreas);
+const interests = jest.mocked(getMentorInterests);
+const availability = jest.mocked(getMentorAvailability);
+const schedule = jest.mocked(getMentorSchedule);
+const information = jest.mocked(getMentorProfileInformation);
+
+function mockCompletenessState() {
+  profile.mockResolvedValue({ isActive: false, requirements: { egresado: true } });
+  areas.mockResolvedValue({ areas: [], selectedIds: [] });
+  interests.mockResolvedValue({ catalog: [], configuration: { areaIds: [], topicIds: [] } });
+  availability.mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null });
+  schedule.mockResolvedValue({ schedule: [], fecha_actualizacion: null });
+  information.mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null });
+}
 
 describe('HU 6.22 - Intereses de mentoría personalizados', () => {
   const initialCatalog: InterestArea[] = [
@@ -38,7 +72,9 @@ describe('HU 6.22 - Intereses de mentoría personalizados', () => {
   let mockOnDeleteCustom: jest.Mock;
 
   beforeEach(() => {
+    jest.resetAllMocks();
     push.mockReset();
+    mockCompletenessState();
     mockOnSave = jest.fn(async (c) => c);
     mockOnCreateCustom = jest.fn();
     mockOnUpdateCustom = jest.fn();
@@ -269,14 +305,23 @@ describe('HU 6.22 - Intereses de mentoría personalizados', () => {
     expect(dialog).toHaveTextContent('NestJS');
   });
 
-  // Task #272: Indicador de paso actual y completados
-  it('#272: muestra el indicador con el paso actual "Intereses de mentoría" y pasos completados', () => {
+  // Task #272: Indicador de avance del perfil de mentor
+  it('#272: muestra el indicador con el paso actual "Intereses de mentoría" y pasos completados', async () => {
     renderComponent();
     expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ir al paso 1: Áreas técnicas' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ir al paso 3: Disponibilidad' })).toBeInTheDocument();
-    expect(screen.getByText('Paso actual')).toBeInTheDocument();
+    const progress = await screen.findByRole('progressbar', { name: 'Progreso del perfil de mentor' });
+    expect(progress).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByRole('link', { name: 'Completar áreas técnicas' })).toHaveAttribute(
+      'href',
+      '/mentorship/profile/areas#first-incomplete',
+    );
+    expect(screen.getByRole('link', { name: 'Completar disponibilidad' })).toHaveAttribute(
+      'href',
+      '/mentorship/profile/availability#first-incomplete',
+    );
+    expect(screen.getAllByRole('link')).toHaveLength(5);
+    expect(screen.getByRole('link', { name: 'Completar intereses de mentoría' })).toBeInTheDocument();
     expect(screen.getByText('Intereses de mentoría')).toBeInTheDocument();
-    expect(screen.getByText(/de 3 pasos completados/)).toBeInTheDocument();
+    expect(screen.getByText(/de 5 pasos completados/)).toBeInTheDocument();
   });
 });

@@ -3,13 +3,31 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MentorInterestsConnected } from './mentor-interests-connected';
 import { getMentorProfile } from '../services/mentorship-api';
 import { getMentorInterests, saveMentorInterests } from '../services/mentor-interests-api';
+import { getMentorAreas } from '../services/mentor-areas-api';
+import { getMentorAvailability } from '../services/mentor-availability-api';
+import { getMentorSchedule } from '../services/mentor-schedule-api';
+import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 
 jest.mock('../services/mentorship-api');
 jest.mock('../services/mentor-interests-api');
+jest.mock('../services/mentor-areas-api');
+jest.mock('../services/mentor-availability-api');
+jest.mock('../services/mentor-schedule-api');
+jest.mock('../services/mentor-profile-info-api');
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
 const getProfile = jest.mocked(getMentorProfile);
 const getInterests = jest.mocked(getMentorInterests);
 const save = jest.mocked(saveMentorInterests);
+const getAreas = jest.mocked(getMentorAreas);
+const getAvailability = jest.mocked(getMentorAvailability);
+const getSchedule = jest.mocked(getMentorSchedule);
+const getInformation = jest.mocked(getMentorProfileInformation);
 const state = {
   catalog: [{ id: 'root', name: 'Backend real', description: '', topics: [{ id: 'rest', name: 'REST real' }] }],
   configuration: { areaIds: ['root'], topicIds: [] },
@@ -19,6 +37,10 @@ beforeEach(() => {
   jest.resetAllMocks();
   getProfile.mockResolvedValue({ isActive: true, requirements: { egresado: true } });
   getInterests.mockResolvedValue(state);
+  getAreas.mockResolvedValue({ areas: [], selectedIds: [] });
+  getAvailability.mockResolvedValue({ availabilityStatus: null, fecha_actualizacion: null });
+  getSchedule.mockResolvedValue({ schedule: [], fecha_actualizacion: null });
+  getInformation.mockResolvedValue({ nombre: 'Mentor', exists: false, profile: null });
   save.mockImplementation(async next => next);
 });
 

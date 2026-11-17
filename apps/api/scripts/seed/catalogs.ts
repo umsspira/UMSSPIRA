@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
 import { seedAccessCatalog } from './access-catalog';
 import { DEMO_CAREER_ID } from './demo-accounts';
-import { AREA_IDS, CATALOG_IDS } from './demo-ids';
+import { AREA_IDS, CATALOG_IDS, INTEREST_AREA_IDS } from './demo-ids';
 import { seedRadarCatalog } from './radar-catalog';
 import { runSeedStage } from './seed-stage';
 import { seedInformaticsCareer } from './informatics-career';
@@ -34,6 +34,22 @@ export const areas: Array<Prisma.AreaCreateManyInput & { id: string }> = [
   { id: AREA_IDS.qualityAssurance, nombre: 'QA', padre_id: null },
   { id: AREA_IDS.cybersecurityNetworks, nombre: 'Ciberseguridad', padre_id: null },
   { id: AREA_IDS.itManagement, nombre: 'Gestión TI', padre_id: null },
+  // Intereses de las áreas raíz del mentor de demostración (HU 6.13 / BUG-001).
+  { id: INTEREST_AREA_IDS.networkSecurity, nombre: 'Seguridad de redes', padre_id: AREA_IDS.cybersecurityNetworks },
+  { id: INTEREST_AREA_IDS.pentesting, nombre: 'Pentesting', padre_id: AREA_IDS.cybersecurityNetworks },
+  { id: INTEREST_AREA_IDS.incidentManagement, nombre: 'Gestión de incidentes', padre_id: AREA_IDS.cybersecurityNetworks },
+  { id: INTEREST_AREA_IDS.machineLearning, nombre: 'Machine learning', padre_id: AREA_IDS.dataAi },
+  { id: INTEREST_AREA_IDS.dataAnalytics, nombre: 'Analítica de datos', padre_id: AREA_IDS.dataAi },
+  { id: INTEREST_AREA_IDS.deepLearning, nombre: 'Deep learning', padre_id: AREA_IDS.dataAi },
+  { id: INTEREST_AREA_IDS.itil, nombre: 'ITIL', padre_id: AREA_IDS.itManagement },
+  { id: INTEREST_AREA_IDS.itServiceManagement, nombre: 'Gestión de servicios TI', padre_id: AREA_IDS.itManagement },
+  { id: INTEREST_AREA_IDS.itGovernance, nombre: 'Gobernanza TI', padre_id: AREA_IDS.itManagement },
+  { id: INTEREST_AREA_IDS.functionalTesting, nombre: 'Pruebas funcionales', padre_id: AREA_IDS.qualityAssurance },
+  { id: INTEREST_AREA_IDS.testAutomation, nombre: 'Automatización de pruebas', padre_id: AREA_IDS.qualityAssurance },
+  { id: INTEREST_AREA_IDS.performanceTesting, nombre: 'Pruebas de rendimiento', padre_id: AREA_IDS.qualityAssurance },
+  { id: INTEREST_AREA_IDS.containers, nombre: 'Contenedores', padre_id: AREA_IDS.cloudDevops },
+  { id: INTEREST_AREA_IDS.kubernetes, nombre: 'Kubernetes', padre_id: AREA_IDS.cloudDevops },
+  { id: INTEREST_AREA_IDS.cicd, nombre: 'CI/CD', padre_id: AREA_IDS.cloudDevops },
 ];
 
 export const tiposReporte: Array<Prisma.TipoReporteCreateManyInput & { id: string }> = [

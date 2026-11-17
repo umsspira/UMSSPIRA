@@ -14,6 +14,13 @@ import { SecondaryButton } from './mentor-button';
 type Completion = { participation: boolean; areas: boolean; interests: boolean; availability: boolean; information: boolean };
 export type MentorProfileCompletion = Completion;
 
+const PROFILE_CHANGED_EVENT = 'umsspira:mentor-profile-changed';
+
+/** Avisa al indicador de avance que una sección se guardó (CA-FE-05: recalcular sin recargar). */
+export function notifyMentorProfileChanged(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
+}
+
 const sections: { key: keyof Completion; label: string; href: string }[] = [
   { key: 'participation', label: 'Participación como mentor', href: '/mentorship/profile#first-incomplete' },
   { key: 'areas', label: 'Áreas técnicas', href: '/mentorship/profile/areas#first-incomplete' },
@@ -82,10 +89,12 @@ export function MentorProfileCompleteness({
     };
     window.addEventListener('popstate', refresh);
     window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener(PROFILE_CHANGED_EVENT, refresh);
     return () => {
       currentController.abort();
       window.removeEventListener('popstate', refresh);
       window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener(PROFILE_CHANGED_EVENT, refresh);
     };
   }, [attempt, load]);
 

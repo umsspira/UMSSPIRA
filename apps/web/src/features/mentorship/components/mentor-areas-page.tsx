@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, PlusIcon, AlertTriangleIcon, Undo2Icon, ShieldCheckIcon, LockKeyholeIcon, BriefcaseBusinessIcon, ServerIcon, MonitorIcon, DatabaseIcon, CloudIcon, BrainCircuitIcon, SmartphoneIcon, NetworkIcon, BlocksIcon, ClipboardCheckIcon } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { SecondaryButton, PrimaryButton } from './mentor-button';
-import { MentorSetupSteps } from './mentor-setup-steps';
+import { MentorProfileCompleteness, notifyMentorProfileChanged } from './mentor-profile-completeness';
 import { getMentorProfile } from '../services/mentorship-api';
 import type { MentorState } from '@umsspira/shared-types';
 import { getMentorAreas, updateMentorAreas, MentorAreasError, type MentorArea, type MentorAreasState } from '../services/mentor-areas-api';
@@ -150,6 +150,7 @@ export function MentorAreasPage() {
       setSavedIds(state.selectedIds);
       setSelectedIds(state.selectedIds);
       setSaved(true);
+      notifyMentorProfileChanged();
       setInterests(state.intereses);
       setDialog(null);
       setPendingDestination(null);
@@ -244,7 +245,7 @@ export function MentorAreasPage() {
 
         {saved && <div role="status" className="mentor-areas-saved"><p>Áreas técnicas actualizadas correctamente</p><p>Áreas guardadas: {areas.filter(area => savedIds.includes(area.id)).map(area => area.nombre).join(', ')}</p></div>}
 
-        <MentorSetupSteps currentStep={1} completedSteps={savedIds.length ? 1 : 0} />
+        <MentorProfileCompleteness />
 
         <div className="mentor-areas-page-actions">
           <Link href="/mentorship/profile" className="mentor-areas-back">

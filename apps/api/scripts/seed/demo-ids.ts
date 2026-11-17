@@ -37,6 +37,25 @@ export const AREA_IDS = {
   itManagement: RADAR_AREA_IDS['it-management'],
 } as const;
 
+// Intereses (áreas hijas) de las áreas raíz del mentor de demostración.
+export const INTEREST_AREA_IDS = {
+  networkSecurity: '60000000-0000-4000-8000-000000000101',
+  pentesting: '60000000-0000-4000-8000-000000000102',
+  incidentManagement: '60000000-0000-4000-8000-000000000103',
+  machineLearning: '60000000-0000-4000-8000-000000000104',
+  dataAnalytics: '60000000-0000-4000-8000-000000000105',
+  deepLearning: '60000000-0000-4000-8000-000000000106',
+  itil: '60000000-0000-4000-8000-000000000107',
+  itServiceManagement: '60000000-0000-4000-8000-000000000108',
+  itGovernance: '60000000-0000-4000-8000-000000000109',
+  functionalTesting: '60000000-0000-4000-8000-00000000010a',
+  testAutomation: '60000000-0000-4000-8000-00000000010b',
+  performanceTesting: '60000000-0000-4000-8000-00000000010c',
+  containers: '60000000-0000-4000-8000-00000000010d',
+  kubernetes: '60000000-0000-4000-8000-00000000010e',
+  cicd: '60000000-0000-4000-8000-00000000010f',
+} as const;
+
 export const CATALOG_IDS = {
   pdf: '01000000-0000-4000-8000-000000000001',
   jpg: '01000000-0000-4000-8000-000000000002',

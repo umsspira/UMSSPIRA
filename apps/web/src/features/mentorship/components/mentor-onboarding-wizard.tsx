@@ -11,7 +11,7 @@ import {
   ShieldCheckIcon,
 } from 'lucide-react';
 import { PrimaryButton, SecondaryButton } from './mentor-button';
-import { MentorOnboardingProgress } from './mentor-onboarding-progress';
+import { MentorProfileCompleteness } from './mentor-profile-completeness';
 import {
   OnboardingAreasStep,
   OnboardingAvailabilityStep,
@@ -343,13 +343,7 @@ export function MentorOnboardingWizard() {
         Completa los tres pasos en orden. Tu avance se guarda paso a paso y puedes retomarlo cuando quieras.
       </p>
 
-      <MentorOnboardingProgress
-        currentStep={step}
-        totalSteps={onboarding.totalSteps}
-        steps={onboarding.steps}
-        completedSteps={onboarding.completedSteps}
-        onSelect={chooseDraft}
-      />
+      <MentorProfileCompleteness />
 
       <section className="onboarding-card" aria-labelledby="onboarding-step-title">
         <div className="onboarding-card-heading">
