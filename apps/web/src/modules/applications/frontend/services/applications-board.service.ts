@@ -38,9 +38,16 @@ export interface BoardDetail extends BoardItem {
   documentName: string;
   documentPath: string | null;
   documentFormat: string;
+  version?: number;
+  reviewNotification?: ReviewNotification | null;
 }
 
 export interface ReviewAuthor { name: string | null; email: string }
+export interface ReviewNotification {
+  eventId: string;
+  status: 'pendiente' | 'enviada' | 'fallida';
+  attempts: number;
+}
 export interface ReviewSummary {
   observations: number; maxObservations: number; rejections: number; maxRejections: number;
   latestObservation: string | null; canObserve: boolean;
@@ -142,4 +149,25 @@ export interface BoardMetrics {
 
 export function fetchApplicationsMetrics(): Promise<BoardResult<BoardMetrics>> {
   return boardFetch<BoardMetrics>(`${APPLICATIONS_URL}/metrics`);
+}
+
+// Reintenta el mismo envío sin crear otro dictamen; pasadas 24 h responde expired (CA-14.8).
+export async function retryMailEvent(
+  eventId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const fallback = 'No se pudo reintentar el envío. Intenta nuevamente.';
+  try {
+    const response = await authenticatedFetch(
+      `/api/v1/mail-events/${encodeURIComponent(eventId)}/retry`,
+      { method: 'POST' },
+    );
+    const body = await readJson<{ data?: { status?: string }; status?: string } & ApiErrorBody>(response);
+    if (body?.data?.status === 'expired' || body?.status === 'expired') {
+      return { ok: false, message: 'El plazo de reintento (24 horas) venció.' };
+    }
+    if (!response.ok) return { ok: false, message: toMessage(body, fallback) };
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: error instanceof SessionError ? error.message : fallback };
+  }
 }
