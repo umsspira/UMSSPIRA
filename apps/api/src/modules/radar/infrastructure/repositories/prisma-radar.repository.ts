@@ -115,6 +115,7 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
         MAX(fecha_deteccion) AS ultima_deteccion
       FROM public.palabra_clave_no_mapeada
       GROUP BY termino
+      HAVING COUNT(DISTINCT id_titulado) >= 3
       ORDER BY SUM(frecuencia) DESC, COUNT(DISTINCT id_titulado) DESC, termino ASC
     `;
 
