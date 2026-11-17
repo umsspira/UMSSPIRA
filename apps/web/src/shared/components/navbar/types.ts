@@ -32,6 +32,7 @@ export interface NavbarActivity {
   description: string;
   href?: string;
   unread?: boolean;
+  actionLabel?: string;
 }
 
 /** La sesión y las acciones las entrega la aplicación; la barra no autentica. */
