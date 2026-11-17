@@ -5,7 +5,7 @@ Criterios cubiertos: `CA-HU15-02`, `CA-HU15-03` y `CA-HU15-04`.
 
 ## 1. Conjunto de perfiles de referencia (`P1` a `P13`)
 
-Los 13 perfiles de referencia se ejecutan con las implementaciones productivas de `KeywordExtractorService` (`apps/api/src/modules/nlp/application/services/keyword-extractor.service.ts`) y `calculateAffinity` (`apps/api/src/modules/radar/domain/affinity-calculator.ts`):
+Los 13 perfiles de referencia se ejecutan con las implementaciones productivas de `KeywordExtractorService` (`apps/api/src/modules/nlp/application/services/keyword-extractor.service.ts`) y `calculateAreaAffinity` (`apps/api/src/modules/radar/domain/affinity-calculator.ts`):
 
 | ID | Nombre del perfil | Texto de entrada | Resultado esperado (`score` línea base) |
 | :--- | :--- | :--- | :--- |
@@ -46,9 +46,9 @@ Antes de incorporar cualquier término proveniente de la consulta agregada de no
 
 ## 3. Procedimiento de comparación antes y después (`CA-HU15-03` y `CA-HU15-04`)
 
-1. **Ejecución sobre el diccionario vigente (Antes):** cargar `RADAR_DICTIONARY` en `KeywordExtractorService` y evaluar `P1` a `P13` y `PC-01` con `calculateAffinity`, registrando `score`, `percentage`, `weighting`, `topKeywords` y `unmapped`.
+1. **Ejecución sobre el diccionario vigente (Antes):** cargar `RADAR_DICTIONARY` en `KeywordExtractorService` y evaluar `P1` a `P13` y `PC-01` con `calculateAreaAffinity`, registrando `score`, `percentage`, `weighting`, `topKeywords` y `unmapped`.
 2. **Ejecución sobre el diccionario candidato (Después):** incorporar únicamente los términos y pesos aprobados y reejecutar `P1` a `P13` y `PC-01` con las mismas funciones productivas.
 3. **Verificación de invariancia y registro de cambios:**
-   - **Perfiles sin los términos nuevos (`P1` a `P13`):** los 13 perfiles conservan íntegramente su puntaje (`deltaScore = 0` en los 6 ejes, tolerancia `<= 0,01`). En el porcentaje relativo a la capacidad total del área (`percentage`), las áreas no tocadas no varían (`0,00`) y en `cloud-devops` solo se registra el ajuste de denominador previsto (`CA-HU15-04`) en `P7` (`3,64 % -> 3,45 %`) y `P12` (`1,21 % -> 1,15 %`).
-   - **Perfil con los términos nuevos (`PC-01`):** en el estado **Antes**, `opentelemetry` y `otel` figuran en `unmapped` y `cloud-devops` obtiene `score = 5` (`kubernetes`, `3,03 %`); en el estado **Después**, `opentelemetry` consolida el término canónico y su alias `otel` (`count = 2`, `weight = 3`, `points = 6`), `unmapped` queda vacío y `cloud-devops` sube de `score = 5` a `score = 11` (`+6` puntos, `3,03 % -> 6,32 %`).
+   - **Perfiles sin los términos nuevos:** los trece fixtures P1–P13 conservan puntaje y porcentaje en los seis ejes con tolerancia de 0,01. El radar usa un denominador fijo de 40 puntos.
+   - **Perfil PC-01:** antes, OpenTelemetry y otel quedan sin mapear y Kubernetes aporta 5 puntos (12,50 %). Después, las dos menciones del término canónico aportan 6 puntos. Cloud/DevOps sube a 11 puntos (27,50 %), una diferencia de 15 puntos porcentuales.
    - **Comando de verificación:** `pnpm --filter api test -- affinity-profiles.spec.ts`

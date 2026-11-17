@@ -1,3 +1,4 @@
+import { calculateAreaAffinity } from '../src/modules/radar/domain/policies/affinity-calculator';
 import { KeywordExtractorService } from '../src/modules/nlp/application/services/keyword-extractor.service';
 import type { DictionaryEntry } from '../src/modules/nlp/domain/entities/dictionary-entry';
 import { normalizePhrase } from '../src/modules/nlp/domain/policies/text-normalizer';
@@ -156,6 +157,19 @@ interface CandidateEvaluation {
   proposedWeights: { area: RadarArea; weight: number }[];
 }
 
+function calculateReferenceAreas(
+  keywords: Parameters<typeof calculateAreaAffinity>[0],
+  areaWeights: KeywordAreaWeight[],
+) {
+  return (Object.keys(RADAR_DICTIONARY) as RadarArea[]).map((area) => {
+    const weights = areaWeights
+      .filter((item) => item.area === area)
+      .map(({ term, weight }) => ({ term, peso: weight }));
+    const result = calculateAreaAffinity(keywords, weights);
+    return { area, score: result.puntaje, percentage: result.porcentaje };
+  });
+}
+
 function compareProfilesBeforeAndAfter(
   profileList: readonly { id: string; name: string; text: string }[],
   candidate: CandidateEvaluation,
@@ -184,10 +198,10 @@ function compareProfilesBeforeAndAfter(
 
   return profileList.map((profile) => {
     const beforeExtracted = beforeExtractor.extract(profile.text);
-    const beforeScores = calculateAffinity(beforeExtracted.keywords, weights);
+    const beforeScores = calculateReferenceAreas(beforeExtracted.keywords, weights);
 
     const afterExtracted = afterExtractor.extract(profile.text);
-    const afterScores = calculateAffinity(afterExtracted.keywords, nextWeights);
+    const afterScores = calculateReferenceAreas(afterExtracted.keywords, nextWeights);
 
     const scoreDiffs = afterScores
       .map((afterArea) => {
@@ -205,7 +219,7 @@ function compareProfilesBeforeAndAfter(
           deltaPercentage,
         };
       })
-      .filter((diff) => Math.abs(diff.deltaScore) > 0.01);
+      .filter((diff) => Math.abs(diff.deltaScore) > 0.01 || Math.abs(diff.deltaPercentage) > 0.01);
 
     return {
       id: profile.id,
@@ -287,10 +301,10 @@ describe('HU-15 · T15.2: comparación antes y después con perfiles de referenc
         area: 'cloud-devops',
         beforeScore: 5,
         afterScore: 11,
-        beforePercentage: 3.03,
-        afterPercentage: 6.32,
+        beforePercentage: 12.5,
+        afterPercentage: 27.5,
         deltaScore: 6,
-        deltaPercentage: 3.29,
+        deltaPercentage: 15,
       },
     ]);
   });
