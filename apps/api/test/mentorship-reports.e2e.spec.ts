@@ -86,6 +86,7 @@ describe('Mentorías y reportería: contratos HTTP y autorización', () => {
     setAreas: jest.fn(),
     interestCatalog: jest.fn(),
     interests: jest.fn(),
+    saveInterests: jest.fn(),
     addInterests: jest.fn(),
     removeInterest: jest.fn(),
   };
@@ -302,6 +303,76 @@ describe('Mentorías y reportería: contratos HTTP y autorización', () => {
       .expect(409);
     expect(catalog.setAreas).not.toHaveBeenCalled();
     expect(catalog.addInterests).not.toHaveBeenCalled();
+  });
+  it('HU 6.21: publica todas las áreas con descripción y estado y guarda intereses en una sola operación', async () => {
+    const areaId = randomUUID();
+    const topicId = randomUUID();
+    catalog.interestCatalog.mockResolvedValue([
+      {
+        area: {
+          id: areaId,
+          name: 'Tecnología',
+          description: 'Desarrollo de software, APIs, bases de datos y arquitectura de aplicaciones.',
+          selected: true,
+          locked: false,
+        },
+        interests: [
+          { id: topicId, name: 'Backend', area: { id: areaId, name: 'Tecnología' }, selected: false, esPersonalizado: false },
+        ],
+      },
+      {
+        area: { id: randomUUID(), name: 'QA', description: '', selected: false, locked: true },
+        interests: [],
+      },
+    ]);
+    const catalogResponse = await request(app.getHttpServer())
+      .get('/api/v1/mentorship/interests/catalog')
+      .set('Authorization', 'Bearer graduate')
+      .expect(200);
+    expect(catalogResponse.body.data[0].area).toMatchObject({ seleccionada: true, bloqueada: false });
+    expect(catalogResponse.body.data[0].area.descripcion).toContain('Desarrollo de software');
+    expect(catalogResponse.body.data[1].area).toMatchObject({ seleccionada: false, bloqueada: true });
+    expect(catalogResponse.body.data[0].intereses[0]).toMatchObject({ seleccionado: false, es_personalizado: false });
+
+    catalog.saveInterests.mockResolvedValue({
+      catalog: [{ id: areaId, name: 'Tecnología' }],
+      selectedIds: [areaId],
+      interests: [
+        { id: topicId, name: 'Backend', area: { id: areaId, name: 'Tecnología' }, esPersonalizado: false },
+      ],
+    });
+    const saved = await request(app.getHttpServer())
+      .put('/api/v1/mentorship/interests')
+      .set('Authorization', 'Bearer graduate')
+      .send({ areaIds: [areaId], topicIds: [topicId] })
+      .expect(200);
+    expect(catalog.saveInterests).toHaveBeenCalledWith(graduate.id, [areaId], [topicId]);
+    expect(saved.body.data.selectedIds).toEqual([areaId]);
+    expect(saved.body.data.intereses[0]).toMatchObject({ id: topicId, id_area: areaId, es_personalizado: false });
+  });
+  it('HU 6.21: el guardado valida sesión, permiso y payload antes de persistir', async () => {
+    const areaId = randomUUID();
+    const topicId = randomUUID();
+    await request(app.getHttpServer())
+      .put('/api/v1/mentorship/interests')
+      .send({ areaIds: [areaId], topicIds: [] })
+      .expect(401);
+    await request(app.getHttpServer())
+      .put('/api/v1/mentorship/interests')
+      .set('Authorization', 'Bearer admin')
+      .send({ areaIds: [areaId], topicIds: [] })
+      .expect(403);
+    await request(app.getHttpServer())
+      .put('/api/v1/mentorship/interests')
+      .set('Authorization', 'Bearer graduate')
+      .send({ areaIds: [], topicIds: [] })
+      .expect(400);
+    await request(app.getHttpServer())
+      .put('/api/v1/mentorship/interests')
+      .set('Authorization', 'Bearer graduate')
+      .send({ areaIds: [areaId], topicIds: [topicId, topicId] })
+      .expect(400);
+    expect(catalog.saveInterests).not.toHaveBeenCalled();
   });
   it('limita la desactivación administrativa a las carreras de la sesión', async () => {
     await request(app.getHttpServer())

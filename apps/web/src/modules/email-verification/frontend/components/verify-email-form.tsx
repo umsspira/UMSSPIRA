@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useEmailVerificationStore } from '../store/email-verification.store';
 import { useRegistrationStore } from '@/modules/registration/frontend/store';
+import { checkRegistrationSession } from '@/modules/registration/frontend/services/registration.service';
 import { useCountdown } from '../hooks/use-countdown';
 import { OtpInput } from './otp-input';
 import { ResendCodeButton } from './resend-code-button';
@@ -47,6 +48,7 @@ export const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
     cooldownSeconds,
     setEmail,
     setSessionToken,
+    setError,
     setOtpDigit,
     setFullOtp,
     setIsExpired,
@@ -54,12 +56,13 @@ export const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
     resendCode,
   } = useEmailVerificationStore();
 
-  const hasRequestedRef = useRef(false);
+  const [isOtpStateLoading, setIsOtpStateLoading] = useState(true);
+  const requestedSessionRef = useRef<string | null>(null);
 
   // La vigencia se actualiza con la respuesta del servidor al emitir el OTP.
-  const { formattedTime, reset: resetOtpTimer } = useCountdown({
+  const { formattedTime, reset: resetOtpTimer, start: startOtpTimer } = useCountdown({
     initialSeconds: 300,
-    autoStart: true,
+    autoStart: false,
     onExpire: () => {
       setIsExpired(true);
     },
@@ -77,13 +80,63 @@ export const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
       setEmail(correo);
     }
 
-    if (token && !useEmailVerificationStore.getState().isVerified && !hasRequestedRef.current) {
-      hasRequestedRef.current = true;
-      void resendCode().then((ok) => {
-        if (ok) resetOtpTimer(useEmailVerificationStore.getState().expiresInSeconds);
+    if (!token || useEmailVerificationStore.getState().isVerified) {
+      setIsOtpStateLoading(false);
+      return;
+    }
+
+    if (
+      token &&
+      requestedSessionRef.current !== token
+    ) {
+      requestedSessionRef.current = token;
+      setIsOtpStateLoading(true);
+      void checkRegistrationSession(token).then((session) => {
+        if (session.status === 'active' && session.hasVerificationCode) {
+          resetOtpTimer(session.codeExpiresInSeconds);
+          setIsExpired(session.codeExpiresInSeconds <= 0);
+          useEmailVerificationStore.getState().setCooldownSeconds(session.resendAvailableInSeconds);
+          if (session.codeExpiresInSeconds > 0) startOtpTimer();
+          setIsOtpStateLoading(false);
+          return;
+        }
+
+        if (session.status === 'active') {
+          void resendCode().then((ok) => {
+            if (ok) {
+              resetOtpTimer(useEmailVerificationStore.getState().expiresInSeconds);
+              startOtpTimer();
+            } else {
+              resetOtpTimer(0);
+              const resendError = useEmailVerificationStore.getState().error;
+              setIsExpired(true);
+              if (resendError) setError(resendError);
+            }
+            setIsOtpStateLoading(false);
+          });
+          return;
+        }
+
+        resetOtpTimer(0);
+        setIsExpired(true);
+        setError(
+          session.status === 'expired'
+            ? session.message
+            : 'No se pudo consultar la vigencia del código. Intenta nuevamente.',
+        );
+        setIsOtpStateLoading(false);
       });
     }
-  }, [initialEmail, setEmail, setSessionToken, resendCode, resetOtpTimer]);
+  }, [
+    initialEmail,
+    setEmail,
+    setSessionToken,
+    setError,
+    resendCode,
+    resetOtpTimer,
+    startOtpTimer,
+    setIsExpired,
+  ]);
 
   const isUpdate = variant === 'update';
   const isCodeComplete = otpDigits.every((d) => d.trim() !== '');
@@ -103,7 +156,10 @@ export const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
     const ok = await resendCode();
     if (ok) {
       resetOtpTimer(useEmailVerificationStore.getState().expiresInSeconds);
+      startOtpTimer();
+      return useEmailVerificationStore.getState().cooldownSeconds;
     }
+    return false;
   };
 
   const handleOtpChange = (digits: string[]) => {
@@ -219,12 +275,12 @@ export const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
             <Timer className="h-5 w-5 text-blue-fantastic" aria-hidden="true" />
             El código expirará en:
             <span className="rounded-md border border-oatmeal bg-white px-2.5 py-1 font-mono text-sm font-bold tabular-nums">
-              {isExpired ? 'Expirado' : formattedTime}
+              {isOtpStateLoading ? 'Consultando...' : isExpired ? 'Expirado' : formattedTime}
             </span>
           </p>
           <p className="flex items-center gap-1.5 text-xs text-abyssal-blue/70 sm:ml-auto">
             <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Válido solo para esta sesión
+            La vigencia se conserva al recargar
           </p>
         </div>
 

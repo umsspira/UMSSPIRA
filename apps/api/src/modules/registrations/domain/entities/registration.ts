@@ -15,6 +15,8 @@ export interface RegistrationDraft {
   id: string;
   data: RegistrationData;
   expiresAt: Date;
+  codeExpiresAt?: Date | null;
+  codeSentAt?: Date | null;
   verified: boolean;
   applicationId: string | null;
 }

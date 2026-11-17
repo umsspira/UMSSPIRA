@@ -1,6 +1,6 @@
 # UMSSPIRA en Bruno
 
-Esta colección contiene 79 peticiones, una por operación HTTP existente. Los archivos se agrupan por módulo o responsabilidad. Se utilizan manualmente desde Bruno; la carpeta NLP incluye scripts de prueba para validar el contrato de `POST /api/v1/nlp/extract`. El resto de las peticiones no contiene scripts ni captura de variables.
+Esta colección contiene peticiones agrupadas por operación HTTP. Se utilizan manualmente desde Bruno; la carpeta NLP incluye scripts de prueba para validar el contrato de `POST /api/v1/nlp/extract`. El resto de las peticiones no contiene scripts ni captura de variables.
 
 ## Abrir la colección
 
@@ -30,6 +30,8 @@ Los cuerpos contienen datos de ejemplo editables. Las referencias `{{variable}}`
 | Eventos    |         12 | Catálogo público, gestión propia e inscripción de Titulados       |
 | Reportes   |          5 | Indicadores y exportaciones por carreras autorizadas              |
 | NLP        |          8 | Extracción de keywords con casos 200, 400, 401 y 403              |
+| Chat       |         13 | Solicitudes, conversaciones, mensajes privados y adjuntos        |
+| Revalidacion-T9.3 |   12 | Revalidación de /auth/me y Radar con titulado, empresa y administrador |
 
 `folder.bru` ordena la carpeta; cada archivo numerado representa un endpoint. Las instrucciones particulares están en la pestaña Docs de la petición.
 
@@ -52,6 +54,14 @@ Las otras carpetas utilizan los valores compartidos. Por ejemplo, Empresas y Vac
 ## Carpeta NLP
 
 `NLP` usa `{{accessToken}}` y el mismo `baseUrl` del resto de la colección. Ejecuta `001-extract-keywords` con un token de titulado o administrador. Para el caso 403, copia temporalmente el token de `empresa@umss.edu.bo`; para el 401, `002-sin-token` no envía Authorization. Los casos 400 cubren texto de 5001 caracteres, campo extra y `text` que no es cadena. No se guardan tokens reales en los archivos.
+
+## Carpeta Revalidacion-T9.3
+
+`Revalidacion-T9.3` contiene las nueve comprobaciones de T9.3: `/auth/me`, `GET /radar` y `POST /radar/recalculate` con titulado, empresa y administrador, más los casos sin token. Los casos 001, 002 y 003 inician sesión y guardan el token en `tituladoToken`, `empresaToken` y `administradorToken` en tiempo de ejecución. Los casos 004 a 012 usan esos tokens y citan CA-HU9-02, CA-HU9-03 y CA-HU9-04.
+
+Completa `tituladoEmail`, `tituladoPassword`, `empresaEmail`, `empresaPassword`, `administradorEmail` y `administradorPassword` en `Revalidacion-T9.3/folder.bru` o en un entorno local de Bruno. Las contraseñas y los tokens están declarados como secretos. No escribas tokens reales en los archivos de la colección. El caso 010 persiste un cálculo de radar en la cuenta ficticia del titulado.
+
+Ningún criterio de T9.3 define el resultado esperado del administrador. El caso 006 registra el comportamiento observado y queda [POR CONFIRMAR con PO/BE].
 
 ## Variables de autenticación
 

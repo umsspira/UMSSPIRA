@@ -15,10 +15,18 @@ import {
   type CorrectionResult,
   type CorrectionValues,
 } from "../hooks/use-observed-correction";
+import { PreviousDocumentPreview } from "./previous-document-preview";
 
 type Props = {
+  token?: string;
+  hasPreviousDocument?: boolean;
   initial: CorrectionValues;
-  currentDocument: { name: string; sizeLabel: string; uploadedAt: string; url: string };
+  currentDocument: {
+    name: string;
+    sizeLabel: string;
+    uploadedAt: string;
+    url?: string;
+  };
   onReview: (result: CorrectionResult) => void;
   onRequireEmailVerification?: (result: CorrectionResult) => void;
   onCancel: () => void;
@@ -77,6 +85,8 @@ function Card({ n, title, children }: { n: number; title: string; children: Reac
 }
 
 export function ObservedEditForm({
+  token = "",
+  hasPreviousDocument = true,
   initial,
   currentDocument,
   onReview,
@@ -138,7 +148,6 @@ export function ObservedEditForm({
         <div className="grid gap-4 sm:grid-cols-2">
           {text("firstName", "Nombres", { required: true })}
           {text("lastName", "Apellidos", { required: true })}
-          {text("birthDate", "Fecha de nacimiento", { required: true, type: "date" })}
           {text("ci", "Cédula de Identidad (C.I.)", { required: true })}
           {text("complement", "Complemento (Opcional)")}
           <Field id="issuedIn" label="Expedido en" required error={c.errors.issuedIn}>
@@ -171,7 +180,12 @@ export function ObservedEditForm({
               El correo electrónico registrado no puede modificarse en este formulario. Si necesitas actualizarlo, comunícate con administración.
             </p>
           </Field>
-          {text("phone", "Teléfono celular / WhatsApp", { required: true, type: "tel" })}
+          <div className="sm:col-span-2">
+            {text("phone", "Teléfono celular / Whatsapp", {
+              required: true,
+              type: "tel",
+            })}
+          </div>
         </div>
       </Card>
 
@@ -210,14 +224,11 @@ export function ObservedEditForm({
           <p className="text-xs text-slate-600">
             {currentDocument.sizeLabel} • Subido el {currentDocument.uploadedAt}
           </p>
-          <a
-            href={currentDocument.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-block text-xs font-bold underline"
-          >
-            Ver documento previo
-          </a>
+          <PreviousDocumentPreview
+           token={token}
+           available={hasPreviousDocument && Boolean(token)}
+          />
+
         </div>
 
         <div className="mt-4">

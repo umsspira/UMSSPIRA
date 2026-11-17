@@ -13,6 +13,7 @@ import { CreateEventUseCase } from '../../application/use-cases/create-event.use
 import { UpdateEventDraftUseCase } from '../../application/use-cases/update-event-draft.use-case';
 import { UpdatePublishedEventUseCase } from '../../application/use-cases/update-published-event.use-case';
 import { PublishEventDraftUseCase } from '../../application/use-cases/publish-event-draft.use-case';
+import { ScheduleEventDraftUseCase } from '../../application/use-cases/schedule-event-draft.use-case';
 import { CancelPublishedEventUseCase } from '../../application/use-cases/cancel-published-event.use-case';
 import { DeleteEventCoverUseCase } from '../../application/use-cases/delete-event-cover.use-case';
 import { ReadEventCoverUseCase } from '../../application/use-cases/read-event-cover.use-case';
@@ -22,6 +23,8 @@ import { CancelEventRegistrationUseCase } from '../../application/use-cases/canc
 import { GetEventParticipantsUseCase } from '../../application/use-cases/get-event-participants.use-case';
 import { ListInactiveEventsUseCase } from '../../application/use-cases/list-inactive-events.use-case';
 import { RetireEventUseCase } from '../../application/use-cases/retire-event.use-case';
+import { PrismaCertificatesRepository } from '../repositories/prisma-certificates.repository';
+import { GenerateCertificatesService } from '../../application/generate-certificates.service';
 import { ListMyEventRegistrationsUseCase } from '../../application/use-cases/list-my-event-registrations.use-case';
 import {
   PUSH_NOTIFICATIONS,
@@ -31,7 +34,19 @@ import {
 // 1. IMPORTACIÓN DEL SERVICIO QR
 import { GenerateEventPassService } from '../../application/generate-event-pass.service';
 
+import { CancelEventScheduleUseCase } from '../../application/use-cases/cancel-event-schedule.use-case';
+
 export const eventsProviders: Provider[] = [
+  {
+    provide: CancelEventScheduleUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new CancelEventScheduleUseCase(repository),
+  },
+  {
+    provide: ScheduleEventDraftUseCase,
+    inject: [EVENTS_REPOSITORY],
+    useFactory: (repository: EventsRepository) => new ScheduleEventDraftUseCase(repository),
+  },
   PrismaEventsRepository,
   { provide: EVENTS_REPOSITORY, useExisting: PrismaEventsRepository },
   {
@@ -132,4 +147,6 @@ export const eventsProviders: Provider[] = [
     inject: [EVENTS_REPOSITORY],
     useFactory: (repository: EventsRepository) => new ListMyEventRegistrationsUseCase(repository),
   },
+  PrismaCertificatesRepository,
+  GenerateCertificatesService,
 ];

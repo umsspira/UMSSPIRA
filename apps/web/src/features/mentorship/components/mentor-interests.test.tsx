@@ -14,33 +14,66 @@ let onSave: jest.Mock;
 beforeEach(() => { push.mockReset(); onSave = jest.fn(async config => config); });
 function setup() { render(<MentorInterests catalog={catalog} initialConfiguration={initialConfiguration} onSave={onSave} />); }
 function add() { fireEvent.click(screen.getByRole('button', { name: 'APIs REST' })); }
-function openSave() { fireEvent.click(screen.getByRole('button', { name: /Guardar configuración/ })); }
+function openSave() { fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' })); }
+function confirmSave() { fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' })); }
 
-it('bloquea tópicos de áreas no seleccionadas y permite cambiar las áreas', () => {
+it('muestra el catálogo por área y permite ir a configurar otras áreas', () => {
   setup();
-  expect(screen.getByRole('button', { name: 'PostgreSQL' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: /Guardar configuración/ })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Activar esta área técnica' }));
+  expect(screen.getByRole('heading', { name: 'Web' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Bases de datos' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'PostgreSQL' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Bloqueada')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Continuar a disponibilidad' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Modificar áreas técnicas' }));
   expect(push).toHaveBeenCalledWith('/mentorship/profile/areas');
+});
+
+it('no muestra tarjetas del catálogo si el mentor no ha seleccionado áreas', () => {
+  render(<MentorInterests catalog={catalog} initialConfiguration={{ areaIds: [], topicIds: [] }} onSave={onSave} />);
+  expect(screen.getByText(/No hay áreas técnicas seleccionadas/)).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Web' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'PostgreSQL' })).not.toBeInTheDocument();
 });
 
 it('guarda solo después de confirmar y muestra el resultado', async () => {
   setup(); add(); openSave();
   expect(onSave).not.toHaveBeenCalled();
   expect(screen.getByRole('alertdialog')).toHaveTextContent('APIs REST');
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+  confirmSave();
   await screen.findByText(/Intereses guardados correctamente/);
   expect(onSave).toHaveBeenCalledWith({ areaIds: ['web'], topicIds: ['react', 'rest'] });
-  expect(screen.getByRole('button', { name: /Guardar configuración/ })).toBeDisabled();
+  expect(push).toHaveBeenCalledWith('/mentorship/profile/availability');
+  expect(screen.getByRole('button', { name: 'Continuar a disponibilidad' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Descartar cambios' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Volver a mi perfil' })).toBeEnabled();
+  expect(screen.queryByText('Cambios sin guardar')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Volver a mi perfil' }));
+  expect(push).toHaveBeenCalledWith('/mentorship/profile');
+});
+
+it('muestra el estado de cambios y vuelve a guardar al editar después del éxito', async () => {
+  setup();
+  expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
+  add();
+  expect(screen.getByText('Cambios sin guardar')).toBeInTheDocument();
+  openSave();
+  confirmSave();
+  await screen.findByRole('button', { name: 'Volver a mi perfil' });
+  fireEvent.click(screen.getByRole('button', { name: 'APIs REST' }));
+  expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Guardar y continuar' })).toBeEnabled();
+  expect(screen.getByText('Cambios sin guardar')).toBeInTheDocument();
 });
 
 it('mantiene el borrador y permite reintentar cuando falla el guardado', async () => {
   onSave.mockRejectedValueOnce(new Error('Error de conexión'));
   setup(); add(); openSave();
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+  confirmSave();
   expect(await screen.findByRole('alert')).toHaveTextContent('Error de conexión');
+  expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'true');
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+  confirmSave();
   await screen.findByText(/Intereses guardados correctamente/);
 });
 
@@ -61,18 +94,70 @@ it('confirma la eliminación de un área y sus tópicos sin guardar automáticam
   fireEvent.click(screen.getByRole('button', { name: 'Quitar área' }));
   fireEvent.click(screen.getByRole('button', { name: 'Quitar de todos modos' }));
   expect(screen.getByRole('button', { name: 'React' })).toBeDisabled();
+  expect(screen.getByRole('heading', { name: 'Web' })).toBeInTheDocument();
+  expect(screen.getByText('Bloqueada')).toBeInTheDocument();
+  expect(screen.getByText('En tu perfil · 0 tópicos')).toBeInTheDocument();
   expect(onSave).not.toHaveBeenCalled();
   openSave();
   expect(screen.getByRole('alertdialog')).toHaveTextContent('Se quitarán (1): React');
 });
 
+it('restaura el área bloqueada y sus tópicos al descartar la eliminación', () => {
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Quitar área' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Quitar de todos modos' }));
+  expect(screen.getByRole('button', { name: 'React' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
+  expect(screen.getByRole('button', { name: 'React' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'React' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.queryByText('Bloqueada')).not.toBeInTheDocument();
+  expect(onSave).not.toHaveBeenCalled();
+});
+
+it('reactiva el área sin navegar ni abrir descarte y restaura su borrador de tópicos', () => {
+  render(<MentorInterests catalog={catalog}
+    initialConfiguration={{ areaIds: ['web', 'datos'], topicIds: ['react', 'pg'] }}
+    onSave={onSave} minimumAreas={1} />);
+  // Cambios pendientes tanto en el área a quitar como en otra área.
+  add();
+  fireEvent.click(screen.getByRole('button', { name: 'PostgreSQL' }));
+  fireEvent.click(within(screen.getByRole('region', { name: 'Web' })).getByRole('button', { name: 'Quitar área' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Quitar de todos modos' }));
+  expect(screen.getByRole('button', { name: 'React' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Activar esta área técnica' }));
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  expect(push).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'React' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'React' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: 'PostgreSQL' })).toHaveAttribute('aria-pressed', 'false');
+  expect(onSave).not.toHaveBeenCalled();
+});
+
+it('oculta el área quitada solo después de confirmar un guardado exitoso', async () => {
+  render(<MentorInterests catalog={catalog}
+    initialConfiguration={{ areaIds: ['web', 'datos'], topicIds: ['react', 'pg'] }}
+    onSave={onSave} minimumAreas={1} />);
+  fireEvent.click(within(screen.getByRole('region', { name: 'Web' })).getByRole('button', { name: 'Quitar área' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Quitar de todos modos' }));
+  expect(screen.getByRole('heading', { name: 'Web' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'React' })).toBeDisabled();
+  openSave();
+  confirmSave();
+  await screen.findByText('Intereses guardados correctamente');
+  expect(screen.queryByRole('heading', { name: 'Web' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Bases de datos' })).toBeInTheDocument();
+  expect(onSave).toHaveBeenCalledWith({ areaIds: ['datos'], topicIds: ['pg'] });
+});
+
 it('confirma el descarte antes de navegar con cambios pendientes', () => {
   setup(); add();
-  fireEvent.click(screen.getByRole('button', { name: 'Volver a Áreas técnicas' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Atrás: Áreas técnicas' }));
   expect(push).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Seguir editando' }));
   expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'true');
-  fireEvent.click(screen.getByRole('button', { name: 'Volver a Áreas técnicas' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Atrás: Áreas técnicas' }));
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
   expect(push).toHaveBeenCalledWith('/mentorship/profile/areas');
 });
@@ -81,20 +166,70 @@ it('espera el resultado del servidor antes de mostrar éxito', async () => {
   let resolve!: (value: InterestConfiguration) => void;
   onSave.mockReturnValue(new Promise(done => { resolve = done; }));
   setup(); add(); openSave();
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+  confirmSave();
   expect(screen.queryByText(/Intereses guardados correctamente/)).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+  expect(screen.getAllByRole('button', { name: 'Guardar y continuar' })).toHaveLength(2);
+  screen.getAllByRole('button', { name: 'Guardar y continuar' }).forEach(button => expect(button).toBeDisabled());
   resolve(initialConfiguration);
   await waitFor(() => expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'false'));
   expect(onSave).toHaveBeenCalledTimes(1);
 });
 
-it('protege los enlaces del breadcrumb cuando hay cambios sin guardar', () => {
-  render(<div className="interests-page"><a className="breadcrumb-link" href="/mentorship">Mentorías</a><MentorInterests catalog={catalog} initialConfiguration={initialConfiguration} onSave={onSave} /></div>);
-  add();
-  fireEvent.click(screen.getByRole('link', { name: 'Mentorías' }));
-  expect(push).not.toHaveBeenCalled();
-  expect(screen.getByRole('alertdialog')).toHaveTextContent('Descartar');
-  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
-  expect(push).toHaveBeenCalledWith('/mentorship');
+it('muestra la descripción del backend y omite el párrafo cuando está vacía', () => {
+  const withDescription = [
+    { id: 'web', name: 'Web', description: 'Desarrollo web', topics: [] },
+    { id: 'datos', name: 'Bases de datos', description: '', topics: [] },
+  ];
+  const { container } = render(
+    <MentorInterests catalog={withDescription} initialConfiguration={{ areaIds: ['web', 'datos'], topicIds: [] }} onSave={onSave} />,
+  );
+  expect(screen.getByText('Desarrollo web')).toBeInTheDocument();
+  const descriptions = container.querySelectorAll('.interest-area-header p');
+  expect(descriptions).toHaveLength(1);
 });
+
+it('cuenta los tópicos en singular y plural sin mostrar áreas ajenas', () => {
+  const { unmount } = render(
+    <MentorInterests catalog={catalog} initialConfiguration={{ areaIds: ['web'], topicIds: ['react'] }} onSave={onSave} />,
+  );
+  expect(screen.getByText('En tu perfil · 1 tópico')).toBeInTheDocument();
+  expect(screen.getByText('1 de 2 seleccionados')).toBeInTheDocument();
+  expect(screen.queryByText('En tu perfil · 0 tópicos')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'PostgreSQL' })).not.toBeInTheDocument();
+  unmount();
+  render(
+    <MentorInterests catalog={catalog} initialConfiguration={{ areaIds: ['web'], topicIds: ['react', 'rest'] }} onSave={onSave} />,
+  );
+  expect(screen.getByText('En tu perfil · 2 tópicos')).toBeInTheDocument();
+  expect(screen.getByText('2 de 2 seleccionados')).toBeInTheDocument();
+});
+
+it('usa un icono distinto por área técnica', () => {
+  const areas: InterestArea[] = [
+    { id: 'b', name: 'Backend', description: '', topics: [] },
+    { id: 'f', name: 'Frontend', description: '', topics: [] },
+    { id: 'c', name: 'Cloud/DevOps', description: '', topics: [] },
+  ];
+  const { container } = render(
+    <MentorInterests catalog={areas} initialConfiguration={{ areaIds: ['b', 'f', 'c'], topicIds: [] }} onSave={onSave} />,
+  );
+  expect(container.querySelector('.lucide-server')).not.toBeNull();
+  expect(container.querySelector('.lucide-monitor')).not.toBeNull();
+  expect(container.querySelector('.lucide-cloud')).not.toBeNull();
+});
+
+it('avisa cuando no quedan tópicos sugeridos en un área', () => {
+  render(
+    <MentorInterests catalog={catalog} initialConfiguration={{ areaIds: ['web'], topicIds: ['react', 'rest'] }} onSave={onSave} />,
+  );
+  expect(screen.getByText('No hay más tópicos sugeridos en esta área.')).toBeInTheDocument();
+});
+
+it('conserva el foco del tópico después de alternarlo', () => {
+  setup();
+  add();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'APIs REST' }));
+  fireEvent.click(screen.getByRole('button', { name: 'APIs REST' }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'APIs REST' }));
+});
+

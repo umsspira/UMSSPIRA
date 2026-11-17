@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { CURRENT_GRADUATE_ID, PROFILE_RECORDS_MOCK } from '@/modules/profile/data/profile-records-data';
+import type { ProfileHeader } from '@/modules/profile/data/profile-data';
+import { EMPTY_PROFILE_RECORDS } from '@/modules/profile/data/profile-records-data';
 import { obtenerResumenPerfil } from '@/modules/profile/services/perfil-api';
 import type {
   CertificationRecord,
@@ -10,6 +11,7 @@ import type {
   ExperienceRecord,
   ProfileRecord,
   ProfileRecords,
+  ProjectRecord,
   RecordSection,
 } from '@/modules/profile/types/profile-record';
 
@@ -17,6 +19,8 @@ import type {
 type NewRecord<T> = Omit<T, 'id' | 'ownerId'> & { id?: string };
 
 type ProfileStore = {
+  // Titulado con sesión; null mientras carga o si la API no respondió
+  header: ProfileHeader | null;
   records: ProfileRecords;
   // Descripción profesional del egresado; vacía = sin registrar
   description: string;
@@ -26,6 +30,8 @@ type ProfileStore = {
   addEducation: (record: NewRecord<EducationRecord>) => void;
   addExperience: (record: NewRecord<ExperienceRecord>) => void;
   addCertification: (record: NewRecord<CertificationRecord>) => void;
+  // HU-19: los proyectos se editan y eliminan con updateRecord y removeRecord (sección «project»)
+  addProject: (record: NewRecord<ProjectRecord>) => void;
   updateRecord: (section: RecordSection, record: ProfileRecord) => void;
   removeRecord: (section: RecordSection, recordId: string) => void;
   // Reemplaza la descripción con la que quedó guardada (HU-06)
@@ -42,19 +48,22 @@ function createId(section: RecordSection): string {
 
 /**
  * Estado compartido del perfil para todas sus pantallas (resumen, completar, mis registros y edición).
- * Al montarse carga los registros reales con GET /api/v1/perfil; si la API no responde se quedan
- * los datos de prueba. Con initialRecords (pruebas) no se consulta la API.
+ * Al montarse carga el titulado y sus registros con GET /api/v1/perfil; si la API no responde se
+ * muestra el error con la opción de reintentar. Con initialRecords (pruebas) no se consulta la API.
  */
 export function ProfileStoreProvider({
   children,
   initialRecords,
   initialDescription = '',
+  initialHeader = null,
 }: {
   children: React.ReactNode;
   initialRecords?: ProfileRecords;
   initialDescription?: string;
+  initialHeader?: ProfileHeader | null;
 }) {
-  const [records, setRecords] = useState<ProfileRecords>(initialRecords ?? PROFILE_RECORDS_MOCK);
+  const [header, setHeader] = useState<ProfileHeader | null>(initialHeader);
+  const [records, setRecords] = useState<ProfileRecords>(initialRecords ?? EMPTY_PROFILE_RECORDS);
   const [description, setDescription] = useState(initialDescription);
   const [isLoading, setIsLoading] = useState(initialRecords === undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -79,6 +88,7 @@ useEffect(() => {
       const perfil = await obtenerResumenPerfil();
 
       if (vigente) {
+        setHeader(perfil.header);
         setRecords(perfil.records);
         setDescription(perfil.description);
       }
@@ -103,10 +113,11 @@ useEffect(() => {
     vigente = false;
   };
 }, [cargarDesdeApi, loadAttempt]);
+  const ownerId = header?.id ?? '';
   const addRecord = useCallback((section: RecordSection, record: NewRecord<ProfileRecord>) => {
-    const created = { ...record, id: record.id ?? createId(section), ownerId: CURRENT_GRADUATE_ID } as ProfileRecord;
+    const created = { ...record, id: record.id ?? createId(section), ownerId } as ProfileRecord;
     setRecords((current) => ({ ...current, [section]: [...current[section], created] }));
-  }, []);
+  }, [ownerId]);
 
   const updateRecord = useCallback((section: RecordSection, record: ProfileRecord) => {
     setRecords((current) => ({
@@ -128,6 +139,7 @@ useEffect(() => {
 
   const value = useMemo<ProfileStore>(
     () => ({
+      header,
       records,
       description,
       isLoading,
@@ -136,11 +148,12 @@ useEffect(() => {
       addEducation: (record) => addRecord('education', record),
       addExperience: (record) => addRecord('experience', record),
       addCertification: (record) => addRecord('certification', record),
+      addProject: (record) => addRecord('project', record),
       updateRecord,
       removeRecord,
       setDescription,
     }),
-    [records, description, isLoading, loadError, retryLoad, addRecord, updateRecord, removeRecord],
+    [header, records, description, isLoading, loadError, retryLoad, addRecord, updateRecord, removeRecord],
   );
 
   return <ProfileStoreContext.Provider value={value}>{children}</ProfileStoreContext.Provider>;

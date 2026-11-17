@@ -5,7 +5,7 @@ import { RequirePermissions } from '../../../../shared/http/auth/decorators/requ
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import type { UploadedFileData } from '../../../../shared/files/contracts/uploaded-file';
-import { MAX_IMAGE_BYTES } from '../../../../shared/files/policies/image-file.policy';
+import { MAX_BACKUP_BYTES } from '../../domain/policies/backup-file.policy';
 import { UploadCertificationBackupUseCase } from '../../application/use-cases/upload-certification-backup.use-case';
 import { profileIdSchema } from '../schemas/profile.schemas';
 import { presentBackup } from '../presenters/profile.presenter';
@@ -17,7 +17,7 @@ export class UploadCertificationBackupController {
   @Post('certificaciones/:id/respaldo')
   @RequirePermissions('perfil:self:write')
   @UseInterceptors(
-    FileInterceptor('archivo', { limits: { fileSize: MAX_IMAGE_BYTES, files: 1, fields: 0 } }),
+    FileInterceptor('archivo', { limits: { fileSize: MAX_BACKUP_BYTES, files: 1, fields: 0 } }),
   )
   async handle(
     @CurrentActor() actor: ActorContext,

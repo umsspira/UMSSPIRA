@@ -1,22 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { NlpDictionaryUnavailableError } from '../../domain/errors/nlp-dictionary-unavailable-error';
-import type {
-  DictionaryAreaAssociation,
-  DictionaryEntry,
-} from '../../domain/entities/dictionary-entry';
-import type { ExtractedKeyword } from '../../domain/entities/extracted-keyword';
+import type { DictionaryEntry } from '../../domain/entities/dictionary-entry';
 import {
   KEYWORD_DICTIONARY_PORT,
   type KeywordDictionaryPort,
 } from '../ports/keyword-dictionary.port';
 import { KeywordExtractorService } from './keyword-extractor.service';
-import { mapKeywordsToAreas, type KeywordAreaWeight } from './keyword-area-mapper';
 
 const MAX_LOGGED_IGNORED_KEYS = 10;
-
-export interface KeywordWithAreas extends ExtractedKeyword {
-  areas: DictionaryAreaAssociation[];
-}
 
 /**
  * Carga el diccionario en la primera petición y reintenta en la siguiente si falla.
@@ -27,9 +18,6 @@ export class KeywordDictionaryLoader {
   private readonly logger = new Logger(KeywordDictionaryLoader.name);
   private loaded = false;
   private loading: Promise<void> | null = null;
-
-  /** Relaciona cada término canónico y alias con sus áreas profesionales. */
-  private areasByKeyword = new Map<string, DictionaryAreaAssociation[]>();
 
   constructor(
     @Inject(KEYWORD_DICTIONARY_PORT)
@@ -60,31 +48,6 @@ export class KeywordDictionaryLoader {
         'No se pudo precargar el diccionario NLP; se reintentará en la primera petición',
       );
     }
-  }
-
-  /**
-   * Devuelve las áreas asociadas a una keyword.
-   * Debe llamarse después de ensureLoaded().
-   */
-  getAreasForKeyword(term: string): DictionaryAreaAssociation[] {
-    return (this.areasByKeyword.get(term) ?? []).map((area) => ({ ...area }));
-  }
-
-  /** Añade las áreas correspondientes a cada keyword extraída. */
-  resolveAreasForKeywords(keywords: ExtractedKeyword[]): KeywordWithAreas[] {
-    return keywords.map((keyword) => ({
-      ...keyword,
-      areas: this.getAreasForKeyword(keyword.term),
-    }));
-  }
-
-  /**
-   * Convierte las keywords extraídas al formato esperado por el cálculo del radar.
-   * Garantiza que el diccionario esté cargado antes de resolver las asociaciones.
-   */
-  async mapKeywordsToRadarAreas(keywords: ExtractedKeyword[]): Promise<KeywordAreaWeight[]> {
-    await this.ensureLoaded();
-    return mapKeywordsToAreas(keywords, this.areasByKeyword);
   }
 
   private async reload(): Promise<void> {
@@ -122,19 +85,6 @@ export class KeywordDictionaryLoader {
       throw this.unavailable();
     }
 
-    const newAreasByKeyword = new Map<string, DictionaryAreaAssociation[]>();
-
-    for (const entry of entries) {
-      const areas = (entry.areas ?? []).map((area) => ({ ...area }));
-
-      newAreasByKeyword.set(entry.canonical, areas);
-
-      for (const alias of entry.aliases) {
-        newAreasByKeyword.set(alias, areas);
-      }
-    }
-
-    this.areasByKeyword = newAreasByKeyword;
     this.loaded = true;
   }
 
