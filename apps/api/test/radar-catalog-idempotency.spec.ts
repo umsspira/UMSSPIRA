@@ -1,16 +1,40 @@
 import type { PrismaClient } from '../src/generated/prisma/client';
 import { normalizePhrase } from '../src/modules/nlp/domain/policies/text-normalizer';
 import { RADAR_DICTIONARY, seedRadarCatalog } from '../scripts/seed/radar-catalog';
+import { DICTIONARY_VERSION } from '../src/modules/radar/domain/policies/affinity-config';
+import { getRadarDictionaryFingerprint } from '../scripts/seed/radar-dictionary-version';
 
 describe('Radar catalog - idempotencia', () => {
   it('reutiliza keywords y alias y mantiene los pesos tras dos ejecuciones', async () => {
     const keywords = new Map<string, string>();
     const aliases = new Map<string, string>();
     const associations = new Map<string, number>();
+    const publishedVersions = new Map<string, string>();
 
     let nextId = 0;
 
     const tx = {
+$executeRaw: jest.fn().mockResolvedValue([]),
+radarDiccionarioVersion: {
+  findMany: jest.fn(async () =>
+    [...publishedVersions].map(([version, fingerprint]) => ({
+      version,
+      fingerprint,
+    })),
+  ),
+  create: jest.fn(async ({
+    data,
+  }: {
+    data: { version: string; fingerprint: string };
+  }) => {
+    if (publishedVersions.has(data.version)) {
+      throw new Error(`VersiÃ³n duplicada: ${data.version}`);
+    }
+
+    publishedVersions.set(data.version, data.fingerprint);
+    return data;
+  }),
+},
       palabraClave: {
         findMany: jest.fn(async () =>
           [...keywords].map(([termino_normalizado, id]) => ({
@@ -86,6 +110,11 @@ describe('Radar catalog - idempotencia', () => {
 
     await seedRadarCatalog(prisma);
 
+    expect(publishedVersions.size).toBe(1);
+    expect(tx.radarDiccionarioVersion.create).toHaveBeenCalledTimes(1);
+    expect(tx.palabraClave.upsert).toHaveBeenCalledTimes(keywords.size);
+    expect(tx.aliasPalabraClave.upsert).toHaveBeenCalledTimes(aliases.size);
+    expect(tx.palabraClaveArea.upsert).toHaveBeenCalledTimes(associations.size);
     expect(keywords).toEqual(firstKeywords);
     expect(aliases).toEqual(firstAliases);
     expect(associations).toEqual(firstAssociations);
@@ -116,6 +145,11 @@ describe('Radar catalog - idempotencia', () => {
 describe('Radar catalog - conflictos de alias', () => {
   it('rechaza un alias asignado a otra keyword sin escribir registros', async () => {
     const tx = {
+$executeRaw: jest.fn().mockResolvedValue([]),
+      radarDiccionarioVersion: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn(),
+      },
       palabraClave: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -153,5 +187,73 @@ describe('Radar catalog - conflictos de alias', () => {
     expect(tx.palabraClave.upsert).not.toHaveBeenCalled();
     expect(tx.aliasPalabraClave.upsert).not.toHaveBeenCalled();
     expect(tx.palabraClaveArea.upsert).not.toHaveBeenCalled();
+    expect(tx.radarDiccionarioVersion.create).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('T15.3 - ProtecciÃ³n de versiones publicadas', () => {
+  function createPrismaMock(version: string, fingerprint: string) {
+    const tx = {
+ $executeRaw: jest.fn().mockResolvedValue([]),
+      radarDiccionarioVersion: {
+        findMany: jest.fn().mockResolvedValue([
+          { version, fingerprint },
+        ]),
+        create: jest.fn(),
+      },
+      palabraClave: {
+        findMany: jest.fn(),
+        upsert: jest.fn(),
+      },
+      aliasPalabraClave: {
+        findMany: jest.fn(),
+        upsert: jest.fn(),
+      },
+      palabraClaveArea: {
+        upsert: jest.fn(),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn(
+        async (callback: (client: unknown) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    } as unknown as PrismaClient;
+
+    return { prisma, tx };
+  }
+
+  it('rechaza una versiÃ³n publicada con contenido diferente', async () => {
+    const { prisma, tx } = createPrismaMock(
+      DICTIONARY_VERSION,
+      'a'.repeat(64),
+    );
+
+    await expect(seedRadarCatalog(prisma)).rejects.toThrow(
+      /ya fue publicada con otro contenido/,
+    );
+
+    expect(tx.palabraClave.upsert).not.toHaveBeenCalled();
+    expect(tx.aliasPalabraClave.upsert).not.toHaveBeenCalled();
+    expect(tx.palabraClaveArea.upsert).not.toHaveBeenCalled();
+    expect(tx.radarDiccionarioVersion.create).not.toHaveBeenCalled();
+  });
+
+  it('rechaza publicar una versiÃ³n anterior a la existente', async () => {
+    const { prisma, tx } = createPrismaMock(
+      '2026-11-16.1',
+      getRadarDictionaryFingerprint(),
+    );
+
+    await expect(seedRadarCatalog(prisma)).rejects.toThrow(
+      /No se puede publicar/,
+    );
+
+    expect(tx.palabraClave.upsert).not.toHaveBeenCalled();
+    expect(tx.aliasPalabraClave.upsert).not.toHaveBeenCalled();
+    expect(tx.palabraClaveArea.upsert).not.toHaveBeenCalled();
+    expect(tx.radarDiccionarioVersion.create).not.toHaveBeenCalled();
   });
 });
