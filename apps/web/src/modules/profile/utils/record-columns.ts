@@ -1,4 +1,5 @@
-import type { ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
+import type { CertificationRecord, ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
+import { backupTypeLabel } from '@/modules/profile/utils/backup-type-label';
 
 export type RecordColumn = {
   label: string;
@@ -35,10 +36,27 @@ export function getRecordColumns(section: RecordSection): RecordColumn[] {
       { label: 'Fecha de fin', getValue: (record) => formatMonthYear(readField('endDate')(record)) },
     ];
   }
+  if (section === 'project') {
+    // HU-19 (T19.4): pestaña Proyectos
+    return [
+      { label: 'Proyecto', getValue: readField('name') },
+      { label: 'Enlace', getValue: readField('url') },
+      { label: 'Descripción', getValue: readField('description') },
+      { label: 'Tecnologías', getValue: (record) => readField('technologies')(record) || '—' },
+    ];
+  }
   return [
     { label: 'Certificación', getValue: readField('name') },
     { label: 'Entidad emisora', getValue: readField('issuer') },
     { label: 'Año', getValue: readField('issueYear') },
     { label: 'Grado', getValue: readField('degree') },
+    // HU-18 (T18.5): indica si el respaldo es un PDF o una foto
+    {
+      label: 'Respaldo',
+      getValue: (record) => {
+        const { backupFile, backupType } = record as CertificationRecord;
+        return backupFile ? backupTypeLabel(backupType) : 'Sin respaldo';
+      },
+    },
   ];
 }

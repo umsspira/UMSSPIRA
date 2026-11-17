@@ -3,11 +3,13 @@ import { Lock, Trash2, WifiOff } from 'lucide-react';
 import { SECTION_LABELS } from '@/modules/profile/data/profile-records-data';
 import type { DeleteRecordErrorCode, ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
 import { getRecordColumns } from '@/modules/profile/utils/record-columns';
+import { cn } from '@/shared/utils/cn';
 
 type DeleteRecordModalProps = {
   section: RecordSection;
   record: ProfileRecord;
   isDeleting: boolean;
+  isClosing?: boolean;
   errorCode: DeleteRecordErrorCode | null;
   onConfirm: () => void;
   onCancel: () => void;
@@ -33,6 +35,7 @@ export function DeleteRecordModal({
   section,
   record,
   isDeleting,
+  isClosing = false,
   errorCode,
   onConfirm,
   onCancel,
@@ -42,13 +45,20 @@ export function DeleteRecordModal({
   const Icon = errorCode === 'network' ? WifiOff : errorCode === 'forbidden' ? Lock : Trash2;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-abyssal-blue/50 px-4">
+    <div
+      className={cn(
+        'w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl',
+         isClosing ? 'profile-modal-content-out' : 'profile-modal-content',
+      )}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-record-title"
-        className="w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl"
-      >
+        className={cn('profile-modal-content w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl transition-all duration-200',
+    isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100',
+         )}
+       >
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-truffle-trouble/10 text-truffle-trouble">
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>

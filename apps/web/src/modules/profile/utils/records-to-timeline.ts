@@ -47,6 +47,7 @@ function certificationItem(record: CertificationRecord): TimelineItem {
     grade: record.degree,
     document: record.backupFile,
     documentUrl: record.backupUrl,
+    documentType: record.backupType,
     status,
   };
 }

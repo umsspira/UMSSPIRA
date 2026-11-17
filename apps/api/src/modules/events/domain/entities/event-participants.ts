@@ -8,6 +8,7 @@ export interface EventParticipant {
   status: EventRegistrationStatus;
   registeredAt: Date;
   passStatus: ParticipantPassStatus;
+  attendedAt: Date | null;
 }
 
 export interface EventOccupation {

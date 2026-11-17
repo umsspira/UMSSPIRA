@@ -57,7 +57,7 @@ describe('DownloadProfileButton', () => {
 
   it('se desactiva cuando el perfil no tiene bloques', () => {
     render(
-      <DownloadProfileButton header={profileHeader} records={{ education: [], experience: [], certification: [] }} />,
+      <DownloadProfileButton header={profileHeader} records={{ education: [], experience: [], certification: [], project: [] }} />,
     );
 
     expect(screen.getByRole('button', { name: 'Descargar' })).toBeDisabled();

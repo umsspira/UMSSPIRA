@@ -10,7 +10,7 @@ export function EventParticipantsHeader({
   children: ReactNode;
 }) {
   const pathname = usePathname() ?? '';
-  const isParticipantsPage = /^\/events\/[^/]+\/participants\/?$/.test(pathname);
+  const isParticipantsPage = /^\/events\/[^/]+\/(participants|scanner)\/?$/.test(pathname);
 
   return isParticipantsPage ? <Navbar eventManagement /> : <>{children}</>;
 }
