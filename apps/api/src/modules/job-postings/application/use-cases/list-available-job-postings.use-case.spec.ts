@@ -13,6 +13,8 @@ describe('ListAvailableJobPostingsUseCase', () => {
       id,
       title: `Puesto ${id}`,
       companyName: 'Empresa',
+      technicalDescription: null,
+      modality: null,
       publicationDate: new Date('2026-11-16T10:00:00.000Z'),
       status: 'PUBLICADO',
       closingDate: null,

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
 import { ApiError } from '@/shared/services/api-client';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
+import { calculateVacancyAffinity } from '@/shared/services/job-posting-affinity';
 import { JobPostingDetail } from './job-posting-detail';
 
 jest.mock('@/shared/services/available-job-postings', () => ({
@@ -9,7 +10,12 @@ jest.mock('@/shared/services/available-job-postings', () => ({
   getAvailableJobPosting: jest.fn(),
 }));
 
+jest.mock('@/shared/services/job-posting-affinity', () => ({
+  calculateVacancyAffinity: jest.fn(),
+}));
+
 const getAvailable = jest.mocked(getAvailableJobPosting);
+const calculateAffinity = jest.mocked(calculateVacancyAffinity);
 
 const posting: AvailableJobPostingDetail = {
   id: 'vacancy-1',
@@ -25,6 +31,7 @@ const posting: AvailableJobPostingDetail = {
 describe('JobPostingDetail', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    calculateAffinity.mockResolvedValue({ status: 'insufficient-requirements' });
   });
 
   it('carga y muestra detalle y requisitos de la oferta seleccionada', async () => {
@@ -74,5 +81,62 @@ describe('JobPostingDetail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Desarrollador' })).toBeInTheDocument();
     expect(getAvailable).toHaveBeenCalledTimes(2);
+  });
+
+  it('muestra la presentación HU-002 y reserva afinidad sin inventar un porcentaje', async () => {
+    getAvailable.mockResolvedValue(posting);
+
+    render(
+      <JobPostingDetail
+        id="vacancy-1"
+        backHref="/job-postings"
+        presentation="hu002"
+      />,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Desarrollador' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tu afinidad con esta oferta' })).toBeInTheDocument();
+    expect(await screen.findByText('Afinidad no calculada')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver comparación' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+\s*%/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Bolsa de Trabajo' })).toHaveAttribute('href', '/job-postings');
+  });
+
+  it('separa los requisitos del texto largo y presenta la afinidad calculada', async () => {
+    getAvailable.mockResolvedValue({
+      ...posting,
+      descripcionTecnica: 'Introducción del puesto.\n\n**Conocimientos técnicos requeridos:**\n- React14\n- PostgreSQL',
+      requisitos: [],
+    });
+    calculateAffinity.mockResolvedValue({
+      status: 'ready',
+      percentage: 100,
+      calculatedAt: '2026-11-17T10:00:00.000Z',
+      comparison: [
+        { requirement: 'React14', matchedSkill: 'React', result: 'similar' },
+        { requirement: 'PostgreSQL', matchedSkill: 'SQL', result: 'similar' },
+      ],
+    });
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+
+    expect(await screen.findByText('Introducción del puesto.')).toBeInTheDocument();
+    expect(screen.getByText('React14')).toBeInTheDocument();
+    expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
+    expect(screen.queryByText(/Conocimientos técnicos requeridos/)).not.toBeInTheDocument();
+    expect(await screen.findByText('100%')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver comparación' }));
+    expect(screen.getByText('Habilidad: React')).toBeInTheDocument();
+    expect(screen.getByText('Habilidad: SQL')).toBeInTheDocument();
+  });
+
+  it('muestra error y volver a vacantes en la presentación HU-002', async () => {
+    getAvailable.mockRejectedValue(new ApiError(503, 'Backend no disponible'));
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" backHref="/job-postings" />);
+
+    expect(await screen.findByText('No pudimos cargar el detalle de la vacante')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Volver a vacantes' })).toHaveAttribute('href', '/job-postings');
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
   });
 });

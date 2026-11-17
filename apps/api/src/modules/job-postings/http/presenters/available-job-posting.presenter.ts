@@ -9,6 +9,8 @@ export function presentAvailableJobPosting(posting: JobPostingListCandidate) {
     id: posting.id,
     titulo: posting.title,
     empresa: posting.companyName,
+    descripcionTecnica: posting.technicalDescription,
+    modalidad: posting.modality,
     fechaPublicacion: posting.publicationDate?.toISOString() ?? null,
   };
 }
@@ -26,8 +28,6 @@ export function presentAvailableJobPostingDetail(posting: JobPostingDetailCandid
 
   return {
     ...presentAvailableJobPosting(posting),
-    descripcionTecnica: posting.technicalDescription,
-    modalidad: posting.modality,
     nivelExperiencia: posting.experienceLevel,
     requisitos: requisitos.map((requirement) => ({
       id: requirement.id,

@@ -2,6 +2,8 @@ export interface AvailableJobPosting {
   id: string;
   titulo: string;
   empresa: string | null;
+  descripcionTecnica: string | null;
+  modalidad: string | null;
   fechaPublicacion: string | null;
 }
 
@@ -11,8 +13,6 @@ export interface TechnicalRequirement {
 }
 
 export interface AvailableJobPostingDetail extends AvailableJobPosting {
-  descripcionTecnica: string | null;
-  modalidad: string | null;
   nivelExperiencia: string | null;
   requisitos: TechnicalRequirement[];
 }
