@@ -124,6 +124,20 @@ async function loadAffinitySnapshotsMock(): Promise<AffinityVectorResult[]> {
   return mock as unknown as AffinityVectorResult[];
 }
 
+async function loadAreaCertificationsMock(
+  area: AffinityArea,
+): Promise<RadarCertificationEvidenceResponse> {
+  const { default: mock } = await import('../mocks/affinity-certifications-mock.json');
+  const byArea = mock as unknown as Record<string, RadarCertificationEvidenceResponse>;
+  const result = byArea[area];
+
+  if (!result) {
+    throw new Error('Respuesta de certificaciones no válida');
+  }
+
+  return result;
+}
+
 export async function getAffinityVector(): Promise<AffinityVectorResult> {
   if (USE_AFFINITY_MOCK) {
     return loadAffinityVectorMock();
@@ -223,7 +237,11 @@ async function requestRadar<T = AffinityVectorResponse>(
 
 
 export async function getAreaCertifications(area: AffinityArea): Promise<RadarCertificationEvidenceResponse> {
-  const result = await requestRadar<RadarCertificationEvidenceResponse>(`/api/v1/radar/certifications/${encodeURIComponent(area)}`);
+  // Se lee en cada llamada: el panel de demostración no debe quedar atado a la carga del módulo.
+  const useMock = process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK === 'true';
+  const result = useMock
+    ? await loadAreaCertificationsMock(area)
+    : await requestRadar<RadarCertificationEvidenceResponse>(`/api/v1/radar/certifications/${encodeURIComponent(area)}`);
   if (result.area !== area || result.source !== 'current-profile' || !Array.isArray(result.certifications)) {
     throw new Error('Respuesta de certificaciones no válida');
   }

@@ -20,12 +20,17 @@ const primaryButtonClassName =
 // Visor de respaldos reales. El navegador interpreta el Content-Type servido por la API
 // para mostrar imágenes JPG o documentos PDF. Cada apertura pide un enlace firmado nuevo.
 export function RadarBackupViewerModal({ certificationId, certificationName, onClose }: RadarBackupViewerModalProps) {
+  const isDemonstrationMode = process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK === 'true';
   const [backupUrl, setBackupUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   // Cada reintento vuelve a pedir un enlace nuevo
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    // En demostración no hay archivo real: el visor avisa y no pide el enlace firmado.
+    if (isDemonstrationMode) {
+      return;
+    }
     // Si el modal se cierra antes de que llegue el enlace, la respuesta ya no se usa
     let active = true;
     obtenerEnlaceRespaldo(certificationId)
@@ -38,7 +43,7 @@ export function RadarBackupViewerModal({ certificationId, certificationName, onC
     return () => {
       active = false;
     };
-  }, [certificationId, attempt]);
+  }, [certificationId, attempt, isDemonstrationMode]);
 
   function handleRetry() {
     setBackupUrl(null);
@@ -85,7 +90,12 @@ export function RadarBackupViewerModal({ certificationId, certificationName, onC
 
         {/* El navegador abre el archivo según el Content-Type real: imagen JPG o documento PDF. */}
         <div className="mt-4 flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg bg-palladian p-6 text-center">
-          {hasError && (
+          {isDemonstrationMode && (
+            <p className="text-sm font-medium text-blue-fantastic">
+              El respaldo no está disponible en modo demostración.
+            </p>
+          )}
+          {!isDemonstrationMode && hasError && (
             <div role="alert" className="flex flex-col items-center gap-3 px-4 py-12 text-center">
               <p className="text-sm font-medium text-blue-fantastic">
                 No se pudo cargar el respaldo. Revisa tu conexión e inténtalo de nuevo.
@@ -95,13 +105,13 @@ export function RadarBackupViewerModal({ certificationId, certificationName, onC
               </button>
             </div>
           )}
-          {!backupUrl && !hasError && (
+          {!isDemonstrationMode && !backupUrl && !hasError && (
             <p role="status" className="flex items-center gap-2 px-4 py-16 text-sm font-medium text-blue-fantastic">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               Cargando respaldo…
             </p>
           )}
-          {backupUrl && !hasError && (
+          {!isDemonstrationMode && backupUrl && !hasError && (
             <p className="text-sm text-blue-fantastic">
               Respaldo listo. Puedes abrirlo o descargar el archivo original.
             </p>
@@ -114,7 +124,7 @@ export function RadarBackupViewerModal({ certificationId, certificationName, onC
             Cerrar
           </button>
           {/* El endpoint sirve el archivo original como adjunto al solicitar descargar=1. */}
-          {backupUrl && !hasError && (
+          {!isDemonstrationMode && backupUrl && !hasError && (
             <>
               <a href={backupUrl} target="_blank" rel="noopener noreferrer" className={secondaryButtonClassName}>
                 Abrir respaldo

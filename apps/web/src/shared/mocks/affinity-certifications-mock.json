@@ -1,0 +1,93 @@
+{
+  "software-development": {
+    "area": "software-development",
+    "source": "current-profile",
+    "certifications": [
+      {
+        "id": "cert-react-advanced",
+        "title": "Certificación avanzada de React",
+        "issuer": "Meta",
+        "issuedYear": 2024,
+        "hasBackup": true,
+        "matchedKeywords": ["react"]
+      },
+      {
+        "id": "cert-nodejs-backend",
+        "title": "Desarrollo backend con Node.js",
+        "issuer": "OpenJS Foundation",
+        "issuedYear": 2023,
+        "hasBackup": false,
+        "matchedKeywords": ["node.js"]
+      }
+    ]
+  },
+  "cloud-devops": {
+    "area": "cloud-devops",
+    "source": "current-profile",
+    "certifications": [
+      {
+        "id": "cert-aws-practitioner",
+        "title": "AWS Certified Cloud Practitioner",
+        "issuer": "Amazon Web Services",
+        "issuedYear": 2025,
+        "hasBackup": true,
+        "matchedKeywords": ["aws"]
+      },
+      {
+        "id": "cert-docker-fundamentals",
+        "title": "Fundamentos de Docker y contenedores",
+        "issuer": "Linux Foundation",
+        "issuedYear": null,
+        "hasBackup": false,
+        "matchedKeywords": ["docker"]
+      }
+    ]
+  },
+  "data-ai": {
+    "area": "data-ai",
+    "source": "current-profile",
+    "certifications": [
+      {
+        "id": "cert-machine-learning",
+        "title": "Certificación profesional de aprendizaje automático",
+        "issuer": "Coursera",
+        "issuedYear": 2024,
+        "hasBackup": true,
+        "matchedKeywords": ["machine learning"]
+      }
+    ]
+  },
+  "quality-assurance": {
+    "area": "quality-assurance",
+    "source": "current-profile",
+    "certifications": []
+  },
+  "cybersecurity-networks": {
+    "area": "cybersecurity-networks",
+    "source": "current-profile",
+    "certifications": [
+      {
+        "id": "cert-ccna",
+        "title": "Cisco Certified Network Associate",
+        "issuer": "Cisco",
+        "issuedYear": 2022,
+        "hasBackup": false,
+        "matchedKeywords": ["redes"]
+      }
+    ]
+  },
+  "it-management": {
+    "area": "it-management",
+    "source": "current-profile",
+    "certifications": [
+      {
+        "id": "cert-itil-foundation",
+        "title": "ITIL Foundation",
+        "issuer": "PeopleCert",
+        "issuedYear": 2021,
+        "hasBackup": true,
+        "matchedKeywords": ["itil"]
+      }
+    ]
+  }
+}
