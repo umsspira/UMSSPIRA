@@ -519,6 +519,7 @@ describe('getAreaCertifications', () => {
   const originalMockFlag = process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK;
   beforeEach(async () => {
     jest.resetModules();
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
     await setTestAccessToken();
   });
   afterEach(async () => {
@@ -533,6 +534,21 @@ describe('getAreaCertifications', () => {
     const { getAreaCertifications } = await import('./affinity-service');
     await expect(getAreaCertifications('cloud-devops')).resolves.toEqual(payload);
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/v1/radar/certifications/cloud-devops'), expect.any(Object));
+  });
+  it('con la bandera de mock activa devuelve certificaciones de demostración sin llamar a la API', async () => {
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'true';
+    global.fetch = jest.fn();
+    const { getAreaCertifications } = await import('./affinity-service');
+    const result = await getAreaCertifications('software-development');
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ area: 'software-development', source: 'current-profile' });
+    expect(result.certifications.some((item) => item.hasBackup)).toBe(true);
+    expect(result.certifications.some((item) => !item.hasBackup)).toBe(true);
+    await expect(getAreaCertifications('quality-assurance')).resolves.toMatchObject({
+      area: 'quality-assurance',
+      source: 'current-profile',
+      certifications: [],
+    });
   });
   it('con la bandera de mock apagada usa certificaciones reales del endpoint', async () => {
     process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';

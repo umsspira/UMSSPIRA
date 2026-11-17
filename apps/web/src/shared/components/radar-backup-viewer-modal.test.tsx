@@ -14,9 +14,17 @@ const obtenerEnlaceMock = obtenerEnlaceRespaldo as jest.MockedFunction<typeof ob
 const ENLACE = '/api/v1/perfil/respaldos/cert-1/archivo?expira=1700000300&firma=abc';
 
 describe('RadarBackupViewerModal', () => {
+  const originalMockFlag = process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK;
+
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'false';
     obtenerEnlaceMock.mockReset();
     obtenerEnlaceMock.mockResolvedValue({ url: ENLACE, expiraEn: '2026-10-23T23:05:00.000Z' });
+  });
+
+  afterEach(() => {
+    if (originalMockFlag === undefined) delete process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK;
+    else process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = originalMockFlag;
   });
 
   it.each(['JPG', 'PDF'])('abre un respaldo %s usando el tipo de contenido real de la API', async () => {
@@ -80,6 +88,16 @@ describe('RadarBackupViewerModal', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Cargando respaldo…');
     await screen.findByRole('link', { name: 'Abrir respaldo' });
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('en modo demostración no pide el enlace y avisa que el respaldo no está disponible', () => {
+    process.env.NEXT_PUBLIC_USE_AFFINITY_MOCK = 'true';
+    render(<RadarBackupViewerModal certificationId="cert-react-advanced" certificationName="Certificación avanzada de React" onClose={jest.fn()} />);
+
+    expect(screen.getByText('El respaldo no está disponible en modo demostración.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Abrir respaldo' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(obtenerEnlaceMock).not.toHaveBeenCalled();
   });
 
   it('si falla el enlace muestra el error sin cerrar el visor', async () => {
