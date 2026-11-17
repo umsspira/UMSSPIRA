@@ -16,13 +16,20 @@ interface NotificationCenterProps {
   resolveHref: (href: string) => string;
   onClose: () => void;
   onNavigate: () => void;
+  onNotificationRead?: (id: string) => void;
 }
 
 /**
  * Centro de notificaciones de la campana (HU13 - T7, T8, T11, T12).
  * Ventanas: lista → ajustes → activar avisos → avisos del navegador → activados.
  */
-export function NotificationCenter({ items, resolveHref, onClose, onNavigate }: NotificationCenterProps) {
+export function NotificationCenter({
+  items,
+  resolveHref,
+  onClose,
+  onNavigate,
+  onNotificationRead,
+}: NotificationCenterProps) {
   const { permission, support, requesting, request } = usePushPermission();
   const { status, error, subscribe, unsubscribe } = usePushSubscription(permission);
   const [view, setView] = useState<View>('list');
@@ -82,7 +89,15 @@ export function NotificationCenter({ items, resolveHref, onClose, onNavigate }: 
                 <strong>{item.title}</strong>
                 <small>{item.description}</small>
                 {item.href && (
-                  <Link href={resolveHref(item.href)} onClick={onNavigate} prefetch={false} className={styles.noticeAction}>
+                  <Link
+                    href={resolveHref(item.href)}
+                    onClick={() => {
+                      onNotificationRead?.(item.id);
+                      onNavigate();
+                    }}
+                    prefetch={false}
+                    className={styles.noticeAction}
+                  >
                     {item.actionLabel ?? 'Ver evento'}
                   </Link>
                 )}

@@ -46,6 +46,8 @@ export interface NavbarProps {
   onLogin?: () => void;
   onSearch?: () => void;
   notifications?: NavbarActivity[];
+  onNotificationsOpen?: () => void;
+  onNotificationRead?: (id: string) => void;
   messages?: NavbarActivity[];
   accountExtra?: ReactNode;
 }
