@@ -5,7 +5,12 @@ const actor = {} as unknown as ActorContext;
 
 function setup() {
   const repository = {
-    find: jest.fn().mockResolvedValue({ fullName: 'Ana Perez', email: 'ana@example.com' }),
+    find: jest.fn().mockResolvedValue({
+      fullName: 'Ana Perez',
+      email: 'ana@example.com',
+      status: 'PENDIENTE',
+      version: 1,
+    }),
     findObservationReasons: jest.fn().mockResolvedValue([
       { code: 'documento_ilegible', label: 'Documento ilegible o borroso' },
       { code: 'datos_no_coinciden', label: 'Datos declarados no coinciden' },
