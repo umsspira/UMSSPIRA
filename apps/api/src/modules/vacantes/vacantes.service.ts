@@ -28,7 +28,9 @@ export class VacantesService {
       where: { id_usuario: idUsuario },
       select: { id: true },
     });
-    if (!titulado) throw new ForbiddenException('Solo un titulado puede postularse');
+    if (!titulado) {
+      throw new ForbiddenException('Solo un titulado puede postularse');
+    }
 
     const postulacion = await this.prisma.postulacion.findFirst({
       where: { id_usuario: idUsuario, id_vacante: idVacante },
@@ -53,13 +55,17 @@ export class VacantesService {
         },
       },
     });
-    if (!titulado) throw new ForbiddenException('Solo un titulado puede postularse');
+    if (!titulado) {
+      throw new ForbiddenException('Solo un titulado puede postularse');
+    }
 
     const previous = await this.prisma.postulacion.findFirst({
       where: { id_usuario: idUsuario, id_vacante: idVacante },
       select: { id: true },
     });
-    if (previous) return { postulada: true, yaExistia: true };
+    if (previous) {
+      return { postulada: true, yaExistia: true };
+    }
 
     const perfilCompleto =
       titulado.formacion_academica_registros.length > 0 &&
@@ -97,7 +103,9 @@ export class VacantesService {
         where: { id_usuario: idUsuario, id_vacante: idVacante },
         select: { id: true },
       });
-      if (existing) return { postulada: true, yaExistia: true };
+      if (existing) {
+        return { postulada: true, yaExistia: true };
+      }
 
       await tx.postulacion.create({
         data: {
