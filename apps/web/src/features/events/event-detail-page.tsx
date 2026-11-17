@@ -11,6 +11,7 @@ import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
 import { formatPeopleCount } from '@/shared/utils/event-copy';
 import { formatEventDateTime } from '@/shared/utils/event-date-time';
 import { useOnlineStatus } from '@/shared/hooks/use-online-status';
+import { GenerateCertificatesPanel } from '@/modules/events/components/GenerateCertificatesPanel';
 
 
 
@@ -374,6 +375,19 @@ export default function EventDetailPage({
           <h2>Descripción</h2>
           <p>{event.description || 'Sin descripción disponible.'}</p>
         </section>
+
+        {/* 👉 INICIO T4: PANEL DE CERTIFICADOS */}
+        {!isTitulado ? (
+          <section className="mt-8 border-t border-slate-200 pt-8">
+            <GenerateCertificatesPanel 
+              eventId={event.id}
+              estadoEvento={event.status} 
+              tienePlantillaActiva={false} 
+            />
+          </section>
+        ) : null}
+        {/* 👉 FIN T4 */}
+
         {isFull && !existingRegistration ? (
           <section className="hu3-capacity-alert" role="alert">
             <div>
