@@ -1,3 +1,5 @@
+
+
 import {
   BadRequestException,
   Body,
@@ -19,6 +21,7 @@ import { CompanyUsersService } from './company-users.service';
 import { InviteCompanyMemberUseCase } from './application/use-cases/invite-company-member.use-case';
 import { inviteCompanyMemberSchema } from './http/schemas/company-invitation.schemas';
 import { ZodValidationPipe } from '../../shared/http/pipes/zod-validation.pipe';
+import { ResendCompanyInvitationUseCase } from './application/use-cases/resend-company-invitation.use-case';
 
 // Roles permitidos por la base de datos
 export type RolEmpresa = 'Administrador' | 'Reclutador';
@@ -44,7 +47,8 @@ export class CompanyUsersController {
   constructor(
     private readonly companyUsersService: CompanyUsersService,
     private readonly inviteMember: InviteCompanyMemberUseCase,
-  ) {}
+    private readonly resendInvitation: ResendCompanyInvitationUseCase,
+  ) { }
 
   // HU-03: Listar usuarios de una empresa
   @Get(':companyId/users')
@@ -53,7 +57,10 @@ export class CompanyUsersController {
     @CurrentActor() actor: ActorContext,
     @Param('companyId', ParseUUIDPipe) companyId: string,
   ) {
-    const usuarios = await this.companyUsersService.listarUsuarios(actor, companyId);
+    const usuarios = await this.companyUsersService.listarUsuarios(
+      actor,
+      companyId,
+    );
 
     return {
       data: usuarios,
@@ -66,9 +73,12 @@ export class CompanyUsersController {
   async invitarUsuario(
     @CurrentActor() actor: ActorContext,
     @Param('companyId', ParseUUIDPipe) companyId: string,
-    @Body(new ZodValidationPipe(inviteCompanyMemberSchema)) datos: InvitarUsuarioDto,
+    @Body(new ZodValidationPipe(inviteCompanyMemberSchema))
+    datos: InvitarUsuarioDto,
   ) {
-    return { data: await this.inviteMember.execute(actor, companyId, datos) };
+    return {
+      data: await this.inviteMember.execute(actor, companyId, datos),
+    };
   }
 
   // HU-03: Modificar rol o estado de un colaborador
@@ -81,19 +91,35 @@ export class CompanyUsersController {
     @Body() datos: ActualizarUsuarioDto,
   ) {
     if (!datos || typeof datos !== 'object') {
-      throw new BadRequestException('Debes proporcionar los datos del usuario');
+      throw new BadRequestException(
+        'Debes proporcionar los datos del usuario',
+      );
     }
 
     if (datos.rol === undefined && datos.estado === undefined) {
-      throw new BadRequestException('Debes indicar un rol o un estado');
+      throw new BadRequestException(
+        'Debes indicar un rol o un estado',
+      );
     }
 
-    if (datos.rol !== undefined && datos.rol !== 'Administrador' && datos.rol !== 'Reclutador') {
-      throw new BadRequestException('El rol debe ser Administrador o Reclutador');
+    if (
+      datos.rol !== undefined &&
+      datos.rol !== 'Administrador' &&
+      datos.rol !== 'Reclutador'
+    ) {
+      throw new BadRequestException(
+        'El rol debe ser Administrador o Reclutador',
+      );
     }
 
-    if (datos.estado !== undefined && datos.estado !== 'Activo' && datos.estado !== 'Inactivo') {
-      throw new BadRequestException('El estado debe ser Activo o Inactivo');
+    if (
+      datos.estado !== undefined &&
+      datos.estado !== 'Activo' &&
+      datos.estado !== 'Inactivo'
+    ) {
+      throw new BadRequestException(
+        'El estado debe ser Activo o Inactivo',
+      );
     }
 
     const usuario = await this.companyUsersService.actualizarUsuario(
@@ -107,6 +133,8 @@ export class CompanyUsersController {
       data: usuario,
     };
   }
+
+  // HU-03: Cancelar invitación pendiente
   @Delete(':companyId/users/invitations/:invitationId')
   @RequirePermissions('empresas:self:read')
   async cancelarInvitacion(
@@ -114,7 +142,46 @@ export class CompanyUsersController {
     @Param('companyId', ParseUUIDPipe) companyId: string,
     @Param('invitationId', ParseUUIDPipe) invitationId: string,
   ) {
-    await this.companyUsersService.cancelarInvitacion(actor, companyId, invitationId);
-    return { data: { message: 'Invitación cancelada' } };
+    await this.companyUsersService.cancelarInvitacion(
+      actor,
+      companyId,
+      invitationId,
+    );
+
+    return {
+      data: {
+        message: 'Invitación cancelada',
+      },
+    };
+  }
+
+  // HU-02: Reenviar invitación vencida
+  @Post(':companyId/users/invitations/:invitationId/resend')
+  @RequirePermissions('empresas:self:read')
+  async reenviarInvitacion(
+    @CurrentActor() actor: ActorContext,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+  ) {
+    await this.companyUsersService.verificarInvitacionVencida(
+      actor,
+      companyId,
+      invitationId,
+    );
+
+    const resultado = await this.resendInvitation.execute(
+      actor,
+      invitationId,
+    );
+
+    return {
+      data: {
+        id: resultado.invitationId,
+        correo: resultado.email,
+        estado: 'Pendiente',
+        expira_en: resultado.expiresAt,
+        mensaje: `Invitación reenviada a ${resultado.email}`,
+      },
+    };
   }
 }

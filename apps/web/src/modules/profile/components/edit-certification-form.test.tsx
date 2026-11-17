@@ -100,6 +100,48 @@ describe('EditCertificationForm', () => {
     subirRespaldoMock.mockReset();
   });
 
+  it('al guardar vuelve a la pestaña de certificaciones con «Registro actualizado» (HU-11)', async () => {
+    window.history.replaceState(null, '', '/profile/certifications/cert-1/edit');
+    actualizarCertificacionMock.mockResolvedValue({ ...GUARDADA, name: 'AWS Solutions Architect Pro' });
+    renderForm();
+
+    fireEvent.change(await screen.findByLabelText('Nombre de la certificación'), {
+      target: { value: 'AWS Solutions Architect Pro' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(push).toHaveBeenCalledWith('/profile/records?seccion=certification&actualizado=1');
+    expect(screen.getByTestId('nombre-guardado')).toHaveTextContent('AWS Solutions Architect Pro');
+  });
+
+  it('si se llegó desde Completar perfil, al guardar vuelve ahí (HU-11)', async () => {
+    const regreso = '/profile/completar?seccion=certificaciones&returnTo=%2Fafinidad';
+    window.history.replaceState(null, '', `/profile/certifications/cert-1/edit?returnTo=${encodeURIComponent(regreso)}`);
+    actualizarCertificacionMock.mockResolvedValue(GUARDADA);
+    renderForm();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(push).toHaveBeenCalledWith(regreso);
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('si falla la subida del respaldo se queda en el formulario (HU-11)', async () => {
+    window.history.replaceState(null, '', '/profile/certifications/cert-1/edit');
+    actualizarCertificacionMock.mockResolvedValue(GUARDADA);
+    subirRespaldoMock.mockRejectedValue(new ApiError(500, 'Error del servidor'));
+    renderForm();
+
+    await screen.findByLabelText('Nombre de la certificación');
+    elegirFoto(jpg('nuevo.jpg'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText(/no se pudo subir el respaldo/)).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('pide la certificación al backend y precarga sus datos y su respaldo', async () => {
     renderForm();
     expect(screen.getByText('Cargando certificación…')).toBeInTheDocument();
@@ -294,21 +336,47 @@ describe('EditCertificationForm', () => {
       expect(screen.getByTestId('respaldo-guardado')).toHaveTextContent('certificado-nuevo.jpg');
     });
 
-    it('rechaza archivos que no son JPG o superan 5 MB sin subirlos', async () => {
+    it('rechaza archivos que no son PDF ni JPG o superan 5 MB sin subirlos', async () => {
       actualizarCertificacionMock.mockResolvedValue(GUARDADA);
       renderForm();
       await screen.findByLabelText('Nombre de la certificación');
 
-      elegirFoto(new File(['%PDF'], 'certificado.pdf', { type: 'application/pdf' }));
-      expect(screen.getByText('Formato no permitido. Solo JPG')).toBeInTheDocument();
+      elegirFoto(new File(['%PDF'], 'certificado.png', { type: 'image/png' }));
+      expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
 
       elegirFoto(jpg('enorme.jpg', 5 * 1024 * 1024 + 1));
-      expect(screen.getByText('El archivo no puede superar 5 MB')).toBeInTheDocument();
+      expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
       expect(screen.getByText('respaldo.jpg')).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
       expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
       expect(subirRespaldoMock).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('EditCertificationForm · respaldo PDF (HU-18, T18.6)', () => {
+  beforeEach(() => {
+    routeId = 'cert-1';
+    obtenerCertificacionMock.mockReset();
+    obtenerCertificacionMock.mockResolvedValue(GUARDADA);
+    actualizarCertificacionMock.mockReset();
+    actualizarCertificacionMock.mockResolvedValue(GUARDADA);
+    subirRespaldoMock.mockReset();
+    subirRespaldoMock.mockResolvedValue(undefined);
+  });
+
+  it('reemplaza la foto por un PDF en la misma certificación', async () => {
+    renderForm();
+    await screen.findByLabelText('Nombre de la certificación');
+    const pdf = new File(['%PDF-1.4'], 'titulo.pdf', { type: 'application/pdf' });
+
+    elegirFoto(pdf);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(subirRespaldoMock).toHaveBeenCalledTimes(1);
+    expect(subirRespaldoMock).toHaveBeenCalledWith('cert-1', pdf);
+    expect(screen.getByTestId('respaldo-guardado')).toHaveTextContent('titulo.pdf');
   });
 });
