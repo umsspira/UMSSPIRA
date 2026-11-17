@@ -1,7 +1,7 @@
 const { strict: assert } = require("node:assert");
 const { resolve } = require("node:path");
 const { build } = require("esbuild");
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "@playwright/test");
 const base = process.env.OCR_BASE_URL || "http://localhost:3001";
 
 async function main() {
