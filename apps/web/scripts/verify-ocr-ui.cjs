@@ -1,6 +1,6 @@
 const { mkdirSync } = require('node:fs');
 const { strict: assert } = require('node:assert');
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '@playwright/test');
 const base = process.env.OCR_BASE_URL || 'http://localhost:3001';
 if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw new Error('Solo se admiten pruebas locales.');
 async function main() {
