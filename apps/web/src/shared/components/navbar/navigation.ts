@@ -1,3 +1,6 @@
+import {
+  CalendarDays, ClipboardList, Compass, Inbox, Layers, Send, Sparkles, UserRound,
+} from 'lucide-react';
 import type { NavbarLink, NavbarRole, NavbarSection } from './types';
 
 export const NAVBAR_ROLE_LABEL: Record<NavbarRole, string> = {
@@ -37,13 +40,14 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
   ] },
   { id: 'mentorship', label: 'Mentorías', items: [
     { id: 'inst-mentorias', label: 'Sobre las mentorías', href: '/portal/institucional?tab=mentorias', guestOnly: true },
-    { id: 'mentorship', label: 'Red de mentorías', href: '/mentorship', roles: signedIn },
-    { id: 'mentor-profile', label: 'Mi perfil de mentor', href: '/mentorship/profile', roles: members },
-    { id: 'mentor-information', label: 'Información de mi perfil', href: '/mentorship/profile/information', roles: members },
-    { id: 'mentor-areas', label: 'Áreas técnicas', href: '/mentorship/profile/areas', roles: members },
-    { id: 'mentor-interests', label: 'Intereses de mentoría', href: '/mentorship/profile/interests', roles: members },
-    { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: members },
-    { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests', roles: members },
+    { id: 'mentorship', label: 'Explorar mentores', href: '/mentorship', roles: signedIn, icon: Compass },
+    { id: 'mentor-profile', label: 'Mi perfil de mentor', href: '/mentorship/profile', roles: members, icon: UserRound },
+    { id: 'mentor-information', label: 'Información de mi perfil', href: '/mentorship/profile/information', roles: members, icon: ClipboardList },
+    { id: 'mentor-areas', label: 'Áreas técnicas', href: '/mentorship/profile/areas', roles: members, icon: Layers },
+    { id: 'mentor-interests', label: 'Intereses de mentoría', href: '/mentorship/profile/interests', roles: members, icon: Sparkles },
+    { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: members, icon: CalendarDays },
+    { id: 'mentor-my-requests', label: 'Mis solicitudes', href: '/mentorship/requests', roles: members, icon: Send },
+    { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests/received', roles: members, icon: Inbox },
   ] },
   { id: 'events', label: 'Eventos', items: [
     { id: 'inst-events', label: 'Eventos institucionales', href: '/portal/institucional?tab=eventos', guestOnly: true },
@@ -88,6 +92,18 @@ export function navigationFor(role: NavbarRole | null): NavbarSection[] {
   return NAVBAR_SECTIONS
     .map(section => ({ ...section, items: visibleLinks(section.items, role).filter(item => !item.hidden) }))
     .filter(section => section.items.length > 0);
+}
+
+/**
+ * Marca el destino exacto de la vista actual: la ruta debe coincidir y los
+ * parámetros declarados en el enlace deben estar presentes en la URL.
+ */
+export function isCurrentDestination(href: string, currentPath: string) {
+  const [hrefPath, hrefQuery = ''] = href.split('?');
+  const [currentHrefPath, currentQuery = ''] = currentPath.split('?');
+  if (hrefPath !== currentHrefPath) return false;
+  const current = new URLSearchParams(currentQuery);
+  return Array.from(new URLSearchParams(hrefQuery)).every(([key, value]) => current.get(key) === value);
 }
 
 /**
