@@ -4,7 +4,7 @@
   --interest-ink: #1b2632;
   --interest-border: #c9c1b1;
   --interest-accent: #a35139;
-  background: white;
+  background: var(--palladian);
   color: var(--interest-ink);
   font-family: Inter, Arial, sans-serif;
   min-height: 100vh;
