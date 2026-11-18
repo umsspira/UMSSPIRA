@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { GraduationCap, Plus } from 'lucide-react';
+import { GraduationCap } from 'lucide-react';
 import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-error';
 import {
   LARGO_MAXIMO_FORMACION,
@@ -211,19 +211,17 @@ export function FormacionAcademicaForm({
         <MensajeError id="error-formacion-duplicada" mensaje={errorDuplicada} />
         <MensajeError id="error-formacion-guardar" mensaje={errorGuardar} />
 
-        <button
-          type="submit"
-          disabled={guardando}
-          className="inline-flex h-10 items-center gap-2 rounded-md border border-[#2C3B4D] bg-white px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus className="h-4 w-4" />
-          {textoBoton}
-        </button>
-        {onCancelar && (
-          <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
-            Cancelar
+        {/* Mismo formato que Experiencia laboral: Cancelar y el botón principal a la derecha */}
+        <div className="flex justify-end gap-3">
+          {onCancelar && (
+            <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
+              Cancelar
+            </button>
+          )}
+          <button type="submit" disabled={guardando} className="h-11 rounded-lg bg-[#FFB162] px-6 text-sm font-semibold text-[#1B2632] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50">
+            {textoBoton}
           </button>
-        )}
+        </div>
       </form>
     </div>
   );

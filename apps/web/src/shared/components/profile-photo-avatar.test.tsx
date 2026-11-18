@@ -12,7 +12,14 @@ jest.mock('@/shared/services/profile-photo-service', () => ({
 
 describe('ProfilePhotoContent', () => {
   beforeEach(() => {
-    useProfilePhotoStore.setState({ photoUrl: null, status: 'ready' });
+    useProfilePhotoStore.setState({ photoUrl: null, status: 'ready', displayName: null, nameStatus: 'ready' });
+  });
+
+  it('sin foto y con el nombre del titulado usa sus iniciales, las mismas que Mis registros', () => {
+    useProfilePhotoStore.setState({ displayName: 'Titulado Tres' });
+    render(<span><ProfilePhotoContent fallback="TI" /></span>);
+    expect(screen.getByText('TT')).toBeInTheDocument();
+    expect(screen.queryByText('TI')).not.toBeInTheDocument();
   });
 
   it('sin foto conserva el contenido de respaldo (las iniciales)', () => {

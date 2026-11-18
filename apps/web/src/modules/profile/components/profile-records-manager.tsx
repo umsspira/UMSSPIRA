@@ -116,7 +116,7 @@ export function ProfileRecordsManager({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5">
       <header className="flex flex-col gap-2">
         <BackButton href="/profile" ariaLabel="Volver a Mi perfil" />
         <h1 className="text-[28px] font-semibold leading-tight text-blue-fantastic">
@@ -126,16 +126,20 @@ export function ProfileRecordsManager({
         <ProfileQuickLinks current="/profile/records" />
       </header>
 
-      {/* HU-16: foto actual o avatar con iniciales */}
-      <ProfilePhotoSection name={store?.header?.name ?? ''} />
-
-      <Link
-        href="/profile/registros/agregar"
-        className="inline-flex w-fit items-center gap-2 rounded-lg bg-burning-flame px-5 py-3 text-sm font-bold text-abyssal-blue transition hover:brightness-95"
-      >
-        <Plus className="h-4 w-4" aria-hidden="true" />
-        Agregar Registros
-      </Link>
+      {/* HU-16: foto actual o avatar con iniciales. En escritorio la foto y «Agregar Registros» van en una sola
+          fila, así las tablas quedan a la vista al entrar desde «Editar perfil» sin bajar con el mouse */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div className="min-w-0 flex-1">
+          <ProfilePhotoSection name={store?.header?.name ?? ''} />
+        </div>
+        <Link
+          href="/profile/registros/agregar"
+          className="inline-flex w-fit items-center gap-2 rounded-lg bg-burning-flame px-5 py-3 text-sm font-bold text-abyssal-blue transition hover:brightness-95"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Agregar Registros
+        </Link>
+      </div>
 
       <div
         role="tablist"

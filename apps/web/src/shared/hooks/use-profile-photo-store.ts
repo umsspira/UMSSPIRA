@@ -7,6 +7,12 @@ import { loadProfilePhoto, saveProfilePhoto } from '@/shared/services/profile-ph
 type ProfilePhotoState = {
   photoUrl: string | null;
   status: 'idle' | 'loading' | 'ready';
+  // Nombre del titulado (GET /perfil): con él todas las iniciales del avatar salen iguales
+  // en la barra superior y en Mis registros (antes una usaba el correo y la otra el nombre)
+  displayName: string | null;
+  setDisplayName: (name: string) => void;
+  nameStatus: 'idle' | 'loading' | 'ready';
+  loadDisplayName: () => Promise<void>;
   loadPhoto: () => Promise<void>;
   savePhoto: (photo: Blob) => Promise<void>;
 };
@@ -14,6 +20,28 @@ type ProfilePhotoState = {
 export const useProfilePhotoStore = create<ProfilePhotoState>((set, get) => ({
   photoUrl: null,
   status: 'idle',
+  displayName: null,
+  nameStatus: 'idle',
+
+  async loadDisplayName() {
+    // Una sola vez aunque varios avatares lo pidan; si Mi perfil ya lo trajo, no se vuelve a pedir
+    if (get().nameStatus !== 'idle' || get().displayName) return;
+    set({ nameStatus: 'loading' });
+    try {
+      const { obtenerResumenPerfil } = await import('@/modules/profile/services/perfil-api');
+      const perfil = await obtenerResumenPerfil();
+      get().setDisplayName(perfil.header.name);
+    } catch {
+      // Sin nombre se siguen mostrando las iniciales de la sesión
+    } finally {
+      set({ nameStatus: 'ready' });
+    }
+  },
+
+  setDisplayName(name) {
+    const trimmed = name.trim();
+    if (trimmed && trimmed !== get().displayName) set({ displayName: trimmed });
+  },
 
   async loadPhoto() {
     // Se carga una sola vez aunque varios componentes la pidan

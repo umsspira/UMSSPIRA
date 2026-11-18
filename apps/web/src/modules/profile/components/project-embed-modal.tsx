@@ -20,10 +20,8 @@ type ProjectEmbedModalProps = {
 
 type EmbedState = 'loading' | 'loaded' | 'blocked';
 
-const secondaryButtonClassName =
-  'inline-flex min-h-11 items-center justify-center rounded-lg border border-truffle-trouble bg-white px-5 py-2.5 text-sm font-bold text-truffle-trouble transition hover:bg-palladian';
 const primaryButtonClassName =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-burning-flame px-5 py-2.5 text-sm font-bold text-abyssal-blue transition hover:brightness-95';
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-burning-flame px-3 py-2.5 text-sm font-bold text-abyssal-blue transition hover:brightness-95 sm:px-4';
 
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])';
 
@@ -75,30 +73,44 @@ export function ProjectEmbedModal({ project, onClose }: ProjectEmbedModalProps) 
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-abyssal-blue/50 p-2 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-abyssal-blue/50 sm:p-4"
     >
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={project.name}
-        className="flex h-[calc(100dvh-1rem)] w-full max-w-[960px] flex-col rounded-2xl bg-white p-4 shadow-xl sm:h-[calc(100dvh-2rem)] sm:p-6"
+        className="flex h-[100dvh] w-full flex-col bg-white p-3 shadow-xl sm:h-[calc(100dvh-2rem)] sm:max-w-[1200px] sm:rounded-2xl sm:p-5"
       >
         <div className="flex items-start justify-between gap-4">
           <h2 className="min-w-0 break-words text-base font-bold leading-snug text-blue-fantastic sm:text-lg">
             {project.name}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar ventana del proyecto"
-            className="shrink-0 rounded p-1 text-blue-fantastic transition hover:bg-palladian"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+          {/* Sugerencia del equipo: menos ruido visual, las acciones quedan arriba y el sitio usa casi toda la pantalla */}
+          <div className="flex shrink-0 items-center gap-2">
+            <a
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Abrir en una pestaña nueva"
+              title="Abrir en una pestaña nueva"
+              className={primaryButtonClassName}
+            >
+              <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">Abrir en una pestaña nueva</span>
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar ventana del proyecto"
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-blue-fantastic transition hover:bg-palladian"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
-        <div className="relative mt-4 min-h-0 flex-1 overflow-hidden rounded-lg border border-oatmeal bg-palladian">
+        <div className="relative mt-3 min-h-0 flex-1 overflow-hidden rounded-lg border border-oatmeal bg-palladian">
           {embedState === 'blocked' ? (
             <div role="alert" className="flex h-full flex-col items-center justify-center gap-4 overflow-y-auto px-4 py-8 text-center">
               <p className="text-sm font-semibold text-blue-fantastic">Este sitio no permite verse aquí.</p>
@@ -137,16 +149,6 @@ export function ProjectEmbedModal({ project, onClose }: ProjectEmbedModalProps) 
           )}
         </div>
 
-        {/* En celular los botones se reparten el ancho y nunca salen de la pantalla */}
-        <div className="mt-4 grid shrink-0 grid-cols-2 gap-3 sm:flex sm:justify-end">
-          <button type="button" onClick={onClose} className={secondaryButtonClassName}>
-            Cerrar
-          </button>
-          <a href={project.url} target="_blank" rel="noopener noreferrer" className={primaryButtonClassName}>
-            <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Abrir en una pestaña nueva
-          </a>
-        </div>
       </div>
     </div>
   );

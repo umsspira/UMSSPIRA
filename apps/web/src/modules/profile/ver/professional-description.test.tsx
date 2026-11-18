@@ -10,10 +10,14 @@ describe('ProfessionalDescription', () => {
     expect(screen.getByText('Ingeniero de sistemas con 7 años de experiencia.')).toBeInTheDocument();
   });
 
-  it('muestra "Sin registros" si no hay descripción', () => {
-    render(<ProfessionalDescription description="" />);
+  it.each(['', '.', ' - '])('sin descripción real (%p) muestra el estado vacío con acceso a completarla', (description) => {
+    render(<ProfessionalDescription description={description} />);
 
-    expect(screen.getByText('Sin registros')).toBeInTheDocument();
+    expect(screen.getByText('Aún no has agregado una descripción profesional')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Agregar descripción' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('descripcion-profesional'),
+    );
   });
 
   it('no muestra «Leer más» si la descripción es corta', () => {

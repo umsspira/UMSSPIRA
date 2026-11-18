@@ -45,7 +45,7 @@ describe('ProjectEmbedModal (HU-20)', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('CA-04: «Cerrar», Esc y clic fuera cierran la ventana; clic dentro no', () => {
+  it('CA-04: la X, Esc y clic fuera cierran la ventana; clic dentro no', () => {
     const onClose = jest.fn();
     render(<ProjectEmbedModal project={PROJECT} onClose={onClose} />);
     const dialog = screen.getByRole('dialog');
@@ -53,7 +53,7 @@ describe('ProjectEmbedModal (HU-20)', () => {
     fireEvent.click(dialog);
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ventana del proyecto' }));
     fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.click(dialog.parentElement as HTMLElement);
     expect(onClose).toHaveBeenCalledTimes(3);
@@ -100,11 +100,11 @@ describe('ProjectEmbedModal (HU-20)', () => {
     },
   );
 
-  it('CA-07: en celular la ventana ocupa el ancho y los botones se reparten la fila', () => {
+  it('CA-07: en celular la ventana ocupa toda la pantalla y no hay botones abajo', () => {
     render(<ProjectEmbedModal project={PROJECT} onClose={jest.fn()} />);
 
-    expect(screen.getByRole('dialog')).toHaveClass('w-full');
-    expect(screen.getByRole('button', { name: 'Cerrar' }).parentElement).toHaveClass('grid', 'grid-cols-2');
+    expect(screen.getByRole('dialog')).toHaveClass('w-full', 'h-[100dvh]');
+    expect(screen.queryByRole('button', { name: 'Cerrar' })).not.toBeInTheDocument();
   });
 
   it('el foco entra a la ventana y Tab no sale de ella', () => {
@@ -112,14 +112,15 @@ describe('ProjectEmbedModal (HU-20)', () => {
 
     const closeIcon = screen.getByRole('button', { name: 'Cerrar ventana del proyecto' });
     const openLink = screen.getByRole('link', { name: 'Abrir en una pestaña nueva' });
+    const iframe = screen.getByTitle('Sitio del proyecto Portafolio web');
     expect(closeIcon).toHaveFocus();
 
-    openLink.focus();
+    iframe.focus();
     fireEvent.keyDown(document, { key: 'Tab' });
-    expect(closeIcon).toHaveFocus();
+    expect(openLink).toHaveFocus();
 
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-    expect(openLink).toHaveFocus();
+    expect(iframe).toHaveFocus();
   });
 });
 

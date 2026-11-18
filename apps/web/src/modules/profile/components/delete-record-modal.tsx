@@ -45,20 +45,23 @@ export function DeleteRecordModal({
   const Icon = errorCode === 'network' ? WifiOff : errorCode === 'forbidden' ? Lock : Trash2;
 
   return (
+    // Fondo oscuro que cubre la pantalla: el aviso aparece centrado, no al final de la página
     <div
-      className={cn(
-        'w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl',
-         isClosing ? 'profile-modal-content-out' : 'profile-modal-content',
-      )}
+      data-testid="delete-record-overlay"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !isDeleting) onCancel();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-abyssal-blue/50 p-4"
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-record-title"
-        className={cn('profile-modal-content w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl transition-all duration-200',
-    isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100',
-         )}
-       >
+        className={cn(
+          'w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl',
+          isClosing ? 'profile-modal-content-out' : 'profile-modal-content',
+        )}
+      >
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-truffle-trouble/10 text-truffle-trouble">
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>

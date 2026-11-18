@@ -2,7 +2,8 @@
 'use client';
  
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Briefcase, Check } from 'lucide-react';
+import { Briefcase, Check, FileText } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BarraProgreso } from './barra-progreso';
 import { SeccionAcordeon } from './seccion-acordeon';
@@ -23,6 +24,13 @@ import { DeleteRecordModal } from '@/modules/profile/components/delete-record-mo
 import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
+import {
+  type DraftDataBySection,
+  type DraftSection,
+  DraftsStoreProvider,
+  useDraftsStore,
+} from '@/modules/profile/state/drafts-store';
+import { loadDrafts } from '@/modules/profile/utils/drafts-storage';
 import { BackButton } from '@/shared/components/back-button';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
@@ -39,15 +47,37 @@ import type {
   ProjectRecord,
 } from '@/modules/profile/types/profile-record';
  
-// returnTo: ruta interna desde la que se llegó (por ejemplo /afinidad); al terminar se vuelve ahí (E2.3).
-// seccionInicial: sección que se abre al llegar desde el indicador de completitud (T6.6)
-export function AcordeonPerfil({
-  returnTo,
-  seccionInicial,
-}: {
+// Pantalla donde se ven y retoman los borradores (la misma lista de «Agregar registros»)
+export const BORRADORES_ROUTE = '/profile/registros/agregar';
+export const MENSAJE_BORRADOR_VACIO = 'No se puede guardar el borrador: no hay ningún registro.';
+
+const SECCIONES_BORRADOR: DraftSection[] = ['education', 'experience', 'certification', 'project'];
+
+// Algún campo escrito o un respaldo elegido
+function tieneDatos(datos: DraftDataBySection[DraftSection] | undefined): boolean {
+  if (!datos) return false;
+  return Object.entries(datos).some(
+    ([campo, valor]) => campo !== 'id' && (typeof valor === 'string' ? valor.trim() !== '' : valor != null),
+  );
+}
+
+type AcordeonPerfilProps = {
   returnTo?: string;
   seccionInicial?: CompletenessSectionId;
-}) {
+};
+
+// returnTo: ruta interna desde la que se llegó (por ejemplo /afinidad); al terminar se vuelve ahí (E2.3).
+// seccionInicial: sección que se abre al llegar desde el indicador de completitud (T6.6)
+// Los borradores se guardan en el navegador con el mismo estado que «Agregar registros», así «Ver borradores» los muestra
+export function AcordeonPerfil(props: AcordeonPerfilProps) {
+  return (
+    <DraftsStoreProvider>
+      <AcordeonPerfilContenido {...props} />
+    </DraftsStoreProvider>
+  );
+}
+
+function AcordeonPerfilContenido({ returnTo, seccionInicial }: AcordeonPerfilProps) {
   // Los registros vienen del estado compartido del perfil, así lo agregado aquí aparece en el resumen
   const {
     records,
@@ -65,6 +95,56 @@ export function AcordeonPerfil({
   } = useProfileStore();
   const router = useRouter();
   const [avisoBorrador, setAvisoBorrador] = useState(false);
+  const { drafts, saveIncompleteDraft, removeDraft } = useDraftsStore();
+  // Lo escrito en cada formulario, para guardarlo como borrador
+  const datosFormularios = useRef<Partial<DraftDataBySection>>({});
+  const [hayDatos, setHayDatos] = useState(false);
+  // Datos con los que arranca cada formulario: el borrador guardado antes (se lee del navegador al montar)
+  const [inicio, setInicio] = useState<Partial<DraftDataBySection> | null>(null);
+
+  useEffect(() => {
+    const guardados = loadDrafts().filter((borrador) => borrador.isIncomplete);
+    const datos: Partial<DraftDataBySection> = {};
+    for (const borrador of guardados) {
+      (datos as Record<DraftSection, unknown>)[borrador.section] = borrador.data;
+    }
+    setInicio(datos);
+  }, []);
+
+  const seguirDatos = useMemo(() => {
+    function seguir<S extends DraftSection>(seccion: S) {
+      return (datos: DraftDataBySection[S]) => {
+        datosFormularios.current[seccion] = datos;
+        setHayDatos(SECCIONES_BORRADOR.some((s) => tieneDatos(datosFormularios.current[s])));
+      };
+    }
+    return {
+      education: seguir('education'),
+      experience: seguir('experience'),
+      certification: seguir('certification'),
+      project: seguir('project'),
+    };
+  }, []);
+
+  // «Guardar borrador»: lo escrito en cada sección queda como borrador (uno por sección) y se conserva al recargar
+  function guardarBorrador() {
+    if (!hayDatos) return;
+    for (const seccion of SECCIONES_BORRADOR) {
+      const datos = datosFormularios.current[seccion];
+      const anterior = drafts.find((borrador) => borrador.section === seccion && borrador.isIncomplete);
+      if (tieneDatos(datos)) saveIncompleteDraft(seccion, datos as DraftDataBySection[typeof seccion]);
+      else if (anterior) removeDraft(anterior.id);
+    }
+    setAvisoBorrador(true);
+  }
+
+  // Un registro ya guardado en la API deja de ser borrador
+  function quitarBorradorDe(seccion: DraftSection) {
+    const anterior = drafts.find((borrador) => borrador.section === seccion && borrador.isIncomplete);
+    if (anterior) removeDraft(anterior.id);
+  }
+
+  const claveFormulario = inicio ? 'restaurado' : 'nuevo';
   // Errores sin corregir por sección, para el contador del encabezado (HU-02, AC 6)
   const [erroresFormacion, setErroresFormacion] = useState(0);
   const [erroresExperiencia, setErroresExperiencia] = useState(0);
@@ -199,8 +279,9 @@ export function AcordeonPerfil({
       </header>
  
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-4 lg:w-[300px] lg:shrink-0">
         {/* Tarjeta informativa (HU-21, CA-08: «Tu base de datos de titulado») */}
-        <aside className="flex flex-col gap-4 rounded-2xl border border-abyssal-blue/10 bg-white p-6 lg:w-[300px] lg:shrink-0">
+        <aside className="flex flex-col gap-4 rounded-2xl border border-abyssal-blue/10 bg-white p-6">
           <h2 className="text-lg font-bold text-blue-fantastic">Tu base de datos de titulado</h2>
           <p className="text-[13px] leading-[1.5] text-blue-fantastic/70">
             La información registrada se consolida en un formato estructurado (JSON base) para fines de
@@ -214,6 +295,18 @@ export function AcordeonPerfil({
             </p>
           </div>
         </aside>
+        {/* Sugerencia del equipo: acceso directo a los borradores guardados */}
+        <Link
+          href={BORRADORES_ROUTE}
+          className="flex items-center justify-center gap-2 rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-4 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
+        >
+          <FileText className="h-4 w-4 text-truffle-trouble" aria-hidden="true" />
+          Ver borradores
+          <span className="rounded-[10px] bg-burning-flame/[0.16] px-2 py-0.5 text-xs font-semibold text-truffle-trouble">
+            {drafts.length}
+          </span>
+        </Link>
+        </div>
  
         <div className="flex min-w-0 flex-1 flex-col gap-4">
  
@@ -227,12 +320,16 @@ export function AcordeonPerfil({
       >
         {(cerrar) => (
         <FormacionAcademicaForm
+          key={claveFormulario}
+          valoresIniciales={inicio?.education}
+          onDatosChange={seguirDatos.education}
           formaciones={formaciones}
           onErroresChange={setErroresFormacion}
           onCancelar={cerrar}
           onAgregar={async (formacion) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addEducation(await crearFormacion(formacion));
+            quitarBorradorDe('education');
           }}
         />
         )}
@@ -247,12 +344,16 @@ export function AcordeonPerfil({
       >
         {(cerrar) => (
         <FormularioExperiencia
+          key={claveFormulario}
+          valoresIniciales={inicio?.experience}
+          onDatosChange={seguirDatos.experience}
           experiencias={experiencias}
           onErroresChange={setErroresExperiencia}
           onCancelar={cerrar}
           onAgregar={async (experiencia) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addExperience(await crearExperiencia(experiencia));
+            quitarBorradorDe('experience');
           }}
         />
         )}
@@ -267,6 +368,9 @@ export function AcordeonPerfil({
       >
         {(cerrar) => (
         <FormularioCertificaciones
+          key={claveFormulario}
+          valoresIniciales={inicio?.certification}
+          onDatosChange={seguirDatos.certification}
           certificaciones={certificaciones}
           onErroresChange={setErroresCertificaciones}
           returnTo={returnTo}
@@ -323,6 +427,7 @@ export function AcordeonPerfil({
               backupType: certificacion.respaldo ? backupTypeOf(certificacion.respaldo) : undefined,
             });
             ultimaGuardadaRef.current = creada.id;
+            quitarBorradorDe('certification');
           }}
           onCambiarRespaldo={async (archivo) => {
             // HU-18 (T18.1): mismo endpoint de subida; el backend reemplaza el respaldo de ese registro
@@ -382,12 +487,16 @@ export function AcordeonPerfil({
       >
         {(cerrar) => (
         <FormularioProyectos
+          key={claveFormulario}
+          valoresIniciales={inicio?.project}
+          onDatosChange={seguirDatos.project}
           proyectos={proyectos}
           onErroresChange={setErroresProyectos}
           onCancelar={cerrar}
           onAgregar={async (proyecto) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addProject(await crearProyecto(proyecto));
+            quitarBorradorDe('project');
           }}
         />
         )}
@@ -405,12 +514,19 @@ export function AcordeonPerfil({
             </button>
             <button
               type="button"
-              onClick={() => setAvisoBorrador(true)}
-              className="h-12 rounded-lg border border-oatmeal bg-white px-6 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
+              onClick={guardarBorrador}
+              disabled={!hayDatos}
+              aria-describedby={hayDatos ? undefined : 'motivo-borrador-vacio'}
+              className="h-12 rounded-lg border border-oatmeal bg-white px-6 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian disabled:cursor-not-allowed disabled:opacity-50"
             >
               Guardar borrador
             </button>
           </div>
+          {!hayDatos && (
+            <p id="motivo-borrador-vacio" className="text-xs text-blue-fantastic/60 sm:text-right">
+              {MENSAJE_BORRADOR_VACIO}
+            </p>
+          )}
         </div>
       </div>
  

@@ -3,20 +3,29 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 
+import { getProfileInitials } from '@/modules/profile/utils/profile-photo-rules';
 import { useProfilePhotoStore } from '@/shared/hooks/use-profile-photo-store';
 
 // Contenido de un avatar circular: la foto de perfil guardada o, si no hay,
 // el contenido de respaldo (las iniciales). Se actualiza al instante cuando
 // Mis registros guarda una foto nueva, porque lee el estado compartido.
+// Sin foto, las iniciales salen del nombre del titulado (las mismas que en Mis registros);
+// mientras no se conoce el nombre se usa el contenido de respaldo.
 export function ProfilePhotoContent({ fallback = null }: { fallback?: ReactNode }) {
   const photoUrl = useProfilePhotoStore((state) => state.photoUrl);
   const loadPhoto = useProfilePhotoStore((state) => state.loadPhoto);
+  const displayName = useProfilePhotoStore((state) => state.displayName);
+  const loadDisplayName = useProfilePhotoStore((state) => state.loadDisplayName);
 
   useEffect(() => {
     void loadPhoto();
   }, [loadPhoto]);
 
-  if (!photoUrl) return <>{fallback}</>;
+  useEffect(() => {
+    void loadDisplayName?.();
+  }, [loadDisplayName]);
+
+  if (!photoUrl) return <>{displayName ? getProfileInitials(displayName) : fallback}</>;
   // La foto es una URL local (blob:), por eso se usa img y no next/image.
   // El alt va vacío porque el avatar es decorativo: el botón que lo contiene ya tiene nombre.
   // eslint-disable-next-line @next/next/no-img-element

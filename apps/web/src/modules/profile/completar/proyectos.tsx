@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FolderGit2, Plus } from 'lucide-react';
+import { FolderGit2 } from 'lucide-react';
 import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-error';
 import {
   LARGO_MAXIMO_DESCRIPCION_PROYECTO,
@@ -192,25 +192,16 @@ export function FormularioProyectos({
 
         <MensajeError id="error-proyecto-guardar" mensaje={errorGuardar} />
 
-        <div className="flex flex-col gap-2 md:flex-row">
-          <button
-            type="submit"
-            disabled={guardando}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#2C3B4D] bg-white px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            {guardando ? 'Guardando…' : textoBoton}
-          </button>
+        {/* Mismo formato que Experiencia laboral: Cancelar y el botón principal a la derecha */}
+        <div className="flex justify-end gap-3">
           {onCancelar && (
-            <button
-              type="button"
-              onClick={cancelar}
-              disabled={guardando}
-              className="inline-flex h-10 w-full items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
-            >
+            <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
               Cancelar
             </button>
           )}
+          <button type="submit" disabled={guardando} className="h-11 rounded-lg bg-[#FFB162] px-6 text-sm font-semibold text-[#1B2632] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50">
+            {guardando ? 'Guardando…' : textoBoton}
+          </button>
         </div>
       </form>
     </div>

@@ -16,6 +16,8 @@ import type { ProjectRecord } from '@/modules/profile/types/profile-record';
 import { isProfileEmpty, profileCompleteness } from '@/modules/profile/utils/profile-completeness';
 import { recordsToTimeline } from '@/modules/profile/utils/records-to-timeline';
 import { sortSectionsByRecency } from '@/modules/profile/utils/sort-by-recency';
+import { getProfileInitials } from '@/modules/profile/utils/profile-photo-rules';
+import { ProfilePhotoContent } from '@/shared/components/profile-photo-avatar';
 import Timeline from '@/shared/components/timeline';
 
 // Resumen del perfil (HU-03) con la descarga en JSON (HU-05), leyendo el estado compartido del perfil
@@ -75,16 +77,25 @@ if (loadError) {
       )}
       {/* Cabecera del perfil */}
       <header className="flex flex-col gap-6 rounded-2xl border border-abyssal-blue/10 bg-white px-5 py-6 md:flex-row md:items-end md:justify-between md:px-8 md:py-7">
-        <div className="flex min-w-0 flex-col gap-2">
-          <p className="text-sm font-bold uppercase tracking-[0.1em] text-truffle-trouble">
-            Perfil profesional
-          </p>
-          <h1 className="text-[28px] font-bold leading-tight text-blue-fantastic md:text-[40px]">
-            {header?.name || 'Mi perfil'}
-          </h1>
-          {careerLine && (
-            <p className="text-base font-medium text-blue-fantastic/80 md:text-lg">{careerLine}</p>
-          )}
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+          {/* Foto del titulado (o sus iniciales), la misma que en Mis registros y en la barra superior */}
+          <span
+            data-testid="profile-summary-photo"
+            className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-oatmeal bg-blue-fantastic text-2xl font-semibold text-white md:h-24 md:w-24"
+          >
+            <ProfilePhotoContent fallback={getProfileInitials(header?.name ?? '')} />
+          </span>
+          <div className="flex min-w-0 flex-col gap-2">
+            <p className="text-sm font-bold uppercase tracking-[0.1em] text-truffle-trouble">
+              Perfil profesional
+            </p>
+            <h1 className="text-[28px] font-bold leading-tight text-blue-fantastic md:text-[40px]">
+              {header?.name || 'Mi perfil'}
+            </h1>
+            {careerLine && (
+              <p className="text-base font-medium text-blue-fantastic/80 md:text-lg">{careerLine}</p>
+            )}
+          </div>
         </div>
 
         {/* Acciones del perfil */}

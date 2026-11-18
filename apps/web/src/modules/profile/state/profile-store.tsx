@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import type { ProfileHeader } from '@/modules/profile/data/profile-data';
 import { EMPTY_PROFILE_RECORDS } from '@/modules/profile/data/profile-records-data';
+import { useProfilePhotoStore } from '@/shared/hooks/use-profile-photo-store';
 import { obtenerResumenPerfil } from '@/modules/profile/services/perfil-api';
 import type {
   CertificationRecord,
@@ -89,6 +90,7 @@ useEffect(() => {
 
       if (vigente) {
         setHeader(perfil.header);
+        useProfilePhotoStore.getState().setDisplayName(perfil.header.name);
         setRecords(perfil.records);
         setDescription(perfil.description);
       }

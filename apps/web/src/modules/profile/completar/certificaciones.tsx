@@ -3,7 +3,7 @@
  
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Award, Camera, Check, CloudUpload, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Award, Camera, Check, CloudUpload, FileText, Pencil, Trash2 } from 'lucide-react';
 import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-error';
 import {
   type ErroresCertificacion,
@@ -457,24 +457,17 @@ export function FormularioCertificaciones({
           </button>
         )}
  
-        <button
-          type="submit"
-          disabled={guardando}
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#2C3B4D] bg-white px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
-        >
-          <Plus className="h-4 w-4" />
-          {guardando ? `Guardando…${progreso !== undefined ? ` ${progreso} %` : ''}` : textoBoton}
-        </button>
-        {onCancelar && (
-          <button
-            type="button"
-            onClick={cancelar}
-            disabled={guardando}
-            className="inline-flex h-10 w-full items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50 md:ml-3 md:w-auto"
-          >
-            Cancelar
+        {/* Mismo formato que Experiencia laboral: Cancelar y el botón principal a la derecha */}
+        <div className="flex justify-end gap-3">
+          {onCancelar && (
+            <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
+              Cancelar
+            </button>
+          )}
+          <button type="submit" disabled={guardando} className="h-11 rounded-lg bg-[#FFB162] px-6 text-sm font-semibold text-[#1B2632] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50">
+            {guardando ? `Guardando…${progreso !== undefined ? ` ${progreso} %` : ''}` : textoBoton}
           </button>
-        )}
+        </div>
       </form>
     </div>
   );
