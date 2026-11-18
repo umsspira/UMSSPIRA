@@ -37,8 +37,14 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
   ] },
   { id: 'mentorship', label: 'Mentorías', items: [
     { id: 'inst-mentorias', label: 'Sobre las mentorías', href: '/portal/institucional?tab=mentorias', guestOnly: true },
-    { id: 'mentorship', label: 'Red de mentorías', href: '/mentorship', roles: signedIn },
-    { id: 'mentor-requests', label: 'Mis solicitudes', href: '/mentorship/requests?view=sent', roles: graduates },
+    { id: 'mentorship', label: 'Explorar mentores', href: '/mentorship', roles: signedIn },
+    { id: 'mentor-profile', label: 'Mi perfil', href: '/mentorship/profile', roles: graduates, mentorOnly: true },
+    { id: 'mentor-information', label: 'Información', href: '/mentorship/profile/information', roles: graduates, mentorOnly: true },
+    { id: 'mentor-areas', label: 'Áreas', href: '/mentorship/profile/areas', roles: graduates, mentorOnly: true },
+    { id: 'mentor-interests', label: 'Intereses', href: '/mentorship/profile/interests', roles: graduates, mentorOnly: true },
+    { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: graduates, mentorOnly: true },
+    { id: 'mentor-my-requests', label: 'Mis solicitudes', href: '/mentorship/requests/received?view=sent', roles: graduates },
+    { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests/received', roles: graduates, mentorOnly: true },
   ] },
   { id: 'events', label: 'Eventos', items: [
     { id: 'inst-events', label: 'Eventos institucionales', href: '/portal/institucional?tab=eventos', guestOnly: true },
@@ -70,16 +76,17 @@ export const NAVBAR_ACCOUNT_LINKS: NavbarLink[] = [
   { id: 'admin-home', label: 'Panel administrativo', href: '/portal/admin', roles: admins },
 ];
 
-export function visibleLinks(items: NavbarLink[], role: NavbarRole | null) {
+export function visibleLinks(items: NavbarLink[], role: NavbarRole | null, activeMentor = false) {
   return items.filter(item => {
     if (item.guestOnly && role !== null) return false;
+    if (item.mentorOnly && !activeMentor) return false;
     return !item.roles || (role !== null && item.roles.includes(role));
   });
 }
 
-export function navigationFor(role: NavbarRole | null): NavbarSection[] {
+export function navigationFor(role: NavbarRole | null, activeMentor = false): NavbarSection[] {
   return NAVBAR_SECTIONS
-    .map(section => ({ ...section, items: visibleLinks(section.items, role).filter(item => !item.hidden) }))
+    .map(section => ({ ...section, items: visibleLinks(section.items, role, activeMentor).filter(item => !item.hidden) }))
     .filter(section => section.items.length > 0);
 }
 

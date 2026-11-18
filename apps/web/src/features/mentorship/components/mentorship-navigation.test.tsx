@@ -23,41 +23,11 @@ beforeEach(() => {
   getProfile.mockResolvedValue({ isActive: false, requirements: { egresado: false } });
 });
 
-it('muestra solo opciones generales y de activación si el titulado es elegible pero aún no es mentor', async () => {
-  getProfile.mockResolvedValue({ isActive: false, requirements: { egresado: true } });
+it('no añade una navegación secundaria al contenido de Mentorías', async () => {
   render(<MentorshipNavigation><p>Contenido permitido</p></MentorshipNavigation>);
 
-  expect(await screen.findByRole('link', { name: 'Activar participación como mentor' })).toHaveAttribute('href', '/mentorship/profile');
-  expect(screen.getByRole('link', { name: 'Explorar mentores' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Mis solicitudes' })).toHaveAttribute('href', '/mentorship/requests?view=sent');
-  expect(screen.queryByRole('link', { name: 'Solicitudes recibidas' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Mis áreas técnicas' })).not.toBeInTheDocument();
-});
-
-it('no ofrece activar mentoría a un usuario no elegible', async () => {
-  render(<MentorshipNavigation><p>Contenido permitido</p></MentorshipNavigation>);
-
-  await waitFor(() => expect(getProfile).toHaveBeenCalled());
-  expect(screen.queryByRole('link', { name: 'Activar participación como mentor' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Mi disponibilidad' })).not.toBeInTheDocument();
-});
-
-it('muestra todas las opciones de mentor activo', async () => {
-  getProfile.mockResolvedValue({ isActive: true, requirements: { egresado: true } });
-  render(<MentorshipNavigation><p>Contenido permitido</p></MentorshipNavigation>);
-
-  expect(await screen.findByRole('link', { name: 'Solicitudes recibidas' })).toHaveAttribute('href', '/mentorship/requests/received');
-  expect(screen.getByRole('link', { name: 'Mi perfil de mentor' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Mis áreas técnicas' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Mi disponibilidad' })).toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Activar participación como mentor' })).not.toBeInTheDocument();
-});
-
-it('marca Mis solicitudes como activa al abrir la vista enviada', async () => {
-  mockPathname = '/mentorship/requests';
-  render(<MentorshipNavigation><p>Historial enviado</p></MentorshipNavigation>);
-
-  expect(await screen.findByRole('link', { name: 'Mis solicitudes' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByText('Contenido permitido')).toBeInTheDocument();
+  expect(screen.queryByRole('navigation', { name: 'Navegación de Mentorías' })).not.toBeInTheDocument();
 });
 
 it('oculta el contenido exclusivo mientras verifica permiso y redirige si la cuenta no es mentora', async () => {

@@ -1,45 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { MentorState } from '@umsspira/shared-types';
-import { getActivationEligibility } from '../model/activation-conditions';
 import { getMentorProfile } from '../services/mentorship-api';
 
 const PARTICIPATION_CHANGED = 'umsspira:mentor-participation-changed';
 const refreshIntervalMs = 4500;
-
-interface NavigationLink {
-  href: string;
-  label: string;
-  activeOnly?: boolean;
-}
-
-const generalLinks: NavigationLink[] = [
-  { href: '/mentorship', label: 'Inicio' },
-  { href: '/mentorship/directory', label: 'Explorar mentores' },
-  { href: '/mentorship/requests?view=sent', label: 'Mis solicitudes' },
-];
-
-const mentorLinks: NavigationLink[] = [
-  { href: '/mentorship/profile', label: 'Mi perfil de mentor', activeOnly: true },
-  { href: '/mentorship/profile/areas', label: 'Mis áreas técnicas', activeOnly: true },
-  { href: '/mentorship/profile/interests', label: 'Mis intereses', activeOnly: true },
-  { href: '/mentorship/profile/availability', label: 'Mi disponibilidad', activeOnly: true },
-  { href: '/mentorship/requests/received', label: 'Solicitudes recibidas', activeOnly: true },
-];
 
 function isMentorOnlyPath(pathname: string) {
   const path = pathname.replace(/\/+$/, '') || '/';
   return path === '/mentorship/requests/received'
     || path === '/mentorship/onboarding'
     || (path.startsWith('/mentorship/profile/') && path !== '/mentorship/profile/');
-}
-
-function isLinkActive(pathname: string, href: string) {
-  const [hrefPath] = href.split('?');
-  return pathname === hrefPath || (hrefPath !== '/mentorship' && pathname.startsWith(`${hrefPath}/`));
 }
 
 function errorMessage(error: unknown) {
@@ -110,29 +83,7 @@ export function MentorshipNavigation({ children }: { children: ReactNode }) {
     if (!restricted || activeMentor) redirecting.current = false;
   }, [activeMentor, restricted]);
 
-  const eligible = profile
-    ? getActivationEligibility(profile.requirements).eligible
-    : false;
-  const links = [
-    ...generalLinks,
-    ...(!activeMentor && eligible
-      ? [{ href: '/mentorship/profile', label: 'Activar participación como mentor' }]
-      : []),
-    ...(activeMentor ? mentorLinks : []),
-  ];
-
   return <>
-    <nav className="mentorship-navigation" aria-label="Navegación de Mentorías">
-      {links.map(({ href, label }) => (
-        <Link
-          key={`${href}-${label}`}
-          href={href}
-          aria-current={isLinkActive(pathname, href) ? 'page' : undefined}
-        >
-          {label}
-        </Link>
-      ))}
-    </nav>
     {accessDenied && <p className="mentorship-navigation-alert" role="alert">
       Esta sección es solo para mentores.
     </p>}

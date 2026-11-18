@@ -16,10 +16,35 @@ it('no muestra el catálogo en el menú de eventos y reserva la gestión para ad
 });
 
 it('separa los accesos personales del titulado y los empresariales', () => {
-  expect(destinations('titulado')).toContain('/mentorship/requests?view=sent');
+  expect(destinations('titulado')).toContain('/mentorship/requests/received?view=sent');
   expect(destinations('titulado')).not.toContain('/mentorship/profile');
   expect(destinations('titulado')).not.toContain('/companies');
   expect(destinations('empresa')).toContain('/empresa/vacantes/publicar');
+  expect(destinations('empresa')).not.toContain('/mentorship/profile');
+});
+
+it('conserva todas las opciones de Mentorías y limita las de mentor a participación activa', () => {
+  const linksFor = (activeMentor: boolean) => navigationFor('titulado', activeMentor)
+    .find(section => section.id === 'mentorship')?.items ?? [];
+  const generalLinks = linksFor(false);
+  const mentorLinks = linksFor(true);
+
+  expect(generalLinks.map(link => link.label)).toEqual([
+    'Explorar mentores',
+    'Mis solicitudes',
+  ]);
+  expect(generalLinks.find(link => link.label === 'Mis solicitudes')?.href)
+    .toBe('/mentorship/requests/received?view=sent');
+  expect(mentorLinks.map(link => link.label)).toEqual([
+    'Explorar mentores',
+    'Mi perfil',
+    'Información',
+    'Áreas',
+    'Intereses',
+    'Disponibilidad',
+    'Mis solicitudes',
+    'Solicitudes recibidas',
+  ]);
   expect(destinations('empresa')).not.toContain('/mentorship/profile');
 });
 
