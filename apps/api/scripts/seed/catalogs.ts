@@ -5,6 +5,7 @@ import { AREA_IDS, CATALOG_IDS } from './demo-ids';
 import { seedRadarCatalog } from './radar-catalog';
 import { runSeedStage } from './seed-stage';
 import { seedInformaticsCareer } from './informatics-career';
+import { seedSystemsCareer } from './systems-career';
 
 export const carreras: Array<Prisma.CarreraCreateManyInput & { id: string }> = [
   { id: DEMO_CAREER_ID, nombre: 'Ingeniería de Sistemas' },
@@ -143,8 +144,8 @@ export async function seedCatalogs(prisma: PrismaClient): Promise<void> {
   // Acceso conserva su transacción y semántica; T1.9 usa el script dirigido.
   await runSeedStage('acceso', () => seedAccessCatalog(prisma));
   await runSeedStage('catálogos auxiliares', async () => {
+    await seedSystemsCareer(prisma);
     await prisma.$transaction([
-      prisma.carrera.createMany({ data: carreras, skipDuplicates: true }),
       prisma.tipoArchivo.createMany({ data: tiposArchivo, skipDuplicates: true }),
       prisma.modalidadTrabajo.createMany({ data: modalidades, skipDuplicates: true }),
       prisma.tipoReporte.createMany({ data: tiposReporte, skipDuplicates: true }),

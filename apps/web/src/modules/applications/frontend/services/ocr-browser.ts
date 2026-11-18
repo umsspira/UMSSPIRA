@@ -1,5 +1,6 @@
-import type { OcrReading } from "@umsspira/shared-types";
+import type { OcrReading, OcrFailure } from "@umsspira/shared-types";
 import { withOcrDeadline } from "./ocr-control";
+import { ocrFailure } from "./ocr-errors";
 
 export const OCR_ENGINE = "PaddleOCR.js@0.4.2/PP-OCRv6_small/es";
 const MAX_PAGES = 5;
@@ -24,11 +25,20 @@ export async function readOcrDocument(
   signal: AbortSignal,
   progress: (message: string) => void,
 ): Promise<OcrReading> {
-  return withOcrDeadline(
-    (bounded) => readDocument(blob, bounded, progress),
-    signal,
-    120000,
-  );
+  let stage: OcrFailure["stage"] = "engine";
+  try {
+    return await withOcrDeadline(
+      (bounded) =>
+        readDocument(blob, bounded, progress, false, (value) => {
+          stage = value;
+        }),
+      signal,
+      120000,
+    );
+  } catch (error) {
+    if (signal.aborted) throw signal.reason;
+    throw ocrFailure(error, stage);
+  }
 }
 
 async function readDocument(
@@ -36,12 +46,15 @@ async function readDocument(
   signal: AbortSignal,
   progress: (message: string) => void,
   cpuOnly = false,
+  setStage: (stage: OcrFailure["stage"]) => void = () => {},
 ): Promise<OcrReading> {
+  setStage("read");
   if (blob.size > 5 * 1024 * 1024) throw new Error("El respaldo supera 5 MB.");
   if (!["application/pdf", "image/jpeg", "image/png"].includes(blob.type))
     throw new Error("Formato no compatible.");
   signal.throwIfAborted();
   const start = performance.now();
+  setStage("engine");
   progress("Cargando el motor de lectura…");
   const sdkUrl = "/ocr/runtime/sdk.mjs";
   const { PaddleOCR } = (await import(
@@ -128,6 +141,7 @@ async function readDocument(
     });
   try {
     await abortable(ocr.initialize());
+    setStage("read");
     const loadMs = performance.now() - start;
     const readStart = performance.now();
     if (blob.type === "application/pdf") {
@@ -238,7 +252,7 @@ async function readDocument(
         pdf = undefined;
       } else if (loading) void loading.destroy().catch(() => undefined);
       loading = undefined;
-      return await readDocument(blob, signal, progress, true);
+      return await readDocument(blob, signal, progress, true, setStage);
     }
     throw error;
   } finally {

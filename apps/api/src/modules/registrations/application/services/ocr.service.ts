@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
-import type { OcrAnalysis, OcrJob } from '@umsspira/shared-types';
+import type { OcrAnalysis, OcrJob, OcrFailure } from '@umsspira/shared-types';
 import { scopedApplication } from '../../infrastructure/repositories/prisma-applications.repository';
 
 export type JobRow = {
@@ -31,6 +31,7 @@ const stale = () =>
 
 @Injectable()
 export class OcrService {
+  private readonly logger = new Logger(OcrService.name);
   constructor(private readonly prisma: PrismaService) {}
 
   async claim(actor: ActorContext, applicationIds: string[] = []): Promise<OcrJob | null> {
@@ -140,12 +141,34 @@ export class OcrService {
     });
   }
 
-  fail(actor: ActorContext, id: string, token: string) {
-    return this.withLease(actor, id, token, async (tx) => {
+  async fail(actor: ActorContext, id: string, token: string, failure?: OcrFailure) {
+    const stages = {
+      document: 'descargar el respaldo',
+      engine: 'cargar el motor OCR',
+      read: 'leer el documento',
+      complete: 'guardar el resultado',
+      renew: 'renovar la reserva',
+    };
+    const message = failure
+      ? `No se pudo ${stages[failure.stage]} [${failure.code}${failure.status ? ` HTTP ${failure.status}` : ''}]. Se permite continuar con revisión manual.`
+      : 'No se pudo leer el respaldo. Se permite continuar con revisión manual.';
+    const result = await this.withLease(actor, id, token, async (tx) => {
       await tx.$executeRaw`UPDATE ocr_trabajo SET estado=CASE WHEN intentos>=3 THEN 'FALLIDO' ELSE 'PENDIENTE' END,
-        error='No se pudo leer el respaldo. Se permite continuar con revisión manual.',
+        error=${message},
         finalizado_en=CASE WHEN intentos>=3 THEN now() ELSE NULL END,reserva_token=NULL,
         reserva_hasta=CASE WHEN intentos>=3 THEN NULL ELSE clock_timestamp()+interval '30 seconds' END WHERE id=${id}::uuid`;
+      return { saved: true };
+    });
+    this.logger.warn(JSON.stringify({ event: 'ocr_failed', jobId: id, ...failure }));
+    return result;
+  }
+
+  release(actor: ActorContext, id: string, token: string) {
+    return this.withLease(actor, id, token, async (tx) => {
+      // A deliberate pause is not a failed document. A crashed browser still expires normally.
+      await tx.$executeRaw`UPDATE ocr_trabajo SET estado='PENDIENTE', intentos=GREATEST(intentos-1,0),
+        error=NULL, finalizado_en=NULL, reserva_token=NULL, reservado_por=NULL,
+        reserva_hasta=NULL WHERE id=${id}::uuid`;
       return { saved: true };
     });
   }

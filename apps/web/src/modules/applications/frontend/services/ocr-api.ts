@@ -1,5 +1,14 @@
 import { authenticatedFetch } from "@/shared/services/auth-session";
 import { withOcrDeadline } from "./ocr-control";
+export class OcrHttpError extends Error {
+  constructor(public readonly status: number) {
+    super(
+      status === 409
+        ? "La reserva cambió. Otro navegador continuará el análisis."
+        : `No se pudo consultar el análisis automático (HTTP ${status}). Puedes revisar manualmente.`,
+    );
+  }
+}
 export async function ocrRequest<T>(
   path: string,
   body?: unknown,
@@ -17,12 +26,7 @@ export async function ocrRequest<T>(
             body: JSON.stringify(body),
           }),
     });
-    if (!response.ok)
-      throw new Error(
-        response.status === 409
-          ? "La reserva cambió. Otro navegador continuará el análisis."
-          : "No se pudo consultar el análisis automático. Puedes revisar manualmente.",
-      );
+    if (!response.ok) throw new OcrHttpError(response.status);
     return (await response.json()).data as T;
   }, signal);
 }
