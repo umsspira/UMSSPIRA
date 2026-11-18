@@ -175,6 +175,35 @@ describe("evaluateImageQuality", () => {
     expect(codes).not.toContain("OVEREXPOSED");
   });
 
+  describe("calibracion con casos de frontera", () => {
+    it("no avisa en una imagen con luminosidad media en el borde superior de oscuridad", () => {
+      const nearDarkBorder = buildImage(400, 300, () => IMAGE_QUALITY_CONFIG.darkMeanThreshold + 5);
+      const metrics = computeImageQualityMetrics(nearDarkBorder, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).not.toContain("TOO_DARK");
+    });
+
+    it("avisa si la luminosidad cae estrictamente por debajo del umbral de oscuridad calibrado", () => {
+      const darkBorder = buildImage(400, 300, () => IMAGE_QUALITY_CONFIG.darkMeanThreshold - 2);
+      const metrics = computeImageQualityMetrics(darkBorder, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).toContain("TOO_DARK");
+    });
+
+    it("avisa de destello cuando el ratio supera el umbral minimo calibrado", () => {
+      // 1.5% de pixeles quemados (255) en zona central, que supera glareMinRatio (0.005 = 0.5%)
+      const withSubtleFlash = buildImage(400, 300, (x, y) => {
+        const isCenter = x >= 40 && x < 360 && y >= 30 && y < 270;
+        return isCenter && x % 20 === 0 && y % 3 === 0 ? 255 : 160;
+      });
+      const metrics = computeImageQualityMetrics(withSubtleFlash, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      expect(metrics.glareRatio).toBeGreaterThanOrEqual(IMAGE_QUALITY_CONFIG.glareMinRatio);
+      expect(metrics.glareRatio).toBeLessThanOrEqual(IMAGE_QUALITY_CONFIG.glareMaxRatio);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).toContain("OVEREXPOSED");
+    });
+  });
+
   it("incluye una recomendacion en cada aviso", () => {
     const dark = buildImage(400, 300, () => 10);
     const metrics = computeImageQualityMetrics(dark, 500, 400);
