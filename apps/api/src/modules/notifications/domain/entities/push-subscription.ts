@@ -22,6 +22,7 @@ export interface RegisterPushSubscriptionInput {
 
 /** Suscripción interna que contiene las claves necesarias para entregar un Push. */
 export interface PushDeliverySubscription {
+  deviceId: string;
   endpoint: string;
   p256dh: string;
   auth: string;

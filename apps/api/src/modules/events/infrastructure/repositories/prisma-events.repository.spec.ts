@@ -15,9 +15,12 @@ class EventRegistrationDatabase {
   readonly event: {
     archivado: boolean;
     estado: string;
+    fecha_inicio: Date | null;
     fecha_fin: Date | null;
     cupo_maximo: number | null;
   } | null;
+  readonly reminders: Array<{ id_inscripcion: string; id_evento: string; programado_para: Date }>;
+  readonly anticipationHours: number;
   failCreate = false;
   private locked = false;
   private readonly queue: Array<() => void> = [];
@@ -25,9 +28,12 @@ class EventRegistrationDatabase {
   constructor(
     event: EventRegistrationDatabase['event'],
     registrations: StoredRegistration[] = [],
+    anticipationHours = 24,
   ) {
     this.event = event;
     this.registrations = [...registrations];
+    this.anticipationHours = anticipationHours;
+    this.reminders = [];
   }
 
   readonly prisma = {
@@ -48,6 +54,7 @@ class EventRegistrationDatabase {
       callback: (transaction: Record<string, unknown>) => Promise<Result>,
     ): Promise<Result> => {
       const staged: StoredRegistration[] = [];
+      const stagedReminders: EventRegistrationDatabase['reminders'] = [];
       let acquired = false;
       const transaction = {
         $queryRaw: async () => {
@@ -57,6 +64,9 @@ class EventRegistrationDatabase {
         },
         evento: {
           findUnique: async () => this.event,
+        },
+        configuracionRecordatorios: {
+          findUniqueOrThrow: async () => ({ anticipacion_horas: this.anticipationHours }),
         },
         inscripcionEvento: {
           findFirst: async ({ where }: { where: Partial<StoredRegistration> }) =>
@@ -80,10 +90,17 @@ class EventRegistrationDatabase {
             return registration;
           },
         },
+        recordatorioEvento: {
+          create: async ({ data }: { data: EventRegistrationDatabase['reminders'][number] }) => {
+            stagedReminders.push(data);
+            return data;
+          },
+        },
       };
       try {
         const result = await callback(transaction);
         this.registrations.push(...staged);
+        this.reminders.push(...stagedReminders);
         return result;
       } finally {
         if (acquired) {
@@ -115,7 +132,8 @@ function availableEvent() {
   return {
     archivado: false,
     estado: 'PUBLICADO',
-    fecha_fin: new Date('2099-01-01T00:00:00.000Z'),
+    fecha_inicio: new Date('2099-01-01T10:00:00.000Z'),
+    fecha_fin: new Date('2099-01-01T12:00:00.000Z'),
     cupo_maximo: 2,
   };
 }
@@ -140,6 +158,27 @@ describe('PrismaEventsRepository.register', () => {
       currentCapacity: 1,
     });
     expect(database.registrations).toHaveLength(1);
+    expect(database.reminders).toHaveLength(1);
+    expect(database.reminders[0].programado_para).toEqual(new Date('2098-12-31T10:00:00.000Z'));
+  });
+
+  it('programa el recordatorio con la anticipación global', async () => {
+    const database = new EventRegistrationDatabase(availableEvent(), [], 3);
+
+    await repository(database).register(userId, eventId);
+
+    expect(database.reminders[0].programado_para).toEqual(new Date('2099-01-01T07:00:00.000Z'));
+  });
+
+  it('no programa un recordatorio si la inscripción se crea después del inicio', async () => {
+    const database = new EventRegistrationDatabase({
+      ...availableEvent(),
+      fecha_inicio: new Date('2020-01-01T10:00:00.000Z'),
+    });
+
+    await repository(database).register(userId, eventId);
+
+    expect(database.reminders).toHaveLength(0);
   });
 
   it('rechaza un evento inexistente o no disponible', async () => {

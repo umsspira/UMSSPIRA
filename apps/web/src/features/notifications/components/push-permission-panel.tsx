@@ -31,7 +31,7 @@ function writeDismissed(value: boolean): void {
  * Se muestra dentro del desplegable de notificaciones del navbar (ActivityPanel)
  * y sigue el mockup: «Solicitar permiso» / «Ahora no».
  */
-export function PushPermissionPanel() {
+export function PushPermissionPanel({ includeEventReminders = false }: { includeEventReminders?: boolean } = {}) {
   const { permission, support, requesting, request } = usePushPermission();
   const { status, error, subscribe, unsubscribe } = usePushSubscription(permission);
   const [dismissed, setDismissed] = useState(false);
@@ -65,8 +65,16 @@ export function PushPermissionPanel() {
     );
   }
 
-  const busy = requesting || status === 'subscribing';
+  const busy = requesting || status === 'subscribing' || status === 'checking';
   const subscribed = permission === 'granted' && status === 'subscribed';
+
+  if (permission === 'granted' && status === 'checking') {
+    return (
+      <div className={styles.panel}>
+        <p className={styles.text} role="status">Comprobando el estado de tus avisos…</p>
+      </div>
+    );
+  }
 
   const handleActivate = async () => {
     writeDismissed(false);
@@ -87,7 +95,9 @@ export function PushPermissionPanel() {
       <div className={styles.panel}>
         <div className={`${styles.status} ${styles.ok}`}>
           <BellRing size={16} aria-hidden="true" />
-          <p>Recibirás avisos de cambios y cancelaciones de tus eventos.</p>
+          <p>{includeEventReminders
+            ? 'Recibirás avisos de cambios, cancelaciones y recordatorios antes de tus eventos.'
+            : 'Recibirás avisos de cambios y cancelaciones de tus eventos.'}</p>
         </div>
         <button type="button" className={styles.secondary} onClick={() => void unsubscribe()}>
           Desactivar notificaciones

@@ -12,7 +12,7 @@ import {
   urlBase64ToUint8Array,
 } from '@/shared/services/push-subscription';
 
-export type SubscriptionStatus = 'idle' | 'subscribing' | 'subscribed' | 'error';
+export type SubscriptionStatus = 'idle' | 'checking' | 'subscribing' | 'subscribed' | 'error';
 
 export interface PushSubscriptionController {
   status: SubscriptionStatus;
@@ -111,6 +111,8 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
     }
 
     try {
+      setStatus('checking');
+      setError(null);
       const registration = await getRegistration();
       const local = await registration.pushManager.getSubscription();
       const registered = await listPushSubscriptions();
@@ -139,7 +141,15 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
 
   useEffect(() => {
     void reconcile();
-  }, [reconcile]);
+    if (permission !== 'granted' || typeof window === 'undefined') return;
+    const refresh = () => void reconcile();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+    };
+  }, [reconcile, permission]);
 
   const subscribe = useCallback(async (): Promise<PushSubscriptionDto | null> => {
     setStatus('subscribing');

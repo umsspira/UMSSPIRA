@@ -12,7 +12,11 @@ export interface EventNotificationRecord {
 }
 
 export interface EventNotificationsRepository {
-  createForUsers(userIds: string[], notification: PushNotificationPayload): Promise<void>;
+  createForUsers(
+    userIds: string[],
+    notification: PushNotificationPayload,
+    reminderId?: string,
+  ): Promise<void>;
   listByUser(userId: string): Promise<EventNotificationRecord[]>;
   markRead(userId: string, notificationId: string): Promise<void>;
 }

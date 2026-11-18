@@ -4,6 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ProfilePhotoBadge } from "@/shared/components/profile-photo-avatar";
+import { EventNotificationBell } from "@/shared/components/navbar/event-notification-bell";
+import { EventNotificationToast } from "@/shared/components/navbar/event-notification-toast";
+import { useEventNotifications } from "@/features/notifications/hooks/use-event-notifications";
 
 import { LogoutButton } from "./logout-button";
 
@@ -12,35 +15,40 @@ import { LogoutButton } from "./logout-button";
 export function TituladoHeader() {
   const pathname = usePathname();
   const mentorshipActive = pathname === "/mentorship" || pathname.startsWith("/mentorship/");
+  const { items, error, markRead, toast, dismissToast } = useEventNotifications(true);
 
   return (
-    <header className="w-full bg-abyssal-blue">
-      <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
-        <span className="font-display text-lg font-bold text-white">UMSSPIRA</span>
-        <nav aria-label="Navegacion del titulado" className="flex items-center gap-6">
-          <Link
-            href="/mentorship"
-            aria-current={mentorshipActive ? "page" : undefined}
-            className={`relative inline-flex h-[72px] items-center text-sm ${
-              mentorshipActive ? "font-semibold text-white" : "font-medium text-white/90 hover:text-white"
-            }`}
-          >
-            Mentorías
-            {mentorshipActive ? (
-              <span
-                aria-hidden="true"
-                data-active-indicator="true"
-                className="absolute inset-x-0 bottom-[18px] h-[3px] rounded bg-[#ffb162]"
-              />
-            ) : null}
-          </Link>
-          <Link href="/profile" className="text-sm font-medium text-white/90 hover:text-white">
-            Mi perfil profesional
-          </Link>
-          <ProfilePhotoBadge />
-          <LogoutButton />
-        </nav>
-      </div>
-    </header>
+    <>
+      <header className="w-full bg-abyssal-blue">
+        <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
+          <span className="font-display text-lg font-bold text-white">UMSSPIRA</span>
+          <nav aria-label="Navegacion del titulado" className="flex items-center gap-6">
+            <Link
+              href="/mentorship"
+              aria-current={mentorshipActive ? "page" : undefined}
+              className={`relative inline-flex h-[72px] items-center text-sm ${
+                mentorshipActive ? "font-semibold text-white" : "font-medium text-white/90 hover:text-white"
+              }`}
+            >
+              Mentorías
+              {mentorshipActive ? (
+                <span
+                  aria-hidden="true"
+                  data-active-indicator="true"
+                  className="absolute inset-x-0 bottom-[18px] h-[3px] rounded bg-[#ffb162]"
+                />
+              ) : null}
+            </Link>
+            <Link href="/profile" className="text-sm font-medium text-white/90 hover:text-white">
+              Mi perfil profesional
+            </Link>
+            <EventNotificationBell items={items} error={error} onNotificationRead={markRead} />
+            <ProfilePhotoBadge />
+            <LogoutButton />
+          </nav>
+        </div>
+      </header>
+      <EventNotificationToast item={toast} onClose={dismissToast} />
+    </>
   );
 }

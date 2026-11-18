@@ -6,22 +6,17 @@ import { NotificationCenter } from './notification-center';
 import type { NavbarActivity } from './types';
 import styles from './navbar.module.css';
 
-export function ActivityPanel({ kind, items, resolveHref, onNavigate, onNotificationRead }: {
+export function ActivityPanel({ kind, items, resolveHref, onNavigate, notificationsError, onNotificationRead }: {
   kind: 'messages' | 'notifications';
   items: NavbarActivity[];
   resolveHref: (href: string) => string;
   onNavigate: () => void;
-  onNotificationRead?: (id: string) => void;
+  notificationsError?: string | null;
+  onNotificationRead?: (id: string) => Promise<void>;
 }) {
   if (kind === 'notifications') {
     return <section className={styles.activityPanel} aria-label="Notificaciones">
-      <NotificationCenter
-        items={items}
-        resolveHref={resolveHref}
-        onClose={onNavigate}
-        onNavigate={onNavigate}
-        onNotificationRead={onNotificationRead}
-      />
+      <NotificationCenter items={items} resolveHref={resolveHref} onClose={onNavigate} onNavigate={onNavigate} notificationsError={notificationsError} onNotificationRead={onNotificationRead} />
     </section>;
   }
 

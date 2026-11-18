@@ -7,6 +7,7 @@ import type { NavbarProps } from './types';
 import { SESSION_EXPIRED_EVENT } from '@/modules/auth/frontend/services/session-expired';
 
 // --- Mocks ---
+const mockApiClient = jest.fn();
 const push = jest.fn();
 const replace = jest.fn();
 const refresh = jest.fn();
@@ -28,10 +29,16 @@ jest.mock('@/shared/services/auth-session', () => ({
   authenticatedFetch: jest.fn(),
   revokeCurrentSession: jest.fn(),
 }));
-jest.mock('@/shared/services/api-client', () => ({ getToken: jest.fn(), clearToken: jest.fn() }));
+jest.mock('@/shared/services/api-client', () => ({
+  apiClient: (...args: unknown[]) => mockApiClient(...args),
+  getToken: jest.fn(),
+  clearToken: jest.fn(),
+}));
 jest.mock('@/modules/auth/frontend/store', () => ({ useAuthStore: () => ({ accessToken: null }), authStore: { reset: jest.fn() } }));
-jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout }: NavbarProps) => <header>
+jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout, notifications = [], notificationsError }: NavbarProps) => <header>
   <span>{session ? `${session.name}: ${session.role}` : 'Visitante'}</span>
+  {notifications.map(item => <span key={item.id}>{item.title}: {item.description}</span>)}
+  {notificationsError && <p role="alert">{notificationsError}</p>}
   {!session && <><span>Iniciar sesión</span><span>Registro</span></>}
   <button onClick={onLogout}>Cerrar sesión</button>
 </header> }));
@@ -45,6 +52,7 @@ beforeEach(() => {
   window.localStorage.clear();
   mockPathname = '/mentorship/directory';
   jest.clearAllMocks();
+  mockApiClient.mockResolvedValue({ data: [] });
   sessionStorage.clear();
   fetchMock.mockReset();
   fetchMock.mockRejectedValue(new SessionError(401, 'Inicia sesión'));
@@ -70,6 +78,31 @@ it('restaura el rol de empresa validado mediante el cliente autenticado', async 
   render(<ConnectedNavbar />);
   expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/me', expect.objectContaining({ cache: 'no-store' }));
+});
+
+it('carga los avisos persistentes para la campanita después de validar la sesión', async () => {
+  fetchMock.mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: { email: 'ana@umss.edu', role: 'titulado' } }),
+  } as Response);
+  mockApiClient.mockResolvedValueOnce({
+    data: [{
+      id: 'notification-1',
+      title: 'Evento actualizado',
+      description: 'Se cambió el horario.',
+      href: '/portal/eventos/event-1',
+      unread: true,
+      createdAt: '2026-11-17T22:00:00.000Z',
+    }],
+  });
+
+  render(<ConnectedNavbar />);
+
+  await waitFor(() => expect(mockApiClient).toHaveBeenCalledWith(
+    '/api/v1/event-notifications',
+    { authenticated: true },
+  ));
+  expect(await screen.findByText('Evento actualizado: Se cambió el horario.')).toBeInTheDocument();
 });
 
 it('conserva la sesión visual ante error de red y reintenta al volver online', async () => {

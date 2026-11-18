@@ -33,6 +33,7 @@ export interface NavbarActivity {
   href?: string;
   unread?: boolean;
   actionLabel?: string;
+  createdAt?: string;
 }
 
 /** La sesión y las acciones las entrega la aplicación; la barra no autentica. */
@@ -47,7 +48,8 @@ export interface NavbarProps {
   onSearch?: () => void;
   notifications?: NavbarActivity[];
   onNotificationsOpen?: () => void;
-  onNotificationRead?: (id: string) => void;
+  notificationsError?: string | null;
+  onNotificationRead?: (id: string) => Promise<void>;
   messages?: NavbarActivity[];
   accountExtra?: ReactNode;
 }

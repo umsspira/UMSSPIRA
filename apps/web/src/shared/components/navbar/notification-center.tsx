@@ -16,28 +16,24 @@ interface NotificationCenterProps {
   resolveHref: (href: string) => string;
   onClose: () => void;
   onNavigate: () => void;
-  onNotificationRead?: (id: string) => void;
+  notificationsError?: string | null;
+  onNotificationRead?: (id: string) => Promise<void>;
 }
 
 /**
  * Centro de notificaciones de la campana (HU13 - T7, T8, T11, T12).
  * Ventanas: lista → ajustes → activar avisos → avisos del navegador → activados.
  */
-export function NotificationCenter({
-  items,
-  resolveHref,
-  onClose,
-  onNavigate,
-  onNotificationRead,
-}: NotificationCenterProps) {
+export function NotificationCenter({ items, resolveHref, onClose, onNavigate, notificationsError, onNotificationRead }: NotificationCenterProps) {
   const { permission, support, requesting, request } = usePushPermission();
   const { status, error, subscribe, unsubscribe } = usePushSubscription(permission);
   const [view, setView] = useState<View>('list');
+  const [readError, setReadError] = useState<string | null>(null);
 
   const denied = permission === 'denied';
   const unsupportedText = support.supported ? null : describeUnsupportedReason(support.reason);
   const active = support.supported && permission === 'granted' && status === 'subscribed';
-  const busy = requesting || status === 'subscribing';
+  const busy = requesting || status === 'subscribing' || status === 'checking';
   const blockedText =
     unsupportedText ??
     (denied
@@ -49,15 +45,18 @@ export function NotificationCenter({
     if ((view === 'browser' || view === 'prompt') && denied) setView('settings');
   }, [view, active, denied]);
 
+  const checking = permission === 'granted' && status === 'checking';
   const stateFooter = unsupportedText
     ? 'Este navegador no admite avisos.'
     : denied
       ? 'Los avisos del navegador están bloqueados.'
+      : checking
+        ? 'Comprobando el estado de los avisos…'
       : active
         ? 'Los avisos del navegador están activados.'
         : 'Los avisos del navegador están desactivados.';
 
-  const stateBadge = unsupportedText ? 'NO DISPONIBLE' : denied ? 'BLOQUEADOS' : active ? 'ACTIVADOS' : 'DESACTIVADOS';
+  const stateBadge = unsupportedText ? 'NO DISPONIBLE' : denied ? 'BLOQUEADOS' : checking ? 'COMPROBANDO' : active ? 'ACTIVADOS' : 'DESACTIVADOS';
 
   const handleContinue = async () => {
     const result = permission === 'granted' ? 'granted' : await request();
@@ -82,17 +81,22 @@ export function NotificationCenter({
           <p>Actualizaciones de tus eventos</p>
         </header>
 
+        {notificationsError && <p role="alert" className={styles.noticeError}>{notificationsError}</p>}
+        {readError && <p role="alert" className={styles.noticeError}>{readError}</p>}
         {items.length ? (
           <ul className={styles.noticeList}>
             {items.map(item => (
               <li key={item.id} className={styles.noticeCard}>
                 <strong>{item.title}</strong>
                 <small>{item.description}</small>
+                {item.createdAt && <time dateTime={item.createdAt}>{formatNotificationDate(item.createdAt)}</time>}
                 {item.href && (
                   <Link
                     href={resolveHref(item.href)}
                     onClick={() => {
-                      onNotificationRead?.(item.id);
+                      void onNotificationRead?.(item.id).catch((error) => {
+                        console.error('No se pudo marcar la notificación como leída:', error);
+                      });
                       onNavigate();
                     }}
                     prefetch={false}
@@ -100,6 +104,18 @@ export function NotificationCenter({
                   >
                     {item.actionLabel ?? 'Ver evento'}
                   </Link>
+                )}
+                {item.unread && onNotificationRead && (
+                  <button
+                    type="button"
+                    className={styles.noticeAction}
+                    onClick={() => {
+                      setReadError(null);
+                      void onNotificationRead(item.id).catch(() => setReadError('No se pudo marcar como leída. Inténtalo nuevamente.'));
+                    }}
+                  >
+                    Marcar como leída
+                  </button>
                 )}
               </li>
             ))}
@@ -122,6 +138,13 @@ export function NotificationCenter({
         </div>
       </>
     );
+  }
+
+  function formatNotificationDate(value: string): string {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? ''
+      : date.toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' });
   }
 
   /* 2. Ajustes de notificaciones */

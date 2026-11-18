@@ -10,19 +10,26 @@ import type {
 export class PrismaEventNotificationsRepository implements EventNotificationsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createForUsers(userIds: string[], notification: PushNotificationPayload): Promise<void> {
-    if (userIds.length === 0) {
+  async createForUsers(
+    userIds: string[],
+    notification: PushNotificationPayload,
+    reminderId?: string,
+  ): Promise<void> {
+    const uniqueUserIds = [...new Set(userIds)];
+    if (uniqueUserIds.length === 0) {
       return;
     }
 
     await this.prisma.notificacionEvento.createMany({
-      data: userIds.map((userId) => ({
+      data: uniqueUserIds.map((userId) => ({
         id_usuario: userId,
         id_evento: notification.eventId ?? null,
+        id_recordatorio: reminderId ?? null,
         titulo: notification.title,
         cuerpo: notification.body,
         url: notification.url ?? null,
       })),
+      skipDuplicates: true,
     });
   }
 
@@ -36,8 +43,8 @@ export class PrismaEventNotificationsRepository implements EventNotificationsRep
         titulo: true,
         cuerpo: true,
         url: true,
-        fecha_creacion: true,
         leida_en: true,
+        fecha_creacion: true,
       },
     });
 
