@@ -139,4 +139,34 @@ describe('JobPostingDetail', () => {
     expect(screen.getByRole('link', { name: 'Volver a vacantes' })).toHaveAttribute('href', '/job-postings');
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
   });
+    it('permite reintentar la afinidad sin volver a consultar la vacante', async () => {
+    getAvailable.mockResolvedValue(posting);
+    calculateAffinity
+      .mockRejectedValueOnce(new Error('NLP no disponible'))
+      .mockResolvedValueOnce({
+        status: 'ready',
+        percentage: 80,
+        calculatedAt: '2026-11-17T10:00:00.000Z',
+        comparison: [],
+      });
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+
+    expect(
+      await screen.findByText('Afinidad no disponible por ahora'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+\s*%/)).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Reintentar c/ }),
+    );
+
+    expect(await screen.findByText('80%')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Afinidad no disponible por ahora'),
+    ).not.toBeInTheDocument();
+    expect(calculateAffinity).toHaveBeenCalledTimes(2);
+    expect(getAvailable).toHaveBeenCalledTimes(1);
+  });
 });
