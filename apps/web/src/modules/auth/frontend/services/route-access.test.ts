@@ -165,3 +165,43 @@ describe("HU-004/T4.1: control de acceso a reportes (Admin) y encuestas (Titulad
     expect(decideAccess("/surveys-extra", "token", "administrador")).toEqual({ allowed: true });
   });
 });
+describe("E5 HU-004: acceso al listado de vacantes", () => {
+  it.each(["/job-postings", "/job-postings/"])(
+    "permite al titulado acceder a %s",
+    (path) => {
+      expect(decideAccess(path, "token", "titulado")).toEqual({
+        allowed: true,
+      });
+    },
+  );
+
+  it("redirige al visitante al login", () => {
+    expect(decideAccess("/job-postings", undefined, undefined)).toEqual({
+      allowed: false,
+      redirectTo: LOGIN_PATH,
+    });
+  });
+
+  it.each(["empresa", "administrador", "otro"])(
+    "impide el acceso al listado para el rol %s",
+    (role) => {
+      expect(decideAccess("/job-postings", "token", role)).toEqual({
+        allowed: false,
+        redirectTo: homeFor(role),
+      });
+    },
+  );
+
+  it("impide el acceso con un rol indefinido", () => {
+    expect(decideAccess("/job-postings", "token", undefined)).toEqual({
+      allowed: false,
+      redirectTo: USER_HOME,
+    });
+  });
+
+  it("no restringe rutas con nombres parecidos", () => {
+    expect(
+      decideAccess("/job-postings-extra", "token", "empresa"),
+    ).toEqual({ allowed: true });
+  });
+});

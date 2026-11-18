@@ -46,10 +46,19 @@ export function decideAccess(
     return token ? { allowed: false, redirectTo: homeFor(role) } : { allowed: true };
   }
 
-  // CA-05.1: sin sesión no se ve ninguna pantalla protegida
+  // CA-05.1: sin sesión no se ve ninguna pantalla protegida.
   if (!token) {
     return { allowed: false, redirectTo: LOGIN_PATH };
   }
+
+  // E5 HU-004: el listado personalizado pertenece al titulado.
+  if (
+    (pathname === "/job-postings" || pathname === "/job-postings/") &&
+    role !== "titulado"
+  ) {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+
 
   // CA-05.5: solo el administrador entra al panel administrativo
   if (matchesRoute(pathname, ADMIN_HOME) && role !== "administrador") {
