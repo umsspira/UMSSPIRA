@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import type {
+  AggregatedUnmappedKeyword,
   AreaScoreRecord,
   RadarCalculationSnapshot,
   RadarRepositoryPort,
@@ -28,6 +29,13 @@ type AfinidadRadarRow = {
   porcentaje: unknown;
   palabras_clave_top: unknown;
   contribuciones_keyword?: unknown;
+};
+
+type AggregatedUnmappedKeywordRow = {
+  termino: string;
+  frecuencia_total: number | bigint | string;
+  cantidad_titulados: number | bigint | string;
+  ultima_deteccion: Date | null;
 };
 
 @Injectable()
@@ -96,6 +104,27 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
     });
 
     return rows.map(({ termino }) => termino);
+  }
+
+  async getAggregatedUnmappedKeywords(): Promise<AggregatedUnmappedKeyword[]> {
+    const rows = await this.client.$queryRaw<AggregatedUnmappedKeywordRow[]>`
+      SELECT
+        termino,
+        SUM(frecuencia)::int AS frecuencia_total,
+        COUNT(DISTINCT id_titulado)::int AS cantidad_titulados,
+        MAX(fecha_deteccion) AS ultima_deteccion
+      FROM public.palabra_clave_no_mapeada
+      GROUP BY termino
+      HAVING COUNT(DISTINCT id_titulado) >= 3
+      ORDER BY SUM(frecuencia) DESC, COUNT(DISTINCT id_titulado) DESC, termino ASC
+    `;
+
+    return rows.map((row) => ({
+      term: row.termino,
+      totalFrequency: Number(row.frecuencia_total),
+      graduatesCount: Number(row.cantidad_titulados),
+      lastDetectedAt: row.ultima_deteccion ?? null,
+    }));
   }
 
   async executeWithAdvisoryLock<T>(

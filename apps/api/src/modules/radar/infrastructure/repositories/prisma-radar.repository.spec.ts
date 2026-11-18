@@ -8,6 +8,19 @@ import { RADAR_AREA_IDS } from '../../domain/entities/radar-area';
 import type { AreaScoreRecord } from '../../application/ports/radar-repository.port';
 
 describe('PrismaRadarRepository', () => {
+
+  it('aplica el mínimo de tres titulados distintos en el agregado SQL', async () => {
+    const query = jest.fn().mockResolvedValue([
+      { termino: 'tres', frecuencia_total: 6, cantidad_titulados: 3, ultima_deteccion: null },
+    ]);
+    const repository = new PrismaRadarRepository({ $queryRaw: query } as unknown as PrismaService);
+
+    await expect(repository.getAggregatedUnmappedKeywords()).resolves.toEqual([
+      { term: 'tres', totalFrequency: 6, graduatesCount: 3, lastDetectedAt: null },
+    ]);
+    expect(query.mock.calls[0][0].join('')).toMatch(/HAVING COUNT\(DISTINCT id_titulado\) >= 3/);
+  });
+
   it('guarda el cálculo, los seis ejes y los términos no mapeados en una transacción', async () => {
     const transaction = {
       $executeRaw: jest.fn().mockResolvedValue(1),
