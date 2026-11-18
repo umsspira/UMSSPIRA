@@ -2,6 +2,7 @@ import {
   fetchApplicationsBoard,
   fetchApplicationsMetrics,
   fetchApplicationDetail,
+  fetchApplicationHistory,
   fetchDocumentUrl,
 } from './applications-board.service';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';
@@ -101,6 +102,39 @@ describe('applications-board.service', () => {
       expect.objectContaining({
         headers: expect.objectContaining({ Authorization: 'Bearer admin-token' }),
       }),
+    );
+  });
+
+  it('conserva el objeto de historial del contrato API, incluidos los eventos anidados', async () => {
+    const history = {
+      applicationId: 's-1',
+      currentVersion: 2,
+      ocr: { latestAnalysis: null, latestResult: null },
+      eventCount: 1,
+      events: [
+        {
+          id: 'event-1',
+          version: 2,
+          action: 'ENVIO',
+          title: 'Solicitud corregida y reenviada',
+          description: 'Corrección reenviada para revisión.',
+          actor: { type: 'TITULADO', id: 'user-1' },
+          occurredAt: '2026-11-15T12:00:00.000Z',
+        },
+      ],
+    };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: history }),
+    });
+
+    await expect(fetchApplicationHistory('s-1')).resolves.toEqual({
+      ok: true,
+      data: history,
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/applications/s-1/history',
+      expect.anything(),
     );
   });
 });

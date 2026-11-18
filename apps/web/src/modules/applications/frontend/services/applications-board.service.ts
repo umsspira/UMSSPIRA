@@ -1,3 +1,4 @@
+import type { OcrFinding } from '@umsspira/shared-types';
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { readApiError } from '@/shared/services/api-contract';
 
@@ -51,6 +52,46 @@ export interface ReviewNotification {
 export interface ReviewSummary {
   observations: number; maxObservations: number; rejections: number; maxRejections: number;
   latestObservation: string | null; canObserve: boolean;
+}
+
+export interface ApplicationHistoryEvent {
+  id: string;
+  version: number;
+  action: string;
+  title: string;
+  description: string | null;
+  actor: {
+    type: string;
+    id: string | null;
+  };
+  occurredAt: string;
+}
+
+export interface ApplicationHistory {
+  applicationId: string;
+  currentVersion: number;
+  ocr: {
+    latestAnalysis: {
+      id: string;
+      version: number;
+      status: string;
+      startedAt: string;
+      completedAt: string | null;
+      error: string | null;
+    } | null;
+    latestResult: {
+      id: string;
+      version: number;
+      isCurrent: boolean;
+      analyzedAt: string | null;
+      suggestion: string;
+      reason: string;
+      comparedData: OcrFinding[];
+      rulesVersion: string;
+    } | null;
+  };
+  eventCount: number;
+  events: ApplicationHistoryEvent[];
 }
 
 export interface BoardPage {
@@ -131,6 +172,12 @@ export function fetchApplicationsBoard(query: BoardQuery): Promise<BoardResult<B
 // Expediente para el drawer (CA-04.3).
 export function fetchApplicationDetail(id: string): Promise<BoardResult<BoardDetail>> {
   return boardFetch<BoardDetail>(`${APPLICATIONS_URL}/${encodeURIComponent(id)}`);
+}
+
+export function fetchApplicationHistory(id: string): Promise<BoardResult<ApplicationHistory>> {
+  return boardFetch<ApplicationHistory>(
+    `${APPLICATIONS_URL}/${encodeURIComponent(id)}/history`,
+  );
 }
 
 // Acceso temporal al adjunto (URL firmada de 5 minutos, CA-04.3).
