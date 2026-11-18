@@ -3,6 +3,7 @@ import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
 import { ApiError } from '@/shared/services/api-client';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinity } from '@/shared/services/job-posting-affinity';
+import { getMyJobApplication } from '@/shared/services/job-applications';
 import { JobPostingDetail } from './job-posting-detail';
 
 jest.mock('@/shared/services/available-job-postings', () => ({
@@ -14,8 +15,14 @@ jest.mock('@/shared/services/job-posting-affinity', () => ({
   calculateVacancyAffinity: jest.fn(),
 }));
 
+jest.mock('@/shared/services/job-applications', () => ({
+  getMyJobApplication: jest.fn(),
+  applyToJob: jest.fn(),
+}));
+
 const getAvailable = jest.mocked(getAvailableJobPosting);
 const calculateAffinity = jest.mocked(calculateVacancyAffinity);
+const getMyApplication = jest.mocked(getMyJobApplication);
 
 const posting: AvailableJobPostingDetail = {
   id: 'vacancy-1',
@@ -32,6 +39,26 @@ describe('JobPostingDetail', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     calculateAffinity.mockResolvedValue({ status: 'insufficient-requirements' });
+    getMyApplication.mockResolvedValue({ postulada: false });
+  });
+
+  it('ofrece postularse desde el detalle de la vacante', async () => {
+    getAvailable.mockResolvedValue(posting);
+
+    render(<JobPostingDetail id="vacancy-1" />);
+
+    expect(await screen.findByRole('button', { name: 'Postularme' })).toBeInTheDocument();
+    expect(getMyApplication).toHaveBeenCalledWith('vacancy-1');
+  });
+
+  it('ofrece postularse también en la presentación HU-002', async () => {
+    getAvailable.mockResolvedValue(posting);
+    getMyApplication.mockResolvedValue({ postulada: true });
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+
+    expect(await screen.findByText('Ya te postulaste')).toBeInTheDocument();
+    expect(getMyApplication).toHaveBeenCalledWith('vacancy-1');
   });
 
   it('carga y muestra detalle y requisitos de la oferta seleccionada', async () => {
