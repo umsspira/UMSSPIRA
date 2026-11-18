@@ -39,7 +39,7 @@ export function HistoryTab({
     void fetchApplicationHistory(applicationId).then((result) => {
       if (!active) return;
       if (result.ok) {
-        setEvents(result.data);
+        setEvents(result.data.events);
       } else {
         setHistoryError(result.message);
       }

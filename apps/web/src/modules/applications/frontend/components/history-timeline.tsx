@@ -9,7 +9,7 @@ function actionLabel(event: ApplicationHistoryEvent) {
     case "DICTAMEN":
       return "Decisión del administrador";
     default:
-      return "Actualización del expediente";
+      return event.title;
   }
 }
 
@@ -60,20 +60,20 @@ export function HistoryTimeline({
                   {actionLabel(event)}
                 </span>
                 <span className="text-xs text-[#2C3B4D]">
-                  Versión {event.version} · {actorLabel(event.actorType)}
+                  Versión {event.version} · {actorLabel(event.actor.type)}
                 </span>
               </div>
-              {event.detail && (
+              {event.description && (
                 <p className="mt-2 break-words text-sm text-[#2C3B4D]">
-                  {event.detail}
+                  {event.description}
                 </p>
               )}
             </div>
             <time
               className="text-xs text-[#2C3B4D] sm:text-right"
-              dateTime={event.createdAt}
+              dateTime={event.occurredAt}
             >
-              {new Date(event.createdAt).toLocaleString("es-BO", {
+              {new Date(event.occurredAt).toLocaleString("es-BO", {
                 timeZone: "America/La_Paz",
               })}
             </time>

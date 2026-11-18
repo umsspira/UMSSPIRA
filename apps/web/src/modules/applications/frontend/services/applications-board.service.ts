@@ -1,3 +1,4 @@
+import type { OcrFinding } from '@umsspira/shared-types';
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { readApiError } from '@/shared/services/api-contract';
 
@@ -49,10 +50,41 @@ export interface ReviewSummary {
 export interface ApplicationHistoryEvent {
   id: string;
   version: number;
-  actorType: string;
   action: string;
-  detail: string | null;
-  createdAt: string;
+  title: string;
+  description: string | null;
+  actor: {
+    type: string;
+    id: string | null;
+  };
+  occurredAt: string;
+}
+
+export interface ApplicationHistory {
+  applicationId: string;
+  currentVersion: number;
+  ocr: {
+    latestAnalysis: {
+      id: string;
+      version: number;
+      status: string;
+      startedAt: string;
+      completedAt: string | null;
+      error: string | null;
+    } | null;
+    latestResult: {
+      id: string;
+      version: number;
+      isCurrent: boolean;
+      analyzedAt: string | null;
+      suggestion: string;
+      reason: string;
+      comparedData: OcrFinding[];
+      rulesVersion: string;
+    } | null;
+  };
+  eventCount: number;
+  events: ApplicationHistoryEvent[];
 }
 
 export interface BoardPage {
@@ -135,8 +167,8 @@ export function fetchApplicationDetail(id: string): Promise<BoardResult<BoardDet
   return boardFetch<BoardDetail>(`${APPLICATIONS_URL}/${encodeURIComponent(id)}`);
 }
 
-export function fetchApplicationHistory(id: string): Promise<BoardResult<ApplicationHistoryEvent[]>> {
-  return boardFetch<ApplicationHistoryEvent[]>(
+export function fetchApplicationHistory(id: string): Promise<BoardResult<ApplicationHistory>> {
+  return boardFetch<ApplicationHistory>(
     `${APPLICATIONS_URL}/${encodeURIComponent(id)}/history`,
   );
 }
