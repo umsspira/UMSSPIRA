@@ -50,6 +50,10 @@ describe('Sistemas sin duplicados en la seed', () => {
     'Ingeniería de Sistemas',
     '  Ingeniería  en Sistemas ',
     'Ing. Sistemas',
+    'Lic. en Ingeniería de Sistemas',
+    'Lic. en Ingeniería en Sistemas',
+    'Licenciatura en Ingeniería de Sistemas',
+    'Licenciatura en Ingeniería en Sistemas',
   ])('reutiliza el UUID y conserva el nombre %s al repetir la seed', async (nombre) => {
     const db = database([{ id: originalId, nombre }]);
     expect(await seedSystemsCareer(db.prisma)).toBe(originalId);
@@ -82,7 +86,7 @@ describe('Sistemas sin duplicados en la seed', () => {
   });
 
   it('usa la carrera original en solicitudes, administradores, borradores, titulados y encuestas', async () => {
-    const db = database([{ id: originalId, nombre: 'Ingenieria de Sistemas' }]);
+    const db = database([{ id: originalId, nombre: 'Lic. en Ingeniería de Sistemas' }]);
     await seedEpic1(db.prisma);
     await seedEpic9(db.prisma);
 

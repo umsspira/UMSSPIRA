@@ -7,6 +7,10 @@ const careerNames = new Set([
   'ingenieria sistemas',
   'ing de sistemas',
   'ing sistemas',
+  'lic en ingenieria de sistemas',
+  'lic en ingenieria en sistemas',
+  'licenciatura en ingenieria de sistemas',
+  'licenciatura en ingenieria en sistemas',
 ]);
 
 export async function seedSystemsCareer(prisma: PrismaClient): Promise<string> {
