@@ -73,7 +73,7 @@ describe('JobPostingsList', () => {
 
     render(<JobPostingsList />);
 
-    expect(await screen.findByText('Completa tu perfil')).toBeInTheDocument();
+    expect(await screen.findByText('Sin calcular')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Agrega tus habilidades al perfil' })).toHaveAttribute(
       'href',
       '/profile/completar?seccion=proyectos',
@@ -180,5 +180,50 @@ describe('JobPostingsList', () => {
     ).toBeDisabled();
 
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+    it('muestra Sin calcular cuando falla la carga del perfil', async () => {
+    loadSkills.mockRejectedValueOnce(new Error('Servicio no disponible'));
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('Sin calcular')).toBeInTheDocument();
+    expect(screen.getByText(posting.titulo)).toBeInTheDocument();
+    expect(screen.queryByText('95% Afinidad')).not.toBeInTheDocument();
+  });
+
+  it('mantiene 0 % antes de las vacantes sin cálculo y conserva su asociación', async () => {
+    listPostings.mockResolvedValue([
+      { ...posting, id: 'vacancy-pending', titulo: 'Vacante sin cálculo' },
+      { ...posting, id: 'vacancy-zero', titulo: 'Vacante cero' },
+      { ...posting, id: 'vacancy-high', titulo: 'Vacante alta' },
+    ]);
+
+    calculateAffinity.mockImplementation((requirements) => {
+      const id = requirements[0]?.id ?? '';
+
+      if (id.startsWith('vacancy-pending-')) {
+        return { status: 'insufficient-requirements' };
+      }
+
+      return {
+        status: 'ready',
+        percentage: id.startsWith('vacancy-zero-') ? 0 : 90,
+        calculatedAt: '2026-11-17T10:00:00.000Z',
+        comparison: [],
+      };
+    });
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('90% Afinidad')).toBeInTheDocument();
+
+    const rows = screen.getAllByRole('row');
+    expect(rows).toHaveLength(4);
+    expect(rows[1]).toHaveTextContent('Vacante alta');
+    expect(rows[1]).toHaveTextContent('90% Afinidad');
+    expect(rows[2]).toHaveTextContent('Vacante cero');
+    expect(rows[2]).toHaveTextContent('0% Afinidad');
+    expect(rows[3]).toHaveTextContent('Vacante sin cálculo');
+    expect(rows[3]).toHaveTextContent('Sin calcular');
   });
 });

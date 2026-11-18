@@ -77,8 +77,10 @@ function affinityBadge(result: VacancyAffinityResult | undefined) {
         : 'border-amber-300 bg-amber-50 text-amber-800';
     return { text: `${result.percentage}% Afinidad`, className: color };
   }
-  if (result.status === 'insufficient-requirements') return { text: 'Sin requisitos', className: 'border-slate-200 bg-white text-slate-500' };
-  return { text: 'Completa tu perfil', className: 'border-orange-200 bg-orange-50 text-orange-800' };
+  return {
+    text: 'Sin calcular',
+    className: 'border-slate-200 bg-white text-slate-500',
+  };
 }
 
 export function JobPostingsList() {
@@ -300,7 +302,7 @@ export function JobPostingsList() {
                           <td className="break-words px-3 py-4 text-slate-700">{posting.empresa ?? 'Empresa no disponible'}</td>
                           <td className="border-x border-orange-100 bg-orange-50/30 px-2 py-4">
                             {affinityState.status === 'error' ? (
-                              <span className="inline-flex whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">No disponible</span>
+                              <span className="inline-flex whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">Sin calcular</span>
                             ) : (
                               (() => {
                                 const badge = affinityBadge(affinityState.status === 'loaded' ? affinityState.results[posting.id] : undefined);
