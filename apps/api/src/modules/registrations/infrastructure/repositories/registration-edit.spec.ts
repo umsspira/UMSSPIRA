@@ -49,7 +49,6 @@ describe('Edición del borrador y reverificación', () => {
       },
       detalleSolicitud: { create: jest.fn().mockResolvedValue({ id: 'detail' }) },
       documentoRespaldo: { create: jest.fn().mockResolvedValue({ id: 'document' }) },
-      historialEvento: { create: jest.fn().mockResolvedValue({}) },
       usuario: { findFirst: jest.fn().mockResolvedValue(null) },
       titulado: { findFirst: jest.fn().mockResolvedValue(null) },
       borradorRegistro: {

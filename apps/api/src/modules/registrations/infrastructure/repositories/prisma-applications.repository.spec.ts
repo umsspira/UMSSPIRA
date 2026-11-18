@@ -380,7 +380,6 @@ describe('HU11 - Autoría del dictamen', () => {
         findFirst: jest.fn().mockResolvedValue({
           estado: 'PENDIENTE',
           id_documento_respaldo: null,
-          version_vigente: 1,
         }),
         update: jest.fn().mockResolvedValue({}),
       },
@@ -388,9 +387,6 @@ describe('HU11 - Autoría del dictamen', () => {
         create: jest.fn().mockResolvedValue({
           id: dictamenId,
         }),
-      },
-      historialEvento: {
-        create: jest.fn().mockResolvedValue({}),
       },
       auditoriaDictamen: {
         create: jest.fn().mockResolvedValue({}),

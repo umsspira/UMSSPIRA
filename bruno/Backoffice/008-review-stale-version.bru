@@ -1,0 +1,45 @@
+meta {
+  name: Dictamen con vista desactualizada
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/{{applicationId}}/review
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "decision": "OBSERVADA",
+    "motivos": ["documento_ilegible"],
+    "note": "Prueba de vista desactualizada sin efecto.",
+    "expectedVersion": 9999
+  }
+}
+
+tests {
+  const body = res.getBody();
+  test("Responde 409 sin crear dictamen", function () {
+    expect(res.getStatus()).to.equal(409);
+    expect(body?.data?.id).to.be.undefined;
+  });
+  test("Identifica la causa", function () {
+    expect(["VERSION_CONFLICT", "APPLICATION_ALREADY_REVIEWED"]).to.include(body?.error?.code);
+  });
+}
+
+docs {
+  Es segura: 9999 nunca coincide con la versión real, así que no se guarda ningún dictamen ni se envía correo.
+  Si la solicitud ya no está pendiente responde APPLICATION_ALREADY_REVIEWED.
+  Para ver la versión y el estado del correo del dictamen, usa 002-get-application: devuelve version y reviewNotification.
+}

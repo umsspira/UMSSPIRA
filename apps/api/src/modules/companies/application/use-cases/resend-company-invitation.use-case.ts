@@ -19,7 +19,7 @@ export class ResendCompanyInvitationUseCase {
     private readonly composeMail: InvitationMailComposer,
     private readonly webUrl: string,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) { }
 
   async execute(actor: ActorContext, invitationId: string): Promise<ResentCompanyInvitation> {
     const invitation = await this.repository.findById(invitationId);
@@ -32,9 +32,11 @@ export class ResendCompanyInvitationUseCase {
     if (availability === 'used') {
       throw new InvitationAlreadyUsedError();
     }
+
     if (availability === 'cancelled') {
       throw new InvitationNotFoundError();
     }
+
     const [emailInUse] = await this.repository.findEmailsWithAccount([invitation.email]);
     if (emailInUse) {
       throw new InvitationEmailInUseError(emailInUse);

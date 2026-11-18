@@ -41,6 +41,7 @@ export interface ReviewInput {
   motivos?: string[];
   category?: string;
   note?: string;
+  expectedVersion?: number;
 }
 
 export interface ApplicationQuery {

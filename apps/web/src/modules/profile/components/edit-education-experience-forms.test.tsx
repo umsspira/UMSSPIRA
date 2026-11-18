@@ -104,6 +104,35 @@ describe('EditEducationForm', () => {
     });
   });
 
+  it('al guardar vuelve a la pestaña de formación con «Registro actualizado» (HU-11)', async () => {
+    responder(200, {
+      id: 'edu-1',
+      idTitulado: 'titulado-1',
+      fechaCreacion: null,
+      institucion: 'UMSS',
+      titulo: 'Licenciatura en Ingeniería de Sistemas',
+      grado: 'Licenciatura',
+      anioEgreso: 2018,
+    });
+    renderWith(<EditEducationForm />);
+
+    fireEvent.change(screen.getByLabelText('Institución'), { target: { value: 'UMSS' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(push).toHaveBeenCalledWith('/profile/records?seccion=education&actualizado=1');
+  });
+
+  it('si el guardado falla no sale del formulario (HU-11)', async () => {
+    responder(400, { statusCode: 400, message: ['Error'], error: 'Error' });
+    renderWith(<EditEducationForm />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Error')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('"Quitar imagen" deshace la foto elegida que aún no se guardó y vuelve al respaldo del registro', () => {
     const { container } = render(
       <ProfileStoreProvider initialRecords={PROFILE_RECORDS_MOCK}>
@@ -257,6 +286,17 @@ describe('EditExperienceForm', () => {
     });
   });
 
+  it('al guardar vuelve a la pestaña de experiencia con «Registro actualizado» (HU-11)', async () => {
+    responder(200, { ...exp2, empresa: 'Jala' });
+    renderWith(<EditExperienceForm />);
+
+    fireEvent.change(screen.getByLabelText('Empresa'), { target: { value: 'Jala' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Registro actualizado');
+    expect(push).toHaveBeenCalledWith('/profile/records?seccion=experience&actualizado=1');
+  });
+
   it('al marcar "Actualmente trabajo aquí" deshabilita la fecha fin y guarda como trabajo actual sin enviar fechaFin', async () => {
     responder(200, { ...exp2, fechaFin: null });
     renderWith(<EditExperienceForm />);
@@ -301,6 +341,40 @@ describe('EditExperienceForm', () => {
     renderWith(<EditExperienceForm />);
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(push).toHaveBeenCalledWith('/profile/records?seccion=experience');
+  });
+});
+
+describe('EditExperienceForm · máximo 2 trabajos actuales (HU-21, CA-09)', () => {
+  // exp-1 ya es trabajo actual en el mock; se marca exp-3 también como actual
+  const conDosActuales = {
+    ...PROFILE_RECORDS_MOCK,
+    experience: (PROFILE_RECORDS_MOCK.experience as ExperienceRecord[]).map((record) =>
+      record.id === 'exp-3' ? { ...record, endDate: '' } : record,
+    ),
+  };
+
+  function renderConDosActuales() {
+    render(
+      <ProfileStoreProvider initialRecords={conDosActuales}>
+        <EditExperienceForm />
+      </ProfileStoreProvider>,
+    );
+  }
+
+  it('desactiva la casilla en un tercer trabajo y muestra «Ya tienes dos trabajos actuales»', () => {
+    routeId = 'exp-2';
+    renderConDosActuales();
+
+    expect(screen.getByLabelText('Actualmente trabajo aquí')).toBeDisabled();
+    expect(screen.getByText('Ya tienes dos trabajos actuales')).toBeInTheDocument();
+  });
+
+  it('en un trabajo que ya era actual la casilla sigue activa (no se cuenta a sí mismo)', () => {
+    routeId = 'exp-1';
+    renderConDosActuales();
+
+    expect(screen.getByLabelText('Actualmente trabajo aquí')).toBeEnabled();
+    expect(screen.queryByText('Ya tienes dos trabajos actuales')).not.toBeInTheDocument();
   });
 });
 

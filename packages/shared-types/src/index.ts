@@ -17,6 +17,6 @@ export * from './company-invitation';
 export * from './event-pass';
 export * from './nlp';
 export * from './correction';
+export * from './push';
 export * from './email';
-
 export * from './ocr';

@@ -330,16 +330,6 @@ export class PrismaRegistrationRepository implements RegistrationRepository {
           },
         });
 
-        await tx.historialEvento.create({
-          data: {
-            id_solicitud: application.id,
-            version: application.version_vigente ?? 1,
-            tipo_actor: 'TITULADO',
-            accion: 'ENVIO',
-            detalle: 'Solicitud enviada para revisión.',
-          },
-        });
-
         await tx.borradorRegistro.update({
           where: { id: row.id },
           data: {

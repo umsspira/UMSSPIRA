@@ -43,6 +43,7 @@ import { MailEventsController } from './http/controllers/mail-events.controller'
 import { HistoryEventsService } from './application/services/history-events.service';
 import { HISTORY_EVENTS_PORT } from './application/ports/history-events.port';
 import { PrismaHistoryEventsRepository } from './infrastructure/repositories/prisma-history-events.repository';
+import { ApplicationHistoryService } from './application/services/application-history.service';
 import { GetApplicationHistoryController } from './http/controllers/get-application-history.controller';
 
 @Module({
@@ -79,6 +80,7 @@ import { GetApplicationHistoryController } from './http/controllers/get-applicat
   providers: [
     OcrService,
     OcrResultsService,
+    ApplicationHistoryService,
     ActivationAccessService,
     ...registrationsProviders,
     SmtpOutboxWorker,

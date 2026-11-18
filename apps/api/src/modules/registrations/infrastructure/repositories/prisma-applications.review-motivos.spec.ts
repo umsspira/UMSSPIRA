@@ -52,7 +52,6 @@ function setup(motivos: Motivo[] = catalogo) {
       findFirst: jest.fn().mockResolvedValue({
         estado: 'PENDIENTE',
         id_documento_respaldo: null,
-        version_vigente: 2,
       }),
       update: jest.fn().mockResolvedValue({}),
     },
@@ -83,9 +82,6 @@ function setup(motivos: Motivo[] = catalogo) {
     },
     dictamenMotivo: {
       createMany: jest.fn().mockResolvedValue({ count: 2 }),
-    },
-    historialEvento: {
-      create: jest.fn().mockResolvedValue({}),
     },
     auditoriaDictamen: {
       create: jest.fn().mockResolvedValue({}),
@@ -163,16 +159,6 @@ describe('HU-16.1: persistencia de múltiples motivos', () => {
         { id_dictamen: dictamenId, id_motivo: 1 },
         { id_dictamen: dictamenId, id_motivo: 2 },
       ],
-    });
-    expect(tx.historialEvento.create).toHaveBeenCalledWith({
-      data: {
-        id_solicitud: solicitudId,
-        version: 2,
-        tipo_actor: 'ADMINISTRADOR',
-        actor_id: actor.id,
-        accion: 'DICTAMEN',
-        detalle: 'Decisión administrativa: OBSERVADA.',
-      },
     });
 
     expect(tx.solicitud.update).toHaveBeenCalledTimes(1);

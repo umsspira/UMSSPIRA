@@ -549,16 +549,6 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           },
         });
 
-        await tx.historialEvento.create({
-          data: {
-            id_solicitud: applicationId,
-            version,
-            tipo_actor: 'TITULADO',
-            accion: 'ENVIO',
-            detalle: 'Corrección reenviada para revisión.',
-          },
-        });
-
         await tx.tokenSubsanacion.updateMany({
           where: {
             id_solicitud: applicationId,

@@ -19,15 +19,6 @@ export class OcrResultsService {
       const result = compareOcr(row.declarado, reading);
       await tx.$executeRaw`INSERT INTO ocr_resultado(id_trabajo,resultado) VALUES (${id}::uuid,${JSON.stringify(result)}::jsonb)`;
       await tx.$executeRaw`UPDATE ocr_trabajo SET estado='COMPLETADO',finalizado_en=now(),reserva_hasta=NULL,reserva_token=NULL WHERE id=${id}::uuid`;
-      await tx.historialEvento.create({
-        data: {
-          id_solicitud: row.id_solicitud,
-          version: row.revision,
-          tipo_actor: 'SISTEMA',
-          accion: 'OCR_ANALISIS',
-          detalle: `Sugerencia del OCR: ${result.suggestion}.`,
-        },
-      });
       return result;
     });
   }
