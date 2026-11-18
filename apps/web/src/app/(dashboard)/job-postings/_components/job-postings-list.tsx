@@ -180,6 +180,14 @@ export function JobPostingsList() {
           <p className="mt-1 max-w-4xl text-sm leading-5 text-slate-600">
             Explora oportunidades laborales adaptadas a tu perfil académico y profesional con cálculo automático de afinidad.
           </p>
+                    <button
+            type="button"
+            disabled={state.status === 'loading'}
+            onClick={() => setRetryCount((count) => count + 1)}
+            className="mt-3 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Actualizar vacantes
+          </button>
         </header>
 
         {state.status === 'loading' && (

@@ -226,4 +226,53 @@ describe('JobPostingsList', () => {
     expect(rows[3]).toHaveTextContent('Vacante sin cálculo');
     expect(rows[3]).toHaveTextContent('Sin calcular');
   });
+    it('actualiza disponibilidad y afinidades al consultar nuevamente', async () => {
+    const removedPosting = {
+      ...posting,
+      id: 'vacancy-removed',
+      titulo: 'Vacante retirada',
+    };
+    const remainingPosting = {
+      ...posting,
+      id: 'vacancy-remaining',
+      titulo: 'Vacante vigente',
+    };
+
+    listPostings
+      .mockResolvedValueOnce([removedPosting, remainingPosting])
+      .mockResolvedValueOnce([remainingPosting]);
+
+    loadSkills
+      .mockResolvedValueOnce({ status: 'ready', skills: ['React'] })
+      .mockResolvedValueOnce({ status: 'ready', skills: ['SQL'] });
+
+    calculateAffinity.mockImplementation((requirements, skills) => ({
+      status: 'ready',
+      percentage: skills.includes('SQL')
+        ? 80
+        : requirements[0]?.id.startsWith('vacancy-removed-')
+          ? 95
+          : 40,
+      calculatedAt: '2026-11-17T10:00:00.000Z',
+      comparison: [],
+    }));
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
+    expect(screen.getByText('40% Afinidad')).toBeInTheDocument();
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('Vacante retirada');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Actualizar vacantes' }),
+    );
+
+    expect(await screen.findByText('80% Afinidad')).toBeInTheDocument();
+    expect(screen.queryByText('Vacante retirada')).not.toBeInTheDocument();
+    expect(screen.queryByText('40% Afinidad')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('Vacante vigente');
+    expect(listPostings).toHaveBeenCalledTimes(2);
+    expect(loadSkills).toHaveBeenCalledTimes(2);
+  });
 });
