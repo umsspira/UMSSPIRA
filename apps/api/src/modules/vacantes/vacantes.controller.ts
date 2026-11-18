@@ -1,9 +1,10 @@
-import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe, Post } from '@nestjs/common';
 import { CurrentActor } from '../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../shared/http/auth/decorators/require-permissions.decorator';
 import { Roles } from '../../shared/http/auth/decorators/roles.decorator';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
 import { VacantesService, UpdateVacanteData } from './vacantes.service';
+import { vacancyIdSchema, type VacancyId } from './vacantes.schemas';
 
 @Controller('vacantes')
 export class VacantesController {

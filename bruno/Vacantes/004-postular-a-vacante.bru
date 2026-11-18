@@ -1,0 +1,27 @@
+meta {
+  name: Postularme a una vacante
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/vacantes/{{vacanteId}}/postulaciones
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Usa el UUID de una vacante disponible en vacanteId y un token de Titulado en accessToken.
+  Enlaza al titulado autenticado con la vacante como postulación con estado "postulado".
+  Responde { postulada: true, yaExistia: true } si ya existía la postulación (idempotente).
+  403 si el usuario no es titulado. 409 PROFILE_INCOMPLETE si el perfil profesional está incompleto.
+  409 JOB_POSTING_UNAVAILABLE si la vacante no está publicada o ya cerró.
+}

@@ -86,7 +86,7 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
   beforeEach(() => {
     auth.reset();
     companies.reset();
-    jobs.postings.clear();
+    jobs.reset();
     invitations.create
       .mockClear()
       .mockResolvedValue({ status: 'created', invitationId: 'invitation-id' });
@@ -173,6 +173,7 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
       .send({ eslogan: 'Texto' })
       .expect(401);
     await request(app.getHttpServer()).post('/api/v1/job-postings').send(validPosting).expect(401);
+    await request(app.getHttpServer()).get('/api/v1/job-postings').expect(401);
   });
 
   it('devuelve encabezado y contacto con sus campos, incluidos nulos', async () => {
@@ -372,6 +373,134 @@ describe('Empresas y vacantes con autenticación y permisos compartidos', () => 
     expect(z.uuid().safeParse(response.body.data.id).success).toBe(true);
     expect(response.body.data.empresaId).not.toBe(DEMO_ACCOUNTS[2].id);
     expect(jobs.postings.size).toBe(1);
+  });
+
+  it('lista solo vacantes publicadas ordenadas por fecha y refleja cambios de disponibilidad', async () => {
+    const session = await login();
+    const older = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const newer = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send({ ...validPosting, titulo: 'Analista de datos' })
+      .expect(201);
+
+    const olderPosting = jobs.readPostings.get(older.body.data.id as string);
+    const newerPosting = jobs.readPostings.get(newer.body.data.id as string);
+    expect(olderPosting).toBeDefined();
+    expect(newerPosting).toBeDefined();
+    olderPosting!.publicationDate = new Date('2026-01-01T00:00:00.000Z');
+    newerPosting!.publicationDate = new Date('2026-02-01T00:00:00.000Z');
+    newerPosting!.closingDate = new Date(Date.now() + 60_000);
+
+    const firstList = await request(app.getHttpServer())
+      .get('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .expect(200);
+    expect(firstList.body.data.map((posting: { id: string }) => posting.id)).toEqual([
+      newer.body.data.id,
+      older.body.data.id,
+    ]);
+    expect(firstList.body.data[0].empresa).toBe('Empresa de demostración');
+
+    olderPosting!.closingDate = new Date(Date.now() - 60_000);
+    const updatedList = await request(app.getHttpServer())
+      .get('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .expect(200);
+    expect(updatedList.body.data.map((posting: { id: string }) => posting.id)).toEqual([
+      newer.body.data.id,
+    ]);
+  });
+
+  it('devuelve detalle sin requisitos ajenos y deduplicado por nombre normalizado', async () => {
+    const session = await login();
+    const first = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const second = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send({ ...validPosting, titulo: 'Analista de datos' })
+      .expect(201);
+    const firstPosting = jobs.readPostings.get(first.body.data.id as string);
+    const secondPosting = jobs.readPostings.get(second.body.data.id as string);
+    expect(firstPosting).toBeDefined();
+    expect(secondPosting).toBeDefined();
+    firstPosting!.requirements = [
+      { id: 'requirement-1', name: 'Python', normalizedName: 'python' },
+      { id: 'requirement-2', name: 'python', normalizedName: 'python' },
+      { id: 'requirement-3', name: 'pythón', normalizedName: 'python' },
+    ];
+    secondPosting!.requirements = [
+      { id: 'requirement-other', name: 'Java', normalizedName: 'java' },
+    ];
+
+    const detail = await request(app.getHttpServer())
+      .get(`/api/v1/job-postings/${first.body.data.id}`)
+      .auth(session.token, { type: 'bearer' })
+      .expect(200);
+
+    expect(detail.body.data).toMatchObject({
+      id: first.body.data.id,
+      titulo: validPosting.titulo,
+      descripcionTecnica: validPosting.descripcionTecnica,
+      empresa: 'Empresa de demostración',
+      modalidad: validPosting.modalidad,
+      nivelExperiencia: validPosting.nivelExperiencia,
+      requisitos: [{ id: 'requirement-1', nombre: 'Python' }],
+    });
+    expect(JSON.stringify(detail.body.data)).not.toContain('Java');
+  });
+
+  it('devuelve 404 para vacantes cerradas o inexistentes sin filtrar otros datos', async () => {
+    const session = await login();
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/job-postings')
+      .auth(session.token, { type: 'bearer' })
+      .send(validPosting)
+      .expect(201);
+    const posting = jobs.readPostings.get(created.body.data.id as string);
+    expect(posting).toBeDefined();
+    posting!.status = 'CERRADO';
+
+    const closed = await request(app.getHttpServer())
+      .get(`/api/v1/job-postings/${created.body.data.id}`)
+      .auth(session.token, { type: 'bearer' })
+      .expect(404);
+    expect(closed.body).toEqual({
+      error: { code: 'JOB_POSTING_NOT_FOUND', message: 'Vacante no encontrada' },
+    });
+    await request(app.getHttpServer())
+      .get(`/api/v1/job-postings/${foreignCompanyId}`)
+      .auth(session.token, { type: 'bearer' })
+      .expect(404);
+  });
+
+  it('responde 400 si el identificador de detalle no es UUID', async () => {
+    const session = await login();
+    await request(app.getHttpServer())
+      .get('/api/v1/job-postings/no-es-uuid')
+      .auth(session.token, { type: 'bearer' })
+      .expect(400);
+  });
+
+  it('devuelve 500 genérico si falla la lectura del detalle', async () => {
+    const session = await login();
+    jobs.detailError = new Error('Detalle de conexión interno');
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/job-postings/44500000-0000-4000-8000-000000000001')
+      .auth(session.token, { type: 'bearer' })
+      .expect(500);
+
+    expect(response.body.error.code).toBe('INTERNAL_ERROR');
+    expect(JSON.stringify(response.body)).not.toContain('Detalle de conexión interno');
   });
 
   it.each([
