@@ -94,15 +94,16 @@ export function navigationFor(role: NavbarRole | null, activeMentor = false): Na
 }
 
 /**
- * Marca el destino exacto de la vista actual: la ruta debe coincidir y los
- * parámetros declarados en el enlace deben estar presentes en la URL.
+ * Marca el destino exacto de la vista actual, incluida su query.
  */
 export function isCurrentDestination(href: string, currentPath: string) {
   const [hrefPath, hrefQuery = ''] = href.split('?');
   const [currentHrefPath, currentQuery = ''] = currentPath.split('?');
   if (hrefPath !== currentHrefPath) return false;
+  const expected = new URLSearchParams(hrefQuery);
   const current = new URLSearchParams(currentQuery);
-  return Array.from(new URLSearchParams(hrefQuery)).every(([key, value]) => current.get(key) === value);
+  if (expected.size !== current.size) return false;
+  return Array.from(expected).every(([key, value]) => current.get(key) === value);
 }
 
 /**

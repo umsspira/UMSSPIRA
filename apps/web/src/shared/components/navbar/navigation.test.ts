@@ -17,6 +17,7 @@ it('BUG-06-1601: solo el destino de la vista actual queda marcado como activo', 
   expect(isCurrentDestination('/mentorship/requests', '/mentorship/requests')).toBe(true);
   expect(isCurrentDestination('/mentorship/requests/received', '/mentorship/requests')).toBe(false);
   expect(isCurrentDestination('/mentorship/requests', '/mentorship/requests/received')).toBe(false);
+  expect(isCurrentDestination('/mentorship/requests/received', '/mentorship/requests/received?view=sent')).toBe(false);
   expect(isCurrentDestination('/portal/institucional?tab=comunidad', '/portal/institucional?tab=comunidad')).toBe(true);
   expect(isCurrentDestination('/portal/institucional?tab=carreras', '/portal/institucional?tab=comunidad')).toBe(false);
 });
