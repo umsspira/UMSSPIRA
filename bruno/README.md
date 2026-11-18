@@ -25,7 +25,7 @@ Los cuerpos contienen datos de ejemplo editables. Las referencias `{{variable}}`
 | Backoffice |          6 | Revisión documental por administrador                             |
 | Perfil     |         10 | Perfil profesional del titulado                                   |
 | Empresas   |          3 | Perfil de la empresa autenticada                                  |
-| Vacantes   |          1 | Publicación de vacante por empresa                                |
+| Vacantes   |          3 | Publicación, listado de vacantes disponibles y consulta de detalle |
 | Mentorias  |         16 | Perfil y participación del mentor; gestión administrativa         |
 | Eventos    |         12 | Catálogo público, gestión propia e inscripción de Titulados       |
 | Reportes   |          5 | Indicadores y exportaciones por carreras autorizadas              |
