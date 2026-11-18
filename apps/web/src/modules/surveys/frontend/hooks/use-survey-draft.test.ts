@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import {
   clearAllSurveyDrafts,
+  hasDraftContent,
   sanitizeDraft,
   useSurveyDraft,
 } from './use-survey-draft';
@@ -40,6 +41,28 @@ describe('sanitizeDraft', () => {
   it('rechaza datos inválidos', () => {
     expect(sanitizeDraft({ workCondition: 'otra' })).toBeNull();
     expect(sanitizeDraft('texto')).toBeNull();
+  });
+});
+
+// QA Bug 2
+describe('hasDraftContent', () => {
+  it('es falso con solo la condición "Trabaja"', () => {
+    expect(hasDraftContent({ workCondition: 'works' })).toBe(false);
+  });
+
+  it('es falso con campos en blanco o solo espacios', () => {
+    expect(hasDraftContent({ workCondition: 'works', cargo: '   ', empresa: '' })).toBe(false);
+  });
+
+  it('es falso con "No trabaja"', () => {
+    expect(hasDraftContent({ workCondition: 'not-works' })).toBe(false);
+  });
+
+  it('es verdadero cuando hay algún campo con valor', () => {
+    expect(hasDraftContent({ workCondition: 'works', cargo: 'Dev' })).toBe(true);
+    expect(hasDraftContent({ workCondition: 'works', modalidad: 'remoto' })).toBe(true);
+    expect(hasDraftContent({ workCondition: 'works', salario_mensual: '5.001–8.000' })).toBe(true);
+    expect(hasDraftContent({ workCondition: 'works', tiempo_insercion: '6' })).toBe(true);
   });
 });
 
@@ -97,5 +120,25 @@ describe('useSurveyDraft', () => {
     expect(window.localStorage.getItem('umsspira:survey-draft:a')).toBeNull();
     expect(window.localStorage.getItem('otra-clave')).toBe('x');
     expect(window.sessionStorage.getItem('umsspira:survey-session:a')).toBeNull();
+  });
+
+  // QA Bug 2: el aviso «guardado» no debe aparecer con la encuesta vacía
+  it('no muestra el aviso "guardado" si solo se eligió la condición', () => {
+    const { result } = renderHook(() => useSurveyDraft('user-1'));
+    act(() => result.current.saveDraft({ workCondition: 'works' }));
+    expect(result.current.status).toBe('idle');
+    expect(window.localStorage.getItem(KEY)).not.toBeNull();
+  });
+
+  it('muestra el aviso "guardado" cuando hay contenido', () => {
+    const { result } = renderHook(() => useSurveyDraft('user-1'));
+    act(() => result.current.saveDraft({ workCondition: 'works', cargo: 'Dev' }));
+    expect(result.current.status).toBe('saved');
+  });
+
+  it('con "No trabaja" no muestra el aviso', () => {
+    const { result } = renderHook(() => useSurveyDraft('user-1'));
+    act(() => result.current.saveDraft({ workCondition: 'not-works' }));
+    expect(result.current.status).toBe('idle');
   });
 });

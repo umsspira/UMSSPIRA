@@ -82,6 +82,17 @@ describe('Descripción profesional del titulado (T6.4)', () => {
     expect(profiles.findDescription).toHaveBeenCalledWith({ graduateId, userId: graduate.id });
   });
 
+  it('rechaza con 400 una descripción vacía o solo con espacios y no guarda nada', async () => {
+    for (const texto of ['', '   ']) {
+      await request(app.getHttpServer())
+        .put('/api/v1/perfil/descripcion-profesional')
+        .set('Authorization', 'Bearer graduate')
+        .send({ descripcionProfesional: texto })
+        .expect(400);
+    }
+    expect(profiles.saveDescription).not.toHaveBeenCalled();
+  });
+
   it('guarda el texto recortado en el perfil de la sesión y devuelve la fecha', async () => {
     const response = await request(app.getHttpServer())
       .put('/api/v1/perfil/descripcion-profesional')

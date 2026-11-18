@@ -21,6 +21,8 @@ const primaryButtonClassName =
 export function BackupViewerModal({ certificationId, certificationName, onClose }: BackupViewerModalProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
+  // El enlace llega antes que la foto: "Cargando" se mantiene hasta que la imagen termina de cargar
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   // Cada reintento vuelve a pedir un enlace nuevo
   const [attempt, setAttempt] = useState(0);
 
@@ -41,6 +43,7 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
 
   function handleRetry() {
     setImageUrl(null);
+    setIsImageLoaded(false);
     setHasError(false);
     setAttempt((current) => current + 1);
   }
@@ -94,7 +97,7 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
               </button>
             </div>
           )}
-          {!imageUrl && !hasError && (
+          {(!imageUrl || !isImageLoaded) && !hasError && (
             <p role="status" className="flex items-center gap-2 px-4 py-16 text-sm font-medium text-blue-fantastic">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               Cargando respaldo…
@@ -102,7 +105,13 @@ export function BackupViewerModal({ certificationId, certificationName, onClose 
           )}
           {imageUrl && !hasError && (
             // eslint-disable-next-line @next/next/no-img-element -- el enlace firmado vence, no se optimiza con next/image
-            <img src={imageUrl} alt={`Respaldo de ${certificationName}`} onError={() => setHasError(true)} className="max-h-[60dvh] w-full rounded-lg object-contain sm:max-h-[70vh]" />
+            <img
+              src={imageUrl}
+              alt={`Respaldo de ${certificationName}`}
+              onLoad={() => setIsImageLoaded(true)}
+              onError={() => setHasError(true)}
+              className={`max-h-[60dvh] w-full rounded-lg object-contain sm:max-h-[70vh] ${isImageLoaded ? '' : 'hidden'}`}
+            />
           )}
         </div>
 

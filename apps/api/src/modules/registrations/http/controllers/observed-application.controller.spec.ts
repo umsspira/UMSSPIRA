@@ -14,6 +14,7 @@ describe('ObservedApplicationController', () => {
   beforeEach(() => {
     service = {
       getObservedApplication: jest.fn(),
+      getDocumentContent: jest.fn(),
       updateObservedApplication: jest.fn(),
       replaceDocument: jest.fn(),
       submitCorrection: jest.fn(),
@@ -51,6 +52,56 @@ describe('ObservedApplicationController', () => {
 
       expect(service.getObservedApplication).toHaveBeenCalledWith('app-123');
       expect(response).toEqual({ data: mockResult });
+    });
+  });
+
+  describe('GET /registrations/observed/document/content', () => {
+    function createResponse() {
+      return {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      };
+    }
+
+    const file = {
+      id: 'file-123',
+      draftId: 'draft-1',
+      documentType: 'diploma_academico',
+      name: 'diploma título.pdf',
+      mime: 'application/pdf',
+      bytes: new Uint8Array([37, 80, 68, 70, 45]),
+      size: 5,
+    };
+
+    it('devuelve el binario con sus cabeceras de seguridad', async () => {
+      service.getDocumentContent.mockResolvedValueOnce(file);
+      const response = createResponse();
+
+      await controller.getDocumentContent('app-123', response as never);
+
+      expect(service.getDocumentContent).toHaveBeenCalledWith('app-123');
+      expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
+      expect(response.setHeader).toHaveBeenCalledWith('Content-Length', '5');
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        expect.stringContaining('inline'),
+      );
+      expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-store');
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'Content-Security-Policy',
+        "sandbox; default-src 'none'",
+      );
+      expect(response.send).toHaveBeenCalledWith(Buffer.from(file.bytes));
+    });
+
+    it('propaga el error si el documento no existe y no envía nada', async () => {
+      service.getDocumentContent.mockRejectedValueOnce(new Error('DOCUMENT_NOT_FOUND'));
+      const response = createResponse();
+
+      await expect(
+        controller.getDocumentContent('app-123', response as never),
+      ).rejects.toThrow('DOCUMENT_NOT_FOUND');
+      expect(response.send).not.toHaveBeenCalled();
     });
   });
 
@@ -181,4 +232,4 @@ describe('ObservedApplicationController', () => {
       expect(response).toEqual({ data: mockResult });
     });
   });
-});
+}); 

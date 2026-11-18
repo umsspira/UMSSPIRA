@@ -133,6 +133,16 @@ describe("LoginForm", () => {
 });
 
 describe("HU-004: mensaje de acceso a reportes", () => {
+  it('BUG 1: el mensaje ya está en el primer render si lo pasó la página del servidor', () => {
+    render(<LoginForm reportsReason="requiere-sesion" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Debe iniciar sesión para acceder a este módulo');
+    expect(screen.getByText('Se ha bloqueado el acceso a /reports y se redirige a /login.')).toBeInTheDocument();
+  });
+
+  it('BUG 2: el aviso de sesión expirada llega también en el HTML inicial', () => {
+    render(<LoginForm reportsReason="sesion-expirada" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Su sesión ha expirado. Inicie sesión nuevamente');
+  });
   afterEach(() => {
     window.history.replaceState({}, "", "/");
   });

@@ -80,6 +80,14 @@ describe("HU-EP09-04 / T4.1: middleware de reportería", () => {
       "http://localhost:3001/login?reportes=requiere-sesion",
     );
     expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('BUG 1: también informa el motivo desde /reports/encuestas', async () => {
+    const result = observed(await middleware(request('/reports/encuestas')));
+    expect(result.destination).toBe('http://localhost:3001/login?reportes=requiere-sesion');
+    expect(result.headers.get('Cache-Control')).toBe('no-store');
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("CA-03: administrador autenticado accede al módulo y sus subrutas", async () => {

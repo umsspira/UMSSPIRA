@@ -10,6 +10,7 @@ import type { AreaScoreRecord } from '../../application/ports/radar-repository.p
 describe('PrismaRadarRepository', () => {
   it('guarda el cálculo, los seis ejes y los términos no mapeados en una transacción', async () => {
     const transaction = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       calculoRadar: { create: jest.fn().mockResolvedValue({ id: 'calculation-id' }) },
       afinidadRadar: { createMany: jest.fn().mockResolvedValue({ count: 6 }) },
       palabraClaveNoMapeada: {
@@ -62,7 +63,12 @@ describe('PrismaRadarRepository', () => {
       ),
     });
     expect(transaction.afinidadRadar.createMany.mock.calls[0][0].data).toHaveLength(6);
-    expect(transaction.palabraClaveNoMapeada.upsert).toHaveBeenCalledTimes(1);
+    expect(transaction.palabraClaveNoMapeada.upsert).not.toHaveBeenCalled();
+    expect(transaction.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(transaction.$executeRaw.mock.calls[0]).toEqual([
+      expect.any(Array), 'graduate-id', expect.any(Date),
+      JSON.stringify([{ termino: 'desconocido', frecuencia: 2 }]),
+    ]);
     expect(transaction.palabraClaveNoMapeada.deleteMany).toHaveBeenCalledWith({
       where: {
         id_titulado: 'graduate-id',
@@ -73,6 +79,7 @@ describe('PrismaRadarRepository', () => {
 
   it('elimina todos los no mapeados antiguos cuando el perfil ya no tiene ninguno', async () => {
     const transaction = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       calculoRadar: { create: jest.fn().mockResolvedValue({ id: 'calculation-id' }) },
       afinidadRadar: { createMany: jest.fn().mockResolvedValue({ count: 6 }) },
       palabraClaveNoMapeada: {
@@ -100,6 +107,7 @@ describe('PrismaRadarRepository', () => {
       where: { id_titulado: 'graduate-id' },
     });
     expect(transaction.palabraClaveNoMapeada.upsert).not.toHaveBeenCalled();
+    expect(transaction.$executeRaw).not.toHaveBeenCalled();
   });
 
   it('lee los pesos usando el termino canonico y no el UUID de la keyword', async () => {

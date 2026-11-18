@@ -16,7 +16,8 @@ interface PendingMail {
 }
 
 // Envía los correos de recuperación de la tabla password_reset_correo (CA-12.4).
-// Usa el mismo SMTP_URL y MAIL_FROM que el resto de la API. El cuerpo lleva el enlace con el token en claro,
+// Usa BREVO_API_KEY si está configurada; si no, SMTP_URL. Ambos usan MAIL_FROM.
+// El cuerpo lleva el enlace con el token en claro,
 // por eso se borra en cuanto el correo se entrega o falla de forma definitiva.
 @Injectable()
 export class PasswordResetMailWorker implements OnModuleInit, OnModuleDestroy {
@@ -105,13 +106,7 @@ export class PasswordResetMailWorker implements OnModuleInit, OnModuleDestroy {
 
     const attempt = row.intentos + 1;
     try {
-      const info = await this.transport!.sendMail({
-        from: this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>'),
-        to: row.email_destino,
-        subject: row.asunto,
-        text: row.cuerpo,
-        messageId: `<${row.id}@umsspira.local>`,
-      });
+      const info = await this.sendMail(row, row.cuerpo);
       await this.prisma.passwordResetCorreo.update({
         where: { id: row.id },
         data: {
@@ -141,6 +136,36 @@ export class PasswordResetMailWorker implements OnModuleInit, OnModuleDestroy {
       }
       this.logger.warn(`No se entregó el correo de recuperación ${row.id}; intento ${attempt}`);
     }
+  }
+
+  private async sendMail(row: PendingMail, text: string): Promise<{ messageId?: string }> {
+    const from = this.config.get<string>('MAIL_FROM', 'UMSSPIRA <no-reply@umsspira.local>');
+    const apiKey = this.config.get<string>('BREVO_API_KEY');
+    if (!apiKey) {
+      return this.transport!.sendMail({
+        from, to: row.email_destino, subject: row.asunto, text,
+        messageId: `<${row.id}@umsspira.local>`,
+      });
+    }
+
+    const match = from.match(/^(?:(.*)<)?([^>]+)>?$/);
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      signal: AbortSignal.timeout(10_000),
+      headers: { accept: 'application/json', 'content-type': 'application/json', 'api-key': apiKey },
+      body: JSON.stringify({
+        sender: { name: match?.[1]?.trim() || 'UMSSPIRA', email: match?.[2]?.trim() || from },
+        to: [{ email: row.email_destino }],
+        subject: row.asunto,
+        textContent: text,
+      }),
+    });
+    if (!response.ok) {
+      // No guardar respuestas del proveedor que puedan contener el enlace de recuperación.
+      throw new Error(`Brevo HTTP ${response.status}`);
+    }
+    const result = await response.json() as { messageId?: string };
+    return { messageId: result.messageId };
   }
 
   private async event(row: PendingMail, type: string, at: Date): Promise<void> {

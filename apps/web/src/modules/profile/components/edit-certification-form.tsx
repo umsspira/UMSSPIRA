@@ -13,6 +13,7 @@ import {
 } from '@/modules/profile/components/edit-record-layout';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
 import { recordsHref } from '@/modules/profile/data/profile-records-data';
+import { rutaDeRegreso } from '@/modules/profile/utils/return-to';
 import { actualizarCertificacion, obtenerCertificacion, subirRespaldo } from '@/modules/profile/services/perfil-api';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { CertificationRecord } from '@/modules/profile/types/profile-record';
@@ -130,6 +131,17 @@ function EditCertificationFields({ certification }: { certification: Certificati
     setSaveError(undefined);
   }
 
+  // Deshace la foto elegida que aún no se sube y vuelve al respaldo que ya estaba guardado
+  function handleDocumentRemove() {
+    setDocumentName(savedBackup.file ?? '');
+    setDocumentUrl(savedBackup.url);
+    setIsNewDocument(false);
+    setPendingDocument(null);
+    setDocumentError(undefined);
+    setIsSaved(false);
+    setSaveError(undefined);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
@@ -190,7 +202,11 @@ function EditCertificationFields({ certification }: { certification: Certificati
       isSaved={isSaved}
       savedLabel="Registro actualizado"
       onSubmit={handleSubmit}
-      onCancel={() => router.push(recordsHref('certification'))}
+      onCancel={() => {
+        // Desde Completar perfil llega returnTo para volver ahí (y de ahí a Afinidad); si no, a Mis registros
+        const regreso = rutaDeRegreso(new URLSearchParams(window.location.search).get('returnTo') ?? undefined);
+        router.push(regreso ?? recordsHref('certification'));
+      }}
     >
       <div className="grid gap-4 md:grid-cols-2">
         <FormField id="name" label="Nombre de la certificación">
@@ -229,6 +245,7 @@ function EditCertificationFields({ certification }: { certification: Certificati
         documentUrl={documentUrl}
         isVerified={Boolean(documentName) && !isNewDocument && Boolean(certification.backupVerified)}
         onDocumentChange={handleDocumentChange}
+        onDocumentRemove={pendingDocument ? handleDocumentRemove : undefined}
         // Un archivo recién elegido aún no está en la API: se sigue abriendo con su enlace local
         onViewBackup={certification.backupFile && !isNewDocument ? () => setIsViewerOpen(true) : undefined}
       />

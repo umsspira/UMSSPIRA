@@ -83,3 +83,19 @@ export const AFFINITY_AREA_SHORT_LABELS: Record<AffinityArea, string> = {
   'cybersecurity-networks': 'Ciberseguridad',
   'it-management': 'Gestión TI',
 };
+
+
+export interface RadarCertificationEvidence {
+  id: string;
+  title: string;
+  issuer: string;
+  issuedYear: number | null;
+  hasBackup: boolean;
+  matchedKeywords: string[];
+}
+
+export interface RadarCertificationEvidenceResponse {
+  area: AffinityArea;
+  source: 'current-profile';
+  certifications: RadarCertificationEvidence[];
+}

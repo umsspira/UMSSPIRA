@@ -41,7 +41,15 @@ const CloudIcon = () => (
   </Svg>
 );
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams?: { reportes?: string | string[] };
+}) {
+  // Server Component: el aviso llega con el HTML inicial, sin esperar un useEffect.
+  const reportsReason = typeof searchParams?.reportes === 'string'
+    ? searchParams.reportes
+    : undefined;
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       {/* Panel institucional */}
@@ -138,7 +146,7 @@ export default function LoginPage() {
               Accede al portal oficial de titulados y red profesional de Ingeniería de Sistemas e Ingeniería Informática.
             </p>
             <div className="mt-8">
-              <LoginForm />
+              <LoginForm reportsReason={reportsReason} />
             </div>
           </div>
 

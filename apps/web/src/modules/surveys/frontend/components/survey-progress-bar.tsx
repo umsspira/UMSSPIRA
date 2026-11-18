@@ -1,4 +1,5 @@
 import { cn } from '@/shared/utils/cn';
+import { isMeaningfulText } from '../hooks/use-survey-form';
 
 /**
  * Respuestas que mira la barra. Coincide con los campos de use-survey-form (T1.2):
@@ -19,7 +20,9 @@ const WORK_QUESTIONS = ['cargo', 'empresa', 'area', 'modalidad', 'salario_mensua
 function isAnswered(field: (typeof WORK_QUESTIONS)[number], value: string): boolean {
   // El tiempo de inserción es un número de meses: «0» también cuenta como respondido.
   if (field === 'tiempo_insercion') return /^\d+$/.test(value.trim());
-  return value.trim().length > 0;
+  // Salario y modalidad son selecciones válidas aunque no contengan letras.
+  if (field === 'salario_mensual' || field === 'modalidad') return value.trim().length > 0;
+  return isMeaningfulText(value);
 }
 
 /**

@@ -1,3 +1,7 @@
+import { RADAR_CERTIFICATION_READER_PORT } from './application/ports/certification-reader.port';
+import { GetAreaCertificationsUseCase } from './application/use-cases/get-area-certifications.use-case';
+import { GetAreaCertificationsController } from './http/controllers/get-area-certifications.controller';
+import { PrismaCertificationReaderAdapter } from './infrastructure/adapters/prisma-certification-reader.adapter';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
 import { NlpModule } from '../nlp/nlp.module';
@@ -18,8 +22,11 @@ import { PrismaRadarRepository } from './infrastructure/repositories/prisma-rada
 
 @Module({
   imports: [PrismaModule, NlpModule],
-  controllers: [GetRadarController, RecalculateRadarController],
+  controllers: [GetRadarController, RecalculateRadarController, GetAreaCertificationsController],
   providers: [
+    PrismaCertificationReaderAdapter,
+    { provide: RADAR_CERTIFICATION_READER_PORT, useExisting: PrismaCertificationReaderAdapter },
+    GetAreaCertificationsUseCase,
     PrismaRadarRepository,
     { provide: RADAR_REPOSITORY_PORT, useExisting: PrismaRadarRepository },
     PrismaProfileTextReaderAdapter,

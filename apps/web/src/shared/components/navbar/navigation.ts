@@ -60,7 +60,9 @@ export const NAVBAR_ACCOUNT_LINKS: NavbarLink[] = [
   { id: 'account-publish-job', label: 'Publicar Vacante', href: '/empresa/vacantes/publicar', roles: employers },
   
   // 👇 AQUÍ ESTÁ EL CAMBIO: Le pusimos el href y quitamos el 'Próximamente' 👇
-  { id: 'my-jobs', label: 'Mis Vacantes', href: '/empresa/mis-vacantes', roles: employers },
+  { id: 'my-jobs', label: 'Mis Vacantes', href: '/empresa/mis-vacantes', roles: employers },  
+  { id: 'company-users', label: 'Gestión de usuarios', href: '/empresa/gestion_usuarios', roles: employers },
+
   // 👆 FIN DEL CAMBIO 👆
 
   { id: 'applicants', label: 'Postulantes', href: '/empresa/postulantes', roles: employers },

@@ -6,13 +6,28 @@ export interface OfflineQrEventDetails {
   location: string;
 }
 
+export type OfflineQrPassStatus = 'ACTIVO' | 'INVALIDADO' | 'VENCIDO';
+
 export interface OfflineQrPass {
   id: string;
   userId: string;
   qrToken: string;
   eventDetails: OfflineQrEventDetails;
   savedAt: string;
+  /** HU03: estado del pase en la última sincronización (si falta, se asume ACTIVO). */
+  status?: OfflineQrPassStatus;
+  /** HU03: false cuando el pase ya no es válido; el QR no debe mostrarse. */
+  isValidForAccess?: boolean;
+  /** HU03: fecha/hora de la última sincronización exitosa de este pase. */
+  syncedAt?: string;
 }
+
+export type OfflineQrPassChanges = Partial<
+  Pick<
+    OfflineQrPass,
+    'qrToken' | 'eventDetails' | 'status' | 'isValidForAccess' | 'syncedAt'
+  >
+>;
 
 export type OfflineQrPassInput = Omit<OfflineQrPass, 'savedAt'>;
 
@@ -217,6 +232,54 @@ export async function deleteOfflineQrPass(
     throw error;
   }
 }
+
+/**
+ * HU03: actualiza un pase que YA está guardado. Nunca crea uno nuevo:
+ * si el usuario lo eliminó sin conexión, devuelve null y no se vuelve a guardar (CA-03).
+ * La lectura y la escritura ocurren en la misma transacción.
+ */
+export async function updateOfflineQrPass(
+  id: string,
+  userId: string,
+  changes: OfflineQrPassChanges
+): Promise<OfflineQrPass | null> {
+  if (!id.trim() || !userId.trim()) {
+    throw new Error('Se requiere el identificador del pase y del usuario.');
+  }
+
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, 'readwrite');
+  const completed = transactionToPromise(transaction);
+
+  try {
+    const store = transaction.objectStore(STORE_NAME);
+    const current = await requestToPromise<OfflineQrPass | undefined>(
+      store.get(id)
+    );
+
+    if (!current || current.userId !== userId) {
+      await completed;
+      return null;
+    }
+
+    const updated: OfflineQrPass = { ...current, ...changes };
+
+    await requestToPromise(store.put(updated));
+    await completed;
+
+    return updated;
+  } catch (error) {
+    try {
+      transaction.abort();
+    } catch {
+      // La transacción puede haber finalizado o cancelado.
+    }
+
+    await completed.catch(() => undefined);
+    throw error;
+  }
+}
+
 export async function clearOfflineQrPasses(): Promise<void> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, 'readwrite');
@@ -236,4 +299,3 @@ export async function clearOfflineQrPasses(): Promise<void> {
     throw error;
   }
 }
-

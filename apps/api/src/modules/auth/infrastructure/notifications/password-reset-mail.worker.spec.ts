@@ -33,13 +33,72 @@ function setup(rows: unknown[], claimed = 1) {
   const sendMail = jest.fn();
   const worker = new PasswordResetMailWorker(prisma as never, config as never);
   (worker as unknown as { transport: unknown }).transport = { sendMail, close: jest.fn() };
-  return { prisma, sendMail, worker };
+  return { prisma, sendMail, worker, config };
 }
 
 const lastUpdate = (prisma: ReturnType<typeof setup>['prisma']) =>
   prisma.passwordResetCorreo.update.mock.calls.at(-1)![0].data;
 
 describe('PasswordResetMailWorker', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  function withBrevo(overrides: Record<string, unknown> = {}) {
+    const context = setup([row({ email_destino: 'cuenta.prueba@gmail.com', ...overrides })]);
+    context.config.get.mockImplementation((key, fallback) => {
+      if (key === 'BREVO_API_KEY') {return 'test-api-key';}
+      if (key === 'MAIL_FROM') {return 'UMSSPIRA <verificado@example.com>';}
+      return fallback;
+    });
+    return context;
+  }
+
+  it('usa Brevo HTTP cuando está configurado y conserva el identificador de entrega', async () => {
+    const { prisma, worker, sendMail } = withBrevo();
+    const http = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, json: async () => ({ messageId: 'brevo-message-id' }),
+    } as Response);
+    await worker.drain();
+    expect(sendMail).not.toHaveBeenCalled();
+    expect(http).toHaveBeenCalledWith('https://api.brevo.com/v3/smtp/email', expect.objectContaining({
+      method: 'POST', signal: expect.any(AbortSignal),
+      headers: expect.objectContaining({ 'api-key': 'test-api-key' }),
+    }));
+    expect(JSON.parse(http.mock.calls[0][1]!.body as string)).toEqual({
+      sender: { name: 'UMSSPIRA', email: 'verificado@example.com' },
+      to: [{ email: 'cuenta.prueba@gmail.com' }], subject: 'Asunto',
+      textContent: row().cuerpo,
+    });
+    expect(lastUpdate(prisma)).toMatchObject({ estado: 'enviada', cuerpo: null,
+      smtp_message_id: 'brevo-message-id', ultimo_error: null });
+  });
+
+  it.each([401, 429, 503])('mantiene el correo pendiente ante HTTP %i de Brevo', async (status) => {
+    const { prisma, worker, sendMail } = withBrevo();
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status } as Response);
+    await worker.drain();
+    expect(lastUpdate(prisma)).toMatchObject({ estado: 'pendiente', ultimo_error: `Brevo HTTP ${status}` });
+    expect(lastUpdate(prisma)).not.toHaveProperty('cuerpo');
+    expect(prisma.passwordResetEvento.create).not.toHaveBeenCalled();
+    expect(sendMail).not.toHaveBeenCalled();
+  });
+
+  it('limita los reintentos también cuando Brevo no responde', async () => {
+    const { prisma, worker } = withBrevo({ intentos: 2 });
+    jest.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Timeout'));
+    await worker.drain();
+    expect(lastUpdate(prisma)).toMatchObject({ estado: 'fallida', cuerpo: null });
+  });
+
+  it('no llama a Brevo si el enlace ya fue revocado', async () => {
+    const { prisma, worker } = withBrevo({
+      token: { id_usuario: 'user-1', expira_en: future(), usado_en: null, revocado: true },
+    });
+    const http = jest.spyOn(globalThis, 'fetch');
+    await worker.drain();
+    expect(http).not.toHaveBeenCalled();
+    expect(lastUpdate(prisma)).toMatchObject({ estado: 'fallida', ultimo_error: 'enlace_no_vigente' });
+  });
+
   it('envía el correo, borra el cuerpo con el enlace y registra el envío (CA-12.4)', async () => {
     const { prisma, sendMail, worker } = setup([row()]);
     sendMail.mockResolvedValue({ messageId: '<abc@umsspira.local>' });

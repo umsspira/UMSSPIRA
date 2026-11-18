@@ -1,5 +1,7 @@
 'use client';
 
+import { RadarCertificationsPanel } from './radar-certifications-panel';
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import AffinityRadar from '@/shared/components/affinity-radar';
 import { RecalculateButton } from './recalculate-button';
@@ -23,6 +25,7 @@ import {
 import {
   AFFINITY_AREAS,
   AFFINITY_AREA_LABELS,
+  type AffinityArea,
   type AffinityAreaScore,
 } from '@umsspira/shared-types/src/affinity';
 import { ArrowLeft, Tag } from 'lucide-react';
@@ -95,7 +98,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   
   const [changedAreaIds, setChangedAreaIds] = useState<string[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
-  const [lastCalculatedDate, setLastCalculatedDate] = useState<string | null>(null);
+  const [lastCalculatedAt, setLastCalculatedAt] = useState<string | null>(null);
 
   const [candidateAreas, setCandidateAreas] = useState<CandidateArea[]>([
     { area: 'software-development', affinity: 95 },
@@ -113,6 +116,9 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
   const hasPendingChangesRef = useRef<boolean>(hasPendingChanges);
   const hasRadarErrorRef = useRef<boolean>(hasRadarError);
   const recalculateRequestIdRef = useRef<number>(0);
+  const readRequestIdRef = useRef(0);
+  const isMountedRef = useRef(false);
+  const retryInFlightRef = useRef(false);
   const autoRecalculateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const changeVersionRef = useRef<number>(0);
 
@@ -135,8 +141,6 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
 
     const requestId = ++recalculateRequestIdRef.current;
     setIsLoading(true);
-    hasRadarErrorRef.current = false;
-    setHasRadarError(false);
     setIsPendingDialogOpen(false);
     const versionAtStart = changeVersionRef.current;
 
@@ -167,7 +171,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         setIsSuccessToastOpen(true);
         return;
       }
-      setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
+      setLastCalculatedAt(result.calculatedAt);
       const processed = processVectorAreas(result.areas);
 
       const modifiedIds: string[] = [];
@@ -220,51 +224,75 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
     }, DEBOUNCE_MS);
   }, [handleRecalculate]);
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadInitialVector = useCallback(async () => {
+    const requestId = ++readRequestIdRef.current;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('No se pudo actualizar tu radar')), DEFAULT_RECALCULATE_TIMEOUT_MS);
+    });
+    try {
+      setIsLoading(true);
+      const result = await Promise.race([getAffinityVector(), timeout]);
+      if (!isMountedRef.current || requestId !== readRequestIdRef.current) return;
+      const processed = processVectorAreas(result.areas);
+      setHasLaborHistory(result.hasLaborHistory ?? null);
+      candidateAreasRef.current = processed;
+      setCandidateAreas(processed);
+      setLoadedKeywords(extractKeywords(processed));
+      setHasValidRadar(true);
+      setLastCalculatedAt(result.calculatedAt);
+      hasRadarErrorRef.current = false;
+      setHasRadarError(false);
 
-    async function loadInitialVector() {
-      try {
-        setIsLoading(true);
-        const result = await getAffinityVector();
-        if (!isMounted) return;
-        const processed = processVectorAreas(result.areas);
-        setHasLaborHistory(result.hasLaborHistory ?? null);
-        candidateAreasRef.current = processed;
-        setCandidateAreas(processed);
-        setLoadedKeywords(extractKeywords(processed));
-        setHasValidRadar(true);
-        setLastCalculatedDate(formatCalculatedDate(result.calculatedAt));
-        hasRadarErrorRef.current = false;
-        setHasRadarError(false);
-
-        if ((result as { hasPendingChanges?: boolean }).hasPendingChanges) {
-          hasPendingChangesRef.current = true;
-          markPendingChanges();
-          scheduleDebouncedRecalculate();
-        }
-      } catch {
-        if (isMounted) {
-          hasRadarErrorRef.current = true;
-          setHasRadarError(true);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+      // El hash del servidor decide si hace falta recalcular, también tras eliminar.
+      if (result.hasPendingChanges) {
+        hasPendingChangesRef.current = true;
+        markPendingChanges();
+        scheduleDebouncedRecalculate();
+      } else {
+        hasPendingChangesRef.current = false;
+        clearPendingChanges();
+      }
+    } catch {
+      if (isMountedRef.current && requestId === readRequestIdRef.current) {
+        hasRadarErrorRef.current = true;
+        setHasRadarError(true);
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      if (isMountedRef.current && requestId === readRequestIdRef.current) {
+        setIsLoading(false);
       }
     }
+  }, [clearPendingChanges, markPendingChanges, scheduleDebouncedRecalculate]);
 
-    loadInitialVector();
-
+  useEffect(() => {
+    isMountedRef.current = true;
+    void loadInitialVector();
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
+      readRequestIdRef.current += 1;
+      recalculateRequestIdRef.current += 1;
       if (autoRecalculateTimerRef.current !== null) {
         clearTimeout(autoRecalculateTimerRef.current);
         autoRecalculateTimerRef.current = null;
       }
     };
-  }, [markPendingChanges, scheduleDebouncedRecalculate]);
+  }, [loadInitialVector]);
+
+  const handleRetry = useCallback(async () => {
+    if (retryInFlightRef.current) return;
+    retryInFlightRef.current = true;
+    try {
+      if (hasValidRadar) {
+        await handleRecalculate({ force: true });
+      } else {
+        await loadInitialVector();
+      }
+    } finally {
+      retryInFlightRef.current = false;
+    }
+  }, [hasValidRadar, handleRecalculate, loadInitialVector]);
 
   const handleProfileChange = useCallback(() => {
     changeVersionRef.current += 1;
@@ -349,7 +377,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
             Tu afinidad profesional
           </h1>
           <p className="text-[13px] sm:text-sm text-blue-fantastic mt-1 max-w-xl">
-            Visualiza las áreas profesionales que más se relacionan con tu perfil académico mediante snapshots locales.
+            Visualiza la afinidad calculada a partir de los textos de tu perfil profesional.
           </p>
         </div>
 
@@ -371,7 +399,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <span>
-                        Última actualización: <strong className="text-slate-900">{lastCalculatedDate ?? 'No disponible'}</strong>
+                        Última actualización: <strong className="text-slate-900">{formatCalculatedDate(lastCalculatedAt) ?? 'No disponible'}</strong>
                       </span>
                       <span className="w-2 h-2 rounded-full bg-emerald-500 ml-1" />
                     </div>
@@ -428,9 +456,9 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   )}
 
                   {hasRadarError && (
-                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center p-4 rounded-xl">
                       <RadarErrorState
-                        onRetry={() => handleRecalculate({ force: true })}
+                        onRetry={() => { void handleRetry(); }}
                         isRetrying={isLoading}
                       />
                     </div>
@@ -533,6 +561,7 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
                   selectedAreaId={selectedAreaId}
                   onSelectArea={setSelectedAreaId}
                   areas={inspectionAreas}
+                  certificationsPanel={selectedAreaId && AFFINITY_AREAS.includes(selectedAreaId as AffinityArea) ? <RadarCertificationsPanel area={selectedAreaId as AffinityArea} calculationKey={lastCalculatedAt} /> : undefined}
                 />
               )}
             </div>

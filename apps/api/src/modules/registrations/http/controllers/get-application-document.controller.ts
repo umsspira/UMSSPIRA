@@ -19,6 +19,7 @@ export class GetApplicationDocumentController {
     @Res() response: Response,
   ): Promise<void> {
     const file = await this.useCase.execute(actor, id);
+    response.setHeader('Cache-Control', 'no-store');
     response.setHeader('Content-Type', file.mime);
     response.setHeader('Content-Length', String(file.size));
     response.setHeader(

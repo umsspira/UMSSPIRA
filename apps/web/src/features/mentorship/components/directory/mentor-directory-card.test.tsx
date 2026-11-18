@@ -41,3 +41,33 @@ it('distingue un campo pendiente del backend de un perfil sin intereses registra
   expect(screen.getByText('Sin intereses registrados')).toBeInTheDocument();
   expect(screen.queryByText('+1')).not.toBeInTheDocument();
 });
+
+it('muestra una sola etiqueta por interés aunque el backend repita el mismo ID', () => {
+  render(<MentorDirectoryCard mentor={{ ...mentor, interests: [
+    { id: 'interest-1', name: 'Desarrollo de software', areaId: 'software' },
+    { id: 'interest-1-copy', name: 'Desarrollo de software', areaId: 'software' },
+    { id: 'interest-2', name: 'Inteligencia artificial', areaId: 'software' },
+  ] }} />);
+
+  expect(screen.getAllByText('Desarrollo de software')).toHaveLength(1);
+  expect(screen.getByText('Inteligencia artificial')).toBeInTheDocument();
+});
+
+it('elimina duplicados ignorando mayúsculas y espacios y conserva el texto original del primero', () => {
+  render(<MentorDirectoryCard mentor={{ ...mentor, interests: [
+    { id: 'interest-1', name: 'Desarrollo de software', areaId: 'software' },
+    { id: 'interest-2', name: '  desarrollo   DE SOFTWARE  ', areaId: 'software' },
+    { id: 'interest-3', name: 'Inteligencia artificial', areaId: 'software' },
+    { id: 'interest-4', name: 'Ciberseguridad', areaId: 'security' },
+  ] }} />);
+
+  expect(screen.getAllByText('Desarrollo de software')).toHaveLength(1);
+  expect(screen.queryByText('  desarrollo   DE SOFTWARE  ')).not.toBeInTheDocument();
+  expect(screen.getByText('Inteligencia artificial')).toBeInTheDocument();
+  expect(within(screen.getByRole('heading', { name: 'Intereses' }).parentElement!).getByText('Ciberseguridad')).toBeInTheDocument();
+});
+
+it.each([undefined, null, []])('mantiene sin errores el estado actual de tarjeta sin intereses (%s)', interests => {
+  render(<MentorDirectoryCard mentor={{ ...mentor, interests: interests as DirectoryMentor['interests'] }} />);
+  expect(screen.getByText(interests ? 'Sin intereses registrados' : 'Información de intereses no disponible')).toBeInTheDocument();
+});

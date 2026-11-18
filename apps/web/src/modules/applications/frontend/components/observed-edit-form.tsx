@@ -138,7 +138,6 @@ export function ObservedEditForm({
         <div className="grid gap-4 sm:grid-cols-2">
           {text("firstName", "Nombres", { required: true })}
           {text("lastName", "Apellidos", { required: true })}
-          {text("birthDate", "Fecha de nacimiento", { required: true, type: "date" })}
           {text("ci", "Cédula de Identidad (C.I.)", { required: true })}
           {text("complement", "Complemento (Opcional)")}
           <Field id="issuedIn" label="Expedido en" required error={c.errors.issuedIn}>
