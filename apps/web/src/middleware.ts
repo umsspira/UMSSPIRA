@@ -95,5 +95,5 @@ export const config = { matcher: [
   // Áreas que exigen sesión (el portal institucional /portal/institucional sigue público).
   '/portal', '/portal/empleos', '/portal/empleos/:path*', '/portal/mentorias', '/portal/comunidad', '/portal/beneficios',
   '/portal/eventos', '/portal/eventos/:path*', '/portal/mensajes',
-  '/mentorship', '/mentorship/:path*', '/job-postings',
+  '/mentorship', '/mentorship/:path*', '/job-postings', '/job-postings/:path*',
 ] };

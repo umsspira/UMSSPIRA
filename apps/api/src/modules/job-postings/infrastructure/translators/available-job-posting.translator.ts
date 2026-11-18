@@ -11,6 +11,8 @@ export const availableJobPostingListSelect = {
   estado: true,
   fecha_cierre: true,
   fecha_publicacion: true,
+  descripcion_tecnica: true,
+  modalidad: true,
   empresa: {
     select: {
       razon_social: true,
@@ -20,8 +22,6 @@ export const availableJobPostingListSelect = {
 
 export const availableJobPostingDetailSelect = {
   ...availableJobPostingListSelect,
-  descripcion_tecnica: true,
-  modalidad: true,
   nivel_experiencia: true,
   requisito_tecnico_registros: {
     select: {
@@ -54,6 +54,8 @@ export function toJobPostingListCandidate(record: JobPostingListRecord): JobPost
     closingDate: record.fecha_cierre,
     publicationDate: record.fecha_publicacion,
     companyName: record.empresa?.razon_social ?? null,
+    technicalDescription: record.descripcion_tecnica,
+    modality: record.modalidad,
   };
 }
 

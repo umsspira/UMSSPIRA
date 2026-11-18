@@ -70,6 +70,8 @@ export class InMemoryJobPostingRepository implements JobPostingRepository {
           status,
           closingDate,
           companyName,
+          technicalDescription,
+          modality,
           publicationDate,
         }) => ({
           id,
@@ -77,6 +79,8 @@ export class InMemoryJobPostingRepository implements JobPostingRepository {
           status,
           closingDate,
           companyName,
+          technicalDescription,
+          modality,
           publicationDate,
         }),
       );

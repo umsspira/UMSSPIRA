@@ -28,6 +28,8 @@ describe('available job posting presenters', () => {
       id: 'vacancy-1',
       titulo: 'Desarrollador web',
       empresa: 'Empresa',
+      descripcionTecnica: 'Descripción registrada',
+      modalidad: 'REMOTO',
       fechaPublicacion: '2026-11-16T10:00:00.000Z',
     });
   });

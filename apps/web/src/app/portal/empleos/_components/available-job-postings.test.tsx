@@ -46,6 +46,8 @@ describe('AvailableJobPostingsSection', () => {
           id: 'vacancy-1',
           titulo: 'Desarrollador',
           empresa: 'Empresa',
+          descripcionTecnica: null,
+          modalidad: null,
           fechaPublicacion: null,
         },
       ]);
@@ -68,6 +70,8 @@ describe('AvailableJobPostingsSection', () => {
         id: 'vacancy-2',
         titulo: 'Analista de datos',
         empresa: 'Empresa registrada',
+        descripcionTecnica: 'Descripción técnica',
+        modalidad: 'REMOTO',
         fechaPublicacion: '2026-11-16T10:00:00.000Z',
       },
     ]);
