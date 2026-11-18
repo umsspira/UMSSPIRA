@@ -32,7 +32,7 @@ export function NotificationCenter({ items, resolveHref, onClose, onNavigate, no
 
   const denied = permission === 'denied';
   const unsupportedText = support.supported ? null : describeUnsupportedReason(support.reason);
-  const active = support.supported && permission === 'granted' && status === 'subscribed';
+  const active = support.supported && permission !== 'denied' && status === 'subscribed';
   const busy = requesting || status === 'subscribing' || status === 'checking';
   const blockedText =
     unsupportedText ??

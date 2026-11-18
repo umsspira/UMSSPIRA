@@ -66,7 +66,9 @@ export function PushPermissionPanel({ includeEventReminders = false }: { include
   }
 
   const busy = requesting || status === 'subscribing' || status === 'checking';
-  const subscribed = permission === 'granted' && status === 'subscribed';
+  // The subscription operation is the authoritative signal after activation.
+  // Permission state can lag behind the browser prompt in React's first render.
+  const subscribed = permission !== 'denied' && status === 'subscribed';
 
   if (permission === 'granted' && status === 'checking') {
     return (
