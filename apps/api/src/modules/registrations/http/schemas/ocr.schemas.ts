@@ -2,6 +2,16 @@ import { z } from 'zod';
 
 export const ocrUuid = z.string().uuid();
 export const ocrLease = z.object({ token: ocrUuid }).strict();
+export const ocrFailureSchema = ocrLease.extend({
+  failure: z
+    .object({
+      stage: z.enum(['document', 'engine', 'read', 'complete', 'renew']),
+      code: z.enum(['HTTP_ERROR', 'NETWORK_ERROR', 'TIMEOUT', 'PROCESSING_ERROR']),
+      status: z.number().int().min(400).max(599).optional(),
+    })
+    .strict()
+    .optional(),
+});
 export const ocrReadingSchema = z
   .object({
     lines: z
