@@ -131,9 +131,9 @@ export default function MyEventsPage() {
             <button type="button" className="is-active" aria-current="page">
               Mis eventos
             </button>
-            <Link href="/mis-pases">
-              Mis pases
-            </Link>
+            <Link href="/events/catalog/passes">
+      Mis pases
+		</Link>
           </nav>
         </header>
 
@@ -246,9 +246,9 @@ export default function MyEventsPage() {
                           Ver detalle
                         </Link>
                         {canOpenPass ? (
-                          <Link href="/mis-pases" className="hu9-action">
-                            Ver pase
-                          </Link>
+                          <Link href="/events/catalog/passes" className="hu9-action">
+      Ver pase
+			</Link>
                         ) : null}
                       {item.participationStatus === 'VIGENTE' ||
                       item.participationStatus === 'INSCRIPCION_CANCELADA' ? (

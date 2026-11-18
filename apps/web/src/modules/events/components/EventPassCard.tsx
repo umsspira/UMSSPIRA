@@ -2,7 +2,7 @@
 
 import React from "react";
 import { QRCodeSVG } from "qrcode.react";
-// 👇 Importamos el botón que me acabas de mostrar (Ajusta la ruta si es necesario)
+
 import { Button } from "@/shared/components/button";; 
 
 type PassStatus = "VALID" | "ACTIVO" | "INVALID" | "ERROR" | "RECOVERED";
@@ -24,6 +24,7 @@ interface EventPassProps {
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
   saveOfflineMessage?: string;
+  offlineUnverified?: boolean;
 }
 
 export const EventPassCard: React.FC<EventPassProps> = ({
@@ -43,12 +44,14 @@ export const EventPassCard: React.FC<EventPassProps> = ({
   isSavedOffline = false,
   isSavingOffline = false,
   saveOfflineMessage,
+  offlineUnverified = false,
 }) => {
   const isError = status === "ERROR";
   const isInvalid = status === "INVALID" || status === "INVALIDADO" || status === "VENCIDO";
   const isRecovered = status === "RECOVERED";
   
   const isValid = status === "VALID" || status === "ACTIVO" || isRecovered;
+const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
 
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col md:flex-row rounded-2xl overflow-hidden shadow-umss-lg border border-oatmeal font-sans">
@@ -103,9 +106,17 @@ export const EventPassCard: React.FC<EventPassProps> = ({
         {/* Badges y código inferior */}
         {!isError && (
           <>
-            <div className={`mt-auto text-[11px] font-bold py-1 px-4 rounded-full ${isInvalid ? 'hidden' : 'bg-palladian text-abyssal-blue'}`}>
-               VÁLIDO
-            </div>
+            <div
+  className={`mt-auto text-[11px] font-bold py-1 px-4 rounded-full ${
+    isInvalid
+      ? 'hidden'
+      : offlineUnverified
+        ? 'bg-burning-flame text-abyssal-blue'
+        : 'bg-palladian text-abyssal-blue'
+  }`}
+>
+  {offlineUnverified ? 'VIGENCIA NO VERIFICADA' : 'VÁLIDO'}
+</div>
             {passId && (
               <div className="mt-4 text-left w-full">
                 <p className="text-oatmeal text-[10px] uppercase font-semibold">ID Pase</p>
@@ -167,9 +178,23 @@ export const EventPassCard: React.FC<EventPassProps> = ({
              </div>
            </div>
         )}
+{offlineUnverified && (
+  <div
+    role="status"
+    className="mb-6 border border-burning-flame bg-burning-flame/10 p-4 rounded-lg"
+  >
+    <p className="text-abyssal-blue text-sm font-bold">
+      Pase guardado sin conexión
+    </p>
 
+    <p className="text-abyssal-blue text-xs mt-2">
+      No se puede verificar la vigencia de este pase sin conexión.
+      Conéctate a Internet para confirmar que sigue habilitado.
+    </p>
+  </div>
+)}
         {/* Datos del evento usando etiquetas (11px/13px) y cuerpos (14px) del manual */}
-        {isValid && !isRecovered && (
+        {canDisplayQr && qrToken && (
           <div className="space-y-5">
             <div>
               <p className="text-[11px] text-abyssal-blue/60 uppercase font-semibold">Titulado</p>

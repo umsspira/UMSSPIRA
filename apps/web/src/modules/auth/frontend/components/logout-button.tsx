@@ -1,6 +1,7 @@
 "use client";
 
 import { clearOfflineQrPasses } from '@/features/event-passes/offline/offline-qr-storage';
+import { clearOfflineQrUserId } from '@/features/event-passes/offline/offline-qr-identity';
 import { authStore } from "../store";
 import { clearSession } from "../services";
 import { hardRedirect } from "../services/navigation";
@@ -21,14 +22,22 @@ export function LogoutButton() {
     await revokeCurrentSession();
 
     try {
-      await clearOfflineQrPasses();
-    } catch (storageError) {
-      console.error(
-        'No se pudieron eliminar los pases QR almacenados localmente:',
-        storageError
-      );
-    }
+  await clearOfflineQrPasses();
+} catch (storageError) {
+  console.error(
+    'No se pudieron eliminar los pases QR almacenados localmente:',
+    storageError
+  );
+}
 
+try {
+  clearOfflineQrUserId();
+} catch (identityError) {
+  console.error(
+    'No se pudo eliminar la identidad QR local:',
+    identityError
+  );
+}
     clearAllSurveyDrafts();
     clearSession();
     authStore.reset();

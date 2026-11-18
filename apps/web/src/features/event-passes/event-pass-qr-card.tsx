@@ -1,13 +1,17 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { EventPassDto } from '@umsspira/shared-types';
-import { saveOfflineQrPass } from './offline/offline-qr-storage';
+import {
+  getOfflineQrPass,
+  saveOfflineQrPass,
+} from './offline/offline-qr-storage';
 import { EventPassCard } from '@/modules/events/components/EventPassCard';
 
 interface EventPassQrCardProps {
   pass: EventPassDto;
+  offlineUnverified?: boolean;
 }
 
 function formatEventDate(value?: string): string {
@@ -26,14 +30,53 @@ function formatEventDate(value?: string): string {
   }).format(date);
 }
 
-export function EventPassQrCard({ pass }: EventPassQrCardProps) {
+export function EventPassQrCard({
+  pass,
+  offlineUnverified = false,
+}: EventPassQrCardProps) {
   const isValid =
-    pass.status === 'ACTIVO' && pass.isValidForAccess;
+    offlineUnverified ||
+    (pass.status === 'ACTIVO' && pass.isValidForAccess);
 
   const details = pass.eventDetails;
 const [isSavedOffline, setIsSavedOffline] = useState(false);
 const [isSavingOffline, setIsSavingOffline] = useState(false);
 const [saveOfflineMessage, setSaveOfflineMessage] = useState('');
+useEffect(() => {
+  let active = true;
+
+  async function checkOfflinePass() {
+    setIsSavedOffline(false);
+    setSaveOfflineMessage('');
+
+    if (!pass.id || !pass.userId) return;
+
+    try {
+      const savedPass = await getOfflineQrPass(
+        pass.id,
+        pass.userId,
+      );
+
+      if (!active) return;
+
+      if (savedPass) {
+        setIsSavedOffline(true);
+        setSaveOfflineMessage(
+          'Este pase ya está guardado en este dispositivo.',
+        );
+      }
+    } catch {
+      // Si falla la consulta local, se mantiene disponible
+      // la opción de guardar nuevamente.
+    }
+  }
+
+  void checkOfflinePass();
+
+  return () => {
+    active = false;
+  };
+}, [pass.id, pass.userId]);
 
 const handleSaveOffline = async () => {
   if (!isValid || !details || isSavingOffline || isSavedOffline) {
@@ -102,7 +145,12 @@ const handleSaveOffline = async () => {
   return (
     <EventPassCard
       status={isValid ? 'ACTIVO' : 'INVALID'}
-      statusLabel={statusLabel}
+      statusLabel={
+  offlineUnverified
+    ? 'GUARDADO SIN CONEXIÓN'
+    : statusLabel
+}
+offlineUnverified={offlineUnverified}
       statusDescription={statusDescription}
       hideBackButton
       eventName={details?.name || 'Evento sin nombre'}
@@ -111,7 +159,11 @@ const handleSaveOffline = async () => {
       location={details?.location || 'Ubicación no disponible'}
       passId={pass.id}
       qrToken={isValid ? pass.qrToken : undefined}
-onSaveOffline={isValid ? handleSaveOffline : undefined}
+onSaveOffline={
+  !offlineUnverified && isValid
+    ? handleSaveOffline
+    : undefined
+}
 isSavedOffline={isSavedOffline}
 isSavingOffline={isSavingOffline}
 saveOfflineMessage={saveOfflineMessage}

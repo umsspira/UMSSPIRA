@@ -3,6 +3,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
+import { saveOfflineQrUserId } from './offline/offline-qr-identity';
+import { ApiError } from '@/shared/services/api-client';
+import {
+  getOfflineQrPasses,
+} from './offline/offline-qr-storage';
+import {
+  getOfflineQrUserId,
+} from './offline/offline-qr-identity';
 import {
   AlertCircle,
   Info,
@@ -22,20 +31,94 @@ export default function MyQrPassesPage() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [retryCount, setRetryCount] = useState(0);
-
+const [isOffline, setIsOffline] = useState(
+  () => typeof navigator !== 'undefined' && !navigator.onLine,
+);
   const retry = useCallback(() => {
     setRetryCount((value) => value + 1);
   }, []);
 
-  useEffect(() => {
+    useEffect(() => {
     const controller = new AbortController();
+
+    async function loadOfflinePasses() {
+      const userId = getOfflineQrUserId();
+
+      if (!userId) {
+        throw new Error(
+          'No se encontró una identidad local para recuperar tus pases.',
+        );
+      }
+
+      const savedPasses = await getOfflineQrPasses(userId);
+
+      if (controller.signal.aborted) return;
+
+      const offlinePasses: EventPassDto[] = savedPasses.map(
+        (savedPass) => ({
+          id: savedPass.id,
+          registrationId: '',
+          eventId: '',
+          userId: savedPass.userId,
+          qrToken: savedPass.qrToken,
+          status: 'ACTIVO',
+          isValidForAccess: true,
+          issuedAt: savedPass.savedAt,
+          expiresAt: null,
+          eventDetails: savedPass.eventDetails,
+        }),
+      );
+
+      setPasses(offlinePasses);
+      setIsOffline(true);
+      setLoadState('success');
+      setErrorMessage('');
+    }
 
     async function loadPasses() {
       setLoadState('loading');
-      setErrorMessage('');
+	setErrorMessage('');
+	setPasses([]);
 
       try {
-        const result = await getMyEventPasses(controller.signal);
+        if (!navigator.onLine) {
+          await loadOfflinePasses();
+          return;
+        }
+
+        let currentUser;
+
+        try {
+          currentUser = await getCurrentUser();
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 0) {
+            await loadOfflinePasses();
+            return;
+          }
+
+          throw error;
+        }
+
+        if (controller.signal.aborted) return;
+
+        if (!currentUser?.id) {
+          throw new Error('No se pudo verificar tu identidad.');
+        }
+
+        saveOfflineQrUserId(currentUser.id);
+
+        let result: EventPassDto[];
+
+        try {
+          result = await getMyEventPasses(controller.signal);
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 0) {
+            await loadOfflinePasses();
+            return;
+          }
+
+          throw error;
+        }
 
         if (controller.signal.aborted) return;
 
@@ -44,6 +127,7 @@ export default function MyQrPassesPage() {
         }
 
         setPasses(result);
+        setIsOffline(false);
         setLoadState('success');
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -58,11 +142,25 @@ export default function MyQrPassesPage() {
       }
     }
 
+    function handleOnline() {
+      setRetryCount((value) => value + 1);
+	}
+
+	function handleOffline() {
+      setRetryCount((value) => value + 1);
+	}
+
+	window.addEventListener('online', handleOnline);
+	window.addEventListener('offline', handleOffline);
+
     void loadPasses();
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      window.removeEventListener('online', handleOnline);
+	window.removeEventListener('offline', handleOffline);
+    };
   }, [retryCount]);
-
   return (
     <main className="qr-passes-page">
       <div className="qr-passes-container">
@@ -75,7 +173,9 @@ export default function MyQrPassesPage() {
             Explorar
           </Link>
 
-          <span>Mis eventos</span>
+          <Link href="/portal/eventos/mis-eventos">
+      Mis eventos
+	</Link>
 
           <Link
             href="/events/catalog/passes"
@@ -184,9 +284,10 @@ export default function MyQrPassesPage() {
           >
             {passes.map((pass) => (
               <EventPassQrCard
-                key={pass.id}
-                pass={pass}
-              />
+          key={pass.id}
+          pass={pass}
+          offlineUnverified={isOffline}
+		/>
             ))}
           </section>
         )}
