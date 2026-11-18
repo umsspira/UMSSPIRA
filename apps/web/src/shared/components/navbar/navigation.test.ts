@@ -1,7 +1,7 @@
 import { activeSection, isCurrentDestination, navigationFor, NAVBAR_ACCOUNT_LINKS, visibleLinks } from './navigation';
 
 const destinations = (role: Parameters<typeof navigationFor>[0]) => navigationFor(role).flatMap(section => section.items.map(item => item.href)).filter(Boolean);
-const mentorshipItems = () => navigationFor('titulado').find(section => section.id === 'mentorship')!.items;
+const mentorshipItems = () => navigationFor('titulado', true).find(section => section.id === 'mentorship')!.items;
 
 it('BUG-06-1601: separa "Mis solicitudes" de "Solicitudes recibidas" en el menú de Mentorías', () => {
   const items = mentorshipItems();

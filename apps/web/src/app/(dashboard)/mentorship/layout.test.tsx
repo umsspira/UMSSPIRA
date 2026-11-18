@@ -1,8 +1,13 @@
+import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import MentoriasLayout from './layout';
 
 jest.mock('@/shared/components/portal-site-footer', () => ({
   PortalSiteFooter: () => <footer data-testid="portal-site-footer">Footer del portal</footer>,
+}));
+
+jest.mock('@/features/mentorship/components/mentorship-navigation', () => ({
+  MentorshipNavigation: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 describe('MentoriasLayout', () => {
