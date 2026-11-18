@@ -12,6 +12,7 @@ export type AccessDecision =
   | { allowed: false; redirectTo: string };
 
 const GRADUATE_AFFINITY_ROUTES = ["/afinidad/egresado"];
+const GRADUATE_APPLICATION_ROUTES = ["/my-applications"];
 const RECRUITER_ROUTES = [
   "/afinidad/reclutador",
   "/empresa/postulantes",
@@ -87,6 +88,13 @@ export function decideAccess(
     isGraduateAffinityRoute &&
     role !== "titulado" &&
     role !== "administrador"
+  ) {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+
+  if (
+    GRADUATE_APPLICATION_ROUTES.some((route) => matchesRoute(pathname, route)) &&
+    role !== "titulado"
   ) {
     return { allowed: false, redirectTo: homeFor(role) };
   }

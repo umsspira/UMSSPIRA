@@ -38,6 +38,7 @@ describe("decideAccess", () => {
       "/afinidad/reclutador",
       "/empresa/postulantes",
       "/postulantes",
+      "/my-applications",
     ])("redirige %s a /login cuando no hay token", (pathname) => {
       expect(decideAccess(pathname, undefined, undefined)).toEqual({
         allowed: false,
@@ -163,5 +164,18 @@ describe("HU-004/T4.1: control de acceso a reportes (Admin) y encuestas (Titulad
   it("no restringe falsos prefijos de las rutas protegidas", () => {
     expect(decideAccess("/reports-extra", "token", "titulado")).toEqual({ allowed: true });
     expect(decideAccess("/surveys-extra", "token", "administrador")).toEqual({ allowed: true });
+  });
+
+  it("reserva mis postulaciones y sus detalles para el titulado", () => {
+    expect(decideAccess("/my-applications", "token", "titulado")).toEqual({ allowed: true });
+    expect(decideAccess("/my-applications/oferta/id", "token", "titulado")).toEqual({ allowed: true });
+    expect(decideAccess("/my-applications", "token", "empresa")).toEqual({
+      allowed: false,
+      redirectTo: COMPANY_HOME,
+    });
+    expect(decideAccess("/my-applications/oferta/id", "token", "administrador")).toEqual({
+      allowed: false,
+      redirectTo: ADMIN_HOME,
+    });
   });
 });
