@@ -7,8 +7,12 @@ import {
   DEMO_INFORMATICS_QA_ADMIN_ID,
 } from '../scripts/seed/demo-accounts';
 import { seedInformaticsAdmin, seedInformaticsCareer } from '../scripts/seed/informatics-career';
+import { seedSystemsCareer } from '../scripts/seed/systems-career';
 
 jest.mock('../scripts/seed/catalogs', () => ({ seedCatalogs: jest.fn() }));
+jest.mock('../scripts/seed/systems-career', () => ({
+  seedSystemsCareer: jest.fn().mockResolvedValue('10000000-0000-4000-8000-000000000001'),
+}));
 jest.mock('../scripts/seed/informatics-career', () => ({
   seedInformaticsAdmin: jest.fn(),
   seedInformaticsCareer: jest.fn().mockResolvedValue('10000000-0000-4000-8000-000000000002'),
@@ -77,6 +81,27 @@ describe('Cuentas de demostración', () => {
 
     expect(create).not.toHaveBeenCalled();
     expect(hash).not.toHaveBeenCalled();
+  });
+
+  it('asocia titulados y administradores con la carrera existente de Sistemas', async () => {
+    const careerId = 'e9cd814f-7905-4c78-8c51-1e2e49f7f982';
+    jest.mocked(seedSystemsCareer).mockResolvedValueOnce(careerId);
+    const { client, create } = database();
+    await seedBase(client, { hash: jest.fn().mockResolvedValue('hash-de-prueba') });
+    const graduate = create.mock.calls.find(
+      ([{ data }]) => data.usuario_id === DEMO_ACCOUNTS[0].id,
+    );
+    const admin = create.mock.calls.find(([{ data }]) => data.usuario_id === DEMO_ACCOUNTS[1].id);
+    expect(graduate?.[0].data.titulado.create.carrera.connect.id).toBe(careerId);
+    expect(admin?.[0].data.administrador_de_carrera_registros.create.carrera.connect.id).toBe(
+      careerId,
+    );
+    const informaticsAdmin = create.mock.calls.find(
+      ([{ data }]) => data.usuario_id === DEMO_INFORMATICS_QA_ADMIN_ID,
+    );
+    expect(
+      informaticsAdmin?.[0].data.administrador_de_carrera_registros.create.carrera.connect.id,
+    ).toBe(DEMO_INFORMATICS_CAREER_ID);
   });
 
   it('asocia al administrador de QA con el UUID existente de Ingeniería Informática', async () => {

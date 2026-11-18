@@ -35,6 +35,8 @@ function database(careers: { id: string; nombre: string | null }[] = []) {
         'reporte',
         'encuesta',
         'respuestaEncuesta',
+        'calculoRadar',
+        'afinidadRadar',
       ].map((name) => [name, { createMany: jest.fn().mockResolvedValue({ count: 0 }) }]),
     ),
     $transaction: async (operation: (tx: unknown) => Promise<unknown>) => operation(client),
