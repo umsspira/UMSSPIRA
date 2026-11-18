@@ -12,6 +12,7 @@ import {
 
 import umssBg from '@/shared/assets/images/14sept.webp';
 import selloImg from '@/shared/assets/images/sello.png';
+import { AvailableJobPostingsSection } from '../empleos/_components/available-job-postings';
 
 const T = (tab: string) => `/portal/institucional?tab=${tab}`;
 
@@ -999,26 +1000,7 @@ export function EmpleosView() {
         </div>
       </section>
 
-      <section className="pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-        <h3 className="text-2xl font-serif font-bold text-slate-900 mb-1">Así se ve una oferta</h3>
-        <p className="text-xs text-slate-500 mb-6">Ofertas de ejemplo, no corresponden a vacantes reales.</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { t: 'Desarrollador Backend', e: 'Empresa de ejemplo', m: 'Remoto · Tiempo completo' },
-            { t: 'Analista de Datos', e: 'Empresa de ejemplo', m: 'Híbrido · Cochabamba' },
-            { t: 'Soporte y Redes', e: 'Empresa de ejemplo', m: 'Presencial · Medio tiempo' },
-          ].map((x) => (
-            <div key={x.t} className="bg-[#F5F2EA] p-6 rounded-2xl border border-[#C9C1B1] shadow-sm flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-[#0F172A] text-amber-400 flex items-center justify-center shrink-0"><Briefcase className="w-6 h-6" /></div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">{x.t}</p>
-                <p className="text-xs text-slate-500">{x.e}</p>
-                <p className="text-xs text-slate-500">{x.m}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <AvailableJobPostingsSection />
 
       <SplitBlock bg="bg-[#E7E1D4]" img="/images/institucional/empleos-proceso.jpg" alt="Cómo postular" Icon={Search}>
         <SectionHead eyebrow="CÓMO FUNCIONA" title="Postula en 3 pasos" />
