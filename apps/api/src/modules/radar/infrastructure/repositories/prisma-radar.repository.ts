@@ -13,6 +13,11 @@ import {
 } from '../../domain/policies/affinity-calculator';
 import { DICTIONARY_VERSION } from '../../domain/policies/affinity-config';
 
+const RADAR_TRANSACTION_OPTIONS = {
+  maxWait: 10000,
+  timeout: 15000,
+} as const;
+
 type CalculateRadarRow = {
   id: string;
   id_titulado: string;
@@ -140,7 +145,7 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
     return this.prisma.$transaction(async (transaction) => {
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tituladoId}))`;
       return operation(new PrismaTransactionalRadarRepository(this.prisma, transaction));
-    });
+    }, RADAR_TRANSACTION_OPTIONS);
   }
 
   async saveCalculation(params: {
@@ -156,7 +161,10 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
       return this.persist(this.transaction, params);
     }
 
-    return this.prisma.$transaction((transaction) => this.persist(transaction, params));
+    return this.prisma.$transaction(
+      (transaction) => this.persist(transaction, params),
+      RADAR_TRANSACTION_OPTIONS,
+    );
   }
 
   private async persist(
