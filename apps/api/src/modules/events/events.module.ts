@@ -33,12 +33,16 @@ import { ValidateAttendancePassController } from './http/controllers/validate-at
 import { ValidateAttendancePassService } from './application/validate-attendance-pass.service';
 import { CertificateTemplateController } from './http/controllers/certificate-template.controller';
 import { certificateTemplatesProviders } from './infrastructure/providers/certificate-templates.providers';
+import { EventReminderWorker } from './infrastructure/workers/event-reminder.worker';
+import { EventReminderSettingsController } from './http/controllers/event-reminder-settings.controller';
+import { EventReminderSettingsService } from './application/event-reminder-settings.service';
 
 
 @Module({
   imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [
     CertificateTemplateController,
+    EventReminderSettingsController,
     GetEventCatalogController,
     ListMyEventRegistrationsController,
     ListOwnedEventsController,
@@ -65,6 +69,8 @@ import { certificateTemplatesProviders } from './infrastructure/providers/certif
   ],
   providers: [
     ScheduledEventPublicationWorker,
+    EventReminderWorker,
+    EventReminderSettingsService,
     ...eventsProviders,
     ...certificateTemplatesProviders,
     OptionalAuthenticationGuard,

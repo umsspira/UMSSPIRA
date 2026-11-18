@@ -35,6 +35,7 @@ const publishedEvent: EventItem = {
 describe('detalle público de eventos', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    window.history.replaceState({}, '', '/');
     jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
   });
   it('rechaza un identificador malformado sin consultar la API', () => {
@@ -141,6 +142,16 @@ describe('detalle público de eventos', () => {
     expect(screen.getAllByText(publishedEvent.description!)).toHaveLength(1);
     expect(screen.queryByText(/Mock|Supabase|Tarea 11/i)).not.toBeInTheDocument();
     expect(getPublishedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('abre desde el recordatorio y muestra la reprogramación', async () => {
+    jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
+    window.history.replaceState({}, '', '?fromReminder=1&rescheduled=1');
+
+    render(<EventDetailPage params={{ id: EVENT_ID }} />);
+
+    expect(await screen.findByText('Abierto desde un recordatorio')).toBeInTheDocument();
+    expect(screen.getByText('Fecha actualizada antes del envío')).toBeInTheDocument();
   });
 
   it('usa plural para capacidades distintas de uno', async () => {

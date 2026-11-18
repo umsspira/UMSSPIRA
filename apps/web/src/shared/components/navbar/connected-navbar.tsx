@@ -8,12 +8,10 @@ import { notifySessionExpired } from '@/modules/auth/frontend/services/session-e
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
 import { Navbar } from './navbar';
 import { NAVBAR_ROLE_LABEL } from './navigation';
-import type { NavbarActivity, NavbarRole, NavbarSession } from './types';
+import type { NavbarRole, NavbarSession } from './types';
 import { clearAllSurveyDrafts } from '@/modules/surveys/frontend/hooks/use-survey-draft';
-import {
-  listEventNotifications,
-  markEventNotificationRead,
-} from '@/shared/services/event-notifications';
+import { useEventNotifications } from '@/features/notifications/hooks/use-event-notifications';
+import { EventNotificationToast } from './event-notification-toast';
 
 const roles: NavbarRole[] = ['titulado', 'empresa', 'administrador'];
 
@@ -44,8 +42,8 @@ export function ConnectedNavbar() {
   // undefined = todavía no se sabe (no se muestra ninguna barra de cuenta ni de visitante)
   const [session, setSessionState] = useState<NavbarSession | null | undefined>(cachedSession);
   const [logoutError, setLogoutError] = useState(false);
-  const [notifications, setNotifications] = useState<NavbarActivity[]>([]);
-  const notificationRequest = useRef(0);
+  const { items: notifications, error: notificationsError, markRead, refresh, toast, dismissToast } =
+    useEventNotifications(session?.role === 'titulado');
   // HU-004 CA-07: durante el cierre voluntario, el 401 de /me no debe redirigir por su cuenta.
   const loggingOut = useRef(false);
 
@@ -61,51 +59,6 @@ export function ConnectedNavbar() {
       cachedSession = next;
       return next;
     });
-  }, []);
-
-  const refreshNotifications = useCallback(async () => {
-    const requestId = ++notificationRequest.current;
-    if (session?.role !== 'titulado') {
-      setNotifications([]);
-      return;
-    }
-
-    try {
-      const result = await listEventNotifications();
-      if (requestId === notificationRequest.current) {
-        setNotifications(result);
-      }
-    } catch (error) {
-      if (requestId === notificationRequest.current) {
-        console.error('No se pudieron cargar las notificaciones de eventos:', error);
-      }
-    }
-  }, [session?.role]);
-
-  useEffect(() => {
-    if (session?.role !== 'titulado') {
-      notificationRequest.current += 1;
-      setNotifications([]);
-      return;
-    }
-
-    setNotifications([]);
-    void refreshNotifications();
-    window.addEventListener('focus', refreshNotifications);
-    return () => window.removeEventListener('focus', refreshNotifications);
-  }, [session?.role, auth.accessToken, refreshNotifications]);
-
-  const handleNotificationRead = useCallback((id: string) => {
-    notificationRequest.current += 1;
-    void markEventNotificationRead(id)
-      .then(() => {
-        setNotifications(current =>
-          current.map(item => item.id === id ? { ...item, unread: false } : item),
-        );
-      })
-      .catch(error => {
-        console.error('No se pudo marcar la notificación como leída:', error);
-      });
   }, []);
 
   useEffect(() => {
@@ -185,7 +138,8 @@ export function ConnectedNavbar() {
     loading={!isPublicLanding && session === undefined}
     onLogout={logout}
     notifications={notifications}
-    onNotificationsOpen={() => void refreshNotifications()}
-    onNotificationRead={handleNotificationRead}
-  />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;
+    onNotificationsOpen={() => void refresh()}
+    notificationsError={notificationsError}
+    onNotificationRead={markRead}
+  /><EventNotificationToast item={toast} onClose={dismissToast} />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;
 }

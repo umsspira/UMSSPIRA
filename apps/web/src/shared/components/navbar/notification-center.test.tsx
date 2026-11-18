@@ -80,7 +80,7 @@ describe('NotificationCenter (HU13 - ventanas de avisos)', () => {
 
   it('muestra avisos guardados y marca uno como leído al abrir el evento', async () => {
     setupBrowser('default');
-    const onNotificationRead = jest.fn();
+    const onNotificationRead = jest.fn().mockResolvedValue(undefined);
     const onNavigate = jest.fn();
     render(
       <NotificationCenter
@@ -90,6 +90,7 @@ describe('NotificationCenter (HU13 - ventanas de avisos)', () => {
           description: 'Cambió la fecha.',
           href: '/portal/eventos/event-1',
           unread: true,
+          createdAt: '2026-11-17T22:00:00.000Z',
         }]}
         resolveHref={href => href}
         onClose={jest.fn()}
@@ -104,6 +105,31 @@ describe('NotificationCenter (HU13 - ventanas de avisos)', () => {
 
     expect(onNotificationRead).toHaveBeenCalledWith('notification-1');
     expect(onNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('permite marcar una notificación persistente como leída', async () => {
+    setupBrowser('default');
+    const onNotificationRead = jest.fn().mockResolvedValue(undefined);
+    render(
+      <NotificationCenter
+        items={[{
+          id: 'notification-1',
+          title: 'Evento actualizado',
+          description: 'Se cambió el horario.',
+          unread: true,
+        }]}
+        resolveHref={href => href}
+        onClose={jest.fn()}
+        onNavigate={jest.fn()}
+        onNotificationRead={onNotificationRead}
+      />,
+    );
+
+    expect(await screen.findByText('Evento actualizado')).toBeTruthy();
+    expect(screen.getByText('Se cambió el horario.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar como leída' }));
+
+    await waitFor(() => expect(onNotificationRead).toHaveBeenCalledWith('notification-1'));
   });
 
   it('recorre todas las ventanas hasta dejar los avisos activados', async () => {
@@ -147,7 +173,9 @@ describe('NotificationCenter (HU13 - ventanas de avisos)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Solicitar permiso' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar avisos' }));
+    const disableButton = await screen.findByRole('button', { name: 'Desactivar avisos' });
+    await waitFor(() => expect(disableButton).toBeEnabled());
+    fireEvent.click(disableButton);
 
     await waitFor(() => expect(pushSub.removePushSubscription).toHaveBeenCalled());
     expect(await screen.findByText('Ajustes de notificaciones')).toBeTruthy();

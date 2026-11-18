@@ -796,6 +796,7 @@ model Evento {
   fecha_fin       DateTime?      @db.Timestamptz(6)
   cupo_maximo     Int?           @db.Integer
   ubicacion       String?        @db.VarChar
+  anticipacion_recordatorio_horas Int @default(24) @db.SmallInt
   estado          String?        @db.VarChar
   imagen_url      String?        @db.Text
   fecha_creacion  DateTime?      @db.Timestamptz(6)
@@ -803,6 +804,7 @@ model Evento {
 
   usuario                      Usuario?            @relation("evento_id_usuario_usuario", fields: [id_usuario], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "evento_id_usuario_fkey")
   inscripcion_evento_registros InscripcionEvento[] @relation("inscripcion_evento_id_evento_evento")
+  recordatorios_evento         RecordatorioEvento[]
   plantillas_certificado       PlantillaCertificadoEvento[]
   certificados                 Certificado[]
   notificaciones               NotificacionEvento[]
@@ -895,6 +897,7 @@ model InscripcionEvento {
   usuario Usuario? @relation("inscripcion_evento_id_usuario_usuario", fields: [id_usuario], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "inscripcion_evento_id_usuario_fkey")
   pase_qr PaseQr?
   asistencia AsistenciaEvento?
+  recordatorios RecordatorioEvento[]
 
   @@map("inscripcion_evento")
 }
@@ -1285,6 +1288,7 @@ model NotificacionEvento {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_usuario     String    @db.Uuid
   id_evento      String?   @db.Uuid
+  id_recordatorio String?   @db.Uuid
   titulo         String    @db.VarChar(160)
   cuerpo         String    @db.Text
   url            String?   @db.Text
@@ -1293,7 +1297,9 @@ model NotificacionEvento {
 
   usuario Usuario @relation(fields: [id_usuario], references: [usuario_id], onDelete: Cascade, onUpdate: Cascade)
   evento  Evento? @relation(fields: [id_evento], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  recordatorio RecordatorioEvento? @relation(fields: [id_recordatorio], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "notificacion_evento_recordatorio_fkey")
 
+  @@unique([id_recordatorio, id_usuario], map: "notificacion_evento_recordatorio_usuario_key")
   @@index([id_usuario, fecha_creacion(sort: Desc)])
   @@index([id_usuario, leida_en, fecha_creacion(sort: Desc)])
   @@map("notificacion_evento")
@@ -1311,8 +1317,56 @@ model Dispositivo {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   usuario Usuario? @relation("dispositivo_usuario_id_usuario", fields: [usuario_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "dispositivo_usuario_id_fkey")
+  recordatorio_entregas RecordatorioEntrega[]
 
   @@map("dispositivo")
+}
+
+model RecordatorioEvento {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_inscripcion   String    @db.Uuid
+  id_evento        String    @db.Uuid
+  programado_para  DateTime  @db.Timestamptz(6)
+  estado           String    @default("PENDIENTE") @db.VarChar(20)
+  intentos         Int       @default(0)
+  error            String?   @db.Text
+  enviado_en       DateTime? @db.Timestamptz(6)
+  reintentar_en    DateTime? @db.Timestamptz(6)
+  procesando_desde DateTime? @db.Timestamptz(6)
+  reprogramado     Boolean   @default(false)
+
+  inscripcion    InscripcionEvento     @relation(fields: [id_inscripcion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  evento         Evento                @relation(fields: [id_evento], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  entregas       RecordatorioEntrega[]
+  notificaciones NotificacionEvento[]
+
+  @@unique([id_inscripcion, programado_para], map: "recordatorio_evento_inscripcion_programado_key")
+  @@index([estado, programado_para], map: "recordatorio_evento_estado_programado_idx")
+  @@map("recordatorio_evento")
+}
+
+model ConfiguracionRecordatorios {
+  id                 Int      @id @default(1)
+  anticipacion_horas Int      @default(24)
+  actualizada_en     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("configuracion_recordatorios")
+}
+
+model RecordatorioEntrega {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_recordatorio String    @db.Uuid
+  id_dispositivo  String    @db.Uuid
+  estado          String    @db.VarChar(20)
+  intentos        Int       @default(1)
+  error           String?   @db.Text
+  enviado_en      DateTime? @db.Timestamptz(6)
+
+  recordatorio RecordatorioEvento @relation(fields: [id_recordatorio], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  dispositivo  Dispositivo        @relation(fields: [id_dispositivo], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([id_recordatorio, id_dispositivo], map: "recordatorio_entrega_recordatorio_dispositivo_key")
+  @@map("recordatorio_entrega")
 }
 
 model Conversacion {
