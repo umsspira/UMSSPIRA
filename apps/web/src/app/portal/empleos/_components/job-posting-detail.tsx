@@ -7,6 +7,7 @@ import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
 import { ApiError } from '@/shared/services/api-client';
 import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
+import { ApplyToVacancyButton } from '@/shared/components/apply-to-vacancy-button';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinity, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
 import {
@@ -238,6 +239,12 @@ export function JobPostingDetail({
             </div>
 
             <aside className="space-y-5 lg:sticky lg:top-6">
+              <section aria-labelledby="job-apply-heading" className="rounded-2xl border border-[#D8CEBF] bg-white p-6 shadow-sm">
+                <h2 id="job-apply-heading" className="text-xl font-bold">Postulación</h2>
+                <div className="mt-4">
+                  <ApplyToVacancyButton vacancyId={posting.id} />
+                </div>
+              </section>
               <section aria-labelledby="job-affinity-heading" className="rounded-2xl border border-[#D8CEBF] bg-white p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <h2 id="job-affinity-heading" className="text-xl font-bold leading-7">
@@ -363,6 +370,13 @@ export function JobPostingDetail({
             <dd className="mt-1 text-slate-900">{posting.nivelExperiencia ?? 'No especificado'}</dd>
           </div>
         </dl>
+
+        <section className="mt-6">
+          <h2 className="text-xl font-bold text-slate-900">Postulación</h2>
+          <div className="mt-3">
+            <ApplyToVacancyButton vacancyId={posting.id} />
+          </div>
+        </section>
 
         <section className="mt-6">
           <h2 className="text-xl font-bold text-slate-900">Descripción de la oferta</h2>
