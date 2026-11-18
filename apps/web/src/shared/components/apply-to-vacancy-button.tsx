@@ -32,9 +32,10 @@ export function ApplyToVacancyButton({ vacancyId }: { vacancyId: string }) {
       await applyToJob(vacancyId);
       setState('applied');
     } catch (error) {
-      if (error instanceof ApiError && error.message === 'Completa tu perfil para postularte') {
+      const code = error instanceof ApiError ? error.code : undefined;
+      if (code === 'PROFILE_INCOMPLETE') {
         setState('incomplete');
-      } else if (error instanceof ApiError && error.message === 'Esta vacante ya no está disponible') {
+      } else if (code === 'JOB_POSTING_UNAVAILABLE') {
         setState('unavailable');
       } else {
         setRetryApply(true);
