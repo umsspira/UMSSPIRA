@@ -164,4 +164,21 @@ describe('JobPostingsList', () => {
     expect(rows[1]).toHaveTextContent('Vacante A');
     expect(rows[2]).toHaveTextContent('Vacante B');
   });
+  it('muestra el estado vacío y deshabilita el selector de orden', async () => {
+    listPostings.mockResolvedValue([]);
+
+    render(<JobPostingsList />);
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Aún no hay vacantes disponibles',
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole('combobox', { name: 'Ordenar vacantes' }),
+    ).toBeDisabled();
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
 });

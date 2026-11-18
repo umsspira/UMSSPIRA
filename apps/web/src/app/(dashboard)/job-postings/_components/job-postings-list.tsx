@@ -221,7 +221,7 @@ export function JobPostingsList() {
                 <label className="flex min-h-10 items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 text-xs font-semibold text-orange-950">
                   <span aria-hidden="true">✦</span>
                   <span className="sr-only">Ordenar vacantes</span>
-                  <select aria-label="Ordenar vacantes" value={sortByAffinity ? 'affinity' : 'recent'} onChange={(event) => setSortByAffinity(event.target.value === 'affinity')} className="w-full bg-transparent outline-none">
+                  <select aria-label="Ordenar vacantes" disabled={postings.length === 0} value={sortByAffinity ? 'affinity' : 'recent'} onChange={(event) => setSortByAffinity(event.target.value === 'affinity')} className="w-full bg-transparent outline-none">
                     <option value="affinity">Ordenar: mayor afinidad</option>
                     <option value="recent">Ordenar: más recientes</option>
                   </select>
