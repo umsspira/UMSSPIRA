@@ -1,3 +1,6 @@
+import {
+  CalendarDays, ClipboardList, Compass, Inbox, Layers, Send, Sparkles, UserRound,
+} from 'lucide-react';
 import type { NavbarLink, NavbarRole, NavbarSection } from './types';
 
 export const NAVBAR_ROLE_LABEL: Record<NavbarRole, string> = {
@@ -37,14 +40,14 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
   ] },
   { id: 'mentorship', label: 'Mentorías', items: [
     { id: 'inst-mentorias', label: 'Sobre las mentorías', href: '/portal/institucional?tab=mentorias', guestOnly: true },
-    { id: 'mentorship', label: 'Explorar mentores', href: '/mentorship', roles: signedIn },
-    { id: 'mentor-profile', label: 'Mi perfil', href: '/mentorship/profile', roles: graduates, mentorOnly: true },
-    { id: 'mentor-information', label: 'Información', href: '/mentorship/profile/information', roles: graduates, mentorOnly: true },
-    { id: 'mentor-areas', label: 'Áreas', href: '/mentorship/profile/areas', roles: graduates, mentorOnly: true },
-    { id: 'mentor-interests', label: 'Intereses', href: '/mentorship/profile/interests', roles: graduates, mentorOnly: true },
-    { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: graduates, mentorOnly: true },
-    { id: 'mentor-my-requests', label: 'Mis solicitudes', href: '/mentorship/requests/received?view=sent', roles: graduates },
-    { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests/received', roles: graduates, mentorOnly: true },
+    { id: 'mentorship', label: 'Explorar mentores', href: '/mentorship', roles: signedIn, icon: Compass },
+    { id: 'mentor-profile', label: 'Mi perfil', href: '/mentorship/profile', roles: graduates, icon: UserRound, mentorOnly: true },
+    { id: 'mentor-information', label: 'Información', href: '/mentorship/profile/information', roles: graduates, icon: ClipboardList, mentorOnly: true },
+    { id: 'mentor-areas', label: 'Áreas', href: '/mentorship/profile/areas', roles: graduates, icon: Layers, mentorOnly: true },
+    { id: 'mentor-interests', label: 'Intereses', href: '/mentorship/profile/interests', roles: graduates, icon: Sparkles, mentorOnly: true },
+    { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: graduates, icon: CalendarDays, mentorOnly: true },
+    { id: 'mentor-my-requests', label: 'Mis solicitudes', href: '/mentorship/requests/received?view=sent', roles: graduates, icon: Send },
+    { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests/received', roles: graduates, icon: Inbox, mentorOnly: true },
   ] },
   { id: 'events', label: 'Eventos', items: [
     { id: 'inst-events', label: 'Eventos institucionales', href: '/portal/institucional?tab=eventos', guestOnly: true },
@@ -88,6 +91,18 @@ export function navigationFor(role: NavbarRole | null, activeMentor = false): Na
   return NAVBAR_SECTIONS
     .map(section => ({ ...section, items: visibleLinks(section.items, role, activeMentor).filter(item => !item.hidden) }))
     .filter(section => section.items.length > 0);
+}
+
+/**
+ * Marca el destino exacto de la vista actual: la ruta debe coincidir y los
+ * parámetros declarados en el enlace deben estar presentes en la URL.
+ */
+export function isCurrentDestination(href: string, currentPath: string) {
+  const [hrefPath, hrefQuery = ''] = href.split('?');
+  const [currentHrefPath, currentQuery = ''] = currentPath.split('?');
+  if (hrefPath !== currentHrefPath) return false;
+  const current = new URLSearchParams(currentQuery);
+  return Array.from(new URLSearchParams(hrefQuery)).every(([key, value]) => current.get(key) === value);
 }
 
 /**

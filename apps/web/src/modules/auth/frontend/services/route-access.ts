@@ -12,6 +12,11 @@ export type AccessDecision =
   | { allowed: false; redirectTo: string };
 
 const GRADUATE_AFFINITY_ROUTES = ["/afinidad/egresado"];
+const TITULADO_MENTOR_ROUTES = [
+  "/mentorship/directory",
+  "/mentorship/mentors",
+  "/mentorship/request",
+];
 const RECRUITER_ROUTES = [
   "/afinidad/reclutador",
   "/empresa/postulantes",
@@ -68,6 +73,14 @@ export function decideAccess(
 
   // T4.1: la encuesta y todas sus subrutas pertenecen únicamente al titulado.
   if (matchesRoute(pathname, "/surveys") && role !== "titulado") {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+
+  // HU 6.14: only titulados may browse the mentor directory and public profiles.
+  if (
+    TITULADO_MENTOR_ROUTES.some((route) => matchesRoute(pathname, route)) &&
+    role !== "titulado"
+  ) {
     return { allowed: false, redirectTo: homeFor(role) };
   }
 

@@ -20,7 +20,7 @@ const legacyAvailability = {
 
 function database() {
   const client = {
-    $queryRaw: jest.fn(),
+    $queryRaw: jest.fn().mockResolvedValue([{ published: true }]),
     titulado: { findFirst: jest.fn().mockResolvedValue({ id: 'titulado-solicitante' }) },
     mentor: { findUnique: jest.fn().mockResolvedValue(activeMentor) },
     disponibilidadMentor: { findFirst: jest.fn().mockResolvedValue(legacyAvailability) },

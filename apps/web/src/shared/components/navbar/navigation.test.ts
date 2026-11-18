@@ -1,6 +1,34 @@
-import { activeSection, navigationFor, NAVBAR_ACCOUNT_LINKS, visibleLinks } from './navigation';
+import { activeSection, isCurrentDestination, navigationFor, NAVBAR_ACCOUNT_LINKS, visibleLinks } from './navigation';
 
 const destinations = (role: Parameters<typeof navigationFor>[0]) => navigationFor(role).flatMap(section => section.items.map(item => item.href)).filter(Boolean);
+const mentorshipItems = () => navigationFor('titulado').find(section => section.id === 'mentorship')!.items;
+
+it('BUG-06-1601: separa "Mis solicitudes" de "Solicitudes recibidas" en el menú de Mentorías', () => {
+  const items = mentorshipItems();
+  expect(items).toEqual(expect.arrayContaining([
+    expect.objectContaining({ label: 'Mis solicitudes', href: '/mentorship/requests/received?view=sent' }),
+    expect.objectContaining({ label: 'Solicitudes recibidas', href: '/mentorship/requests/received' }),
+  ]));
+  expect(items.find(item => item.label === 'Solicitudes recibidas')?.href)
+    .not.toBe('/mentorship/requests/received?view=sent');
+});
+
+it('BUG-06-1601: solo el destino de la vista actual queda marcado como activo', () => {
+  expect(isCurrentDestination('/mentorship/requests', '/mentorship/requests')).toBe(true);
+  expect(isCurrentDestination('/mentorship/requests/received', '/mentorship/requests')).toBe(false);
+  expect(isCurrentDestination('/mentorship/requests', '/mentorship/requests/received')).toBe(false);
+  expect(isCurrentDestination('/portal/institucional?tab=comunidad', '/portal/institucional?tab=comunidad')).toBe(true);
+  expect(isCurrentDestination('/portal/institucional?tab=carreras', '/portal/institucional?tab=comunidad')).toBe(false);
+});
+
+it('BUG-06-1604: usa la etiqueta "Explorar mentores" e iconos en los destinos de Mentorías', () => {
+  expect(destinations('titulado')).toContain('/mentorship');
+  expect(mentorshipItems().some(item => item.label === 'Red de mentorías')).toBe(false);
+  expect(mentorshipItems().find(item => item.href === '/mentorship')?.label).toBe('Explorar mentores');
+  const signedInItems = mentorshipItems().filter(item => item.href && !item.guestOnly);
+  expect(signedInItems.length).toBeGreaterThan(0);
+  expect(signedInItems.every(item => item.icon)).toBe(true);
+});
 
 it('no muestra el catálogo en el menú de eventos y reserva la gestión para administradores', () => {
   expect(destinations(null)).not.toContain('/events/catalog');

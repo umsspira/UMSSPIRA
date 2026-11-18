@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import { ArrowRightIcon, BrainCogIcon, CalendarDaysIcon, ContactIcon, MessagesSquareIcon } from 'lucide-react';
+import { MentorAreasEditor } from './mentor-areas-editor';
+import type { MentorPublicationProgress } from '../hooks/use-mentor-publication-progress';
 import type { MentorProfileCompletion } from './mentor-profile-completeness';
+
+type OptionKey = 'areas' | 'interests' | 'availability' | 'information';
 
 const options = [
   {
@@ -37,24 +41,50 @@ const options = [
   },
 ] as const;
 
-/** Tarjetas para continuar la configuración del perfil del mentor. */
-export function MentorConfiguration({ completion = null }: { completion?: MentorProfileCompletion | null } = {}) {
+/** Estructura visual permanente; estas acciones configuran el perfil del mentor. */
+export function MentorConfiguration({
+  progress,
+  completion = null,
+}: {
+  progress?: MentorPublicationProgress;
+  completion?: MentorProfileCompletion | null;
+} = {}) {
+  const completed: Record<OptionKey, boolean> = progress
+    ? {
+        areas: progress.areas,
+        interests: progress.interests,
+        availability: progress.availability,
+        information: progress.profileInformation,
+      }
+    : {
+        areas: completion?.areas ?? false,
+        interests: completion?.interests ?? false,
+        availability: completion?.availability ?? false,
+        information: completion?.information ?? false,
+      };
+
   return (
     <section className="active-panel-settings" aria-labelledby="mentor-configuration-title">
       <h3 id="mentor-configuration-title" className="active-panel-section-title">Configuración del perfil</h3>
       <div className="active-panel-options">
         {options.map(({ key, title, description, icon: Icon, action, href }) => {
-          const complete = completion?.[key] ?? false;
-          const actionStyle = complete || key === 'areas' ? 'mentor-button-secondary' : 'mentor-button-primary';
+          const isComplete = completed[key];
+          const isOptional = Boolean(progress && key === 'information' && !isComplete);
+          const actionStyle = isComplete || key === 'areas' || isOptional
+            ? 'mentor-button-secondary'
+            : 'mentor-button-primary';
 
           return (
-            <article key={key} className="mentor-card active-panel-option">
+            <article
+              key={key}
+              className={`mentor-card active-panel-option${key === 'areas' ? ' active-panel-option-areas' : ''}`}
+            >
               <div className="active-panel-option-top">
                 <span aria-hidden="true" className="mentor-card-icon">
                   <Icon className="icon-lg" />
                 </span>
-                <span className={`active-panel-option-status${complete ? ' is-complete' : ''}`}>
-                  {complete ? 'Configurado' : 'Pendiente de configurar'}
+                <span className={`active-panel-option-status${isComplete ? ' is-complete' : isOptional ? ' is-optional' : ''}`}>
+                  {isComplete ? 'Configurado' : isOptional ? 'Opcional' : 'Pendiente de configurar'}
                 </span>
               </div>
               <h4
@@ -65,9 +95,13 @@ export function MentorConfiguration({ completion = null }: { completion?: Mentor
               </h4>
               <p className="mentor-card-description">{description}</p>
               <div className="active-panel-option-action">
-                <Link href={href} className={`mentor-button ${actionStyle}`}>
-                  {action} <ArrowRightIcon className="icon" aria-hidden="true" />
-                </Link>
+                {key === 'areas' && progress ? (
+                  <MentorAreasEditor />
+                ) : (
+                  <Link href={href} className={`mentor-button ${actionStyle}`}>
+                    {action}<ArrowRightIcon className="icon" aria-hidden="true" />
+                  </Link>
+                )}
               </div>
             </article>
           );
