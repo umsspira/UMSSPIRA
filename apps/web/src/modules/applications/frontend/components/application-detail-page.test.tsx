@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ApplicationDetailPage } from './application-detail-page';
 import {
   fetchApplicationDetail,
@@ -9,6 +9,11 @@ import {
 jest.mock('../services/applications-board.service', () => ({
   fetchApplicationDetail: jest.fn(),
   fetchDocumentUrl: jest.fn(),
+  retryMailEvent: jest.fn(),
+}));
+
+jest.mock('../services/ocr-api', () => ({
+  ocrRequest: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock('./ocr-panel', () => ({
@@ -48,6 +53,8 @@ const sampleDetail = {
   documentName: 'diploma.pdf',
   documentPath: 'docs/diploma.pdf',
   documentFormat: 'PDF',
+  version: 2,
+  reviewNotification: null,
   reviewSummary: {
     observations: 0,
     maxObservations: 2,
@@ -118,20 +125,21 @@ describe('ApplicationDetailPage', () => {
     expect(screen.getByText('Juan')).toBeInTheDocument();
     expect(screen.getByText('Pérez')).toBeInTheDocument();
     expect(screen.getByTestId('ocr-panel')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Aprobar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Observar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Rechazar' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Aprobar' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Observar' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Rechazar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Revisar dictamen' })).toBeInTheDocument();
   });
 
-  it('abre el diálogo de aprobación al pulsar Aprobar', async () => {
+  it('abre la vista previa del dictamen al elegir Aprobar y pulsar Revisar dictamen', async () => {
     mockedFetchDetail.mockResolvedValue({ ok: true, data: sampleDetail });
 
     render(<ApplicationDetailPage applicationId="app-1" />);
 
-    const approveBtn = await screen.findByRole('button', { name: 'Aprobar' });
-    fireEvent.click(approveBtn);
+    fireEvent.click(await screen.findByRole('radio', { name: 'Aprobar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar dictamen' }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(/Aprobar expediente/i)).toBeInTheDocument();
+    expect(screen.getByText('Vista previa del dictamen')).toBeInTheDocument();
   });
 });

@@ -16,22 +16,16 @@ import {
   hoursSince,
   type Application,
 } from './application-detail';
-import { ApproveDialog } from './approve-dialog';
-import { ObserveDialog } from './observe-dialog';
-import { RejectDialog } from './reject-dialog';
+import { ReviewControls } from './review-controls';
 import { ReviewSummaryNotice } from './review-summary-notice';
-import { btnAccent, btnDanger, btnSecondary } from './review-ui';
 
 export interface ApplicationDetailPageProps {
   applicationId: string;
   backHref?: string;
 }
 
-type ActiveDialog = 'approve' | 'observe' | 'reject' | null;
-
 export function ApplicationDetailPage({ applicationId, backHref }: ApplicationDetailPageProps) {
   const searchParams = useSearchParams();
-  const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [application, setApplication] = useState<Application | null>(null);
   const [reviewData, setReviewData] = useState<BoardDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,8 +38,9 @@ export function ApplicationDetailPage({ applicationId, backHref }: ApplicationDe
     return query ? `/applications?${query}` : '/applications';
   }, [backHref, searchParams]);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  // silent: recarga sin desmontar la pantalla para conservar lo preparado (CA-14.7).
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError(null);
     setNeedsLogin(false);
     const detailResult = await fetchApplicationDetail(applicationId);
@@ -86,10 +81,7 @@ export function ApplicationDetailPage({ applicationId, backHref }: ApplicationDe
     void loadData();
   }, [loadData]);
 
-  const handleReviewed = useCallback(() => {
-    setActiveDialog(null);
-    void loadData();
-  }, [loadData]);
+  const handleRefresh = useCallback(() => loadData(true), [loadData]);
 
   if (needsLogin) {
     return (
@@ -134,13 +126,6 @@ export function ApplicationDetailPage({ applicationId, backHref }: ApplicationDe
   const canReview = application.status === 'PENDIENTE' || (application.status as string)?.toUpperCase() === 'PENDING';
   const overdue = hoursSince(application.submittedAt) > OVERDUE_HOURS;
   const applicantName = `${application.firstName} ${application.lastName}`;
-  const dialogProps = {
-    applicationId: application.id,
-    expedienteCode: application.code,
-    applicantName,
-    onClose: () => setActiveDialog(null),
-    onSuccess: handleReviewed,
-  };
 
   return (
     <main className="mx-auto max-w-6xl space-y-4 px-4 py-6">
@@ -177,38 +162,27 @@ export function ApplicationDetailPage({ applicationId, backHref }: ApplicationDe
 
       <ApplicationDetail application={application} />
 
-      <footer className="flex flex-col items-stretch justify-between gap-3 rounded-xl border border-oatmeal bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:p-6">
+      <ReviewControls
+        applicationId={application.id}
+        expedienteCode={application.code}
+        applicantName={applicantName}
+        applicantEmail={reviewData?.email}
+        version={reviewData?.version}
+        canReview={canReview}
+        canObserve={Boolean(reviewData?.reviewSummary?.canObserve)}
+        notification={reviewData?.reviewNotification}
+        onReviewed={handleRefresh}
+        onRefresh={handleRefresh}
+      />
+
+      <footer className="rounded-xl border border-oatmeal bg-white p-4 shadow-sm sm:p-6">
         <p className="text-xs font-medium text-abyssal-blue/70">
           Expediente ID: <strong className="text-abyssal-blue">#{application.code}</strong>
           {overdue && (
             <span className="ml-2 font-semibold text-truffle-trouble">• Prioridad: Urgente (&gt;{OVERDUE_HOURS}h)</span>
           )}
         </p>
-
-        {canReview && (
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:gap-3">
-            <button type="button" onClick={() => setActiveDialog('reject')} className={btnDanger}>
-              Rechazar
-            </button>
-            <button
-              type="button"
-              onClick={() => { if (reviewData?.reviewSummary?.canObserve) setActiveDialog('observe'); }}
-              disabled={!reviewData?.reviewSummary?.canObserve}
-              title={reviewData?.reviewSummary?.canObserve ? undefined : 'Consulta el aviso de observaciones del expediente'}
-              className={btnSecondary}
-            >
-              Observar
-            </button>
-            <button type="button" onClick={() => setActiveDialog('approve')} className={btnAccent}>
-              Aprobar
-            </button>
-          </div>
-        )}
       </footer>
-
-      <ApproveDialog open={activeDialog === 'approve'} {...dialogProps} applicantEmail={reviewData?.email} currentReviewer={reviewData?.currentReviewer} />
-      <ObserveDialog open={activeDialog === 'observe'} {...dialogProps} />
-      <RejectDialog open={activeDialog === 'reject'} {...dialogProps} />
     </main>
   );
 }

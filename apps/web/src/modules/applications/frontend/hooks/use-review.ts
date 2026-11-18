@@ -12,12 +12,14 @@ export type ReviewPayload = {
   decision: ReviewDecision;
   motivos?: string[]; // solo al observar: uno o más motivos distintos (HU-16)
   category?: string; // causal de rechazo; en observaciones antiguas, su única categoría
-  note?: string; // mínimo 10 caracteres si OBSERVADA o RECHAZADA
+  note?: string; // observar/rechazar: mínimo 10 caracteres. Aprobar: nota interna opcional
   notifyDean?: boolean; // checkbox del diseño de Observar
+  expectedVersion?: number; // versión del expediente que cargó el detalle (CA-14.7)
 };
 
 export const MIN_NOTE_LENGTH = 10;
 export const MAX_NOTE_LENGTH = 500;
+export const STALE_MESSAGE = "La solicitud cambió; actualiza el expediente.";
 
 // Códigos del catálogo de motivos de observación del backend (migración 0014).
 export const OBSERVATION_CATEGORIES = [
@@ -43,10 +45,17 @@ type Options = {
 export function useReview({ applicationId, onSuccess }: Options) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+
+  function clearError() {
+    setError(null);
+    setStale(false);
+  }
 
   async function submitReview(payload: ReviewPayload) {
     setIsLoading(true);
     setError(null);
+    setStale(false);
 
     try {
       const response = await authenticatedFetch(
@@ -61,6 +70,12 @@ export function useReview({ applicationId, onSuccess }: Options) {
       );
       if (response.status === 401) {
         setError("Tu sesión expiró. Inicia sesión de nuevo como administrador.");
+        return false;
+      }
+      // 409: VERSION_CONFLICT o APPLICATION_ALREADY_REVIEWED. No se guardó nada.
+      if (response.status === 409) {
+        setStale(true);
+        setError(STALE_MESSAGE);
         return false;
       }
       if (!response.ok) {
@@ -79,5 +94,5 @@ export function useReview({ applicationId, onSuccess }: Options) {
     }
   }
 
-  return { submitReview, isLoading, error };
+  return { submitReview, isLoading, error, stale, clearError };
 }
