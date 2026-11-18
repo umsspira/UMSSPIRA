@@ -275,6 +275,25 @@ describe('Radar HU-8 - contrato HTTP de keywords influyentes', () => {
     ).toBe(true);
   });
 
+  it('recalcula al quitar y volver a agregar registros del perfil', async () => {
+    profileReader.texts = ['javascript'];
+    extractor.keywords = [{ term: 'javascript', count: 1 }];
+    const initial = successSchema.parse((await recalculate().expect(200)).body).data;
+    expect(initial.areas[0].affinity).toBe(12.5);
+
+    profileReader.texts = [];
+    extractor.keywords = [];
+    const empty = successSchema.parse((await recalculate().expect(200)).body).data;
+    expect(empty).toMatchObject({ status: 'empty', recalculated: true });
+    expect(empty.areas.every(({ affinity }) => affinity === 0)).toBe(true);
+
+    profileReader.texts = ['javascript javascript'];
+    extractor.keywords = [{ term: 'javascript', count: 2 }];
+    const restored = successSchema.parse((await recalculate().expect(200)).body).data;
+    expect(restored).toMatchObject({ status: 'ok', recalculated: true });
+    expect(restored.areas[0]).toMatchObject({ affinity: 25, previousAffinity: 0 });
+  });
+
   it('responde 401 sin token y 403 a una empresa con el esquema de error', async () => {
     const withoutToken = await request(app.getHttpServer()).get('/api/v1/radar').expect(401);
     expect(errorSchema.parse(withoutToken.body).error.code).toBe('UNAUTHENTICATED');

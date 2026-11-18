@@ -3,6 +3,7 @@ import { KEYWORD_EXTRACTOR_PORT, KeywordExtractorPort } from '../ports/keyword-e
 import {
   RADAR_REPOSITORY_PORT,
   RadarRepositoryPort,
+  RadarCalculationSnapshot,
   AreaScoreRecord,
 } from '../ports/radar-repository.port';
 import {
@@ -43,6 +44,40 @@ export class RecalculateRadarUseCase {
   ): Promise<RadarVector> {
     const currentHash = calculateInputHash(texts, DICTIONARY_VERSION);
     const startedAt = Date.now();
+
+    const reuseCalculation = async (
+      repository: RadarRepositoryPort,
+      latestCalc: RadarCalculationSnapshot,
+    ) => {
+      // CA-HU8-11: la referencia sigue siendo el cálculo anterior al vigente,
+      // no el cálculo vigente consigo mismo.
+      const [previous, unmappedKeywords] = await Promise.all([
+        repository.getPreviousCalculation(tituladoId, latestCalc.id),
+        repository.getUnmappedKeywords(tituladoId),
+      ]);
+
+      return buildRadarVector({
+        calculation: latestCalc,
+        previous,
+        hasLaborHistory,
+        hasPendingChanges: false,
+        recalculated: false,
+        processingMs: Date.now() - startedAt,
+        unmappedKeywords,
+      });
+    };
+
+    const existing = await this.radarRepository.getLatestCalculation(tituladoId);
+    if (existing?.hashEntrada === currentHash) {
+      const unchanged = await this.radarRepository.executeWithAdvisoryLock(
+        tituladoId,
+        async (repository) => {
+          const latest = await repository.getLatestCalculation(tituladoId);
+          return latest?.hashEntrada === currentHash ? reuseCalculation(repository, latest) : null;
+        },
+      );
+      if (unchanged) {return unchanged;}
+    }
 
     // Extraer palabras clave (carga perezosa del diccionario NLP) y leer pesos en paralelo
     // antes de abrir la transacción con bloqueo asesor, evitando agotar el pool o el timeout
@@ -85,23 +120,8 @@ export class RecalculateRadarUseCase {
       // Verificar idempotencia: si el hash no cambió, devolvemos el cálculo intacto.
       const latestCalc = await repository.getLatestCalculation(tituladoId);
 
-      if (latestCalc && latestCalc.hashEntrada === currentHash) {
-        // CA-HU8-11: la referencia sigue siendo el cálculo anterior al vigente,
-        // no el cálculo vigente consigo mismo.
-        const [previous, unmappedKeywords] = await Promise.all([
-          repository.getPreviousCalculation(tituladoId, latestCalc.id),
-          repository.getUnmappedKeywords(tituladoId),
-        ]);
-
-        return buildRadarVector({
-          calculation: latestCalc,
-          previous,
-          hasLaborHistory,
-          hasPendingChanges: false,
-          recalculated: false,
-          processingMs: Date.now() - startedAt,
-          unmappedKeywords,
-        });
+      if (latestCalc?.hashEntrada === currentHash) {
+        return reuseCalculation(repository, latestCalc);
       }
 
       // Persistir cálculo, seis afinidades y no mapeados en una sola transacción atómica.
