@@ -35,6 +35,7 @@ export function PushPermissionPanel({ includeEventReminders = false }: { include
   const { permission, support, requesting, request } = usePushPermission();
   const { status, error, subscribe, unsubscribe } = usePushSubscription(permission);
   const [dismissed, setDismissed] = useState(false);
+  const [activationConfirmed, setActivationConfirmed] = useState(false);
 
   useEffect(() => {
     setDismissed(readDismissed());
@@ -68,7 +69,8 @@ export function PushPermissionPanel({ includeEventReminders = false }: { include
   const busy = requesting || status === 'subscribing' || status === 'checking';
   // The subscription operation is the authoritative signal after activation.
   // Permission state can lag behind the browser prompt in React's first render.
-  const subscribed = permission !== 'denied' && status === 'subscribed';
+  const subscribed = permission !== 'denied'
+    && (activationConfirmed || status === 'subscribed');
 
   if (permission === 'granted' && status === 'checking') {
     return (
@@ -83,8 +85,14 @@ export function PushPermissionPanel({ includeEventReminders = false }: { include
     setDismissed(false);
     const result = permission === 'granted' ? permission : await request();
     if (result === 'granted') {
-      await subscribe();
+      const saved = await subscribe();
+      setActivationConfirmed(saved !== null);
     }
+  };
+
+  const handleDeactivate = async () => {
+    await unsubscribe();
+    setActivationConfirmed(false);
   };
 
   const handleDismiss = () => {
@@ -101,7 +109,7 @@ export function PushPermissionPanel({ includeEventReminders = false }: { include
             ? 'Recibirás avisos de cambios, cancelaciones y recordatorios antes de tus eventos.'
             : 'Recibirás avisos de cambios y cancelaciones de tus eventos.'}</p>
         </div>
-        <button type="button" className={styles.secondary} onClick={() => void unsubscribe()}>
+        <button type="button" className={styles.secondary} onClick={() => void handleDeactivate()}>
           Desactivar notificaciones
         </button>
       </div>
