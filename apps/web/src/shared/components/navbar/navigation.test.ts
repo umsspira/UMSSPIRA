@@ -1,21 +1,23 @@
 import { activeSection, isCurrentDestination, navigationFor, NAVBAR_ACCOUNT_LINKS, visibleLinks } from './navigation';
 
 const destinations = (role: Parameters<typeof navigationFor>[0]) => navigationFor(role).flatMap(section => section.items.map(item => item.href)).filter(Boolean);
-const mentorshipItems = () => navigationFor('titulado').find(section => section.id === 'mentorship')!.items;
+const mentorshipItems = () => navigationFor('titulado', true).find(section => section.id === 'mentorship')!.items;
 
 it('BUG-06-1601: separa "Mis solicitudes" de "Solicitudes recibidas" en el menú de Mentorías', () => {
   const items = mentorshipItems();
   expect(items).toEqual(expect.arrayContaining([
-    expect.objectContaining({ label: 'Mis solicitudes', href: '/mentorship/requests' }),
+    expect.objectContaining({ label: 'Mis solicitudes', href: '/mentorship/requests/received?view=sent' }),
     expect.objectContaining({ label: 'Solicitudes recibidas', href: '/mentorship/requests/received' }),
   ]));
-  expect(items.find(item => item.label === 'Solicitudes recibidas')?.href).not.toBe('/mentorship/requests');
+  expect(items.find(item => item.label === 'Solicitudes recibidas')?.href)
+    .not.toBe('/mentorship/requests/received?view=sent');
 });
 
 it('BUG-06-1601: solo el destino de la vista actual queda marcado como activo', () => {
   expect(isCurrentDestination('/mentorship/requests', '/mentorship/requests')).toBe(true);
   expect(isCurrentDestination('/mentorship/requests/received', '/mentorship/requests')).toBe(false);
   expect(isCurrentDestination('/mentorship/requests', '/mentorship/requests/received')).toBe(false);
+  expect(isCurrentDestination('/mentorship/requests/received', '/mentorship/requests/received?view=sent')).toBe(false);
   expect(isCurrentDestination('/portal/institucional?tab=comunidad', '/portal/institucional?tab=comunidad')).toBe(true);
   expect(isCurrentDestination('/portal/institucional?tab=carreras', '/portal/institucional?tab=comunidad')).toBe(false);
 });
@@ -43,9 +45,35 @@ it('no muestra el catálogo en el menú de eventos y reserva la gestión para ad
 });
 
 it('separa los accesos personales del titulado y los empresariales', () => {
-  expect(destinations('titulado')).toContain('/mentorship/profile');
+  expect(destinations('titulado')).toContain('/mentorship/requests/received?view=sent');
+  expect(destinations('titulado')).not.toContain('/mentorship/profile');
   expect(destinations('titulado')).not.toContain('/companies');
   expect(destinations('empresa')).toContain('/empresa/vacantes/publicar');
+  expect(destinations('empresa')).not.toContain('/mentorship/profile');
+});
+
+it('conserva todas las opciones de Mentorías y limita las de mentor a participación activa', () => {
+  const linksFor = (activeMentor: boolean) => navigationFor('titulado', activeMentor)
+    .find(section => section.id === 'mentorship')?.items ?? [];
+  const generalLinks = linksFor(false);
+  const mentorLinks = linksFor(true);
+
+  expect(generalLinks.map(link => link.label)).toEqual([
+    'Explorar mentores',
+    'Mis solicitudes',
+  ]);
+  expect(generalLinks.find(link => link.label === 'Mis solicitudes')?.href)
+    .toBe('/mentorship/requests/received?view=sent');
+  expect(mentorLinks.map(link => link.label)).toEqual([
+    'Explorar mentores',
+    'Mi perfil',
+    'Información',
+    'Áreas',
+    'Intereses',
+    'Disponibilidad',
+    'Mis solicitudes',
+    'Solicitudes recibidas',
+  ]);
   expect(destinations('empresa')).not.toContain('/mentorship/profile');
 });
 

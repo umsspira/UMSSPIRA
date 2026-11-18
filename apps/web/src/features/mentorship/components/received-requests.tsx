@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ArrowLeft, CalendarDays, Check, CircleAlert, Clock3, Eye, Inbox,
+  ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, CircleAlert, Clock3, Eye, Inbox,
   MessageSquareText, X,
 } from 'lucide-react';
 import { getMentorProfile } from '../services/mentorship-api';
@@ -27,15 +27,16 @@ type RequestItem = {
 type Filter = 'TODAS' | RequestStatus;
 type Dialog = { kind: 'confirm' | 'success' | 'processed'; action?: 'accept' | 'reject' | 'cancel'; requestId?: string } | null;
 type SentRequest = { id: string; mentor: string; role: string; date: string; time: string; reason: string; status: RequestStatus };
+const PAGE_SIZE = 5;
 
 const initialSentRequests: SentRequest[] = [
-  { id: 'sent-1', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '19/10', time: '09:00', reason: '—', status: 'PENDIENTE' },
-  { id: 'sent-2', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '19/10', time: '09:00', reason: '—', status: 'CANCELADA' },
-  { id: 'sent-3', mentor: 'Ing. Carlos Mendoza', role: 'Ingeniero de Software', date: '20/10', time: '15:00', reason: 'Quisiera orientación para elegir la arquitectura de mi proyecto de grado. Estoy entre monolito modular y microservicios.', status: 'PENDIENTE' },
-  { id: 'sent-4', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '23/10', time: '15:00', reason: '—', status: 'ACEPTADA' },
-  { id: 'sent-5', mentor: 'Ana Quispe Mamani', role: 'Data Scientist', date: '22/10', time: '11:00', reason: '—', status: 'PENDIENTE' },
-  { id: 'sent-6', mentor: 'Daniela Choque', role: 'Tech Lead Frontend', date: '15/10', time: '16:00', reason: '¿Qué ruta recomiendas para aprender Machine Learning desde cero?', status: 'RECHAZADA' },
-  { id: 'sent-7', mentor: 'Jorge Flores Gutiérrez', role: 'DevOps Engineer', date: '12/10', time: '12:00', reason: 'Consulta sobre pipelines de CI/CD.', status: 'CANCELADA' },
+  { id: 'sent-1', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '2026-10-19', time: '09:00', reason: '—', status: 'PENDIENTE' },
+  { id: 'sent-2', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '2026-10-19', time: '09:00', reason: '—', status: 'CANCELADA' },
+  { id: 'sent-3', mentor: 'Ing. Carlos Mendoza', role: 'Ingeniero de Software', date: '2026-10-20', time: '15:00', reason: 'Quisiera orientación para elegir la arquitectura de mi proyecto de grado. Estoy entre monolito modular y microservicios.', status: 'PENDIENTE' },
+  { id: 'sent-4', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '2026-10-23', time: '15:00', reason: '—', status: 'ACEPTADA' },
+  { id: 'sent-5', mentor: 'Ana Quispe Mamani', role: 'Data Scientist', date: '2026-10-22', time: '11:00', reason: '—', status: 'PENDIENTE' },
+  { id: 'sent-6', mentor: 'Daniela Choque', role: 'Tech Lead Frontend', date: '2026-10-09', time: '16:00', reason: '¿Qué ruta recomiendas para aprender Machine Learning desde cero?', status: 'RECHAZADA' },
+  { id: 'sent-7', mentor: 'Jorge Flores Gutiérrez', role: 'DevOps Engineer', date: '2026-10-05', time: '12:00', reason: 'Consulta sobre pipelines de CI/CD.', status: 'CANCELADA' },
 ];
 
 const apiStatus: Record<Exclude<Filter, 'TODAS'>, ReceivedRequest['estado']> = {
@@ -70,6 +71,22 @@ function statusLabel(status: RequestStatus) {
   return ({ PENDIENTE: 'Pendiente', ACEPTADA: 'Aceptada', RECHAZADA: 'Rechazada', CANCELADA: 'Cancelada' })[status];
 }
 
+function formatRequestDate(value: string) {
+  const dateOnly = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value);
+  if (dateOnly) {
+    const [, year, month, day] = dateOnly;
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year.padStart(4, '0')}`;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'No disponible';
+  return new Intl.DateTimeFormat('es-BO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'America/La_Paz',
+  }).format(date);
+}
+
 function StatusPill({ status }: { status: RequestStatus }) {
   return <span className={`received-status received-status-${status.toLowerCase()}`}><span aria-hidden="true" />{statusLabel(status)}</span>;
 }
@@ -80,9 +97,9 @@ export function ReceivedRequests() {
   const requestedView = searchParams.get('view');
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [counts, setCounts] = useState<Record<Filter, number>>({ TODAS: 0, PENDIENTE: 0, ACEPTADA: 0, RECHAZADA: 0, CANCELADA: 0 });
-  const [sentRequests, setSentRequests] = useState(initialSentRequests);
+  const [sentRequests, setSentRequests] = useState(() => [...initialSentRequests].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)));
   const [screen, setScreen] = useState<'received' | 'sent'>(requestedView === 'sent' ? 'sent' : 'received');
-  const [filter, setFilter] = useState<Filter>('PENDIENTE');
+  const [filter, setFilter] = useState<Filter>('TODAS');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -96,9 +113,11 @@ export function ReceivedRequests() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const selectedRequest = requests.find(request => request.id === selectedId) ?? null;
   const visibleRequests = requests;
+  const visibleSentRequests = sentRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => {
     setScreen(requestedView === 'sent' ? 'sent' : 'received');
+    setPage(1);
   }, [requestedView]);
 
   useEffect(() => {
@@ -118,16 +137,17 @@ export function ReceivedRequests() {
         }
         setIsActiveMentor(true);
         const statuses: Exclude<Filter, 'TODAS'>[] = ['PENDIENTE', 'ACEPTADA', 'RECHAZADA', 'CANCELADA'];
-        const countsPages = await Promise.all(statuses.map(status => listReceivedRequests(apiStatus[status], 1, controller.signal)));
+        const countsPages = await Promise.all(statuses.map(status => listReceivedRequests(apiStatus[status], 1, controller.signal, PAGE_SIZE)));
         const selectedPages = filter === 'TODAS'
-          ? page === 1 ? countsPages : await Promise.all(statuses.flatMap(status => Array.from({ length: page }, (_, index) => listReceivedRequests(apiStatus[status], index + 1, controller.signal))))
-          : [page === 1 ? countsPages[statuses.indexOf(filter)] : await listReceivedRequests(apiStatus[filter], page, controller.signal)];
+          ? page === 1 ? countsPages : await Promise.all(statuses.flatMap(status => Array.from({ length: page }, (_, index) => listReceivedRequests(apiStatus[status], index + 1, controller.signal, PAGE_SIZE))))
+          : [page === 1 ? countsPages[statuses.indexOf(filter)] : await listReceivedRequests(apiStatus[filter], page, controller.signal, PAGE_SIZE)];
         if (cancelled) return;
         const total = countsPages.reduce((sum, result) => sum + result.total, 0);
-        const combined = selectedPages.flatMap(result => result.items.map(mapRequest)).sort((a, b) => b.sentAt.localeCompare(a.sentAt));
-        const items = filter === 'TODAS' ? combined.slice((page - 1) * 20, page * 20) : combined;
+        const combined = selectedPages.flatMap(result => result.items.map(mapRequest))
+          .sort((a, b) => Date.parse(b.sentAt) - Date.parse(a.sentAt));
+        const items = filter === 'TODAS' ? combined.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : combined;
         setRequests(items);
-        setTotalPages(filter === 'TODAS' ? Math.max(1, Math.ceil(total / 20)) : countsPages[statuses.indexOf(filter)]?.totalPages ?? 1);
+        setTotalPages(filter === 'TODAS' ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : countsPages[statuses.indexOf(filter)]?.totalPages ?? 1);
         setCounts(current => {
           const next = { ...current };
           statuses.forEach((status, index) => { next[status] = countsPages[index].total; });
@@ -191,7 +211,9 @@ export function ReceivedRequests() {
         setResponding(false);
         return;
       }
-      setActionError('No se pudo registrar tu respuesta. Intenta nuevamente.');
+      setActionError(error instanceof ReceivedRequestsError
+        ? error.message
+        : 'No se pudo registrar tu respuesta. Intenta nuevamente.');
       setResponding(false);
     });
   };
@@ -200,7 +222,9 @@ export function ReceivedRequests() {
     if (!dialog?.requestId) return;
     const current = sentRequests.find(request => request.id === dialog.requestId);
     if (!current || current.status !== 'PENDIENTE') { setDialog({ kind: 'processed', requestId: dialog.requestId }); return; }
-    setSentRequests(items => items.map(request => request.id === current.id ? { ...request, status: 'CANCELADA' } : request));
+    setSentRequests(items => items.map(request => request.id === current.id
+      ? { ...request, status: 'CANCELADA' }
+      : request));
     setDialog({ kind: 'success', action: 'cancel', requestId: current.id });
   };
 
@@ -214,13 +238,28 @@ export function ReceivedRequests() {
         <p>Historial de las sesiones que solicitaste. Solo puedes cancelar las que aún están pendientes.</p>
       </header>
       <div className="sent-table-wrap"><table className="sent-table">
-        <thead><tr><th scope="col">Mentor</th><th scope="col">Fecha</th><th scope="col">Horario</th><th scope="col">Motivo</th><th scope="col">Estado</th><th scope="col">Acción</th></tr></thead>
-        <tbody>{sentRequests.map(request => <tr key={request.id}>
+        <thead><tr><th scope="col">Mentor</th><th scope="col">Fecha de envío</th><th scope="col">Motivo</th><th scope="col">Estado</th><th scope="col">Acción</th></tr></thead>
+        <tbody>{visibleSentRequests.map(request => <tr key={request.id}>
           <td><div className="sent-mentor"><span className="sent-mentor-avatar">{request.mentor.split(' ').slice(0, 2).map(part => part[0]).join('')}</span><span><strong>{request.mentor}</strong><small>{request.role}</small></span></div></td>
-          <td>{request.date}</td><td>{request.time}</td><td className="sent-reason">{request.reason}</td><td><StatusPill status={request.status} /></td>
+          <td><span className="sent-date-label">Enviada el</span><strong className="sent-date">{formatRequestDate(request.date)}</strong></td><td className="sent-reason">{request.reason}</td><td><StatusPill status={request.status} /></td>
           <td>{request.status === 'PENDIENTE' ? <button type="button" className="received-button sent-cancel" onClick={() => setDialog({ kind: 'confirm', action: 'cancel', requestId: request.id })}>Cancelar solicitud</button> : <span className="sent-no-action">Sin acciones</span>}</td>
         </tr>)}</tbody>
       </table></div>
+      {sentRequests.length > 0 && <footer className="received-list-footer">
+        <p>Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sentRequests.length)} de {sentRequests.length} · Más recientes primero</p>
+        <nav className="received-pagination" aria-label="Paginación de solicitudes enviadas">
+          <button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}><ChevronLeft size={17} /></button>
+          {Array.from({ length: Math.ceil(sentRequests.length / PAGE_SIZE) }, (_, index) => index + 1).map(pageNumber => <button
+            type="button"
+            key={pageNumber}
+            aria-label={`Página ${pageNumber}`}
+            aria-current={pageNumber === page ? 'page' : undefined}
+            className={pageNumber === page ? 'is-current' : undefined}
+            onClick={() => setPage(pageNumber)}
+          >{pageNumber}</button>)}
+          <button type="button" aria-label="Página siguiente" disabled={page >= Math.ceil(sentRequests.length / PAGE_SIZE)} onClick={() => setPage(value => Math.min(Math.ceil(sentRequests.length / PAGE_SIZE), value + 1))}><ChevronRight size={17} /></button>
+        </nav>
+      </footer>}
     </section> : selectedRequest ? <section className="received-detail">
       <h1>Detalle de solicitud</h1>
       <button type="button" className="received-button received-back" onClick={() => setSelectedId(null)}><ArrowLeft size={16} />Volver a solicitudes</button>
@@ -231,12 +270,12 @@ export function ReceivedRequests() {
           <StatusPill status={selectedRequest.status} />
         </header>
         <div className="received-detail-content">
-          <div className="received-detail-field"><CalendarDays size={17} /><div><span>Fecha solicitada</span><strong>{selectedRequest.weekday}</strong></div></div>
-          <div className="received-detail-field"><CalendarDays size={17} /><div><span>Fecha de envío</span><strong>{selectedRequest.sentAt}</strong></div></div>
+          <div className="received-detail-field"><CalendarDays size={17} /><div><span>Fecha solicitada</span><strong>{formatRequestDate(selectedRequest.weekday)}</strong></div></div>
+          <div className="received-detail-field"><CalendarDays size={17} /><div><span>Fecha de envío</span><strong>{formatRequestDate(selectedRequest.sentAt)}</strong></div></div>
           <div className="received-detail-field"><Inbox size={17} /><div><span>Área técnica solicitada</span><strong>{selectedRequest.requestedArea}</strong></div></div>
           <div className="received-detail-field"><Clock3 size={17} /><div><span>Horario</span><strong>{selectedRequest.time}</strong></div></div>
           <div className="received-detail-field"><MessageSquareText size={17} /><div><span>Motivo o mensaje</span><strong>{selectedRequest.message}</strong></div></div>
-          <p className="received-detail-note">{selectedRequest.status === 'PENDIENTE' ? 'Esta solicitud espera tu respuesta.' : `Fecha de respuesta: ${selectedRequest.respondedAt ?? 'No disponible'}`}</p>
+          <p className="received-detail-note">{selectedRequest.status === 'PENDIENTE' ? 'Esta solicitud espera tu respuesta.' : `Fecha de respuesta: ${selectedRequest.respondedAt ? formatRequestDate(selectedRequest.respondedAt) : 'No disponible'}`}</p>
           {selectedRequest.status === 'PENDIENTE' && <div className="received-actions received-detail-actions">
             <button type="button" className="received-button received-reject" onClick={() => setDialog({ kind: 'confirm', action: 'reject', requestId: selectedRequest.id })}><X size={16} />Rechazar</button>
             <button type="button" className="received-button received-accept" onClick={() => setDialog({ kind: 'confirm', action: 'accept', requestId: selectedRequest.id })}><Check size={16} />Aceptar</button>
@@ -263,34 +302,62 @@ export function ReceivedRequests() {
           <span className="received-empty-icon"><Inbox size={21} /></span>
           <h2>{filter === 'PENDIENTE' ? 'No tienes solicitudes pendientes' : 'No tienes solicitudes de mentoría'}</h2>
           <p>Cuando alguien solicite una sesión contigo, aparecerá aquí.</p>
-        </div> : visibleRequests.map(request => <article className="received-card" key={request.id}>
-          <div className="received-card-top">
-            <div className="received-person">
-              <div className="received-avatar">{request.initials}</div>
-              <div><h2>{request.name}</h2><p>{request.career}</p></div>
-            </div>
-            <StatusPill status={request.status} />
+        </div> : <>
+          <div className="received-table-wrap">
+            <table className="received-table">
+              <thead><tr>
+                <th scope="col">Solicitante</th>
+                <th scope="col">Fecha de envío</th>
+                <th scope="col">Motivo</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Acciones</th>
+              </tr></thead>
+              <tbody>{visibleRequests.map(request => <tr key={request.id}>
+                <td>
+                  <div className="received-person">
+                    <div className="received-avatar">{request.initials}</div>
+                    <div><h2>{request.name}</h2><p>{request.career}</p></div>
+                  </div>
+                </td>
+                <td><span className="received-table-date-label">Recibida el</span><strong>{formatRequestDate(request.sentAt)}</strong></td>
+                <td className="received-table-message" title={request.message}>{request.message === 'Sin mensaje' ? '—' : request.message}</td>
+                <td><StatusPill status={request.status} /></td>
+                <td>
+                  <div className="received-table-actions">
+                    <button type="button" className="received-button received-details" disabled={loadingDetail} onClick={async () => {
+                      setLoadingDetail(true);
+                      try {
+                        const full = mapRequest(await getReceivedRequest(request.id));
+                        setRequests(items => items.map(item => item.id === full.id ? full : item));
+                        setSelectedId(full.id);
+                      } catch { setActionError('No se pudo cargar el detalle de la solicitud. Intenta nuevamente.'); }
+                      finally { setLoadingDetail(false); }
+                    }}><Eye size={15} />Ver detalles</button>
+                    {request.status === 'PENDIENTE' && <>
+                      <button type="button" className="received-button received-reject" onClick={() => setDialog({ kind: 'confirm', action: 'reject', requestId: request.id })}><X size={15} />Rechazar</button>
+                      <button type="button" className="received-button received-accept" onClick={() => setDialog({ kind: 'confirm', action: 'accept', requestId: request.id })}><Check size={15} />Aceptar</button>
+                    </>}
+                  </div>
+                </td>
+              </tr>)}</tbody>
+            </table>
           </div>
-          <p className="received-datetime">{request.date} · {request.time}</p>
-          <p className="received-sent-date">Enviada: {request.sentAt}{request.respondedAt ? ` · Respondida: ${request.respondedAt}` : ''}</p>
-          <p className="received-message">{request.message}</p>
-          <div className="received-actions">
-            {request.status === 'PENDIENTE' && <>
-              <button type="button" className="received-button received-reject" onClick={() => setDialog({ kind: 'confirm', action: 'reject', requestId: request.id })}><X size={16} />Rechazar</button>
-              <button type="button" className="received-button received-accept" onClick={() => setDialog({ kind: 'confirm', action: 'accept', requestId: request.id })}><Check size={16} />Aceptar</button>
-            </>}
-            <button type="button" className="received-button received-details" disabled={loadingDetail} onClick={async () => {
-              setLoadingDetail(true);
-              try {
-                const full = mapRequest(await getReceivedRequest(request.id));
-                setRequests(items => items.map(item => item.id === full.id ? full : item));
-                setSelectedId(full.id);
-              } catch { setActionError('No se pudo cargar el detalle de la solicitud. Intenta nuevamente.'); }
-              finally { setLoadingDetail(false); }
-            }}><Eye size={16} />Ver detalles</button>
-          </div>
-        </article>)}
-        {!loading && totalPages > 1 && <div className="received-pagination"><button type="button" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>Anterior</button><span>Página {page} de {totalPages}</span><button type="button" disabled={page >= totalPages} onClick={() => setPage(value => value + 1)}>Siguiente</button></div>}
+          {!loading && <footer className="received-list-footer">
+            <p>Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, counts[filter])} de {counts[filter]} · Más recientes primero</p>
+            <nav className="received-pagination" aria-label="Paginación de solicitudes">
+              <button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}><ChevronLeft size={17} /></button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map(pageNumber => <button
+                type="button"
+                key={pageNumber}
+                aria-label={`Página ${pageNumber}`}
+                aria-current={pageNumber === page ? 'page' : undefined}
+                className={pageNumber === page ? 'is-current' : undefined}
+                onClick={() => setPage(pageNumber)}
+              >{pageNumber}</button>)}
+              <button type="button" aria-label="Página siguiente" disabled={page >= totalPages} onClick={() => setPage(value => Math.min(totalPages, value + 1))}><ChevronRight size={17} /></button>
+            </nav>
+          </footer>}
+        </>}
       </section>}
       {actionError && <div className="received-error" role="alert">{actionError}</div>}
     </>}
@@ -302,7 +369,7 @@ export function ReceivedRequests() {
           <span className={`received-modal-icon ${dialog.action === 'accept' ? 'is-accept' : 'is-reject'}`}>{dialog.action === 'accept' ? <Check size={20} /> : <CircleAlert size={20} />}</span>
           <h2 id="received-modal-title">{dialog.action === 'accept' ? '¿Aceptar esta solicitud de mentoría?' : dialog.action === 'reject' ? '¿Rechazar esta solicitud?' : '¿Cancelar esta solicitud?'}</h2>
           <p className="received-modal-description">{dialog.action === 'accept' ? 'Confirma que puedes atender la sesión en la fecha y horario solicitados.' : dialog.action === 'reject' ? 'Esta solicitud dejará de estar pendiente y el solicitante será informado.' : 'La solicitud dejará de estar pendiente. No podrás deshacer esta acción.'}</p>
-          {(dialogRequest || dialogSentRequest) && <div className="received-modal-summary"><div><span>{dialogRequest ? 'Solicitante' : 'Mentor'}</span><strong>{dialogRequest?.name ?? dialogSentRequest?.mentor}</strong></div><div><span>Fecha</span><strong>{dialogRequest?.date ?? dialogSentRequest?.date}</strong></div><div><span>Horario</span><strong>{dialogRequest?.time ?? dialogSentRequest?.time}</strong></div></div>}
+          {(dialogRequest || dialogSentRequest) && <div className="received-modal-summary"><div><span>{dialogRequest ? 'Solicitante' : 'Mentor'}</span><strong>{dialogRequest?.name ?? dialogSentRequest?.mentor}</strong></div><div><span>Fecha</span><strong>{dialogRequest ? formatRequestDate(dialogRequest.sentAt) : dialogSentRequest ? formatRequestDate(dialogSentRequest.date) : ''}</strong></div><div><span>Horario</span><strong>{dialogRequest?.time ?? dialogSentRequest?.time}</strong></div></div>}
           {actionError && <p className="received-action-error" role="alert">{actionError}</p>}
           <div className="received-modal-actions"><button type="button" className="received-button received-details" onClick={() => setDialog(null)}>{dialog.action === 'cancel' ? 'Volver' : 'Cancelar'}</button><button type="button" className={`received-button ${dialog.action === 'accept' ? 'received-accept' : 'received-reject'}`} disabled={responding} onClick={dialog.action === 'cancel' ? cancelSentRequest : processRequest}>{dialog.action === 'cancel' ? 'Sí, cancelar' : responding ? 'Enviando…' : 'Confirmar'}</button></div>
         </>}
