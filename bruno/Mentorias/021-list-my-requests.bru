@@ -1,0 +1,23 @@
+meta {
+  name: Mis solicitudes de mentoría
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/api/v1/mentorship/my-requests?page=1&pageSize=20
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Historial del titulado autenticado: solo solicitudes creadas por la sesión actual.
+  Sin `estado` devuelve todos los estados; también acepta `PENDIENTE`, `ACEPTADO`, `RECHAZADO` o `CANCELADO`.
+  La respuesta incluye `data`, `pagination` y `counts` por estado.
+
+  Permiso: mentores:self:write. Rol: titulado.
+}
