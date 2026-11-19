@@ -1,4 +1,5 @@
-﻿import Link from 'next/link';
+import { formatCertificateDate } from './certificate-date';
+import Link from 'next/link';
 import type { EventCertificate } from './certificate-types';
 import styles from './certificates.module.css';
 
@@ -19,7 +20,7 @@ export function CertificateCard({
         <h3>{certificate.eventName}</h3>
         <p>
           Fecha de participación:{' '}
-          <strong>{certificate.participationDate}</strong>
+          <strong>{formatCertificateDate(certificate.participationDate)}</strong>
         </p>
       </div>
 

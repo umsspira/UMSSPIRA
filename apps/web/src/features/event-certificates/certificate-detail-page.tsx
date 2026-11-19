@@ -1,4 +1,6 @@
-﻿'use client';
+'use client';
+
+import { formatCertificateDate } from './certificate-date';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -135,7 +137,7 @@ export function CertificateDetailPage({
                 <dt>Evento</dt>
                 <dd>{document.eventName}</dd>
                 <dt>Fecha de participación</dt>
-                <dd>{document.participationDate}</dd>
+                <dd>{formatCertificateDate(document.participationDate)}</dd>
               </dl>
 
               <button
