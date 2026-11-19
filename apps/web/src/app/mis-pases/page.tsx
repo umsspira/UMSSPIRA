@@ -8,6 +8,7 @@ import { EventPassQrCard } from "@/features/event-passes/event-pass-qr-card";
 import { apiClient } from "@/shared/services/api-client";
 import { QrCode } from "lucide-react";
 import {
+  deleteOfflineQrPass,
   getOfflineQrPasses,
   type OfflineQrPass,
 } from "@/features/event-passes/offline/offline-qr-storage";
@@ -64,6 +65,7 @@ export default function MyPassesPage() {
   const [offlinePasses, setOfflinePasses] = useState<OfflineQrPass[]>([]);
   const [selectedOfflineId, setSelectedOfflineId] = useState<string | null>(null);
   const [offlineError, setOfflineError] = useState(false);
+  const [offlineActionMessage, setOfflineActionMessage] = useState('');
 
   useEffect(() => {
     const userId = getOfflineSessionUserId();
@@ -73,6 +75,26 @@ export default function MyPassesPage() {
       .then(setOfflinePasses)
       .catch(() => setOfflineError(true));
   }, []);
+
+  const removeOfflinePass = async (pass: OfflineQrPass) => {
+    const confirmed = window.confirm(
+      `¿Eliminar de este dispositivo el QR de ${pass.eventDetails.name}?`
+    );
+    if (!confirmed) return;
+
+    try {
+      const removed = await deleteOfflineQrPass(pass.id, pass.userId);
+      if (!removed) {
+        setOfflineActionMessage('No se encontró el QR guardado en este dispositivo.');
+        return;
+      }
+      setOfflinePasses((current) => current.filter((item) => item.id !== pass.id));
+      setSelectedOfflineId((current) => current === pass.id ? null : current);
+      setOfflineActionMessage('El QR se eliminó de este dispositivo.');
+    } catch {
+      setOfflineActionMessage('No se pudo eliminar el QR. Inténtalo de nuevo.');
+    }
+  };
 
   const fetchPasses = async () => {
     try {
@@ -147,7 +169,7 @@ export default function MyPassesPage() {
                   const isSelected = selectedOfflineId === offline.id;
 
                   return (
-                    <li key={offline.id}>
+                    <li key={offline.id} className="flex items-stretch gap-2">
                       <button
                         type="button"
                         aria-pressed={isSelected}
@@ -174,11 +196,21 @@ export default function MyPassesPage() {
                           aria-hidden="true"
                         />
                       </button>
+                      <button
+                        type="button"
+                        className="min-h-[44px] shrink-0 rounded-xl border border-red-300 px-3 text-sm font-semibold text-red-700 hover:bg-red-50"
+                        aria-label={`Eliminar de este dispositivo: ${offline.eventDetails.name}`}
+                        onClick={() => void removeOfflinePass(offline)}
+                      >
+                        Eliminar
+                      </button>
                     </li>
                   );
                 })}
               </ul>
             )}
+
+            {offlineActionMessage && <p role="status">{offlineActionMessage}</p>}
 
             {selectedOfflineId &&
               (() => {

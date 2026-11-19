@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import MyPassesPage from './page';
 import { apiClient } from '@/shared/services/api-client';
-import { getOfflineQrPasses, saveOfflineQrPass } from '@/features/event-passes/offline/offline-qr-storage';
+import { deleteOfflineQrPass, getOfflineQrPasses, saveOfflineQrPass } from '@/features/event-passes/offline/offline-qr-storage';
 import { getOfflineSessionUserId } from '@/features/event-passes/offline/offline-session';
 
 jest.mock('@/shared/components/navbar/index', () => ({ ConnectedNavbar: () => null }));
@@ -13,6 +13,7 @@ jest.mock('@/features/event-passes/offline/offline-session', () => ({
 jest.mock('@/features/event-passes/offline/offline-qr-storage', () => ({
   getOfflineQrPasses: jest.fn(),
   saveOfflineQrPass: jest.fn(),
+  deleteOfflineQrPass: jest.fn(),
 }));
 jest.mock('@/modules/events/components/EventPassCard', () => ({
   EventPassCard: ({
@@ -55,6 +56,7 @@ beforeEach(() => {
   jest.mocked(getOfflineSessionUserId).mockReturnValue('user-1');
   jest.mocked(getOfflineQrPasses).mockResolvedValue([savedPass]);
   jest.mocked(saveOfflineQrPass).mockResolvedValue(savedPass);
+  jest.mocked(deleteOfflineQrPass).mockResolvedValue(true);
 });
 
 it('identifica Mis códigos QR y explica cómo abrir uno guardado', async () => {
@@ -75,6 +77,30 @@ it('abre y oculta el QR guardado con un toque en su acción', async () => {
   );
   fireEvent.click(screen.getByRole('button', { name: /Feria laboral.*Ocultar QR/ }));
   await waitFor(() => expect(screen.queryByTestId('opened-offline-qr')).not.toBeInTheDocument());
+});
+
+it('conserva el QR cuando se cancela la confirmación de eliminación', async () => {
+  const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<MyPassesPage />);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Eliminar de este dispositivo: Feria laboral' }));
+
+  expect(confirmSpy).toHaveBeenCalled();
+  expect(deleteOfflineQrPass).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: /Feria laboral.*Ver QR/ })).toBeInTheDocument();
+  confirmSpy.mockRestore();
+});
+
+it('elimina el QR guardado solo después de confirmar', async () => {
+  const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  render(<MyPassesPage />);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Eliminar de este dispositivo: Feria laboral' }));
+
+  await waitFor(() => expect(deleteOfflineQrPass).toHaveBeenCalledWith('pass-1', 'user-1'));
+  expect(await screen.findByRole('status')).toHaveTextContent('El QR se eliminó de este dispositivo.');
+  expect(screen.queryByRole('button', { name: /Feria laboral.*Ver QR/ })).not.toBeInTheDocument();
+  confirmSpy.mockRestore();
 });
 
 it('muestra Guardar nuevo QR en pases vigentes de la pantalla principal', async () => {
