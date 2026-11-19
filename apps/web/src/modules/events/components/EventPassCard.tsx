@@ -24,6 +24,10 @@ interface EventPassProps {
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
   saveOfflineMessage?: string;
+  /** HU10: aviso de carga / éxito / error / sin conexión (reemplaza saveOfflineMessage). */
+  saveOfflineNotice?: React.ReactNode;
+  /** HU10 CA-04: deshabilita el botón (por ejemplo, sin conexión). */
+  saveOfflineDisabled?: boolean;
 }
 
 export const EventPassCard: React.FC<EventPassProps> = ({
@@ -43,6 +47,8 @@ export const EventPassCard: React.FC<EventPassProps> = ({
   isSavedOffline = false,
   isSavingOffline = false,
   saveOfflineMessage,
+  saveOfflineNotice,
+  saveOfflineDisabled = false,
 }) => {
   const isError = status === "ERROR";
   const isInvalid = status === "INVALID" || status === "INVALIDADO" || status === "VENCIDO";
@@ -196,7 +202,7 @@ export const EventPassCard: React.FC<EventPassProps> = ({
       type="button"
       variant="primary"
       onClick={onSaveOffline}
-      disabled={isSavingOffline || isSavedOffline}
+      disabled={isSavingOffline || isSavedOffline || saveOfflineDisabled}
       className="w-full"
     >
       {isSavingOffline
@@ -206,10 +212,14 @@ export const EventPassCard: React.FC<EventPassProps> = ({
           : 'Guardar sin conexión'}
     </Button>
 
-    {saveOfflineMessage && (
-      <p className="text-abyssal-blue text-xs mt-2" role="status">
-        {saveOfflineMessage}
-      </p>
+    {saveOfflineNotice ? (
+      <div className="mt-3">{saveOfflineNotice}</div>
+    ) : (
+      saveOfflineMessage && (
+        <p className="text-abyssal-blue text-xs mt-2" role="status">
+          {saveOfflineMessage}
+        </p>
+      )
     )}
   </div>
 )}

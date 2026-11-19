@@ -114,7 +114,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
       <div className={styles.actions} aria-label="Acciones de cuenta">
         <button type="button" className={styles.iconButton} aria-label="Buscar en la plataforma" onClick={startSearch}><Search size={22} strokeWidth={1.8} /></button>
                 {session ? <>
-          <MessagesButton />
+          <MessagesButton onOpen={() => setOpened(null)} isOtherMenuOpen={opened !== null} />
           {([{ id: 'notifications', label: 'Notificaciones', Icon: Bell, items: notifications }] as const).map(({ id, label, Icon, items }) => <div className={styles.actionDropdown} key={id}>
            <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={opened === id} aria-controls={panelId(id)} onClick={event => toggle(id, event.currentTarget)}><Icon size={22} strokeWidth={1.8} />{items.some(item => item.unread) && <span className={styles.badge} aria-label="Hay elementos sin leer" />}</button>
             {opened === id && <div className={styles.activityPopover} id={panelId(id)} onKeyDown={moveFocus}><ActivityPanel kind={id} items={[...items]} resolveHref={resolveHref} onNavigate={close} /></div>}
