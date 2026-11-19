@@ -122,3 +122,29 @@ export function directHref(sectionId: string, role: NavbarRole | null): string |
   if (sectionId === 'jobs' && role === 'titulado') return '/job-postings';
   return null;
 }
+
+/** Una opción del menú principal: la misma para la barra de escritorio y para el menú móvil (HU15 CA-01/CA-03). */
+export interface PrimaryNavItem {
+  id: string;
+  label: string;
+  /** Si existe, la opción es un enlace directo; si no, despliega `items`. */
+  href?: string;
+  items: NavbarLink[];
+}
+
+/**
+ * Única fuente de las opciones de navegación: Inicio + secciones según el rol.
+ * La barra de escritorio y el menú móvil solo cambian la presentación, nunca la lista (HU15).
+ */
+export function primaryNavigation(role: NavbarRole | null, home: string): PrimaryNavItem[] {
+  return [
+    { id: 'home', label: 'Inicio', href: home, items: [] },
+    ...navigationFor(role).map(section => ({
+      id: section.id,
+      label: section.label,
+      href: directHref(section.id, role) ?? undefined,
+      items: section.items,
+    })),
+  ];
+}
+

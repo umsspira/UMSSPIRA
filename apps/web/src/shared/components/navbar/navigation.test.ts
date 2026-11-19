@@ -1,4 +1,4 @@
-import { activeSection, navigationFor, NAVBAR_ACCOUNT_LINKS, visibleLinks } from './navigation';
+import { activeSection, directHref, navigationFor, NAVBAR_ACCOUNT_LINKS, primaryNavigation, visibleLinks } from './navigation';
 
 const destinations = (role: Parameters<typeof navigationFor>[0]) => navigationFor(role).flatMap(section => section.items.map(item => item.href)).filter(Boolean);
 
@@ -60,3 +60,29 @@ it('HU-004/T4.1: muestra reportes al administrador y reserva encuestas para titu
     expect(links).not.toContain('employment-surveys');
   }
 });
+
+describe('HU15 · una sola lista para escritorio y móvil', () => {
+  it('CA-01: Inicio va primero y le siguen las secciones del rol, en el mismo orden', () => {
+    for (const role of [null, 'titulado', 'empresa', 'administrador'] as const) {
+      const home = role ? '/portal' : '/portal/institucional';
+      const items = primaryNavigation(role, home);
+      expect(items[0]).toEqual({ id: 'home', label: 'Inicio', href: home, items: [] });
+      expect(items.slice(1).map(item => item.id)).toEqual(navigationFor(role).map(section => section.id));
+    }
+  });
+
+  it('CA-01: las reglas de sesión se aplican igual: el visitante no ve opciones de miembro', () => {
+    const guest = primaryNavigation(null, '/portal/institucional');
+    expect(guest.flatMap(item => item.items.map(link => link.href))).not.toContain('/profile');
+    expect(guest.map(item => item.label)).not.toContain('Directorio');
+    expect(primaryNavigation('titulado', '/portal').map(item => item.label)).toContain('Directorio');
+  });
+
+  it('CA-03: los accesos directos salen de directHref, sin lista aparte', () => {
+    for (const item of primaryNavigation('titulado', '/portal').slice(1)) {
+      expect(item.href).toBe(directHref(item.id, 'titulado') ?? undefined);
+    }
+  });
+});
+
+
