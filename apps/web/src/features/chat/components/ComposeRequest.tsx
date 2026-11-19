@@ -1,7 +1,8 @@
 // apps/web/src/features/chat/components/ComposeRequest.tsx
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  requestConversation,
   searchChatContacts,
   type ChatContact,
 } from "@/shared/services/chat-conversation.service";
@@ -26,7 +27,14 @@ export function ComposeRequest({
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const delivery = useRef<{
+    recipientId: string;
+    content: string;
+    clientId: string;
+  } | null>(null);
+  const sending = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -62,14 +70,45 @@ export function ComposeRequest({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    void onCreated;
+    if (!selected || !content.trim() || sending.current) return;
+    sending.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      if (
+        !delivery.current ||
+        delivery.current.recipientId !== selected.id ||
+        delivery.current.content !== content.trim()
+      ) {
+        delivery.current = {
+          recipientId: selected.id,
+          content: content.trim(),
+          clientId: crypto.randomUUID(),
+        };
+      }
+      const result = await requestConversation(
+        selected.id,
+        delivery.current.content,
+        delivery.current.clientId,
+      );
+      onCreated(result.conversation.id, result.created);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible enviar la solicitud",
+      );
+    } finally {
+      sending.current = false;
+      setBusy(false);
+    }
   };
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-auto p-5">
       <div className="mb-5 flex justify-between">
         <h2 className="text-lg font-semibold">Nuevo mensaje</h2>
-        <button onClick={onCancel} className="text-sm underline">
+        <button disabled={busy} onClick={onCancel} className="text-sm underline">
           Cancelar
         </button>
       </div>
@@ -95,6 +134,7 @@ export function ComposeRequest({
         {contacts.map((contact) => (
           <button
             key={contact.id}
+            disabled={busy}
             onClick={() => setSelected(contact)}
             className={`block w-full border-b p-3 text-left text-sm hover:bg-orange-50 ${selected?.id === contact.id ? "bg-orange-100" : ""}`}
           >
@@ -139,6 +179,7 @@ export function ComposeRequest({
         <textarea
           id="chat-first-message"
           value={content}
+          disabled={busy}
           onChange={(event) => setContent(event.target.value)}
           maxLength={500}
           rows={4}
@@ -154,10 +195,10 @@ export function ComposeRequest({
           </p>
         )}
         <button
-          disabled={!selected || !content.trim()}
+          disabled={busy || !selected || !content.trim()}
           className="w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40"
         >
-          Enviar solicitud
+          {busy ? "Enviando solicitud…" : "Enviar solicitud"}
         </button>
       </form>
     </section>
