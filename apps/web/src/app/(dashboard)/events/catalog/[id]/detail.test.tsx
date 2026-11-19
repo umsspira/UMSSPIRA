@@ -35,9 +35,9 @@ const publishedEvent: EventItem = {
 describe('detalle público de eventos', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    window.history.replaceState({}, '', '/');
     jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
   });
-
   it('rechaza un identificador malformado sin consultar la API', () => {
     render(<EventDetailPage params={{ id: 'no-es-un-uuid' }} />);
 
@@ -142,6 +142,16 @@ describe('detalle público de eventos', () => {
     expect(screen.getAllByText(publishedEvent.description!)).toHaveLength(1);
     expect(screen.queryByText(/Mock|Supabase|Tarea 11/i)).not.toBeInTheDocument();
     expect(getPublishedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('abre desde el recordatorio y muestra la reprogramación', async () => {
+    jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
+    window.history.replaceState({}, '', '?fromReminder=1&rescheduled=1');
+
+    render(<EventDetailPage params={{ id: EVENT_ID }} />);
+
+    expect(await screen.findByText('Abierto desde un recordatorio')).toBeInTheDocument();
+    expect(screen.getByText('Fecha actualizada antes del envío')).toBeInTheDocument();
   });
 
   it('usa plural para capacidades distintas de uno', async () => {
@@ -341,15 +351,17 @@ describe('detalle público de eventos', () => {
     })).toHaveClass('max-w-full', 'break-words');
   });
 });
-
-
 describe('Cancelación desde la inscripción confirmada', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
-    jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
-    jest.mocked(getPublishedEvent).mockResolvedValue({ ...publishedEvent, startDate: '2099-11-06T14:00:00Z', endDate: '2099-11-06T18:00:00Z' });
-    jest.mocked(getCurrentUser).mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
-    jest.mocked(registerForEvent).mockResolvedValue({
+    jest.clearAllMocks();
+    jest.mocked(getMyEventRegistrations).mockReset().mockResolvedValue([]);
+    jest.mocked(getPublishedEvent).mockReset().mockResolvedValue({
+      ...publishedEvent,
+      startDate: '2099-11-06T14:00:00Z',
+      endDate: '2099-11-06T18:00:00Z',
+    });
+    jest.mocked(getCurrentUser).mockReset().mockResolvedValue({ id: 'usuario-1', role: 'titulado' } as never);
+    jest.mocked(registerForEvent).mockReset().mockResolvedValue({
       id: 'inscripcion-1', eventId: EVENT_ID, status: 'CONFIRMADA',
       registeredAt: '2026-11-01T10:00:00Z', currentCapacity: 1,
     });

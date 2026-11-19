@@ -133,8 +133,8 @@ export class EmailVerificationService {
         success: true,
         message: 'Código reenviado con éxito',
         maskedEmail: resData?.maskedEmail,
-        cooldownSeconds: resData?.resendAvailableInSeconds || 30,
-        expiresInSeconds: resData?.expiresInSeconds || 300,
+        cooldownSeconds: resData?.resendAvailableInSeconds ?? 60,
+        expiresInSeconds: resData?.expiresInSeconds ?? 300,
       };
     } catch {
       return {

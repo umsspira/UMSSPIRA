@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { AFFINITY_AREAS } from '@umsspira/shared-types';
 import { GraduateAffinityView } from './graduate-affinity-view';
-import { getAffinityVector, recalculateAffinity } from '../services/affinity-service';
+import { getAffinityVector, recalculateAffinity, getAreaCertifications } from '../services/affinity-service';
 
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('./affinity-radar', () => ({
@@ -14,10 +14,12 @@ jest.mock('../services/affinity-service', () => ({
   ...jest.requireActual('../services/affinity-service'),
   getAffinityVector: jest.fn(),
   recalculateAffinity: jest.fn(),
+  getAreaCertifications: jest.fn(),
 }));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (getAreaCertifications as jest.Mock).mockImplementation(async area => ({ area, source: 'current-profile', certifications: [] }));
   (getAffinityVector as jest.Mock).mockResolvedValue({
     graduateId: 'validation-only',
     calculatedAt: '2026-10-29T12:00:00.000Z',
@@ -40,6 +42,8 @@ it('HU8: muestra los aportes reales recibidos por el servicio en la inspección'
   const panel = screen.getByText('Palabras clave más influyentes').parentElement!;
   expect(within(panel).getByText('keyword-real-hu8')).toBeInTheDocument();
   expect(within(panel).getByText('Freq: 2')).toBeInTheDocument();
+  expect(within(panel).getByText('Puntos: 10')).toBeInTheDocument();
+  expect(within(panel).getByText('Peso: 5')).toBeInTheDocument();
   expect(within(panel).getByText('25%')).toBeInTheDocument();
 });
 
@@ -47,6 +51,9 @@ it('HU7: no atribuye una certificación del mock a un perfil que no la devolvió
   render(<GraduateAffinityView />);
   fireEvent.click(await screen.findByRole('button', { name: 'Inspeccionar software' }));
   expect(screen.queryByText('Certificación Avanzada de React')).not.toBeInTheDocument();
+  expect(await screen.findByText(/No se encontraron certificaciones relacionadas/)).toBeInTheDocument();
+  expect(screen.queryByText(/No hay certificaciones registradas/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/snapshots locales/)).not.toBeInTheDocument();
 });
 
 it('HU7: informa la falta de historial aunque existan aportes de certificaciones', async () => {
@@ -76,6 +83,8 @@ it('actualiza los aportes y el indicador de historial después de recalcular', a
   await screen.findByText('Radar actualizado');
   const panel = screen.getByText('Palabras clave más influyentes').parentElement!;
   expect(within(panel).getByText('nuevo-aporte')).toBeInTheDocument();
+  expect(within(panel).getByText('Puntos: 5')).toBeInTheDocument();
+  expect(within(panel).getByText('Peso: 5')).toBeInTheDocument();
   expect(within(panel).queryByText('keyword-real-hu8')).not.toBeInTheDocument();
   expect(screen.getByText('Sin datos de historial laboral')).toBeInTheDocument();
 });

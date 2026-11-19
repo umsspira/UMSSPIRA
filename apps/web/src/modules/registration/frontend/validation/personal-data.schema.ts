@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EMAIL_MAX_LENGTH } from '@umsspira/shared-types';
 
 export const EXPEDITION_DEPARTMENTS = ['LP', 'CB', 'SC', 'OR', 'PT', 'TJ', 'CH', 'BE', 'PD', 'EX'] as const;
 
@@ -48,7 +49,10 @@ export const personalDataSchema = z.object({
     .trim()
     .toLowerCase()
     .min(1, REQUIRED_MESSAGE)
-    .max(30, 'Máximo 30 caracteres.')
+    .max(
+     EMAIL_MAX_LENGTH,
+     `El correo electrónico no puede superar los ${EMAIL_MAX_LENGTH} caracteres.`,
+    )
     .email('Ingresa un correo electrónico válido.'),
   telefono: z
     .string()

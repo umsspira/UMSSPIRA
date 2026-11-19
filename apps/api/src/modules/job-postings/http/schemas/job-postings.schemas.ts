@@ -12,3 +12,5 @@ export const createJobPostingSchema = z
   .strict();
 
 export type CreateJobPostingBody = z.output<typeof createJobPostingSchema>;
+
+export const jobPostingIdSchema = z.uuid();

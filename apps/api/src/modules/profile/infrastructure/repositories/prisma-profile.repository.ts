@@ -1,24 +1,28 @@
+import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { StoredFile } from '../../../../shared/files/contracts/uploaded-file';
-import type { ProfileRepository } from '../../application/ports/profile-repository.port';
+import type { ProfilePhotoFile, ProfileRepository } from '../../application/ports/profile-repository.port';
 import type {
-  CertificationInput,
+  CertificationCreationInput,
   EducationInput,
   ExperienceInput,
   ProfileChange,
   ProfileScope,
+  ProjectInput,
 } from '../../application/contracts/profile-inputs';
 import type { ProfileSection, ProfileSnapshot } from '../../domain/entities/profile-record';
 import { assertUniqueEducation } from '../../domain/policies/education.policy';
+import { backupKind } from '../../domain/policies/backup-file.policy';
 import {
   toBackup,
   toCertification,
   toDescription,
   toEducation,
   toExperience,
+  toProject,
 } from '../translators/profile.translator';
 import { lockGraduate, profileRecordMissing, rejectProfileRecord } from './profile-transaction';
 
@@ -56,6 +60,8 @@ export class PrismaProfileRepository implements ProfileRepository {
           include: certificationInclude,
         },
         perfil_area_registros: { orderBy: descriptionOrder, take: 1 },
+        // HU-19: del más reciente al más antiguo
+        proyecto_registros: { orderBy: [{ fecha_creacion: 'desc' }, { id: 'asc' }] },
       },
     });
     if (!row) {
@@ -75,6 +81,7 @@ export class PrismaProfileRepository implements ProfileRepository {
       education: row.formacion_academica_registros.map(toEducation),
       experience: row.experiencia_laboral_registros.map(toExperience),
       certifications: row.certificacion_registros.map(toCertification),
+      projects: row.proyecto_registros.map(toProject),
       description: toDescription(row.perfil_area_registros[0]),
     };
   }
@@ -120,18 +127,69 @@ export class PrismaProfileRepository implements ProfileRepository {
     );
   }
 
-  async createCertification(scope: ProfileScope, input: CertificationInput) {
+  async createCertification(scope: ProfileScope, input: CertificationCreationInput) {
     return this.prisma.$transaction(
       async (tx) => {
         await lockGraduate(tx, scope);
-        return toCertification(
-          await tx.certificacion.create({
+        const inputHash = createHash('sha256').update(JSON.stringify({
+          nombre: input.nombre,
+          entidadEmisora: input.entidadEmisora,
+          grado: input.grado,
+          anioEmision: input.anioEmision,
+        })).digest('hex');
+        if (input.idOperacion) {
+          const previous = await tx.certificacionCreacion.findUnique({
+            where: { id_titulado_id_operacion: { id_titulado: scope.graduateId, id_operacion: input.idOperacion } },
+          });
+          if (previous) {
+            if (previous.hash_entrada !== inputHash) {
+              throw new BusinessRuleError('conflict', 'CERTIFICATION_OPERATION_CONFLICT', 'El identificador del intento ya se utilizó con otros datos');
+            }
+            const existing = await tx.certificacion.findFirst({
+              where: { id: previous.id_certificacion, id_titulado: scope.graduateId },
+              include: certificationInclude,
+            });
+            if (!existing) {
+              throw new BusinessRuleError('expired', 'CERTIFICATION_OPERATION_GONE', 'La certificación de este intento ya fue eliminada. Inicia un nuevo registro');
+            }
+            return toCertification(existing);
+          }
+        }
+        const created = await tx.certificacion.create({
+          data: {
+            id_titulado: scope.graduateId,
+            nombre: input.nombre,
+            entidad_emisora: input.entidadEmisora,
+            grado: input.grado,
+            anio_emision: input.anioEmision,
+          },
+        });
+        if (input.idOperacion) {
+          await tx.certificacionCreacion.create({ data: {
+            id_titulado: scope.graduateId,
+            id_operacion: input.idOperacion,
+            hash_entrada: inputHash,
+            id_certificacion: created.id,
+          } });
+        }
+        return toCertification(created);
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  async createProject(scope: ProfileScope, input: ProjectInput) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await lockGraduate(tx, scope);
+        return toProject(
+          await tx.proyecto.create({
             data: {
               id_titulado: scope.graduateId,
               nombre: input.nombre,
-              entidad_emisora: input.entidadEmisora,
-              grado: input.grado,
-              anio_emision: input.anioEmision,
+              enlace: input.enlace,
+              descripcion: input.descripcion,
+              tecnologias: input.tecnologias || null,
             },
           }),
         );
@@ -157,6 +215,10 @@ export class PrismaProfileRepository implements ProfileRepository {
           include: certificationInclude,
         });
         return row ? toCertification(row) : profileRecordMissing();
+      }
+      case 'proyectos': {
+        const row = await this.prisma.proyecto.findFirst({ where });
+        return row ? toProject(row) : profileRecordMissing();
       }
     }
   }
@@ -217,6 +279,22 @@ export class PrismaProfileRepository implements ProfileRepository {
               }),
             );
           }
+          case 'proyectos': {
+            if (!(await tx.proyecto.findFirst({ where, select: { id: true } }))) {
+              await rejectProfileRecord(tx.proyecto.findUnique({ where: { id } }));
+            }
+            return toProject(
+              await tx.proyecto.update({
+                where,
+                data: {
+                  nombre: change.data.nombre,
+                  enlace: change.data.enlace,
+                  descripcion: change.data.descripcion,
+                  tecnologias: change.data.tecnologias || null,
+                },
+              }),
+            );
+          }
         }
       },
       { timeout: 15000 },
@@ -243,12 +321,17 @@ export class PrismaProfileRepository implements ProfileRepository {
             await tx.certificacionRespaldo.deleteMany({ where: { id_certificacion: id } });
             count = (await tx.certificacion.deleteMany({ where })).count;
             break;
+          case 'proyectos':
+            count = (await tx.proyecto.deleteMany({ where })).count;
+            break;
         }
         if (!count) {
           await rejectProfileRecord(
             section === 'formacion-academica'
               ? tx.formacionAcademica.findUnique({ where: { id } })
-              : tx.experienciaLaboral.findUnique({ where: { id } }),
+              : section === 'proyectos'
+                ? tx.proyecto.findUnique({ where: { id } })
+                : tx.experienciaLaboral.findUnique({ where: { id } }),
           );
         }
       },
@@ -274,7 +357,7 @@ export class PrismaProfileRepository implements ProfileRepository {
           data: {
             id: file.id,
             id_certificacion: certificationId,
-            tipo: 'FOTO',
+            tipo: backupKind(file.mime),
             archivo_key: file.id,
             archivo: {
               create: {
@@ -363,6 +446,36 @@ export class PrismaProfileRepository implements ProfileRepository {
       },
       { timeout: 15000 },
     );
+  }
+
+  async savePhoto(scope: ProfileScope, file: ProfilePhotoFile): Promise<void> {
+    await this.prisma.$transaction(
+      async (tx) => {
+        await lockGraduate(tx, scope);
+        const data = {
+          mime: file.mime,
+          contenido: new Uint8Array(file.bytes),
+          size_bytes: file.size,
+          fecha_subida: new Date(),
+        };
+        await tx.tituladoFoto.upsert({
+          where: { id_titulado: scope.graduateId },
+          create: { id_titulado: scope.graduateId, ...data },
+          update: data,
+        });
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  async readPhoto(scope: ProfileScope): Promise<ProfilePhotoFile> {
+    const row = await this.prisma.tituladoFoto.findFirst({
+      where: { id_titulado: scope.graduateId, titulado: { id_usuario: scope.userId } },
+    });
+    if (!row) {
+      throw new BusinessRuleError('missing', 'PROFILE_PHOTO_NOT_FOUND', 'Aún no tienes foto de perfil');
+    }
+    return { mime: row.mime, bytes: row.contenido, size: row.size_bytes };
   }
 
   private async loadBackup(where: Prisma.CertificacionRespaldoWhereInput): Promise<StoredFile> {

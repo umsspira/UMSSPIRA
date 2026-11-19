@@ -1,0 +1,45 @@
+meta {
+  name: Iniciar sesion administrador
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{administradorEmail}}",
+    "password": "{{administradorPassword}}",
+    "remember": false
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.data) {
+    bru.setVar("administradorToken", res.body.data.accessToken);
+  }
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Guarda el token del administrador en tiempo de ejecucion", function() {
+    expect(res.body.data.accessToken).to.be.a("string").that.is.not.empty;
+  });
+}
+
+docs {
+  Inicia sesion con la cuenta de administrador y guarda data.accessToken en
+  {{administradorToken}}. Completa administradorEmail y administradorPassword en
+  folder.bru o en un entorno local. No escribas tokens en el repositorio.
+}

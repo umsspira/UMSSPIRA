@@ -1,0 +1,31 @@
+meta {
+  name: Reporte de encuestas sin token
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reports/surveys?page=1&limit=10
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  limit: 10
+}
+
+tests {
+  test("status 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+
+  test("requiere iniciar sesión", function () {
+    const body = res.getBody();
+    expect(body?.error?.code).to.equal("UNAUTHENTICATED");
+  });
+}
+
+docs {
+  Caso negativo: sin sesión el reporte responde 401.
+}

@@ -9,6 +9,13 @@ export const EVENT_TITLE_MAX_LENGTH = 45 as const;
 export const EVENT_LOCATION_MAX_LENGTH = 100 as const;
 export const EVENT_DATE_MIN_YEAR = 1900 as const;
 export const EVENT_DATE_MAX_YEAR = 2100 as const;
+export const EVENT_REMINDER_MIN_HOURS = 1 as const;
+export const EVENT_REMINDER_MAX_HOURS = 720 as const;
+export const EVENT_REMINDER_DEFAULT_HOURS = 24 as const;
+
+export interface EventReminderSettings {
+  anticipationHours: number;
+}
 
 export type EventStatus = (typeof EVENT_STATUS)[keyof typeof EVENT_STATUS];
 

@@ -13,6 +13,7 @@ export interface MentorProfileInformationData {
 }
 
 export interface MentorProfileInformationState {
+  nombre: string;
   exists: boolean;
   profile: MentorProfileInformationData | null;
 }
@@ -21,7 +22,6 @@ export interface UpdateMentorProfilePayload {
   descripcion: string;
   experiencia: string;
   informacion_relevante?: string | null;
-  foto_perfil?: string | null;
   anios_exp?: number;
 }
 
@@ -87,8 +87,8 @@ async function request(path: string, options: RequestInit = {}): Promise<unknown
 }
 
 /** GET /mentorship/my-profile/information */
-export async function getMentorProfileInformation(): Promise<MentorProfileInformationState> {
-  const data = await request('/api/v1/mentorship/my-profile/information', { method: 'GET' });
+export async function getMentorProfileInformation(signal?: AbortSignal): Promise<MentorProfileInformationState> {
+  const data = await request('/api/v1/mentorship/my-profile/information', { method: 'GET', signal });
   return data as MentorProfileInformationState;
 }
 

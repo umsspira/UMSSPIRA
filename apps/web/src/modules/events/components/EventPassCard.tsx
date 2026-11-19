@@ -25,6 +25,10 @@ interface EventPassProps {
   updated?: boolean;
   offline?: boolean;
   backHref?: string;
+  onSaveOffline?: () => void;
+  isSavedOffline?: boolean;
+  isSavingOffline?: boolean;
+  saveOfflineMessage?: string;
 }
 
 export const EventPassCard: React.FC<EventPassProps> = ({
@@ -44,6 +48,10 @@ export const EventPassCard: React.FC<EventPassProps> = ({
   updated = false,
   offline = false,
   backHref,
+  onSaveOffline,
+  isSavedOffline = false,
+  isSavingOffline = false,
+  saveOfflineMessage,
 }) => {
   const isError = status === "ERROR";
   const isInvalid = status === "INVALID" || status === "INVALIDADO" || status === "VENCIDO";
@@ -199,6 +207,29 @@ export const EventPassCard: React.FC<EventPassProps> = ({
           </div>
         )}
         {/* BOTONES OFICIALES */}
+{onSaveOffline && (
+  <div className="mb-4">
+    <Button
+      type="button"
+      variant="primary"
+      onClick={onSaveOffline}
+      disabled={isSavingOffline || isSavedOffline}
+      className="w-full"
+    >
+      {isSavingOffline
+        ? 'Guardando...'
+        : isSavedOffline
+          ? 'Guardado sin conexión'
+          : 'Guardar sin conexión'}
+    </Button>
+
+    {saveOfflineMessage && (
+      <p className="text-abyssal-blue text-xs mt-2" role="status">
+        {saveOfflineMessage}
+      </p>
+    )}
+  </div>
+)}
         <div className="mt-auto pt-8 flex flex-col md:flex-row gap-4">
           {!hideBackButton && (
             backHref ? (

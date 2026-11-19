@@ -1,3 +1,4 @@
+import { registerValidatedSession } from '@/features/event-passes/offline/offline-session';
 let accessToken: string | null = null;
 let refreshInFlight: Promise<string> | null = null;
 let generation = 0;
@@ -7,11 +8,15 @@ export class SessionError extends Error {
 }
 
 export function getAccessToken(): string | null { return accessToken; }
-export function setAccessToken(token: string): void { accessToken = token; }
+export function setAccessToken(token: string): void {
+  accessToken = token;
+  void registerValidatedSession(token);
+}
 export function clearAccessToken(): void {
   accessToken = null;
   generation++;
   if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('umsspira:session-cleared'));
     try {
       window.localStorage.removeItem('token');
       window.sessionStorage.removeItem('umsspira.access-token');

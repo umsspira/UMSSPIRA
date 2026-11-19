@@ -1,6 +1,7 @@
 "use client";
 
 import { useReview } from "../hooks/use-review";
+import { maskEmail } from "@/shared/utils/mask-email";
 import { btnAccent, btnSecondary, InfoBox, FieldError, ModalShell } from "./review-ui";
 
 type Props = {
@@ -8,6 +9,8 @@ type Props = {
   applicationId: string;
   expedienteCode: string;
   applicantName: string;
+  applicantEmail?: string;
+  currentReviewer?: { name: string | null; email: string } | null;
   onClose: () => void;
   onSuccess?: () => void;
 };
@@ -17,6 +20,8 @@ export function ApproveDialog({
   applicationId,
   expedienteCode,
   applicantName,
+  applicantEmail,
+  currentReviewer,
   onClose,
   onSuccess,
 }: Props) {
@@ -44,6 +49,17 @@ export function ApproveDialog({
         aprobar, se generará el código de activación (válido por 24 horas) y se
         notificará al titulado por correo.
       </InfoBox>
+
+      <dl className="space-y-2 rounded-lg border border-oatmeal bg-palladian/40 p-3 text-sm text-abyssal-blue">
+        <div>
+          <dt className="font-semibold">Correo del postulante:</dt>
+          <dd>{applicantEmail ? maskEmail(applicantEmail) : 'No disponible'}</dd>
+        </div>
+        <div>
+          <dt className="font-semibold">Dictamen registrado por:</dt>
+          <dd>{currentReviewer?.name || currentReviewer?.email || 'No disponible'}</dd>
+        </div>
+      </dl>
 
       {error && <FieldError>{error}</FieldError>}
 

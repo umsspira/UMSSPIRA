@@ -18,3 +18,6 @@ export * from './event-pass';
 export * from './nlp';
 export * from './correction';
 export * from './push';
+export * from './email';
+export * from './ocr';
+export * from './available-job-posting';
