@@ -98,4 +98,17 @@ describe('HU09 CA-02 · acceso destacado a Mis códigos QR sin conexión', () =>
       await screen.findByRole('link', { name: /Mis códigos QR/ }),
     ).toHaveAttribute('href', '/mis-pases');
   });
+  it('muestra los accesos QR y eventos al inicio cuando hay conexión', async () => {
+    setOnline(true);
+    const { container } = render(<Home />);
+
+    const actions = await screen.findByTestId('home-primary-actions');
+    expect(screen.getByTestId('home-online-qr-access')).toHaveAttribute('href', '/mis-pases');
+    expect(screen.getByTestId('home-online-events-access')).toHaveAttribute('href', '/portal/eventos');
+
+    const sections = Array.from(container.querySelectorAll('section'));
+    const heroIndex = sections.findIndex((section) => section.querySelector('h1'));
+    expect(sections.indexOf(actions)).toBeGreaterThanOrEqual(0);
+    expect(sections.indexOf(actions)).toBeLessThan(heroIndex);
+  });
 });
