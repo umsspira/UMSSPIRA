@@ -6,7 +6,6 @@
   --interest-accent: #a35139;
   background: var(--palladian);
   color: var(--interest-ink);
-  font-family: Inter, Arial, sans-serif;
   min-height: 100vh;
 }
 
@@ -31,7 +30,7 @@
 }
 
 .interests-page .page-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-playfair);
   color: #2c3b4d;
   font-size: 36px;
   line-height: 42px;
@@ -129,7 +128,7 @@
 }
 
 .interests-section-heading h2 {
-  font-family: 'Playfair Display',Georgia,serif;
+  font-family: var(--font-playfair);
   font-size: 24px;
   line-height: 30px;
   font-weight: 700;
@@ -192,7 +191,7 @@
 
 .interest-area-heading h3 {
   margin: 0;
-  font-family: 'Playfair Display',Georgia,serif;
+  font-family: var(--font-playfair);
   font-size: 20px;
   line-height: 28px;
   font-weight: 700;
