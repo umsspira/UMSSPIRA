@@ -10,6 +10,7 @@ import {
   retainChatSocket,
   releaseChatSocket,
 } from "@/shared/services/chat-socket";
+import { onUnreadRefresh } from "../utils/unread-events";
 
 export const UNREAD_PANEL_LIMIT = 5;
 
@@ -68,8 +69,16 @@ export const useUnreadSummary = () => {
     socket.on("chat:changed", schedule);
     socket.on("connect", schedule);
     window.addEventListener("focus", schedule);
+    const stop = onUnreadRefresh(schedule),
+      timer = setInterval(schedule, 30000);
+    const invalidate = () => {
+      version.current++;
+    };
     return () => {
+      invalidate();
       clearTimeout(debounce);
+      clearInterval(timer);
+      stop();
       socket.off("chat:changed", schedule);
       socket.off("connect", schedule);
       window.removeEventListener("focus", schedule);
