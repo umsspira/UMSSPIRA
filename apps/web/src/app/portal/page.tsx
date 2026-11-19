@@ -23,7 +23,10 @@ import {
 } from 'lucide-react';
 
 import umssBg from '@/shared/assets/images/14sept.webp';
-import { getEventCatalog } from '@/shared/services/events-service';
+import { HomeStatusCards } from '@/features/home/home-status-cards';
+import { homeSectionsAdapter } from '@/features/home/home-sections-adapter';
+import { SectionUnavailable } from '@/shared/components/section-boundary';
+import { useSectionLoader } from '@/shared/hooks/use-section-loader';
 import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
 import type { EventItem } from '@umsspira/shared-types';
 
@@ -114,11 +117,20 @@ const normalize = (text: string) =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
+const NO_EVENTS: EventItem[] = [];
+
 export default function Home() {
   const [query, setQuery] = useState('');
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-  const [eventsError, setEventsError] = useState(false);
+
+  // HU18: la sección de eventos se carga aislada, con límite de 8 s y «Reintentar».
+  const eventsSection = useSectionLoader('home-events', (signal) =>
+    homeSectionsAdapter.loadEvents(signal),
+  );
+  const events = eventsSection.state.status === 'ready' ? eventsSection.state.data : NO_EVENTS;
+  const isLoadingEvents = eventsSection.state.status === 'loading';
+  const eventsError = eventsSection.state.status === 'unavailable';
+  const eventsTimedOut =
+    eventsSection.state.status === 'unavailable' && eventsSection.state.timedOut;
 
   const [isOnline, setIsOnline] = useState(true);
   const [showReconnectedToast, setShowReconnectedToast] = useState(false);
@@ -158,28 +170,6 @@ export default function Home() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  useEffect(() => {
-    let isActive = true;
-
-    void getEventCatalog()
-      .then((catalog) => {
-        if (isActive) {
-          setEvents(catalog);
-          setEventsError(false);
-        }
-      })
-      .catch(() => {
-        if (isActive) setEventsError(true);
-      })
-      .finally(() => {
-        if (isActive) setIsLoadingEvents(false);
-      });
-
-    return () => {
-      isActive = false;
     };
   }, []);
 
@@ -263,6 +253,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* HU18: cada tarjeta es una sección aislada; si una falla, las demás siguen funcionando */}
+      <HomeStatusCards />
+
       {/* 👇 TARJETA DE ESTADO AGRANDADA 👇 */}
       {shouldShowStatusCard && (
         <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
@@ -345,9 +338,11 @@ export default function Home() {
         {isLoadingEvents ? (
           <p role="status" className="text-sm text-slate-500">Cargando eventos publicados…</p>
         ) : eventsError ? (
-          <p role="alert" className="text-sm text-red-700">
-            No se pudieron cargar los eventos. Intenta nuevamente desde el catálogo.
-          </p>
+          <SectionUnavailable
+            title="Próximos eventos"
+            timedOut={eventsTimedOut}
+            onRetry={eventsSection.retry}
+          />
         ) : filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {filteredEvents.slice(0, 3).map((event) => (
