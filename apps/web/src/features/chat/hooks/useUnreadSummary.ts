@@ -1,4 +1,6 @@
+// apps/web/src/features/chat/hooks/useUnreadSummary.ts
 "use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getUnreadSummary,
@@ -8,13 +10,18 @@ import {
   retainChatSocket,
   releaseChatSocket,
 } from "@/shared/services/chat-socket";
+import { useOnlineStatus } from "@/shared/hooks/use-online-status";
 import { onUnreadRefresh } from "../utils/unread-events";
+
 export const UNREAD_PANEL_LIMIT = 5;
+
 export type UnreadConversation = ConversationSummary & { unreadCount: number };
+
 export interface UnreadSummary {
   total: number;
   conversations: UnreadConversation[];
 }
+
 export const buildUnreadSummary = (
   items: ConversationSummary[],
   limit = UNREAD_PANEL_LIMIT,
@@ -31,13 +38,17 @@ export const buildUnreadSummary = (
       .slice(0, limit),
   };
 };
+
 export const useUnreadSummary = () => {
+  const isOnline = useOnlineStatus();
   const [summary, setSummary] = useState<UnreadSummary>({
     total: 0,
     conversations: [],
   });
   const version = useRef(0);
+
   const refresh = useCallback(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const request = ++version.current;
     try {
       const result = await getUnreadSummary();
@@ -46,6 +57,7 @@ export const useUnreadSummary = () => {
       /* Conservar el resumen durante cortes de red. */
     }
   }, []);
+
   useEffect(() => {
     void refresh();
     const socket = retainChatSocket();
@@ -75,5 +87,11 @@ export const useUnreadSummary = () => {
       releaseChatSocket();
     };
   }, [refresh]);
-  return { summary, reload: refresh };
+
+  // CA-07: sin conexión el total es 0 (no se muestran contadores).
+  const effectiveSummary: UnreadSummary = isOnline
+    ? summary
+    : { total: 0, conversations: [] };
+
+  return { summary: effectiveSummary, reload: refresh };
 };

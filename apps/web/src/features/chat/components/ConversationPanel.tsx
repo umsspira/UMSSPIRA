@@ -1,3 +1,4 @@
+// apps/web/src/features/chat/components/ConversationPanel.tsx
 "use client";
 
 import {
@@ -57,6 +58,14 @@ export function ConversationPanel({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [olderBusy, setOlderBusy] = useState(false);
   const [newMessages, setNewMessages] = useState(false);
+
+  // CA-04: primer mensaje no leído + separador
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<
+    string | null
+  >(null);
+  const initialUnreadCount = useRef(conversation.unreadCount ?? 0);
+  const initialUnreadApplied = useRef(false);
+
   const pending = useRef<{ content: string; clientId: string } | null>(null);
   const busyRef = useRef(false),
     mounted = useRef(true),
@@ -74,7 +83,6 @@ export function ConversationPanel({
     try {
       const page = await getConversationMessagesPage(conversation.id);
       const items = [...page.items];
-      // Recuperar también los mensajes intermedios si el corte duró varias páginas.
       let before = page.nextCursor;
       const previousIds = new Set(known.current.map((message) => message.id));
       const oldestLoadedId = known.current[0]?.id;
@@ -146,6 +154,41 @@ export function ConversationPanel({
     };
   }, [conversation.id, refresh]);
 
+  // CA-04: calcula el id del primer no leído tras la carga inicial
+  useEffect(() => {
+    if (initialUnreadApplied.current) return;
+    if (loading) return;
+    if (!messages.length) {
+      initialUnreadApplied.current = true;
+      return;
+    }
+    const count = initialUnreadCount.current;
+    if (count > 0) {
+      const fromServer = (conversation as { firstUnreadMessageId?: string })
+        .firstUnreadMessageId;
+      if (fromServer) {
+        const exists = messages.some((m) => m.id === fromServer);
+        if (exists) setFirstUnreadMessageId(fromServer);
+      } else {
+        const idx = Math.max(0, messages.length - count);
+        setFirstUnreadMessageId(messages[idx]?.id ?? null);
+      }
+    }
+    initialUnreadApplied.current = true;
+  }, [messages, loading, conversation]);
+
+  // CA-04: scroll al primer no leído
+  useLayoutEffect(() => {
+    if (!firstUnreadMessageId || !history.current) return;
+    const target = history.current.querySelector<HTMLElement>(
+      `[data-message-id="${firstUnreadMessageId}"]`,
+    );
+    if (target) {
+      target.scrollIntoView({ block: "start", behavior: "auto" });
+      atBottom.current = false;
+    }
+  }, [firstUnreadMessageId]);
+
   const lastMessageId = messages.at(-1)?.id;
   useEffect(() => {
     const mark = () => {
@@ -170,6 +213,8 @@ export function ConversationPanel({
   useLayoutEffect(() => {
     const container = history.current;
     if (!container) return;
+    // Si ya hay un separador de no leídos pendiente, no fuerces scroll al fondo.
+    if (firstUnreadMessageId) return;
     if (previousScroll.current) {
       container.scrollTop =
         previousScroll.current.top +
@@ -177,7 +222,7 @@ export function ConversationPanel({
         previousScroll.current.height;
       previousScroll.current = null;
     } else if (atBottom.current) container.scrollTop = container.scrollHeight;
-  }, [messages]);
+  }, [messages, firstUnreadMessageId]);
 
   const loadOlder = async () => {
     if (!cursor || olderBusy) return;
@@ -231,6 +276,7 @@ export function ConversationPanel({
       if (mounted.current) setBusy(false);
     }
   };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const content = draft.trim();
@@ -267,6 +313,7 @@ export function ConversationPanel({
       });
     });
   };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-3 border-b border-slate-200 px-4 py-4">
@@ -289,6 +336,7 @@ export function ConversationPanel({
           {accepted ? "Conversación" : "Solicitud"}
         </span>
       </header>
+
       {!accepted && (
         <section className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-slate-800">
           <p>
@@ -330,6 +378,7 @@ export function ConversationPanel({
           )}
         </section>
       )}
+
       {error && (
         <div
           role="alert"
@@ -341,6 +390,7 @@ export function ConversationPanel({
           </button>
         </div>
       )}
+
       <div
         ref={history}
         role="log"
@@ -378,8 +428,9 @@ export function ConversationPanel({
               Inicio de la conversación
             </p>
           ))}
+
         {messages.map((message, index) => (
-          <div key={message.id}>
+          <div key={message.id} data-message-id={message.id}>
             {shouldShowDaySeparator(
               messages[index - 1]?.sentAt,
               message.sentAt,
@@ -389,6 +440,20 @@ export function ConversationPanel({
                 {formatDayLabel(message.sentAt)}
               </p>
             )}
+
+            {/* CA-04: separador «Mensajes nuevos» */}
+            {message.id === firstUnreadMessageId && (
+              <div
+                role="separator"
+                aria-label="Mensajes nuevos"
+                className="my-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-orange-600"
+              >
+                <hr className="flex-1 border-orange-200" />
+                Mensajes nuevos
+                <hr className="flex-1 border-orange-200" />
+              </div>
+            )}
+
             <article
               className={`flex ${message.senderId === actorId ? "justify-end" : "justify-start"}`}
             >
@@ -496,6 +561,7 @@ export function ConversationPanel({
           </div>
         ))}
       </div>
+
       {newMessages && (
         <button
           className="bg-orange-100 py-2 text-sm text-orange-900"
@@ -509,6 +575,7 @@ export function ConversationPanel({
           Nuevos mensajes · Ir al final
         </button>
       )}
+
       {accepted && (
         <form onSubmit={submit} className="border-t bg-white p-3">
           {attachment && (

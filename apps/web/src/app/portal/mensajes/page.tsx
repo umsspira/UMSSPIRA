@@ -1,3 +1,4 @@
+// apps/web/src/app/portal/mensajes/page.tsx
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
@@ -12,11 +13,11 @@ import { getChatSocket, retryConnection } from "@/shared/services/chat-socket";
 import { useConversations } from "@/features/chat/hooks/useConversations";
 import { ConversationPanel } from "@/features/chat/components/ConversationPanel";
 import { ComposeRequest } from "@/features/chat/components/ComposeRequest";
+import { MessagesOfflineGuard } from "@/features/chat/components/MessagesOfflineGuard";
 import { formatChatTime, getInitials } from "@/features/chat/utils/format";
 
-import { MessagesOfflineGuard } from '@/features/chat/components/MessagesOfflineGuard';
-
 type Tab = "inbox" | "requests" | "declined";
+
 function Messages() {
   const params = useSearchParams();
   const { conversations, loading, error, reload } = useConversations();
@@ -30,9 +31,11 @@ function Messages() {
   const [tab, setTab] = useState<Tab>("inbox");
   const [connected, setConnected] = useState(false);
   const [notice, setNotice] = useState("");
+
   const selected =
     conversations.find((item) => item.id === selectedId) ??
     (external?.id === selectedId ? external : null);
+
   useEffect(() => {
     let active = true;
     void authenticatedFetch("/api/v1/user/me")
@@ -48,10 +51,12 @@ function Messages() {
       active = false;
     };
   }, []);
+
   useEffect(() => {
     setSelectedId(params.get("conversation"));
     setCompose(Boolean(params.get("recipient")));
   }, [params]);
+
   useEffect(() => {
     if (!selectedId || conversations.some((item) => item.id === selectedId))
       return;
@@ -70,6 +75,7 @@ function Messages() {
       active = false;
     };
   }, [selectedId, conversations]);
+
   useEffect(() => {
     const socket = getChatSocket();
     setConnected(socket.connected);
@@ -84,6 +90,7 @@ function Messages() {
       socket.off("connect_error", offline);
     };
   }, []);
+
   const select = (id: string) => {
     setSelectedId(id);
     setCompose(false);
@@ -93,7 +100,9 @@ function Messages() {
       "",
       `/portal/mensajes?conversation=${encodeURIComponent(id)}`,
     );
+    // El ConversationPanel se encarga de markConversationAsRead + emitUnreadRefresh.
   };
+
   const incoming = (item: ConversationSummary) => item.requesterId !== actorId;
   const requests = conversations.filter(
     (item) => item.status === "PENDIENTE" && incoming(item),
@@ -106,6 +115,7 @@ function Messages() {
         : item.status === "ACEPTADO" ||
           (item.status === "PENDIENTE" && !incoming(item)),
   );
+
   if (sessionError)
     return (
       <div className="mx-auto max-w-3xl p-8">
@@ -115,6 +125,7 @@ function Messages() {
         </a>
       </div>
     );
+
   return (
     <main className="mx-auto max-w-7xl px-3 py-5 sm:px-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -125,6 +136,7 @@ function Messages() {
           </p>
         </div>
       </div>
+
       {!connected && !loading && actorId && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
           <p role="status">Reconectando el chat…</p>
@@ -141,11 +153,13 @@ function Messages() {
           </button>
         </div>
       )}
+
       {notice && (
         <p role="status" className="mb-3 rounded-lg bg-orange-50 p-3 text-sm">
           {notice}
         </p>
       )}
+
       <div className="grid h-[75dvh] min-h-[450px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:grid-cols-[340px_1fr]">
         <aside
           className={`min-h-0 flex-col border-r ${selectedId || compose ? "hidden md:flex" : "flex"}`}
@@ -163,6 +177,7 @@ function Messages() {
               Nuevo mensaje
             </button>
           </div>
+
           <nav aria-label="Bandejas de mensajes" className="flex border-b px-2">
             {(
               [
@@ -184,6 +199,7 @@ function Messages() {
               </button>
             ))}
           </nav>
+
           <div className="min-h-0 flex-1 overflow-auto">
             {(loading || !actorId) && (
               <p role="status" className="p-5 text-sm text-slate-500">
@@ -209,51 +225,82 @@ function Messages() {
                   : "No tienes solicitudes en esta bandeja."}
               </div>
             )}
+
+            {/* CA-02: insignia + distinción visual de no leídas */}
             {actorId &&
-              visible.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => select(item.id)}
-                  aria-current={selectedId === item.id ? "true" : undefined}
-                  className={`flex w-full gap-3 border-b border-b-slate-100 border-l-4 p-4 text-left hover:bg-orange-50 ${selectedId === item.id ? "border-l-orange-500 bg-orange-50" : "border-l-transparent"}`}
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold">
-                    {getInitials(item.otherUser.name)}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center justify-between gap-2">
-                      <strong className="truncate text-sm">
-                        {item.otherUser.name}
-                      </strong>
-                      <time className="shrink-0 text-[10px] text-slate-400">
-                        {formatChatTime(item.lastMessage?.sentAt)}
-                      </time>
-                    </span>
-                    <span className="block text-[11px] capitalize text-slate-500">
-                      {item.otherUser.role}
-                      {item.status === "PENDIENTE" && !incoming(item)
-                        ? " · Solicitud enviada"
-                        : ""}
-                    </span>
-                    <span className="mt-1 block truncate text-xs text-slate-500">
-                      {item.lastMessage?.deletedAt
-                        ? "Mensaje eliminado"
-                        : item.lastMessage?.content ||
-                          item.lastMessage?.attachment?.name}
-                    </span>
-                  </span>
-                  {item.unreadCount > 0 && (
+              visible.map((item) => {
+                const unread = (item.unreadCount ?? 0) > 0;
+                const active = selectedId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => select(item.id)}
+                    aria-current={active ? "true" : undefined}
+                    className={`flex w-full gap-3 border-b border-b-slate-100 border-l-4 p-4 text-left hover:bg-orange-50 ${
+                      active
+                        ? "border-l-orange-500 bg-orange-50"
+                        : "border-l-transparent"
+                    } ${unread && !active ? "bg-orange-50/60" : ""}`}
+                  >
                     <span
-                      aria-label={`${item.unreadCount} sin leer`}
-                      className="my-auto rounded-full bg-orange-200 px-2 py-1 text-xs font-bold"
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        unread
+                          ? "bg-orange-200 text-orange-900"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
                     >
-                      {item.unreadCount}
+                      {getInitials(item.otherUser.name)}
                     </span>
-                  )}
-                </button>
-              ))}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <strong
+                          className={`truncate text-sm ${
+                            unread
+                              ? "font-extrabold text-slate-900"
+                              : "font-medium text-slate-800"
+                          }`}
+                        >
+                          {item.otherUser.name}
+                        </strong>
+                        <time className="shrink-0 text-[10px] text-slate-400">
+                          {formatChatTime(item.lastMessage?.sentAt)}
+                        </time>
+                      </span>
+                      <span className="block text-[11px] capitalize text-slate-500">
+                        {item.otherUser.role}
+                        {item.status === "PENDIENTE" && !incoming(item)
+                          ? " · Solicitud enviada"
+                          : ""}
+                      </span>
+                      <span
+                        className={`mt-1 block truncate text-xs ${
+                          unread
+                            ? "font-semibold text-slate-800"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        {item.lastMessage?.deletedAt
+                          ? "Mensaje eliminado"
+                          : item.lastMessage?.content ||
+                            item.lastMessage?.attachment?.name}
+                      </span>
+                    </span>
+                    {unread && (
+                      <span
+                        aria-label={`${item.unreadCount} sin leer`}
+                        className="my-auto min-w-[20px] rounded-full bg-orange-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white"
+                      >
+                        {(item.unreadCount ?? 0) > 99
+                          ? "99+"
+                          : item.unreadCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
           </div>
         </aside>
+
         <section
           className={`min-h-0 min-w-0 ${selectedId || compose ? "block" : "hidden md:block"}`}
         >
@@ -294,8 +341,8 @@ function Messages() {
                 Tu próxima conversación empieza aquí
               </p>
               <p className="max-w-sm text-sm">
-                Envía una solicitud a cualquier persona de la comunidad o retoma
-                uno de tus chats.
+                Envía una solicitud a cualquier persona de la comunidad o
+                retoma uno de tus chats.
               </p>
             </div>
           )}
@@ -304,6 +351,7 @@ function Messages() {
     </main>
   );
 }
+
 export default function MessagesPage() {
   return (
     <MessagesOfflineGuard>
