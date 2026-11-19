@@ -1,4 +1,4 @@
-const VERSION = 'v9.0.0';
+const VERSION = 'v1.0.1';
 
 const CACHE_NAME = `umsspira-core-portal-${VERSION}`;
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
@@ -26,24 +26,43 @@ const OFFLINE_ROUTE_PREFIXES = ['/events/catalog/passes', '/mis-pases', '/portal
 const OFFLINE_ROOT_ROUTES = ['/events/catalog/passes', '/mis-pases', '/portal/eventos', '/portal/configuracion', '/portal/validacion-offline'];
 function isOfflineRoute(pathname) {
   if (OFFLINE_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true;
-  // Cualquier otra ruta de pases (por si la pantalla real de Mis QR tiene otra URL)
   return /\/(passes|pases)(\/|$)/.test(pathname);
 }
 
-function isCacheable(response) { return response && response.ok && (response.type === 'basic' || response.type === 'default'); }
+// ---------------------------------------------------------------------------
+// Verificación de respuestas (reforzada: evita cachear respuestas inútiles)
+// ---------------------------------------------------------------------------
+function isCacheable(response) {
+  if (!response) return false;
+  if (!response.ok) return false;
+  if (response.status === 206) return false;                 // Partial Content no sirve como copia íntegra
+  if (response.type !== 'basic' && response.type !== 'default') return false;
+  if (response.body === null) return false;
+  const len = response.headers.get('content-length');
+  if (len !== null && Number(len) === 0) return false;
+  return true;
+}
 
-// Clave estable: siempre el pathname, sin query ni headers
-function routeKey(pathname) { return new Request(new URL(pathname, self.location.origin).href); }
+// Clave estable: siempre el pathname, sin query ni headers, normalizando trailing slash
+function routeKey(pathname) {
+  let p = pathname || '/';
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+  return new Request(new URL(p, self.location.origin).href);
+}
 
 // Una respuesta con redirected=true no se puede servir a una navegación: se crea una limpia.
+// Preserva headers relevantes para no romper CSP ni encoding.
 async function cleanResponse(response) {
   if (!response.redirected) return response;
   const body = await response.blob();
-  return new Response(body, {
-    status: 200,
-    statusText: 'OK',
-    headers: { 'Content-Type': response.headers.get('content-type') || 'text/html; charset=utf-8' },
-  });
+  const headers = {};
+  const keep = ['content-type', 'cache-control', 'content-language', 'x-content-type-options'];
+  for (const h of keep) {
+    const v = response.headers.get(h);
+    if (v) headers[h] = v;
+  }
+  if (!headers['content-type']) headers['content-type'] = 'text/html; charset=utf-8';
+  return new Response(body, { status: 200, statusText: 'OK', headers });
 }
 
 // Guardamos el HTML real; solo rechazamos si terminó en una página de login/auth.
@@ -57,30 +76,88 @@ function canStoreOfflineRoute(response) {
   return true;
 }
 
-async function trimCache(cacheName, maxEntries) {
-  const cache = await caches.open(cacheName);
-  const keys = await cache.keys();
-  if (keys.length > maxEntries) await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
+// ---------------------------------------------------------------------------
+// Utilidades de caché con DOBLE VERIFICACIÓN
+// ---------------------------------------------------------------------------
+
+// Relee la caché y confirma que la entrada existe y no está vacía.
+async function verifyCached(cacheName, key, { allowEmpty = false } = {}) {
+  try {
+    const cache = await caches.open(cacheName);
+    const hit = await cache.match(key, { ignoreSearch: true, ignoreVary: true });
+    if (!hit) return false;
+    if (allowEmpty) return true;
+    const len = hit.headers.get('content-length');
+    if (len !== null && Number(len) === 0) return false;
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
-// Archivos de /_next/static que usa una página (estilos, scripts, fuentes). Se leen del HTML y de los datos de React.
-// Admite paréntesis: los grupos de rutas de Next (por ejemplo app/(dashboard)/...) los llevan en el nombre del archivo.
+// put defensivo: clona, guarda, verifica y reintenta una vez recortando si hay cuota llena.
+async function safePut(cacheName, key, response, { maxEntries = 0, allowEmpty = false } = {}) {
+  if (!isCacheable(response)) return false;
+  let clone;
+  try { clone = response.clone(); } catch (e) { return false; }
+
+  try {
+    const cache = await caches.open(cacheName);
+    await cache.put(key, clone);
+  } catch (err) {
+    // Cuota llena: recortar y reintentar una sola vez.
+    try {
+      if (maxEntries > 0) await trimCache(cacheName, Math.max(1, Math.floor(maxEntries / 2)));
+      const retryClone = response.clone();
+      const cache = await caches.open(cacheName);
+      await cache.put(key, retryClone);
+    } catch (e2) {
+      console.warn('[SW] safePut falló definitivamente:', cacheName, String(key.url || key), e2);
+      return false;
+    }
+  }
+
+  const ok = await verifyCached(cacheName, key, { allowEmpty });
+  if (!ok) console.warn('[SW] Verificación post-put falló:', cacheName, String(key.url || key));
+  return ok;
+}
+
+// Recorta por antigüedad de inserción y verifica post-recorte.
+async function trimCache(cacheName, maxEntries) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    if (keys.length <= maxEntries) return true;
+    const toDelete = keys.slice(0, keys.length - maxEntries);
+    await Promise.all(toDelete.map((key) => cache.delete(key)));
+    const remaining = await cache.keys();
+    if (remaining.length > maxEntries) {
+      // Segundo pase defensivo
+      const extra = remaining.slice(0, remaining.length - maxEntries);
+      await Promise.all(extra.map((key) => cache.delete(key)));
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Archivos de /_next/static que usa una página (estilos, scripts, fuentes).
 function extractStaticUrls(text) {
   const found = new Set();
   const add = (raw) => {
     let url = raw;
-    // Un ")" de más al final viene de un url(...) de CSS, no del nombre del archivo.
     while (url.endsWith(')') && (url.match(/\)/g) || []).length > (url.match(/\(/g) || []).length) url = url.slice(0, -1);
     found.add(url);
   };
   for (const match of text.match(/\/_next\/static\/[^"'\s\\<>{};]+/g) || []) add(match);
-  // Los datos de React citan los archivos como "static/chunks/..." sin el prefijo /_next/.
   for (const match of text.matchAll(/["'](static\/(?:chunks|css|media)\/[^"'\s\\<>{};]+)/g)) add('/_next/' + match[1]);
   return [...found];
 }
 
-// Descarga la página completa de una ruta y la guarda junto con sus scripts/estilos
-async function storeRouteHtml(pathname) {
+// Descarga la página completa de una ruta y la guarda junto con sus scripts/estilos.
+// Doble verificación: HTML + al menos 1 asset crítico (si existen) + reintento único.
+async function storeRouteHtml(pathname, { attempt = 0 } = {}) {
   try {
     const response = await fetch(pathname, {
       credentials: 'same-origin',
@@ -95,26 +172,52 @@ async function storeRouteHtml(pathname) {
 
     const html = await response.clone().text();
     const clean = await cleanResponse(response.clone());
-    const cache = await caches.open(ROUTES_CACHE);
-    await cache.put(routeKey(pathname), clean);
-    await trimCache(ROUTES_CACHE, 20);
+
+    const htmlOk = await safePut(ROUTES_CACHE, routeKey(pathname), clean, { maxEntries: 20 });
+    if (!htmlOk) {
+      if (attempt < 1) return storeRouteHtml(pathname, { attempt: attempt + 1 });
+      return false;
+    }
 
     const urls = extractStaticUrls(html);
-    const staticCache = await caches.open(STATIC_CACHE);
+    let assetsOk = 0;
     await Promise.allSettled(urls.map(async (u) => {
-      if (await staticCache.match(u)) return;
-      const res = await fetch(u);
-      if (isCacheable(res)) await staticCache.put(u, res);
+      try {
+        const cache = await caches.open(STATIC_CACHE);
+        if (await cache.match(u, { ignoreSearch: true })) { assetsOk++; return; }
+        const res = await fetch(u);
+        if (await safePut(STATIC_CACHE, u, res)) assetsOk++;
+      } catch (e) {}
     }));
-    return true;
+
+    // Verificación final: si había assets declarados, al menos uno debe estar guardado.
+    if (urls.length > 0 && assetsOk === 0) {
+      if (attempt < 1) return storeRouteHtml(pathname, { attempt: attempt + 1 });
+      console.warn('[SW] HTML guardado pero sin assets verificables:', pathname);
+      return false;
+    }
+
+    // Confirmación explícita del HTML tras el trabajo asíncrono.
+    const finalOk = await verifyCached(ROUTES_CACHE, routeKey(pathname));
+    if (!finalOk && attempt < 1) return storeRouteHtml(pathname, { attempt: attempt + 1 });
+    return finalOk;
   } catch (e) {
     console.warn('[SW] Error guardando', pathname, e);
+    if (attempt < 1) return storeRouteHtml(pathname, { attempt: attempt + 1 });
     return false;
   }
 }
 
+// Deduplicación de syncOfflineRoutes (evita carreras entre install, activate y mensajes)
+const inFlightRoutes = new Map();
 async function syncOfflineRoutes() {
-  await Promise.allSettled(OFFLINE_ROOT_ROUTES.map((r) => storeRouteHtml(r)));
+  const results = await Promise.allSettled(OFFLINE_ROOT_ROUTES.map((r) => {
+    if (inFlightRoutes.has(r)) return inFlightRoutes.get(r);
+    const p = storeRouteHtml(r).finally(() => inFlightRoutes.delete(r));
+    inFlightRoutes.set(r, p);
+    return p;
+  }));
+  return results;
 }
 
 // Evita descargar lo mismo muchas veces seguidas
@@ -130,14 +233,23 @@ function shouldSync(key, ms) {
 async function precacheShellAssets(staticCache) {
   try {
     const response = await fetch('/portal');
-    if (!response.ok) return;
+    if (!response.ok) return false;
     const html = await response.text();
     const urls = extractStaticUrls(html);
+    let ok = 0;
     await Promise.allSettled(urls.map(async (url) => {
-      const res = await fetch(url);
-      if (isCacheable(res)) await staticCache.put(url, res);
+      try {
+        const res = await fetch(url);
+        if (await safePut(STATIC_CACHE, url, res)) ok++;
+      } catch (e) {}
     }));
-  } catch (e) { /* silencioso */ }
+    // Verificación: si había assets, al menos uno debe haber quedado.
+    if (urls.length > 0 && ok === 0) {
+      console.warn('[SW] precacheShellAssets: ningún asset verificable');
+      return false;
+    }
+    return true;
+  } catch (e) { return false; }
 }
 
 self.addEventListener('install', (event) => {
@@ -147,7 +259,7 @@ self.addEventListener('install', (event) => {
     await Promise.allSettled(PRECACHE_URLS.map(async (url) => {
       try {
         const response = await fetch(url);
-        if (isCacheable(response)) await staticCache.put(url, response);
+        if (isCacheable(response)) await safePut(STATIC_CACHE, url, response);
       } catch (e) {}
     }));
 
@@ -155,7 +267,7 @@ self.addEventListener('install', (event) => {
     await Promise.allSettled(PRECACHE_ICONS.map(async (url) => {
       try {
         const response = await fetch(url);
-        if (isCacheable(response)) await assetsCache.put(url, response);
+        if (isCacheable(response)) await safePut(ASSETS_CACHE, url, response);
       } catch (e) {}
     }));
 
@@ -184,11 +296,6 @@ function getHandledUrl(request) {
 }
 
 // --- PÁGINA SIN CONEXIÓN (HU14) ---
-// HTML autónomo: no depende de Next.js, así que se muestra aunque la ruta pedida nunca se haya guardado.
-// La pantalla se sirve en la MISMA URL que se pidió, por eso "Reintentar" recarga esa ruta.
-
-// Menú de la barra de la pantalla sin conexión. Debe tener las mismas etiquetas y el mismo orden que
-// NAVBAR_SECTIONS (src/shared/components/navbar/navigation.ts); service-worker.test.ts avisa si se desincronizan.
 const OFFLINE_NAV_MEMBER = [
   { label: 'Inicio', href: '/portal', prefixes: [] },
   { label: 'Comunidad', href: '/portal/comunidad', prefixes: ['/portal/comunidad', '/portal/beneficios'] },
@@ -204,7 +311,6 @@ const OFFLINE_NAV_GUEST = [
   { label: 'Mentorías', href: '/portal/institucional?tab=mentorias', prefixes: [] },
   { label: 'Eventos', href: '/portal/institucional?tab=eventos', prefixes: [] },
 ];
-// Todo /portal exige sesión salvo el portal institucional (misma regla que middleware.ts).
 const OFFLINE_PUBLIC_PREFIXES = ['/portal/institucional'];
 
 function offlineHtml() {
@@ -301,7 +407,7 @@ function offlineHtml() {
   var NAV_MEMBER = ${JSON.stringify(OFFLINE_NAV_MEMBER)};
   var NAV_GUEST = ${JSON.stringify(OFFLINE_NAV_GUEST)};
   var PUBLIC = ${JSON.stringify(OFFLINE_PUBLIC_PREFIXES)};
-  var MAX_AGE = 7 * 24 * 60 * 60 * 1000; // misma vigencia que offline-session.ts (HU07)
+  var MAX_AGE = 7 * 24 * 60 * 60 * 1000;
   var path = location.pathname;
 
   function read(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
@@ -353,7 +459,6 @@ function offlineHtml() {
     burger.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
 
-  // HU14 CA-06: ruta privada sin sesión autorizada → se pide iniciar sesión, nunca se muestra contenido privado.
   if (!hasSession && !startsWith(path, PUBLIC)) {
     document.getElementById('title').textContent = 'Inicia sesión para continuar';
     document.getElementById('msg').textContent = 'Esta pantalla es privada y no hay una sesión activa en este dispositivo. Inicia sesión cuando tengas conexión.';
@@ -361,7 +466,6 @@ function offlineHtml() {
     document.getElementById('login').setAttribute('data-testid', 'offline-login');
   }
 
-  // HU14 CA-02/CA-03: Reintentar solo recarga la ruta pedida si de verdad volvió la red; si no, avisa y se queda.
   var retry = document.getElementById('retry');
   var notice = document.getElementById('notice');
   var busy = false;
@@ -373,11 +477,9 @@ function offlineHtml() {
       notice.hidden = false; retry.disabled = false; busy = false;
     };
     if (navigator.onLine === false) { done(false); return; }
-    // /sw.js nunca pasa por el Service Worker: sirve para comprobar la red real.
     fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).then(function () { done(true); }, function () { done(false); });
   });
 
-  // Al volver la red se abre sola la ruta pedida (una sola vez, sin ciclos de recarga).
   window.addEventListener('online', function () { if (!busy) { busy = true; location.replace(location.href); } }, { once: true });
 })();
 </script>
@@ -401,14 +503,13 @@ async function handleNavigation(event) {
     const response = await fetch(request);
 
     if (isOfflineRoute(url.pathname)) {
-      // Guardar la propia respuesta de la navegación
       if (canStoreOfflineRoute(response)) {
+        // Clonar ANTES de cualquier operación asíncrona para no consumir el body.
         const copy = response.clone();
         event.waitUntil((async () => {
           try {
-            const cache = await caches.open(ROUTES_CACHE);
-            await cache.put(routeKey(url.pathname), await cleanResponse(copy));
-            await trimCache(ROUTES_CACHE, 20);
+            const clean = await cleanResponse(copy);
+            await safePut(ROUTES_CACHE, routeKey(url.pathname), clean, { maxEntries: 20 });
           } catch (e) {}
         })());
       }
@@ -418,7 +519,6 @@ async function handleNavigation(event) {
     }
     return response;
   } catch (e) {
-    // SIN CONEXIÓN
     if (isOfflineRoute(url.pathname)) {
       const cache = await caches.open(ROUTES_CACHE);
       const cached =
@@ -426,7 +526,6 @@ async function handleNavigation(event) {
         (await cache.match(request, { ignoreSearch: true, ignoreVary: true }));
       if (cached) return cleanResponse(cached);
     }
-    // Cualquier otra ruta (incluida /portal): pantalla "Sin conexión" con las 2 opciones
     return offlineResponse();
   }
 }
@@ -434,7 +533,7 @@ async function handleNavigation(event) {
 async function saveProfile(name) {
   if (!PROFILES[name]) return;
   const cache = await caches.open(CONFIG_CACHE);
-  await cache.put(PROFILE_KEY, new Response(name));
+  await safePut(CONFIG_CACHE, PROFILE_KEY, new Response(name));
 }
 
 async function loadProfile() {
@@ -447,10 +546,9 @@ async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     const response = await fetch(request);
-    if (isCacheable(response)) await cache.put(request, response.clone());
+    if (isCacheable(response)) await safePut(cacheName, request, response);
     return response;
   } catch (e) {
-    // En desarrollo Next agrega ?v=... y cambia entre cargas: sin conexión se usa la copia aunque el parámetro difiera.
     const cached = (await cache.match(request)) || (await cache.match(request, { ignoreSearch: true }));
     if (cached) return cached;
     throw new Error('Recurso no disponible');
@@ -462,7 +560,7 @@ async function cacheFirst(request, cacheName) {
   const cached = (await cache.match(request)) || (await cache.match(request, { ignoreSearch: true }));
   if (cached) return cached;
   const response = await fetch(request);
-  if (isCacheable(response)) await cache.put(request, response.clone());
+  if (isCacheable(response)) await safePut(cacheName, request, response);
   return response;
 }
 
@@ -471,12 +569,14 @@ async function staleWhileRevalidate(request, cacheName, maxEntries) {
   const cached = await cache.match(request);
   const networkPromise = fetch(request).then(async (response) => {
     if (isCacheable(response)) {
-      await cache.put(request, response.clone());
-      await trimCache(cacheName, maxEntries);
+      await safePut(cacheName, request, response, { maxEntries });
     }
     return response;
   }).catch(() => undefined);
-  return cached || (await networkPromise) || new Response('', { status: 503 });
+  return cached || (await networkPromise) || new Response('Recurso no disponible sin conexión', {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
 }
 
 self.addEventListener('fetch', (event) => {
@@ -489,7 +589,7 @@ self.addEventListener('fetch', (event) => {
       (navUrl.pathname === '/portal' ||
         navUrl.pathname.startsWith('/portal/') ||
         isOfflineRoute(navUrl.pathname));
-    if (!esDelPortal) return; // homepage, /me, /graduates-report, /api/... pasan directo a la red
+    if (!esDelPortal) return;
     event.respondWith(handleNavigation(event));
     return;
   }
@@ -501,8 +601,6 @@ self.addEventListener('fetch', (event) => {
   const url = getHandledUrl(request);
   if (!url) return;
 
-  // Navegación del cliente de Next (links): no se intercepta, pero guardamos en segundo plano
-  // el HTML completo de Mis QR / Eventos para uso sin conexión.
   const isClientNavigation =
     request.headers.has('RSC') || request.headers.has('Next-Router-State-Tree') || url.searchParams.has('_rsc');
   if (isClientNavigation) {
@@ -532,6 +630,9 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
+// Lock para que dos UPDATE_CACHE no se solapen y corrompan cachés a medio escribir.
+let updateLock = Promise.resolve();
+
 self.addEventListener('message', (event) => {
   const data = event.data;
   if (!data) return;
@@ -540,32 +641,39 @@ self.addEventListener('message', (event) => {
   if (data.type === 'CACHE_OFFLINE_ROUTES') { event.waitUntil(syncOfflineRoutes()); return; }
   if (data.type === 'UPDATE_CACHE') {
     event.waitUntil((async () => {
-      const broadcast = async (msg) => {
-        const clients = await self.clients.matchAll();
-        clients.forEach((c) => c.postMessage(msg));
-      };
-      try {
-        await broadcast({ type: 'SW_LOG', message: 'Iniciando actualización de caché...' });
+      // Serializa ejecuciones: si ya hay una en curso, espera a que termine.
+      const run = updateLock.then(async () => {
+        const broadcast = async (msg) => {
+          const clients = await self.clients.matchAll();
+          clients.forEach((c) => c.postMessage(msg));
+        };
+        try {
+          await broadcast({ type: 'SW_LOG', message: 'Iniciando actualización de caché...' });
 
-        const staticCache = await caches.open(STATIC_CACHE);
-        await broadcast({ type: 'SW_LOG', message: 'Descargando recursos del portal...' });
-        await precacheShellAssets(staticCache);
+          const staticCache = await caches.open(STATIC_CACHE);
+          await broadcast({ type: 'SW_LOG', message: 'Descargando recursos del portal...' });
+          await precacheShellAssets(staticCache);
 
-        await broadcast({ type: 'SW_LOG', message: 'Guardando Mis QR y Eventos...' });
-        await syncOfflineRoutes();
+          await broadcast({ type: 'SW_LOG', message: 'Guardando Mis QR y Eventos...' });
+          await syncOfflineRoutes();
 
-        const assetsCache = await caches.open(ASSETS_CACHE);
-        await Promise.allSettled(PRECACHE_ICONS.map(async (url) => {
-          const response = await fetch(url, { cache: 'no-store' });
-          if (isCacheable(response)) await assetsCache.put(url, response);
-        }));
+          const assetsCache = await caches.open(ASSETS_CACHE);
+          await Promise.allSettled(PRECACHE_ICONS.map(async (url) => {
+            try {
+              const response = await fetch(url, { cache: 'no-store' });
+              if (isCacheable(response)) await safePut(ASSETS_CACHE, url, response);
+            } catch (e) {}
+          }));
 
-        await broadcast({ type: 'SW_LOG', message: 'Proceso completado con éxito.' });
-        await broadcast({ type: 'CACHE_UPDATED' });
-      } catch (error) {
-        console.error('Error actualizando la caché manualmente:', error);
-        await broadcast({ type: 'SW_LOG', message: '❌ Error en la actualización.' });
-      }
+          await broadcast({ type: 'SW_LOG', message: 'Proceso completado con éxito.' });
+          await broadcast({ type: 'CACHE_UPDATED' });
+        } catch (error) {
+          console.error('Error actualizando la caché manualmente:', error);
+          await broadcast({ type: 'SW_LOG', message: '❌ Error en la actualización.' });
+        }
+      });
+      updateLock = run.catch(() => {});
+      await run;
     })());
     return;
   }
