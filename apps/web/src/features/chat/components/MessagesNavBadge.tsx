@@ -27,11 +27,12 @@ export function MessagesNavBadge() {
   }
 
   const total = summary.total;
+  const label = total > 0 ? `Mensajes, ${total} sin leer` : "Mensajes";
 
   return (
     <Link
       href="/portal/mensajes"
-      aria-label="Mensajes"
+      aria-label={label}
       className="relative inline-flex p-2"
     >
       <MessageSquare size={22} aria-hidden="true" />
