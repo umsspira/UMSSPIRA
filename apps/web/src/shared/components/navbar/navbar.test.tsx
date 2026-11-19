@@ -40,7 +40,7 @@ it('muestra las opciones de mentoría solo después de confirmar que el mentor e
   fireEvent.click(screen.getByRole('button', { name: 'Mentorías' }));
 
   expect(await screen.findByRole('link', { name: 'Mis solicitudes' }))
-    .toHaveAttribute('href', '/mentorship/requests/received?view=sent');
+    .toHaveAttribute('href', '/mentorship/requests');
   expect(screen.queryByRole('link', { name: 'Solicitudes recibidas' })).not.toBeInTheDocument();
 
   view.unmount();
