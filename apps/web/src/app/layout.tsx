@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { PortalSettingsShortcut } from "@/shared/components/portal-settings-shortcut";
 
 const playfairDisplay = localFont({
   src: [
@@ -50,6 +51,7 @@ export default function RootLayout({
     <html lang="es" className={`${playfairDisplay.variable} ${inter.variable}`}>
       <body className="font-sans bg-palladian text-abyssal-blue antialiased">
         {children}
+        <PortalSettingsShortcut />
       </body>
     </html>
   );
