@@ -3,13 +3,18 @@ import { useOcrQueue } from "./use-ocr-queue";
 import { ocrRequest } from "../services/ocr-api";
 import { readOcrDocument } from "../services/ocr-browser";
 import { authenticatedFetch } from "@/shared/services/auth-session";
+import { OcrFailureError } from "../services/ocr-errors";
+import { OcrHttpError } from "../services/ocr-api";
 import {
   acknowledgeOcrPriorities,
   pendingOcrPriorities,
   prioritizeOcr,
 } from "../services/ocr-control";
 
-jest.mock("../services/ocr-api", () => ({ ocrRequest: jest.fn() }));
+jest.mock("../services/ocr-api", () => ({
+  ...jest.requireActual("../services/ocr-api"),
+  ocrRequest: jest.fn(),
+}));
 jest.mock("../services/ocr-browser", () => ({
   readOcrDocument: jest.fn(),
   disposeOcrEngine: jest.fn(),
@@ -172,6 +177,10 @@ describe("OCR inbox queue", () => {
     expect(request.mock.calls.some(([path]) => path === "ocr/stuck/fail")).toBe(
       true,
     );
+    expect(request).toHaveBeenCalledWith("ocr/stuck/fail", {
+      token: "stuck",
+      failure: { stage: "engine", code: "TIMEOUT" },
+    });
     const claims = request.mock.calls.filter(
       ([path]) => path === "ocr/claim",
     ).length;
@@ -217,8 +226,11 @@ describe("OCR inbox queue", () => {
     act(() => document.dispatchEvent(new Event("visibilitychange")));
     await tick();
     expect(
-      request.mock.calls.some(([path]) => path === "ocr/hidden/fail"),
+      request.mock.calls.some(([path]) => path === "ocr/hidden/release"),
     ).toBe(true);
+    expect(request.mock.calls.some(([path]) => path.endsWith("/fail"))).toBe(
+      false,
+    );
     await tick(30000);
     expect(
       request.mock.calls.filter(([path]) => path === "ocr/claim"),
@@ -233,5 +245,101 @@ describe("OCR inbox queue", () => {
       request.mock.calls.filter(([path]) => path === "ocr/claim"),
     ).toHaveLength(2);
     unmount();
+  });
+
+  it("sends the actual HTTP status and stage when downloading fails", async () => {
+    request.mockImplementation(async (path) =>
+      path === "ocr/claim" ? (null as never) : ({} as never),
+    );
+    request.mockResolvedValueOnce(job("download") as never);
+    fetchDocument.mockResolvedValue({ ok: false, status: 503 } as Response);
+    const { result, unmount } = renderHook(() => useOcrQueue());
+    await tick();
+    expect(request).toHaveBeenCalledWith("ocr/download/fail", {
+      token: "download",
+      failure: { stage: "document", code: "HTTP_ERROR", status: 503 },
+    });
+    expect(result.current).toContain("descargar el respaldo (HTTP 503)");
+    expect(read).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it("preserves a reading failure instead of attributing it to engine loading", async () => {
+    request.mockImplementation(async (path) =>
+      path === "ocr/claim" ? (null as never) : ({} as never),
+    );
+    request.mockResolvedValueOnce(job("read") as never);
+    read.mockRejectedValue(
+      new OcrFailureError({ stage: "read", code: "PROCESSING_ERROR" }),
+    );
+    const { unmount } = renderHook(() => useOcrQueue());
+    await tick();
+    expect(request).toHaveBeenCalledWith("ocr/read/fail", {
+      token: "read",
+      failure: { stage: "read", code: "PROCESSING_ERROR" },
+    });
+    unmount();
+  });
+
+  it("releases a reservation received after the inbox was hidden", async () => {
+    let claimed!: (value: never) => void;
+    request.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          claimed = resolve;
+        }),
+    );
+    const { unmount } = renderHook(() => useOcrQueue());
+    await tick();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    request.mockResolvedValue({} as never);
+    await act(async () => claimed(job("late") as never));
+    await tick();
+    expect(request).toHaveBeenCalledWith("ocr/late/release", { token: "late" });
+    expect(fetchDocument).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it("reports a result rejected by the API as a save failure", async () => {
+    request.mockImplementation(async (path) => {
+      if (path.endsWith("/complete")) throw new OcrHttpError(400);
+      return path === "ocr/claim" ? (null as never) : ({} as never);
+    });
+    request.mockResolvedValueOnce(job("save") as never);
+    read.mockResolvedValue({} as never);
+    const { result, unmount } = renderHook(() => useOcrQueue());
+    await tick();
+    expect(request).toHaveBeenCalledWith("ocr/save/fail", {
+      token: "save",
+      failure: { stage: "complete", code: "HTTP_ERROR", status: 400 },
+    });
+    expect(result.current).toContain("guardar el resultado (HTTP 400)");
+    unmount();
+  });
+
+  it("releases work on navigation without reporting a document failure", async () => {
+    request.mockResolvedValueOnce(job("navigation") as never);
+    read.mockImplementation(
+      (_blob, signal) =>
+        new Promise((_, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    );
+    const { unmount } = renderHook(() => useOcrQueue());
+    await tick();
+    unmount();
+    await tick();
+    expect(request).toHaveBeenCalledWith("ocr/navigation/release", {
+      token: "navigation",
+    });
+    expect(request.mock.calls.some(([path]) => path.endsWith("/fail"))).toBe(
+      false,
+    );
   });
 });

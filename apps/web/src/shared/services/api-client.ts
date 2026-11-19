@@ -118,7 +118,7 @@ export const TOKEN_KEY = 'token';
 export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
     this.name = 'ApiError';
   }
@@ -172,7 +172,11 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     if (res.status === 401) throw new ApiError(401, 'Tu sesion expiro. Inicia sesion nuevamente');
-    throw new ApiError(res.status, errorMessage(body, 'Error inesperado'));
+    throw new ApiError(
+      res.status,
+      errorMessage(body, 'Error inesperado'),
+      readApiError(body, '').code,
+    );
   }
   return body?.data as T;
 }

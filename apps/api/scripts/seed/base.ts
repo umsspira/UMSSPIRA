@@ -3,6 +3,7 @@ import type { PasswordHasher } from '../../src/modules/auth/application/ports/pa
 import { Argon2PasswordHasher } from '../../src/modules/auth/infrastructure/security/argon2-password.hasher';
 import { seedCatalogs } from './catalogs';
 import { seedInformaticsAdmin, seedInformaticsCareer } from './informatics-career';
+import { seedSystemsCareer } from './systems-career';
 import {
   DEMO_ACCOUNTS,
   DEMO_CAREER_ID,
@@ -15,11 +16,14 @@ import {
 function profileFor(
   account: DemoAccount,
   informaticsCareerId: string,
+  systemsCareerId: string,
 ): Partial<Prisma.UsuarioCreateInput> {
   const careerId =
     account.id === DEMO_INFORMATICS_QA_ADMIN_ID
       ? informaticsCareerId
-      : (account.careerId ?? DEMO_CAREER_ID);
+      : account.careerId && account.careerId !== DEMO_CAREER_ID
+        ? account.careerId
+        : systemsCareerId;
 
   if (account.role === 'titulado') {
     return {
@@ -76,6 +80,7 @@ export async function seedBase(
   passwords: Pick<PasswordHasher, 'hash'> = new Argon2PasswordHasher(),
 ): Promise<void> {
   await seedCatalogs(prisma);
+  const systemsCareerId = await seedSystemsCareer(prisma);
   const informaticsCareerId = await seedInformaticsCareer(prisma);
 
   const roleCodes = [...new Set(DEMO_ACCOUNTS.map((account) => account.role))];
@@ -102,7 +107,7 @@ export async function seedBase(
     const hash = await passwords.hash(account.password);
     await prisma.usuario.create({
       data: {
-        ...profileFor(account, informaticsCareerId),
+        ...profileFor(account, informaticsCareerId, systemsCareerId),
         usuario_id: account.id,
         correo: account.email,
         nombre: account.name,

@@ -1,0 +1,25 @@
+meta {
+  name: Consultar detalle de vacante disponible
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/job-postings/{{jobPostingId}}
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Usa el UUID obtenido en Listar vacantes disponibles.
+  Responde 404 si la vacante no existe o ya no está disponible.
+  El detalle incluye únicamente los requisitos técnicos asociados a esa vacante.
+}

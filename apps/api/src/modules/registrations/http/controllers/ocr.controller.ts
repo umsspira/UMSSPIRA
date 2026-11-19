@@ -6,7 +6,8 @@ import { RequirePermissions } from '../../../../shared/http/auth/decorators/requ
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import { OcrService } from '../../application/services/ocr.service';
-import { ocrUuid as uuid, ocrLease as lease } from '../schemas/ocr.schemas';
+import { ocrUuid as uuid, ocrLease as lease, ocrFailureSchema } from '../schemas/ocr.schemas';
+import type { OcrFailure } from '@umsspira/shared-types';
 
 @Controller('applications')
 @RequirePermissions('solicitudes:read')
@@ -57,8 +58,24 @@ export class OcrController {
   async fail(
     @CurrentActor() actor: ActorContext,
     @Param('jobId', new ZodValidationPipe(uuid)) id: string,
+    @Body(new ZodValidationPipe(ocrFailureSchema)) body: { token: string; failure?: OcrFailure },
+  ) {
+    return { data: await this.ocr.fail(actor, id, body.token, body.failure) };
+  }
+  @Post('ocr/:jobId/release')
+  async release(
+    @CurrentActor() actor: ActorContext,
+    @Param('jobId', new ZodValidationPipe(uuid)) id: string,
     @Body(new ZodValidationPipe(lease)) body: { token: string },
   ) {
-    return { data: await this.ocr.fail(actor, id, body.token) };
+    return { data: await this.ocr.release(actor, id, body.token) };
+  }
+  @Post('ocr/:jobId/retry')
+  async retry(
+    @CurrentActor() actor: ActorContext,
+    @Param('jobId', new ZodValidationPipe(uuid)) id: string,
+    @Body(new ZodValidationPipe(z.object({}).strict())) _body: Record<string, never>,
+  ) {
+    return { data: await this.ocr.retry(actor, id) };
   }
 }
