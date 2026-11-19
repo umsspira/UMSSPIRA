@@ -231,27 +231,29 @@ export class VacantesService {
   }
 
   async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacanteData) {
-    const empresa = await this.prisma.empresa.findFirst({
-      where: { id_usuario: idUsuario }
-    });
+    // HU-13: el dueño y los miembros activos de la empresa pueden editar;
+    // cualquier otro recibe 404 sin filtrar si la vacante existe.
+    await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
 
-    if (!empresa) {throw new Error('Empresa no encontrada');}
+    // Solo se escriben los campos enviados; el resto queda intacto.
+    const cambios: Record<string, string> = {};
+    if (data.titulo !== undefined) {cambios['titulo'] = data.titulo;}
+    if (data.modalidad !== undefined) {cambios['modalidad'] = data.modalidad;}
+    if (data.nivel_experiencia !== undefined) {cambios['nivel_experiencia'] = data.nivel_experiencia;}
+    if (data.descripcion_tecnica !== undefined) {cambios['descripcion_tecnica'] = data.descripcion_tecnica;}
+    if (data.estado !== undefined) {cambios['estado'] = data.estado;}
 
-    const vacante = await this.prisma.vacante.findFirst({
-      where: { id: idVacante, id_empresa: empresa.id }
-    });
-
-    if (!vacante) {throw new Error('Vacante no encontrada o sin permiso');}
-
-    return this.prisma.vacante.update({
-      where: { id: idVacante },
-      data: {
-        titulo: data.titulo,
-        modalidad: data.modalidad,
-        nivel_experiencia: data.nivel_experiencia,
-        descripcion_tecnica: data.descripcion_tecnica,
-        estado: data.estado, // <-- NUEVO
-      }
+    return this.prisma.$transaction(async (tx) => {
+      // Bloqueo por vacante: dos envíos simultáneos (doble clic o reenvío)
+      // se serializan y el resultado es el mismo que con un solo envío.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idVacante}))`;
+      const actualizada = await tx.vacante.update({
+        where: { id: idVacante },
+        data: cambios,
+      });
+      // TODO(HU-12): disparar aquí el recálculo de afinidad de las postulaciones
+      // cuando exista el servicio de matching (HU-10/HU-12, epic7).
+      return actualizada;
     });
   }
 

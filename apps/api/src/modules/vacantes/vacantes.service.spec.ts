@@ -262,3 +262,75 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
     );
   });
 });
+
+// HU-13: edición validada con scoping por empresa y bloqueo anti-doble-envío.
+describe('VacantesService · edición de vacante (HU-13)', () => {
+  const ID_VACANTE = '44500000-0000-4000-8000-000000000001';
+  const ID_USUARIO = '20000000-0000-4000-8000-000000000003';
+
+  function crearServicio(opts: { vacantesVisibles?: number } = {}) {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      vacante: {
+        update: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Nueva' }),
+      },
+    };
+    const prisma = {
+      vacante: {
+        count: jest.fn().mockResolvedValue(opts.vacantesVisibles ?? 1),
+      },
+      $transaction: jest.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+    };
+    return { servicio: new VacantesService(prisma as never), prisma, tx };
+  }
+
+  it('permite editar al dueño y a los miembros activos de la empresa', async () => {
+    const { servicio, prisma } = crearServicio();
+
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { titulo: 'Nueva' });
+
+    expect(prisma.vacante.count).toHaveBeenCalledWith({
+      where: {
+        id: ID_VACANTE,
+        empresa: {
+          OR: [
+            { id_usuario: ID_USUARIO },
+            { empresa_usuario_registros: { some: { id_usuario: ID_USUARIO, estado: 'activo' } } },
+          ],
+        },
+      },
+    });
+  });
+
+  it('responde 404 si la vacante no existe o es de otra empresa, sin actualizar nada', async () => {
+    const { servicio, tx } = crearServicio({ vacantesVisibles: 0 });
+
+    await expect(
+      servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { titulo: 'Nueva' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.vacante.update).not.toHaveBeenCalled();
+  });
+
+  it('actualiza solo los campos enviados', async () => {
+    const { servicio, tx } = crearServicio();
+
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { estado: 'PAUSADA' });
+
+    expect(tx.vacante.update).toHaveBeenCalledWith({
+      where: { id: ID_VACANTE },
+      data: { estado: 'PAUSADA' },
+    });
+  });
+
+  it('serializa los envíos simultáneos con el bloqueo por vacante dentro de la transacción', async () => {
+    const { servicio, prisma, tx } = crearServicio();
+
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { titulo: 'Nueva' });
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    const orden = tx.$queryRaw.mock.invocationCallOrder[0];
+    const actualizacion = tx.vacante.update.mock.invocationCallOrder[0];
+    expect(orden).toBeLessThan(actualizacion);
+  });
+});

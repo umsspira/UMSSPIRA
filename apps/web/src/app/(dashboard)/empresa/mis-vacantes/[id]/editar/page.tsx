@@ -77,6 +77,8 @@ export default function EditarVacantePage() {
     setIsSaving(true);
     try {
       const token = getAccessToken();
+      // El selector muestra etiquetas ("Híbrido"); la API valida el vocabulario canónico.
+      const modalidadApi = ({ Remoto: 'REMOTO', 'Híbrido': 'HIBRIDO', Presencial: 'PRESENCIAL' } as Record<string, string>)[modalidad] ?? modalidad;
       const response = await fetch(`${API_BASE_URL}/api/v1/vacantes/${id}`, {
         method: 'PATCH',
         headers: {
@@ -85,14 +87,15 @@ export default function EditarVacantePage() {
         },
         body: JSON.stringify({ 
           titulo, 
-          modalidad, 
+          modalidad: modalidadApi, 
           nivel_experiencia: nivel, 
           descripcion_tecnica: descripcion 
         })
       });
 
       if (!response.ok) {
-        throw new Error('Error al guardar en el servidor');
+        const errorBody = await response.json().catch(() => null);
+        throw new Error(errorBody?.error?.message ?? 'Error al guardar en el servidor');
       }
       
       alert("Cambios guardados con éxito en la base de datos");
