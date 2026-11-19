@@ -1,7 +1,6 @@
 // apps/web/src/features/chat/hooks/useStartDirectChat.ts
 "use client";
 import { useRouter } from "next/navigation";
-
 export const useStartDirectChat = () => {
   const router = useRouter();
   return {
@@ -9,5 +8,8 @@ export const useStartDirectChat = () => {
       router.push(
         `/portal/mensajes?recipient=${encodeURIComponent(targetUserId)}`,
       ),
+    loading: false,
+    error: null,
+    clearError: () => undefined,
   };
 };
