@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { PrismaJobPostingRepository } from './prisma-job-posting.repository';
 
 describe('PrismaJobPostingRepository read operations', () => {
@@ -11,6 +12,13 @@ describe('PrismaJobPostingRepository read operations', () => {
         fecha_publicacion: new Date('2026-11-16T10:00:00.000Z'),
         descripcion_tecnica: 'Descripción breve',
         modalidad: 'REMOTO',
+                requisito_tecnico_registros: [
+          {
+            id: 'requirement-1',
+            nombre: 'Python',
+            nombre_normalizado: 'python',
+          },
+        ],
         empresa: { razon_social: 'Empresa' },
       },
     ]);
@@ -29,6 +37,13 @@ describe('PrismaJobPostingRepository read operations', () => {
         title: 'Desarrollador',
         companyName: 'Empresa',
         status: 'PUBLICADO',
+                requirements: [
+          {
+            id: 'requirement-1',
+            name: 'Python',
+            normalizedName: 'python',
+          },
+        ],
       },
     ]);
     expect(findMany).toHaveBeenCalledWith(

@@ -31,6 +31,10 @@ describe('available job posting presenters', () => {
       descripcionTecnica: 'Descripción registrada',
       modalidad: 'REMOTO',
       fechaPublicacion: '2026-11-16T10:00:00.000Z',
+            requisitos: [
+        { id: 'requirement-1', nombre: 'Python' },
+        { id: 'requirement-4', nombre: 'PostgreSQL' },
+      ],
     });
   });
 
@@ -45,5 +49,11 @@ describe('available job posting presenters', () => {
     expect(
       presentAvailableJobPostingDetail({ ...posting, requirements: [] }).requisitos,
     ).toEqual([]);
+  });
+
+    it('presenta los mismos requisitos en listado y detalle', () => {
+    expect(presentAvailableJobPosting(posting).requisitos).toEqual(
+      presentAvailableJobPostingDetail(posting).requisitos,
+    );
   });
 });

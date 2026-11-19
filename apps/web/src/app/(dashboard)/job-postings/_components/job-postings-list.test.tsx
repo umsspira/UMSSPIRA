@@ -35,6 +35,7 @@ const posting: AvailableJobPosting = {
   ].join('\n'),
   modalidad: 'HIBRIDO',
   fechaPublicacion: '2026-11-16T10:00:00.000Z',
+  requisitos:[],
 };
 
 describe('JobPostingsList', () => {
@@ -62,7 +63,7 @@ describe('JobPostingsList', () => {
       '/portal/empleos/vacancy-1',
     );
     expect(calculateAffinity).toHaveBeenCalledWith(
-      [{ id: 'vacancy-1-requirement-1', nombre: 'React' }],
+      [{ id: 'requirement-1', nombre: 'React' }],
       ['React'],
     );
   });
@@ -192,22 +193,36 @@ describe('JobPostingsList', () => {
   });
 
   it('mantiene 0 % antes de las vacantes sin cálculo y conserva su asociación', async () => {
-    listPostings.mockResolvedValue([
-      { ...posting, id: 'vacancy-pending', titulo: 'Vacante sin cálculo' },
-      { ...posting, id: 'vacancy-zero', titulo: 'Vacante cero' },
-      { ...posting, id: 'vacancy-high', titulo: 'Vacante alta' },
+      listPostings.mockResolvedValue([
+      {
+        ...posting,
+        id: 'vacancy-pending',
+        titulo: 'Vacante sin cálculo',
+        descripcionTecnica: null,
+        requisitos: [],
+      },
+      {
+        ...posting,
+        id: 'vacancy-zero',
+        titulo: 'Vacante cero',
+        descripcionTecnica: null,
+        requisitos: [{ id: 'stored-python', nombre: 'Python' }],
+      },
+      {
+        ...posting,
+        id: 'vacancy-high',
+        titulo: 'Vacante alta',
+      },
     ]);
 
     calculateAffinity.mockImplementation((requirements) => {
-      const id = requirements[0]?.id ?? '';
-
-      if (id.startsWith('vacancy-pending-')) {
+      if (requirements.length === 0) {
         return { status: 'insufficient-requirements' };
       }
 
       return {
         status: 'ready',
-        percentage: id.startsWith('vacancy-zero-') ? 0 : 90,
+        percentage: requirements[0]?.nombre === 'Python' ? 0 : 90,
         calculatedAt: '2026-11-17T10:00:00.000Z',
         comparison: [],
       };
@@ -231,6 +246,8 @@ describe('JobPostingsList', () => {
       ...posting,
       id: 'vacancy-removed',
       titulo: 'Vacante retirada',
+            descripcionTecnica: null,
+      requisitos: [{ id: 'stored-python', nombre: 'Python' }],
     };
     const remainingPosting = {
       ...posting,
@@ -250,7 +267,7 @@ describe('JobPostingsList', () => {
       status: 'ready',
       percentage: skills.includes('SQL')
         ? 80
-        : requirements[0]?.id.startsWith('vacancy-removed-')
+        : requirements[0]?.nombre === 'Python'
           ? 95
           : 40,
       calculatedAt: '2026-11-17T10:00:00.000Z',
@@ -274,5 +291,29 @@ describe('JobPostingsList', () => {
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('Vacante vigente');
     expect(listPostings).toHaveBeenCalledTimes(2);
     expect(loadSkills).toHaveBeenCalledTimes(2);
+  });
+
+    it('combina requisitos de descripción y base sin duplicarlos', async () => {
+    listPostings.mockResolvedValue([
+      {
+        ...posting,
+        requisitos: [
+          { id: 'stored-react', nombre: 'React' },
+          { id: 'stored-sql', nombre: 'SQL' },
+        ],
+      },
+    ]);
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
+
+    expect(calculateAffinity).toHaveBeenCalledWith(
+      [
+        { id: 'requirement-1', nombre: 'React' },
+        { id: 'requirement-2', nombre: 'SQL' },
+      ],
+      ['React'],
+    );
   });
 });

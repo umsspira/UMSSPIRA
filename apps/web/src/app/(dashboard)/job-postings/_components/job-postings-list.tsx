@@ -9,7 +9,7 @@ import { Spinner } from '@/shared/components/spinner';
 import { listAvailableJobPostings } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinityWithSkills, loadTituladoSkills, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
 import { jobPostingDetailRoute } from '@/shared/routes/job-postings';
-import { descriptionWithoutRequirements, extractTechnicalRequirements } from '@/shared/utils/job-posting-requirements';
+import { descriptionWithoutRequirements, mergeTechnicalRequirements } from '@/shared/utils/job-posting-requirements';
 
 type ListState =
   | { status: 'loading' }
@@ -61,10 +61,10 @@ function shortDescription(value: string | null): string {
 }
 
 function requirementsFor(posting: AvailableJobPosting): TechnicalRequirement[] {
-  return extractTechnicalRequirements(posting.descripcionTecnica).map((nombre, index) => ({
-    id: `${posting.id}-requirement-${index + 1}`,
-    nombre,
-  }));
+  return mergeTechnicalRequirements(
+    posting.descripcionTecnica,
+    posting.requisitos,
+  );
 }
 
 function affinityBadge(result: VacancyAffinityResult | undefined) {
