@@ -1,6 +1,6 @@
 // apps/web/src/features/chat/hooks/useConversations.ts
 "use client";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getMyConversations,
   type ConversationSummary,
@@ -32,5 +32,9 @@ export const useConversations = () => {
     }
   }, []);
 
-  return { conversations, loading, error };
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { conversations, loading, error, reload: load, retry: load };
 };
