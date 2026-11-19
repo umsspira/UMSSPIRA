@@ -12,6 +12,7 @@ import {
 import { getChatSocket, retryConnection } from "@/shared/services/chat-socket";
 import { useConversations } from "@/features/chat/hooks/useConversations";
 import { MessagesOfflineGuard } from "@/features/chat/components/MessagesOfflineGuard";
+import { formatChatTime, getInitials } from "@/features/chat/utils/format";
 
 type Tab = "inbox" | "requests" | "declined";
 
@@ -87,6 +88,18 @@ function Messages() {
       socket.off("connect_error", offline);
     };
   }, []);
+
+  const select = (id: string) => {
+    setSelectedId(id);
+    setCompose(false);
+    setNotice("");
+    window.history.replaceState(
+      null,
+      "",
+      `/portal/mensajes?conversation=${encodeURIComponent(id)}`,
+    );
+    // El ConversationPanel se encarga de markConversationAsRead + emitUnreadRefresh.
+  };
 
   const incoming = (item: ConversationSummary) => item.requesterId !== actorId;
   const requests = conversations.filter(
@@ -211,16 +224,78 @@ function Messages() {
               </div>
             )}
 
+            {/* CA-02: insignia + distinción visual de no leídas */}
             {actorId &&
-              visible.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => select(item.id)}
-                  className="flex w-full gap-3 border-b border-b-slate-100 border-l-4 border-l-transparent p-4 text-left hover:bg-orange-50"
-                >
-                  <span>{item.otherUser.name}</span>
-                </button>
-              ))}
+              visible.map((item) => {
+                const unread = (item.unreadCount ?? 0) > 0;
+                const active = selectedId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => select(item.id)}
+                    aria-current={active ? "true" : undefined}
+                    className={`flex w-full gap-3 border-b border-b-slate-100 border-l-4 p-4 text-left hover:bg-orange-50 ${
+                      active
+                        ? "border-l-orange-500 bg-orange-50"
+                        : "border-l-transparent"
+                    } ${unread && !active ? "bg-orange-50/60" : ""}`}
+                  >
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        unread
+                          ? "bg-orange-200 text-orange-900"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {getInitials(item.otherUser.name)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <strong
+                          className={`truncate text-sm ${
+                            unread
+                              ? "font-extrabold text-slate-900"
+                              : "font-medium text-slate-800"
+                          }`}
+                        >
+                          {item.otherUser.name}
+                        </strong>
+                        <time className="shrink-0 text-[10px] text-slate-400">
+                          {formatChatTime(item.lastMessage?.sentAt)}
+                        </time>
+                      </span>
+                      <span className="block text-[11px] capitalize text-slate-500">
+                        {item.otherUser.role}
+                        {item.status === "PENDIENTE" && !incoming(item)
+                          ? " · Solicitud enviada"
+                          : ""}
+                      </span>
+                      <span
+                        className={`mt-1 block truncate text-xs ${
+                          unread
+                            ? "font-semibold text-slate-800"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        {item.lastMessage?.deletedAt
+                          ? "Mensaje eliminado"
+                          : item.lastMessage?.content ||
+                            item.lastMessage?.attachment?.name}
+                      </span>
+                    </span>
+                    {unread && (
+                      <span
+                        aria-label={`${item.unreadCount} sin leer`}
+                        className="my-auto min-w-[20px] rounded-full bg-orange-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white"
+                      >
+                        {(item.unreadCount ?? 0) > 99
+                          ? "99+"
+                          : item.unreadCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
           </div>
         </aside>
 
