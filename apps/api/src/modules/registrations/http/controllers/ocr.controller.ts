@@ -70,4 +70,12 @@ export class OcrController {
   ) {
     return { data: await this.ocr.release(actor, id, body.token) };
   }
+  @Post('ocr/:jobId/retry')
+  async retry(
+    @CurrentActor() actor: ActorContext,
+    @Param('jobId', new ZodValidationPipe(uuid)) id: string,
+    @Body(new ZodValidationPipe(z.object({}).strict())) _body: Record<string, never>,
+  ) {
+    return { data: await this.ocr.retry(actor, id) };
+  }
 }

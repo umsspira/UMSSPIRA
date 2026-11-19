@@ -85,6 +85,7 @@ async function main() {
     const two = await Promise.all([service.claim(actor), service.claim(actor)]);
     assert.equal(two.filter(Boolean).length, 1, 'Only one browser reserves a version');
     let job = two.find(Boolean)!;
+    await assert.rejects(service.retry(actor, job.id));
     await assert.rejects(
       service.renew({ ...actor, scopes: { ...actor.scopes, careerIds: [] } }, job.id, job.token),
     );
@@ -114,6 +115,7 @@ async function main() {
     assert.equal(result.suggestion, 'APROBAR');
     await assert.rejects(results.complete(actor, job.id, job.token, reading));
     assert.equal(await db.ocrResultado.count({ where: { id_trabajo: job.id } }), 1);
+    await assert.rejects(service.retry(actor, job.id));
     assert.equal((await results.analyses(actor, app))[0].result?.suggestion, 'APROBAR');
     assert.equal(
       (await db.solicitud.findUniqueOrThrow({ where: { id: app } })).estado,
@@ -154,8 +156,46 @@ async function main() {
     }
     assert.equal(await service.claim(actor), null);
     assert.equal((await results.analyses(actor, app))[0].status, 'FALLIDO');
+    await assert.rejects(
+      service.retry({ ...actor, scopes: { ...actor.scopes, careerIds: [] } }, job.id),
+    );
+    const retried = await Promise.allSettled([
+      service.retry(actor, job.id),
+      service.retry(actor, job.id),
+    ]);
+    assert.equal(
+      retried.filter((item) => item.status === 'fulfilled').length,
+      1,
+      'Only one explicit retry resets a failed job',
+    );
+    const [queued] = await db.$queryRaw<
+      { intentos: number; estado: string }[]
+    >`SELECT intentos,estado FROM ocr_trabajo WHERE id=${job.id}::uuid`;
+    assert.equal(queued.estado, 'PENDIENTE');
+    assert.equal(queued.intentos, 0);
+    job = (await service.claim(actor))!;
+    await results.complete(actor, job.id, job.token, reading);
+    assert.equal(await db.ocrResultado.count({ where: { id_trabajo: job.id } }), 1);
+    assert.equal(
+      (await db.solicitud.findUniqueOrThrow({ where: { id: app } })).estado,
+      'PENDIENTE',
+    );
+    await assert.rejects(service.retry(actor, job.id));
+    // An administrator can decide without waiting for OCR; do not advertise dead queue work.
+    await db.solicitud.update({ where: { id: app }, data: { estado: 'OBSERVADA' } });
+    await db.solicitud.update({
+      where: { id: app },
+      data: { estado: 'PENDIENTE', version_vigente: { increment: 1 } },
+    });
+    const waiting = (await results.analyses(actor, app))[0];
+    assert.equal(waiting.status, 'PENDIENTE');
+    await db.solicitud.update({ where: { id: app }, data: { estado: 'APROBADA' } });
+    assert.equal((await service.statuses(actor, [app]))[0].status, 'DESCARTADO');
+    assert.equal((await results.analyses(actor, app))[0].status, 'DESCARTADO');
+    await assert.rejects(service.retry(actor, waiting.id));
+    assert.equal(await service.claim(actor), null);
     console.log(
-      'HU-13 PostgreSQL: queue, concurrent reservation, pause without retry loss (5 times), renewal, expiry/reassignment, scope, wrong token, exactly one result, version history, stale result, diagnostic persistence, retry limit, unchanged state and no mail: PASS',
+      'HU-13 PostgreSQL: queue, reservations, pause, expiry, scope, version history, diagnostics, explicit retry with concurrency protection, one result, unchanged application and no mail: PASS',
     );
   } finally {
     await db.$executeRaw`DELETE FROM ocr_resultado WHERE id_trabajo IN (SELECT id FROM ocr_trabajo WHERE id_solicitud=${app}::uuid)`;
