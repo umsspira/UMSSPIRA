@@ -127,7 +127,7 @@ export default function EventsCatalogPage({
               Explorar
             </button>
             <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
-            <Link href="/events/catalog/passes">Mis pases</Link>
+            <Link href="/mis-pases">Mis pases</Link>
           </nav>
         </header>
 
