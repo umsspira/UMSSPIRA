@@ -15,6 +15,7 @@ import {
   MapPin,
   Clock3,
   Settings,
+  QrCode,
   WifiOff,
   Wifi,
   AlertTriangle,
@@ -106,6 +107,8 @@ const quickLinks = [
   { href: '/portal/empleos', title: 'Bolsa de trabajo', text: 'Encuentra nuevas oportunidades laborales.', Icon: Briefcase, iconStyle: 'bg-blue-50 text-blue-600' },
   { href: '/portal/beneficios', title: 'Beneficios', text: 'Accede a descuentos y convenios exclusivos.', Icon: Star, iconStyle: 'bg-amber-50 text-amber-600' },
   { href: '/portal/comunidad', title: 'Comunidad', text: 'Conecta con otros egresados.', Icon: Users, iconStyle: 'bg-slate-100 text-slate-700' },
+  // HU09 CA-01: acceso rápido a los QR guardados (1 toque desde el inicio).
+  { href: '/mis-pases', title: 'Mis códigos QR', text: 'Abre tus pases QR guardados en el dispositivo.', Icon: QrCode, iconStyle: 'bg-emerald-50 text-emerald-600' },
 ];
 
 const normalize = (text: string) =>
@@ -308,7 +311,7 @@ export default function Home() {
       )}
 
       {filteredQuickLinks.length > 0 && (
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-stretch">
           {filteredQuickLinks.map(({ href, title, text, Icon, iconStyle }) => (
             <Link
               key={href}
