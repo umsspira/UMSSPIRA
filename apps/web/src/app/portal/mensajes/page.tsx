@@ -3,7 +3,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { RefreshCw } from "lucide-react";
+import { MessageSquare, Plus, RefreshCw } from "lucide-react";
 import { authenticatedFetch } from "@/shared/services/auth-session";
 import {
   getConversation,
@@ -88,6 +88,19 @@ function Messages() {
     };
   }, []);
 
+  const incoming = (item: ConversationSummary) => item.requesterId !== actorId;
+  const requests = conversations.filter(
+    (item) => item.status === "PENDIENTE" && incoming(item),
+  );
+  const visible = conversations.filter((item) =>
+    tab === "requests"
+      ? item.status === "PENDIENTE" && incoming(item)
+      : tab === "declined"
+        ? item.status === "RECHAZADO"
+        : item.status === "ACEPTADO" ||
+          (item.status === "PENDIENTE" && !incoming(item)),
+  );
+
   if (sessionError)
     return (
       <div className="mx-auto max-w-3xl p-8">
@@ -131,6 +144,101 @@ function Messages() {
           {notice}
         </p>
       )}
+
+      <div className="grid h-[75dvh] min-h-[450px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:grid-cols-[340px_1fr]">
+        <aside
+          className={`min-h-0 flex-col border-r ${selectedId || compose ? "hidden md:flex" : "flex"}`}
+        >
+          <div className="p-4">
+            <button
+              onClick={() => {
+                setCompose(true);
+                setSelectedId(null);
+                setNotice("");
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+            >
+              <Plus size={18} />
+              Nuevo mensaje
+            </button>
+          </div>
+
+          <nav aria-label="Bandejas de mensajes" className="flex border-b px-2">
+            {(
+              [
+                ["inbox", "Chats"],
+                [
+                  "requests",
+                  `Solicitudes${requests.length ? ` (${requests.length})` : ""}`,
+                ],
+                ["declined", "Rechazadas"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                aria-pressed={tab === value}
+                onClick={() => setTab(value)}
+                className={`flex-1 border-b-2 px-2 py-3 text-xs font-semibold ${tab === value ? "border-orange-400 text-slate-900" : "border-transparent text-slate-500"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="min-h-0 flex-1 overflow-auto">
+            {(loading || !actorId) && (
+              <p role="status" className="p-5 text-sm text-slate-500">
+                Cargando conversaciones…
+              </p>
+            )}
+            {error && (
+              <div role="alert" className="p-4 text-sm text-red-700">
+                {error}
+                <button
+                  className="ml-2 underline"
+                  onClick={() => void reload()}
+                >
+                  Reintentar
+                </button>
+              </div>
+            )}
+            {!loading && actorId && !visible.length && (
+              <div className="p-8 text-center text-sm text-slate-500">
+                <MessageSquare className="mx-auto mb-3" />
+                {tab === "inbox"
+                  ? "Inicia una conversación con tu primer mensaje."
+                  : "No tienes solicitudes en esta bandeja."}
+              </div>
+            )}
+
+            {actorId &&
+              visible.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => select(item.id)}
+                  className="flex w-full gap-3 border-b border-b-slate-100 border-l-4 border-l-transparent p-4 text-left hover:bg-orange-50"
+                >
+                  <span>{item.otherUser.name}</span>
+                </button>
+              ))}
+          </div>
+        </aside>
+
+        <section
+          className={`min-h-0 min-w-0 ${selectedId || compose ? "block" : "hidden md:block"}`}
+        >
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-slate-500">
+            <MessageSquare size={40} strokeWidth={1} />
+            <p className="font-semibold">
+              Tu próxima conversación empieza aquí
+            </p>
+            <p className="max-w-sm text-sm">
+              Envía una solicitud a cualquier persona de la comunidad o retoma
+              uno de tus chats.
+            </p>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
