@@ -8,6 +8,7 @@ import { notifySessionExpired } from '@/modules/auth/frontend/services/session-e
 import { authenticatedFetch, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
 import { Navbar } from './navbar';
 import { NAVBAR_ROLE_LABEL } from './navigation';
+import { NAVBAR_OFFLINE_USER_KEY } from './offline-user';
 import type { NavbarRole, NavbarSession } from './types';
 import { clearAllSurveyDrafts } from '@/modules/surveys/frontend/hooks/use-survey-draft';
 
@@ -23,6 +24,13 @@ function sessionFromUser(value: unknown): NavbarSession | null {
   const words = name.split(/[\s._-]+/).filter(Boolean);
   const initials = words.length > 1 ? `${words[0][0]}${words[1][0]}` : name.slice(0, 2);
   return { name, role, initials: initials.toUpperCase() };
+}
+
+function rememberNavbarUser(value: NavbarSession | null) {
+  try {
+    if (value) window.localStorage.setItem(NAVBAR_OFFLINE_USER_KEY, JSON.stringify({ name: value.name, initials: value.initials, role: value.role }));
+    else window.localStorage.removeItem(NAVBAR_OFFLINE_USER_KEY);
+  } catch { /* almacenamiento deshabilitado: la pantalla sin conexión usa la barra de visitante */ }
 }
 
 // Última sesión conocida: sobrevive a los cambios de página (el componente se vuelve a montar)
@@ -45,6 +53,7 @@ export function ConnectedNavbar() {
 
   const setSession = useCallback((value: NavbarSession | null) => {
     cachedSession = value;
+    rememberNavbarUser(value);
     setSessionState(value);
   }, []);
 
