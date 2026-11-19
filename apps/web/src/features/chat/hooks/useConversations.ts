@@ -10,13 +10,11 @@ import {
   releaseChatSocket,
 } from "@/shared/services/chat-socket";
 import { onUnreadRefresh } from "../utils/unread-events";
-
 export const useConversations = () => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const version = useRef(0);
-
   const load = useCallback(async () => {
     const request = ++version.current;
     try {
@@ -36,7 +34,6 @@ export const useConversations = () => {
       if (request === version.current) setLoading(false);
     }
   }, []);
-
   useEffect(() => {
     void load();
     const socket = retainChatSocket();
@@ -61,6 +58,5 @@ export const useConversations = () => {
       releaseChatSocket();
     };
   }, [load]);
-
   return { conversations, loading, error, reload: load, retry: load };
 };
