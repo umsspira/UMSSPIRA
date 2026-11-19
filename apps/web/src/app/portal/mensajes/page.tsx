@@ -3,11 +3,13 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 import { authenticatedFetch } from "@/shared/services/auth-session";
 import {
   getConversation,
   type ConversationSummary,
 } from "@/shared/services/chat-conversation.service";
+import { getChatSocket, retryConnection } from "@/shared/services/chat-socket";
 import { useConversations } from "@/features/chat/hooks/useConversations";
 import { MessagesOfflineGuard } from "@/features/chat/components/MessagesOfflineGuard";
 
@@ -24,6 +26,7 @@ function Messages() {
   const [external, setExternal] = useState<ConversationSummary | null>(null);
   const [compose, setCompose] = useState(Boolean(params.get("recipient")));
   const [tab, setTab] = useState<Tab>("inbox");
+  const [connected, setConnected] = useState(false);
   const [notice, setNotice] = useState("");
 
   const selected =
@@ -70,6 +73,21 @@ function Messages() {
     };
   }, [selectedId, conversations]);
 
+  useEffect(() => {
+    const socket = getChatSocket();
+    setConnected(socket.connected);
+    const online = () => setConnected(true),
+      offline = () => setConnected(false);
+    socket.on("connect", online);
+    socket.on("disconnect", offline);
+    socket.on("connect_error", offline);
+    return () => {
+      socket.off("connect", online);
+      socket.off("disconnect", offline);
+      socket.off("connect_error", offline);
+    };
+  }, []);
+
   if (sessionError)
     return (
       <div className="mx-auto max-w-3xl p-8">
@@ -90,6 +108,29 @@ function Messages() {
           </p>
         </div>
       </div>
+
+      {!connected && !loading && actorId && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          <p role="status">Reconectando el chat…</p>
+          <button
+            onClick={() => {
+              retryConnection();
+              void reload();
+            }}
+            className="flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold"
+            aria-label="Reintentar conexión del chat"
+          >
+            <RefreshCw size={14} />
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {notice && (
+        <p role="status" className="mb-3 rounded-lg bg-orange-50 p-3 text-sm">
+          {notice}
+        </p>
+      )}
     </main>
   );
 }
