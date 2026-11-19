@@ -2,5 +2,9 @@
 "use client";
 
 export const useStartDirectChat = () => {
-  return {};
+  return {
+    startChat: (targetUserId: string) => {
+      void targetUserId;
+    },
+  };
 };
