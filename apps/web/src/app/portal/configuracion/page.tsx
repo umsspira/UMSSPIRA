@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Database, RefreshCw, ShieldCheck, Info, Zap, Download, Terminal, CheckCircle, XCircle } from 'lucide-react';
 import { useServiceWorkerUpdate } from '../../../hooks/useServiceWorkerUpdate';
+import { ActionNotice, OFFLINE_ACTION_MESSAGE } from '@/shared/components/action-notice';
 
 export default function ConfiguracionPage() {
   const [isOnline, setIsOnline] = useState(true);
@@ -13,8 +14,22 @@ export default function ConfiguracionPage() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [offlinePageReady, setOfflinePageReady] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'applying' | 'error'>('idle');
 
   const { updateAvailable, applyUpdate, dismissUpdate } = useServiceWorkerUpdate();
+
+  // HU10: «Actualizar ahora» muestra carga y, si la nueva versión no se activa, error con «Reintentar».
+  const handleApplyUpdate = () => {
+    if (updateStatus === 'applying') return;
+    setUpdateStatus('applying');
+    applyUpdate();
+  };
+
+  useEffect(() => {
+    if (updateStatus !== 'applying') return;
+    const timeoutId = setTimeout(() => setUpdateStatus('error'), 10000);
+    return () => clearTimeout(timeoutId);
+  }, [updateStatus]);
 
   const addLog = (msg: string) => {
     setLogs((prev) => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
@@ -63,7 +78,7 @@ export default function ConfiguracionPage() {
         localStorage.setItem('lastCacheUpdate', now);
         setLastUpdate(now);
         setIsUpdating(false);
-        setFeedback({ type: 'success', msg: 'Caché actualizada correctamente.' });
+        setFeedback({ type: 'success', msg: 'Caché actualizada correctamente' });
         caches.match('/offline').then((res) => setOfflinePageReady(!!res));
         if ('storage' in navigator && 'estimate' in navigator.storage) {
           navigator.storage.estimate().then((est) => {
@@ -71,7 +86,6 @@ export default function ConfiguracionPage() {
             setCacheSize(`${usedMB} MB`);
           });
         }
-        setTimeout(() => setFeedback(null), 4000);
       }
       if (event.data?.type === 'SW_LOG') addLog(event.data.message);
     };
@@ -81,6 +95,7 @@ export default function ConfiguracionPage() {
 
   const handleUpdateCache = () => {
     if (!isOnline || isUpdating) return;
+    setFeedback(null);
     setIsUpdating(true);
     setLogs([]);
     addLog('Iniciando solicitud de actualización manual...');
@@ -91,7 +106,7 @@ export default function ConfiguracionPage() {
         setIsUpdating((prev) => {
           if (prev) {
             addLog('❌ Error: Tiempo de espera agotado.');
-            setFeedback({ type: 'error', msg: 'No se pudo actualizar. Reintentar.' });
+            setFeedback({ type: 'error', msg: 'No se pudo actualizar la caché. Revisa tu conexión.' });
           }
           return false;
         });
@@ -105,15 +120,41 @@ export default function ConfiguracionPage() {
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-8 mt-4">
       {updateAvailable && (
-        <div role="status" aria-live="polite" className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <Download className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm font-medium">Hay una nueva versión de UMSSPIRA disponible. Tus QR y tu sesión se conservarán.</p>
+        <div className="mb-6 space-y-3">
+          <div role="status" aria-live="polite" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <Download className="w-5 h-5 flex-shrink-0" />
+              <p className="text-sm font-medium">Hay una nueva versión de UMSSPIRA disponible. Tus QR y tu sesión se conservarán.</p>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <button
+                onClick={dismissUpdate}
+                disabled={updateStatus === 'applying'}
+                className="px-4 py-2 text-sm font-semibold rounded-full border border-amber-300 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Más tarde
+              </button>
+              <button
+                onClick={handleApplyUpdate}
+                disabled={updateStatus === 'applying'}
+                className="px-4 py-2 text-sm font-semibold rounded-full bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {updateStatus === 'applying' ? 'Actualizando...' : 'Actualizar ahora'}
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
-            <button onClick={dismissUpdate} className="px-4 py-2 text-sm font-semibold rounded-full border border-amber-300 hover:bg-amber-100">Más tarde</button>
-            <button onClick={applyUpdate} className="px-4 py-2 text-sm font-semibold rounded-full bg-amber-600 text-white hover:bg-amber-700">Actualizar ahora</button>
-          </div>
+
+          {updateStatus === 'applying' && (
+            <ActionNotice state="loading" message="Actualizando la aplicación…" />
+          )}
+          {updateStatus === 'error' && (
+            <ActionNotice
+              state="error"
+              message="No se pudo actualizar la aplicación"
+              description="Inténtalo nuevamente."
+              onRetry={handleApplyUpdate}
+            />
+          )}
         </div>
       )}
 
@@ -202,12 +243,23 @@ export default function ConfiguracionPage() {
             </button>
           </div>
 
-          {feedback && (
-            <div role="alert" className={`mt-4 flex items-start gap-2 text-sm p-3 rounded-lg border ${feedback.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
-              <span className="font-semibold">{feedback.type === 'success' ? '✓' : '✕'}</span>
-              <span>{feedback.msg}</span>
-            </div>
-          )}
+          {/* HU10: avisos de carga, éxito, error y sin conexión con un único componente */}
+          <div className="mt-4 space-y-3">
+            {!isOnline && (
+              <ActionNotice state="offline" message={OFFLINE_ACTION_MESSAGE} />
+            )}
+            {isUpdating && (
+              <ActionNotice state="loading" message="Actualizando la caché…" />
+            )}
+            {feedback && !isUpdating && (
+              <ActionNotice
+                state={feedback.type}
+                message={feedback.msg}
+                onRetry={feedback.type === 'error' && isOnline ? handleUpdateCache : undefined}
+                onDismiss={() => setFeedback(null)}
+              />
+            )}
+          </div>
 
           {/* NUEVA CONSOLA ADAPTADA AL DISEÑO CLARO */}
           {logs.length > 0 && (

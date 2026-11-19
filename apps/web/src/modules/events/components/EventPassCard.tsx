@@ -24,7 +24,14 @@ interface EventPassProps {
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
   saveOfflineMessage?: string;
+
   offlineUnverified?: boolean;
+
+  /** HU10: aviso de carga / éxito / error / sin conexión (reemplaza saveOfflineMessage). */
+  saveOfflineNotice?: React.ReactNode;
+  /** HU10 CA-04: deshabilita el botón (por ejemplo, sin conexión). */
+  saveOfflineDisabled?: boolean;
+
 }
 
 export const EventPassCard: React.FC<EventPassProps> = ({
@@ -44,7 +51,12 @@ export const EventPassCard: React.FC<EventPassProps> = ({
   isSavedOffline = false,
   isSavingOffline = false,
   saveOfflineMessage,
+
   offlineUnverified = false,
+
+  saveOfflineNotice,
+  saveOfflineDisabled = false,
+
 }) => {
   const isError = status === "ERROR";
   const isInvalid = status === "INVALID" || status === "INVALIDADO" || status === "VENCIDO";
@@ -221,7 +233,7 @@ const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
       type="button"
       variant="primary"
       onClick={onSaveOffline}
-      disabled={isSavingOffline || isSavedOffline}
+      disabled={isSavingOffline || isSavedOffline || saveOfflineDisabled}
       className="w-full"
     >
       {isSavingOffline
@@ -231,10 +243,14 @@ const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
           : 'Guardar sin conexión'}
     </Button>
 
-    {saveOfflineMessage && (
-      <p className="text-abyssal-blue text-xs mt-2" role="status">
-        {saveOfflineMessage}
-      </p>
+    {saveOfflineNotice ? (
+      <div className="mt-3">{saveOfflineNotice}</div>
+    ) : (
+      saveOfflineMessage && (
+        <p className="text-abyssal-blue text-xs mt-2" role="status">
+          {saveOfflineMessage}
+        </p>
+      )
     )}
   </div>
 )}
