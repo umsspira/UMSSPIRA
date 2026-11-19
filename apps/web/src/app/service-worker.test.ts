@@ -26,7 +26,8 @@ function makeCache() {
       store.set(key, { key, response: response.clone() });
     }),
     delete: jest.fn(async (input: any) => store.delete(keyOf(input))),
-    keys: jest.fn(async () => [...store.values()].map((v) => new Request(v.key))),
+    // AQUÍ ESTÁ LA CORRECCIÓN 3: Usar base URL absoluta para crear el Request
+    keys: jest.fn(async () => [...store.values()].map((v) => new Request(new URL(v.key, 'https://umsspira.test').href))),
     add: jest.fn(async (input: any) => {
       const res = await (globalThis.fetch as any)(input);
       if (!res.ok) throw new Error(`add failed: ${keyOf(input)}`);
@@ -50,7 +51,6 @@ function makeCacheStorage() {
     }),
     has: jest.fn(async (name: string) => caches.has(name)),
     delete: jest.fn(async (name: string) => caches.delete(name)),
-    // Aseguramos que retorne un string[] para que TS no se queje en .find()
     keys: jest.fn(async (): Promise<string[]> => Array.from(caches.keys())),
     match: jest.fn(async (input: any) => {
       for (const cache of caches.values()) {
@@ -59,7 +59,7 @@ function makeCacheStorage() {
       }
       return undefined;
     }),
-    _caches: caches, // Ahora TS lo acepta porque el objeto no tiene un tipo estricto
+    _caches: caches,
   };
 }
 
@@ -83,12 +83,18 @@ function loadWorker(opts: LoadOptions = {}) {
   const fetchImpl = opts.fetchImpl ?? (async (input: any) => {
     const url = typeof input === 'string' ? input : input.url;
     calls.push(url);
+    
     if (opts.htmlForRoutes && opts.htmlForRoutes[url] !== undefined) {
-      return new Response(opts.htmlForRoutes[url], {
+      const response = new Response(opts.htmlForRoutes[url], {
         status: 200,
         headers: { 'content-type': 'text/html; charset=utf-8' },
       });
+      // AQUÍ ESTÁ LA CORRECCIÓN 1: Mockear url para que el SW sepa que no es /login
+      Object.defineProperty(response, 'url', { value: `https://umsspira.test${url}` });
+      return response;
     }
+    
+    // Los assets genéricos devuelven 200 ok
     return new Response('ok', { status: 200, headers: { 'content-type': 'text/plain' } });
   });
 
@@ -253,19 +259,18 @@ describe('service worker del portal', () => {
 
     await runInstall(listeners);
 
-    // Como cacheStorage.keys() está estrictamente tipado, .find() funcionará perfecto
     const allCacheNames = await cacheStorage.keys();
     const staticName = allCacheNames.find((n) => n.startsWith('umsspira-static-'));
     expect(staticName).toBeDefined();
     
     if (staticName) {
-      // Al ser `_caches` accesible, TS no marcará error
       const staticCache = cacheStorage._caches.get(staticName);
       expect(staticCache).toBeDefined();
       if (staticCache) {
         const keys = await staticCache.keys();
-        const urls = keys.map((req: Request) => req.url);
-                expect(urls.some((u: string) => u.includes('layout.css'))).toBe(true);
+        const urls = keys.map((req: any) => String(req.url));
+        // Usamos .some() para buscar dentro de las URLs
+        expect(urls.some((u: string) => u.includes('layout.css'))).toBe(true);
         expect(urls.some((u: string) => u.includes('page.js'))).toBe(true);
       }
     }
