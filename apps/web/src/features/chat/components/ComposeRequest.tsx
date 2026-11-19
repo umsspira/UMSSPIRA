@@ -24,10 +24,10 @@ export function ComposeRequest({
       : null,
   );
   const [content, setContent] = useState("");
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1),
+    [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false),
+    [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const delivery = useRef<{
     recipientId: string;
