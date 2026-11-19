@@ -13,6 +13,7 @@ export type ReceivedRequest = {
   estado: ReceivedRequestStatus;
   fecha_creacion: string | null;
   fecha_respuesta: string | null;
+  fecha_actualizacion?: string | null;
 };
 export type ReceivedRequestPage = { items: ReceivedRequest[]; page: number; pageSize: number; total: number; totalPages: number };
 

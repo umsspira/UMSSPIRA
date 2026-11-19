@@ -1,13 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, CircleAlert, Clock3, Eye, Inbox,
   MessageSquareText, X,
 } from 'lucide-react';
 import { getMentorProfile } from '../services/mentorship-api';
-import { getReceivedRequest, listReceivedRequests, ReceivedRequestsError, respondToReceivedRequest, type ReceivedRequest } from '../services/received-requests-api';
+import {
+  getReceivedRequest,
+  listReceivedRequests,
+  ReceivedRequestsError,
+  respondToReceivedRequest,
+  type ReceivedRequest,
+} from '../services/received-requests-api';
 
 type RequestStatus = 'PENDIENTE' | 'ACEPTADA' | 'RECHAZADA' | 'CANCELADA';
 type RequestItem = {
@@ -22,22 +28,12 @@ type RequestItem = {
   status: RequestStatus;
   sentAt: string;
   respondedAt: string | null;
+  updatedAt: string | null;
   requestedArea: string;
 };
 type Filter = 'TODAS' | RequestStatus;
-type Dialog = { kind: 'confirm' | 'success' | 'processed'; action?: 'accept' | 'reject' | 'cancel'; requestId?: string } | null;
-type SentRequest = { id: string; mentor: string; role: string; date: string; time: string; reason: string; status: RequestStatus };
+type Dialog = { kind: 'confirm' | 'success' | 'processed'; action?: 'accept' | 'reject'; requestId?: string } | null;
 const PAGE_SIZE = 5;
-
-const initialSentRequests: SentRequest[] = [
-  { id: 'sent-1', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '2026-10-19', time: '09:00', reason: '—', status: 'PENDIENTE' },
-  { id: 'sent-2', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '2026-10-19', time: '09:00', reason: '—', status: 'CANCELADA' },
-  { id: 'sent-3', mentor: 'Ing. Carlos Mendoza', role: 'Ingeniero de Software', date: '2026-10-20', time: '15:00', reason: 'Quisiera orientación para elegir la arquitectura de mi proyecto de grado. Estoy entre monolito modular y microservicios.', status: 'PENDIENTE' },
-  { id: 'sent-4', mentor: 'Carlos Vargas', role: 'Arquitecto de Software', date: '2026-10-23', time: '15:00', reason: '—', status: 'ACEPTADA' },
-  { id: 'sent-5', mentor: 'Ana Quispe Mamani', role: 'Data Scientist', date: '2026-10-22', time: '11:00', reason: '—', status: 'PENDIENTE' },
-  { id: 'sent-6', mentor: 'Daniela Choque', role: 'Tech Lead Frontend', date: '2026-10-09', time: '16:00', reason: '¿Qué ruta recomiendas para aprender Machine Learning desde cero?', status: 'RECHAZADA' },
-  { id: 'sent-7', mentor: 'Jorge Flores Gutiérrez', role: 'DevOps Engineer', date: '2026-10-05', time: '12:00', reason: 'Consulta sobre pipelines de CI/CD.', status: 'CANCELADA' },
-];
 
 const apiStatus: Record<Exclude<Filter, 'TODAS'>, ReceivedRequest['estado']> = {
   PENDIENTE: 'PENDIENTE', ACEPTADA: 'ACEPTADO', RECHAZADA: 'RECHAZADO', CANCELADA: 'CANCELADO',
@@ -57,6 +53,7 @@ function mapRequest(request: ReceivedRequest): RequestItem {
     status: request.estado === 'ACEPTADO' ? 'ACEPTADA' : request.estado === 'RECHAZADO' ? 'RECHAZADA' : request.estado === 'CANCELADO' ? 'CANCELADA' : 'PENDIENTE',
     sentAt: request.fecha_creacion || 'No disponible',
     respondedAt: request.fecha_respuesta,
+    updatedAt: request.fecha_actualizacion ?? null,
     requestedArea: 'No especificada por el servicio',
   };
 }
@@ -93,12 +90,8 @@ function StatusPill({ status }: { status: RequestStatus }) {
 
 export function ReceivedRequests() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const requestedView = searchParams.get('view');
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [counts, setCounts] = useState<Record<Filter, number>>({ TODAS: 0, PENDIENTE: 0, ACEPTADA: 0, RECHAZADA: 0, CANCELADA: 0 });
-  const [sentRequests, setSentRequests] = useState(() => [...initialSentRequests].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)));
-  const [screen, setScreen] = useState<'received' | 'sent'>(requestedView === 'sent' ? 'sent' : 'received');
   const [filter, setFilter] = useState<Filter>('TODAS');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -113,15 +106,8 @@ export function ReceivedRequests() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const selectedRequest = requests.find(request => request.id === selectedId) ?? null;
   const visibleRequests = requests;
-  const visibleSentRequests = sentRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => {
-    setScreen(requestedView === 'sent' ? 'sent' : 'received');
-    setPage(1);
-  }, [requestedView]);
-
-  useEffect(() => {
-    if (screen !== 'received') return;
     let cancelled = false;
     const controller = new AbortController();
     setLoading(true);
@@ -165,9 +151,9 @@ export function ReceivedRequests() {
     };
     void load();
     return () => { cancelled = true; controller.abort(); };
-  }, [filter, page, reload, router, screen]);
+  }, [filter, page, reload, router]);
 
-  if (screen === 'received' && isActiveMentor !== true) {
+  if (isActiveMentor !== true) {
     if (isActiveMentor === false) return null;
     return <main className="mentorship-shell received-page">
       {loadError ? <div className="received-error" role="alert">{loadError}<button type="button" onClick={() => setReload(value => value + 1)}>Reintentar</button></div> : <p role="status">Verificando acceso de mentor…</p>}
@@ -175,7 +161,7 @@ export function ReceivedRequests() {
   }
 
   const processRequest = () => {
-    if (!dialog?.requestId || !dialog.action || dialog.action === 'cancel') return;
+    if (!dialog?.requestId || !dialog.action) return;
     const current = requests.find(request => request.id === dialog.requestId);
     if (!current || current.status !== 'PENDIENTE') {
       setDialog({ kind: 'processed', requestId: dialog.requestId });
@@ -218,49 +204,10 @@ export function ReceivedRequests() {
     });
   };
 
-  const cancelSentRequest = () => {
-    if (!dialog?.requestId) return;
-    const current = sentRequests.find(request => request.id === dialog.requestId);
-    if (!current || current.status !== 'PENDIENTE') { setDialog({ kind: 'processed', requestId: dialog.requestId }); return; }
-    setSentRequests(items => items.map(request => request.id === current.id
-      ? { ...request, status: 'CANCELADA' }
-      : request));
-    setDialog({ kind: 'success', action: 'cancel', requestId: current.id });
-  };
-
   const dialogRequest = dialog?.requestId ? requests.find(request => request.id === dialog.requestId) : null;
-  const dialogSentRequest = dialog?.requestId ? sentRequests.find(request => request.id === dialog.requestId) : null;
 
   return <main className="mentorship-shell received-page">
-    {screen === 'sent' ? <section className="sent-requests">
-      <header className="received-title-block">
-        <h1>Mis solicitudes de mentoría</h1>
-        <p>Historial de las sesiones que solicitaste. Solo puedes cancelar las que aún están pendientes.</p>
-      </header>
-      <div className="sent-table-wrap"><table className="sent-table">
-        <thead><tr><th scope="col">Mentor</th><th scope="col">Fecha de envío</th><th scope="col">Motivo</th><th scope="col">Estado</th><th scope="col">Acción</th></tr></thead>
-        <tbody>{visibleSentRequests.map(request => <tr key={request.id}>
-          <td><div className="sent-mentor"><span className="sent-mentor-avatar">{request.mentor.split(' ').slice(0, 2).map(part => part[0]).join('')}</span><span><strong>{request.mentor}</strong><small>{request.role}</small></span></div></td>
-          <td><span className="sent-date-label">Enviada el</span><strong className="sent-date">{formatRequestDate(request.date)}</strong></td><td className="sent-reason">{request.reason}</td><td><StatusPill status={request.status} /></td>
-          <td>{request.status === 'PENDIENTE' ? <button type="button" className="received-button sent-cancel" onClick={() => setDialog({ kind: 'confirm', action: 'cancel', requestId: request.id })}>Cancelar solicitud</button> : <span className="sent-no-action">Sin acciones</span>}</td>
-        </tr>)}</tbody>
-      </table></div>
-      {sentRequests.length > 0 && <footer className="received-list-footer">
-        <p>Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sentRequests.length)} de {sentRequests.length} · Más recientes primero</p>
-        <nav className="received-pagination" aria-label="Paginación de solicitudes enviadas">
-          <button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}><ChevronLeft size={17} /></button>
-          {Array.from({ length: Math.ceil(sentRequests.length / PAGE_SIZE) }, (_, index) => index + 1).map(pageNumber => <button
-            type="button"
-            key={pageNumber}
-            aria-label={`Página ${pageNumber}`}
-            aria-current={pageNumber === page ? 'page' : undefined}
-            className={pageNumber === page ? 'is-current' : undefined}
-            onClick={() => setPage(pageNumber)}
-          >{pageNumber}</button>)}
-          <button type="button" aria-label="Página siguiente" disabled={page >= Math.ceil(sentRequests.length / PAGE_SIZE)} onClick={() => setPage(value => Math.min(Math.ceil(sentRequests.length / PAGE_SIZE), value + 1))}><ChevronRight size={17} /></button>
-        </nav>
-      </footer>}
-    </section> : selectedRequest ? <section className="received-detail">
+    {selectedRequest ? <section className="received-detail">
       <h1>Detalle de solicitud</h1>
       <button type="button" className="received-button received-back" onClick={() => setSelectedId(null)}><ArrowLeft size={16} />Volver a solicitudes</button>
       <article className="received-detail-card">
@@ -275,7 +222,13 @@ export function ReceivedRequests() {
           <div className="received-detail-field"><Inbox size={17} /><div><span>Área técnica solicitada</span><strong>{selectedRequest.requestedArea}</strong></div></div>
           <div className="received-detail-field"><Clock3 size={17} /><div><span>Horario</span><strong>{selectedRequest.time}</strong></div></div>
           <div className="received-detail-field"><MessageSquareText size={17} /><div><span>Motivo o mensaje</span><strong>{selectedRequest.message}</strong></div></div>
-          <p className="received-detail-note">{selectedRequest.status === 'PENDIENTE' ? 'Esta solicitud espera tu respuesta.' : `Fecha de respuesta: ${selectedRequest.respondedAt ? formatRequestDate(selectedRequest.respondedAt) : 'No disponible'}`}</p>
+          <p className="received-detail-note">
+            {selectedRequest.status === 'PENDIENTE'
+              ? 'Esta solicitud espera tu respuesta.'
+              : selectedRequest.status === 'CANCELADA'
+                ? `Cancelada por el solicitante el ${selectedRequest.updatedAt ? formatRequestDate(selectedRequest.updatedAt) : 'No disponible'}`
+                : `Fecha de respuesta: ${selectedRequest.respondedAt ? formatRequestDate(selectedRequest.respondedAt) : 'No disponible'}`}
+          </p>
           {selectedRequest.status === 'PENDIENTE' && <div className="received-actions received-detail-actions">
             <button type="button" className="received-button received-reject" onClick={() => setDialog({ kind: 'confirm', action: 'reject', requestId: selectedRequest.id })}><X size={16} />Rechazar</button>
             <button type="button" className="received-button received-accept" onClick={() => setDialog({ kind: 'confirm', action: 'accept', requestId: selectedRequest.id })}><Check size={16} />Aceptar</button>
@@ -321,7 +274,12 @@ export function ReceivedRequests() {
                 </td>
                 <td><span className="received-table-date-label">Recibida el</span><strong>{formatRequestDate(request.sentAt)}</strong></td>
                 <td className="received-table-message" title={request.message}>{request.message === 'Sin mensaje' ? '—' : request.message}</td>
-                <td><StatusPill status={request.status} /></td>
+                <td>
+                  <StatusPill status={request.status} />
+                  {request.status === 'CANCELADA' && request.updatedAt && (
+                    <span className="received-status-note">Cancelada: {formatRequestDate(request.updatedAt)}</span>
+                  )}
+                </td>
                 <td>
                   <div className="received-table-actions">
                     <button type="button" className="received-button received-details" disabled={loadingDetail} onClick={async () => {
@@ -367,17 +325,17 @@ export function ReceivedRequests() {
         {dialog.kind === 'confirm' && <>
           <button type="button" className="received-modal-close" aria-label="Cerrar" onClick={() => setDialog(null)}><X size={18} /></button>
           <span className={`received-modal-icon ${dialog.action === 'accept' ? 'is-accept' : 'is-reject'}`}>{dialog.action === 'accept' ? <Check size={20} /> : <CircleAlert size={20} />}</span>
-          <h2 id="received-modal-title">{dialog.action === 'accept' ? '¿Aceptar esta solicitud de mentoría?' : dialog.action === 'reject' ? '¿Rechazar esta solicitud?' : '¿Cancelar esta solicitud?'}</h2>
-          <p className="received-modal-description">{dialog.action === 'accept' ? 'Confirma que puedes atender la sesión en la fecha y horario solicitados.' : dialog.action === 'reject' ? 'Esta solicitud dejará de estar pendiente y el solicitante será informado.' : 'La solicitud dejará de estar pendiente. No podrás deshacer esta acción.'}</p>
-          {(dialogRequest || dialogSentRequest) && <div className="received-modal-summary"><div><span>{dialogRequest ? 'Solicitante' : 'Mentor'}</span><strong>{dialogRequest?.name ?? dialogSentRequest?.mentor}</strong></div><div><span>Fecha</span><strong>{dialogRequest ? formatRequestDate(dialogRequest.sentAt) : dialogSentRequest ? formatRequestDate(dialogSentRequest.date) : ''}</strong></div><div><span>Horario</span><strong>{dialogRequest?.time ?? dialogSentRequest?.time}</strong></div></div>}
+          <h2 id="received-modal-title">{dialog.action === 'accept' ? '¿Aceptar esta solicitud de mentoría?' : '¿Rechazar esta solicitud?'}</h2>
+          <p className="received-modal-description">{dialog.action === 'accept' ? 'Confirma que puedes atender la sesión en la fecha y horario solicitados.' : 'Esta solicitud dejará de estar pendiente y el solicitante será informado.'}</p>
+          {dialogRequest && <div className="received-modal-summary"><div><span>Solicitante</span><strong>{dialogRequest.name}</strong></div><div><span>Fecha</span><strong>{formatRequestDate(dialogRequest.sentAt)}</strong></div><div><span>Horario</span><strong>{dialogRequest.time}</strong></div></div>}
           {actionError && <p className="received-action-error" role="alert">{actionError}</p>}
-          <div className="received-modal-actions"><button type="button" className="received-button received-details" onClick={() => setDialog(null)}>{dialog.action === 'cancel' ? 'Volver' : 'Cancelar'}</button><button type="button" className={`received-button ${dialog.action === 'accept' ? 'received-accept' : 'received-reject'}`} disabled={responding} onClick={dialog.action === 'cancel' ? cancelSentRequest : processRequest}>{dialog.action === 'cancel' ? 'Sí, cancelar' : responding ? 'Enviando…' : 'Confirmar'}</button></div>
+          <div className="received-modal-actions"><button type="button" className="received-button received-details" onClick={() => setDialog(null)}>Cancelar</button><button type="button" className={`received-button ${dialog.action === 'accept' ? 'received-accept' : 'received-reject'}`} disabled={responding} onClick={processRequest}>{responding ? 'Enviando…' : 'Confirmar'}</button></div>
         </>}
         {dialog.kind === 'success' && <>
           <span className="received-modal-success-icon"><Check size={20} /></span>
-          <h2 id="received-modal-title">{dialog.action === 'accept' ? 'Solicitud aceptada' : dialog.action === 'reject' ? 'Solicitud rechazada' : 'Solicitud cancelada correctamente'}</h2>
-          <p className="received-modal-description">{dialog.action === 'cancel' ? 'La solicitud se actualizó correctamente.' : 'El solicitante será informado de tu respuesta.'}</p>
-          {(dialogRequest || dialogSentRequest) && <div className="received-modal-result"><strong>{dialogRequest?.name ?? dialogSentRequest?.mentor}</strong><StatusPill status={dialog.action === 'accept' ? 'ACEPTADA' : dialog.action === 'reject' ? 'RECHAZADA' : 'CANCELADA'} /></div>}
+          <h2 id="received-modal-title">{dialog.action === 'accept' ? 'Solicitud aceptada' : 'Solicitud rechazada'}</h2>
+          <p className="received-modal-description">El solicitante será informado de tu respuesta.</p>
+          {dialogRequest && <div className="received-modal-result"><strong>{dialogRequest.name}</strong><StatusPill status={dialog.action === 'accept' ? 'ACEPTADA' : 'RECHAZADA'} /></div>}
           <button type="button" className="received-button received-accept received-modal-done" onClick={() => { setDialog(null); setSelectedId(null); }}>Entendido</button>
         </>}
         {dialog.kind === 'processed' && <>

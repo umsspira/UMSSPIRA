@@ -45,6 +45,7 @@
 .received-status-aceptada { border-color: #b5d8ca; background: #e8f4ee; color: #287b59; }
 .received-status-rechazada { border-color: #edc2bd; background: #fff0ee; color: #ba3c32; }
 .received-status-cancelada { border-color: #d5d0c8; background: #f0ede7; color: #66707a; }
+.received-status-note { display: block; margin-top: .25rem; color: #848b91; font-size: .6rem; white-space: nowrap; }
 .received-datetime { margin: .65rem 0 .45rem; color: #374658; font-size: .72rem; }
 .received-message { max-width: 44rem; margin: 0; color: #68717c; font-size: .74rem; line-height: 1.5; }
 .received-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; margin-top: .75rem; }
@@ -114,6 +115,19 @@
 .sent-date { color: #354456; font-size: .67rem; font-weight: 600; }
 .sent-cancel { min-height: 1.9rem; padding: .3rem .55rem; border-color: #e7c4b8; color: #a84637; font-size: .65rem; white-space: nowrap; }
 .sent-no-action { color: #abb0b4; font-size: .63rem; white-space: nowrap; }
+.my-requests-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.my-requests-heading p { margin-bottom: 1rem; }
+.my-requests-refresh { flex: 0 0 auto; }
+.my-requests-refresh:disabled { cursor: default; opacity: .55; }
+.my-requests-position { color: #5f6a75; font-size: .68rem; }
+.my-requests-success { margin: 0 0 1rem; border: 1px solid #b5d8ca; border-radius: .45rem; padding: .75rem; background: #e8f4ee; color: #287b59; font-size: .75rem; }
+.my-requests-notice { align-items: flex-start; }
+.my-requests-empty { display: flex; flex-direction: column; align-items: flex-start; max-width: 51rem; }
+.my-requests-link { margin-top: 1rem; width: fit-content; text-decoration: none; }
+@media (max-width: 600px) {
+  .my-requests-heading { flex-direction: column; }
+  .my-requests-refresh { width: 100%; }
+}
 @media (max-width: 600px) {
   .received-page { padding-inline: 1rem; }
   .received-tabs { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }

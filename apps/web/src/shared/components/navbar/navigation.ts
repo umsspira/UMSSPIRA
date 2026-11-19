@@ -47,7 +47,7 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
     { id: 'mentor-areas', label: 'Áreas', href: '/mentorship/profile/areas', roles: graduates, icon: Layers, mentorOnly: true },
     { id: 'mentor-interests', label: 'Intereses', href: '/mentorship/profile/interests', roles: graduates, icon: Sparkles, mentorOnly: true },
     { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: graduates, icon: CalendarDays, mentorOnly: true },
-    { id: 'mentor-my-requests', label: 'Mis solicitudes', href: '/mentorship/requests/received?view=sent', roles: graduates, icon: Send },
+    { id: 'mentor-my-requests', label: 'Mis solicitudes', href: '/mentorship/requests', roles: graduates, icon: Send },
     { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests/received', roles: graduates, icon: Inbox, mentorOnly: true },
   ] },
   { id: 'events', label: 'Eventos', items: [

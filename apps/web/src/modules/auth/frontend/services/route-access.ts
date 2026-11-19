@@ -16,6 +16,7 @@ const TITULADO_MENTOR_ROUTES = [
   "/mentorship/directory",
   "/mentorship/mentors",
   "/mentorship/request",
+  "/mentorship/requests",
 ];
 const GRADUATE_APPLICATION_ROUTES = ["/my-applications"];
 const RECRUITER_ROUTES = [

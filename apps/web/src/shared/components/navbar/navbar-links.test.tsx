@@ -8,7 +8,7 @@ const renderLinks = (currentPath: string) => render(
 );
 
 it('BUG-06-1601: resalta "Mis solicitudes" solo cuando esa bandeja está abierta', () => {
-  renderLinks('/mentorship/requests/received?view=sent');
+  renderLinks('/mentorship/requests');
   expect(screen.getByRole('link', { name: 'Mis solicitudes' })).toHaveAttribute('aria-current', 'page');
   expect(screen.getByRole('link', { name: 'Solicitudes recibidas' })).not.toHaveAttribute('aria-current');
 });
