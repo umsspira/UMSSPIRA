@@ -1,5 +1,6 @@
+
 import { ConnectedNavbar } from '@/shared/components/navbar/index';
-import { CertificateDetailController } from '@/features/event-certificates/certificate-detail-controller';
+import { ConnectedCertificateDetail } from '@/features/event-certificates/connected-certificate-detail';
 import '@/app/(dashboard)/events/events.css';
 
 interface Props {
@@ -16,7 +17,7 @@ export default function CertificateDetailRoute({
       <ConnectedNavbar />
 
       <div className="events-app">
-        <CertificateDetailController
+        <ConnectedCertificateDetail
           certificateId={params.certificateId}
         />
       </div>
