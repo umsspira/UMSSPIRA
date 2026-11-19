@@ -4,8 +4,11 @@ import { resolve } from 'node:path';
 import { createDatabaseClient } from '../database-client';
 config({ path: resolve(__dirname, '../../.env'), quiet: true });
 const target = new URL(process.env.DIRECT_URL ?? process.env.DATABASE_URL!);
-if (!['127.0.0.1', 'localhost'].includes(target.hostname) || target.pathname !== '/hu13_local') {
-  throw new Error('Solo se admite hu13_local.');
+if (
+  !['127.0.0.1', 'localhost'].includes(target.hostname) ||
+  !['/hu13_local', '/hu13_repair'].includes(target.pathname)
+) {
+  throw new Error('Solo se admite hu13_local o hu13_repair.');
 }
 const db = createDatabaseClient();
 const id = (n: number) => `13000000-0000-4000-8000-${String(n).padStart(12, '0')}`;

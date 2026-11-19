@@ -178,7 +178,7 @@ export function ApplicationDetail({ application }: Props) {
             ))}
           </ul>
         </div>
-        <OcrPanel applicationId={application.id} documentUrl={application.documentUrl} />
+        <OcrPanel applicationId={application.id} documentUrl={application.documentUrl} canRetry={application.status === 'PENDIENTE'} />
       </section>
 
       {/* Columna derecha: documento adjunto */}

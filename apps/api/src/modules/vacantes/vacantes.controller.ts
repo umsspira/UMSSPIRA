@@ -1,8 +1,11 @@
-import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe, Post } from '@nestjs/common';
 import { CurrentActor } from '../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../shared/http/auth/decorators/require-permissions.decorator';
+import { Roles } from '../../shared/http/auth/decorators/roles.decorator';
+import { ZodValidationPipe } from '../../shared/http/pipes/zod-validation.pipe';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
 import { VacantesService, UpdateVacanteData } from './vacantes.service';
+import { vacancyIdSchema, type VacancyId } from './vacantes.schemas';
 
 @Controller('vacantes')
 export class VacantesController {
@@ -12,6 +15,38 @@ export class VacantesController {
   async listar(@CurrentActor() actor: ActorContext) {
     return this.vacantesService.obtenerMisVacantes(actor.id);
   }
+
+  @Get('mis-postulaciones')
+  @Roles('titulado')
+  async listarMisPostulaciones(@CurrentActor() actor: ActorContext) {
+    return { data: await this.vacantesService.listarMisPostulaciones(actor.id) };
+  }
+
+  @Get(':id/oferta')
+  @Roles('titulado')
+  async obtenerOferta(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return { data: await this.vacantesService.obtenerOfertaParaTitulado(id, actor.id) };
+  }
+
+  @Get(':id/postulaciones/mia')
+  async estadoPostulacion(
+    @Param('id', new ZodValidationPipe(vacancyIdSchema)) idVacante: VacancyId,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return { data: await this.vacantesService.estadoPostulacion(idVacante, actor.id) };
+  }
+
+  @Post(':id/postulaciones')
+  async postular(
+    @Param('id', new ZodValidationPipe(vacancyIdSchema)) idVacante: VacancyId,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return { data: await this.vacantesService.postular(idVacante, actor.id) };
+  }
+
   @Get(':idVacante/postulantes')
   @RequirePermissions('empresas:self:read')
   async listarPostulantes(

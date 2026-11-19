@@ -1,0 +1,25 @@
+meta {
+  name: Consultar mi postulación a una vacante
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/vacantes/{{vacanteId}}/postulaciones/mia
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Usa el UUID de una vacante en vacanteId y un token de Titulado en accessToken.
+  Responde { postulada: true } si el titulado autenticado ya se postuló a esa vacante.
+  403 si el usuario no es titulado.
+}

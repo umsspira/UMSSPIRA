@@ -1,3 +1,5 @@
+import { OcrTimeoutError } from "./ocr-errors";
+
 // Bound even SDK/auth promises that do not settle when their underlying worker stops.
 export async function withOcrDeadline<T>(
   operation: (signal: AbortSignal) => Promise<T>,
@@ -11,7 +13,7 @@ export async function withOcrDeadline<T>(
   const timer = setTimeout(
     () =>
       controller.abort(
-        new Error(
+        new OcrTimeoutError(
           "Se agotó el tiempo de espera del OCR. Se continuará con la cola.",
         ),
       ),

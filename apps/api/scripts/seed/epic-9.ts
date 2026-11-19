@@ -5,6 +5,7 @@ import { DEMO_ADMIN_ASSIGNMENT_ID, DEMO_CAREER_ID } from './demo-accounts';
 import { calculateAreaAffinity } from '../../src/modules/radar/domain/policies/affinity-calculator';
 import { RADAR_DICTIONARY } from '../../src/modules/radar/domain/affinity-catalog';
 import { RADAR_AREA_IDS } from '../../src/modules/radar/domain/entities/radar-area';
+import { seedSystemsCareer, withSystemsCareer } from './systems-career';
 
 // Los reportes HTTP se generan con las solicitudes de la épica 1; no son archivos estáticos.
 const DEMO_SURVEY_ID = '99000000-0000-4000-8000-000000000001';
@@ -463,12 +464,19 @@ const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios
   });
 
 export async function seedEpic9(prisma: PrismaClient): Promise<void> {
-  await prisma.titulado.createMany({ data: systemsRadarGraduates, skipDuplicates: true });
+  const careerId = await seedSystemsCareer(prisma);
+  await prisma.titulado.createMany({
+    data: withSystemsCareer(systemsRadarGraduates, careerId),
+    skipDuplicates: true,
+  });
   if (reportes.length > 0) {
     await prisma.reporte.createMany({ data: reportes, skipDuplicates: true });
   }
   if (encuestas.length > 0) {
-    await prisma.encuesta.createMany({ data: encuestas, skipDuplicates: true });
+    await prisma.encuesta.createMany({
+      data: withSystemsCareer(encuestas, careerId),
+      skipDuplicates: true,
+    });
   }
   await prisma.respuestaEncuesta.createMany({ data: respuestas, skipDuplicates: true });
   await prisma.calculoRadar.createMany({ data: systemsRadarCalculations, skipDuplicates: true });

@@ -9,8 +9,8 @@ export const OCR_STATUS_LABELS: Record<OcrAnalysis["status"], string> = {
   PENDIENTE: "OCR pendiente",
   EN_CURSO: "OCR en curso",
   COMPLETADO: "OCR completado",
-  FALLIDO: "Revisión manual",
-  DESCARTADO: "OCR anterior",
+  FALLIDO: "OCR fallido",
+  DESCARTADO: "OCR detenido",
 };
 
 export function useOcrStatuses(ids: string[]) {
