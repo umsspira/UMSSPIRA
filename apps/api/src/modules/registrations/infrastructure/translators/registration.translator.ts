@@ -15,6 +15,8 @@ export function toRegistrationDraft(row: BorradorRegistro): RegistrationDraft {
     id: row.id,
     data: row.datos as unknown as RegistrationData,
     expiresAt: row.expira_en,
+    codeExpiresAt: row.codigo_expira_en,
+    codeSentAt: row.codigo_enviado_en,
     verified: row.correo_verificado,
     applicationId: row.id_solicitud,
   };

@@ -1,27 +1,21 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { EventPassDto } from '@umsspira/shared-types';
-
-import {
-  getOfflineQrPass,
-  saveOfflineQrPass,
-} from './offline/offline-qr-storage';
-
+import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
+import { saveOfflineQrPass } from './offline/offline-qr-storage';
 import { EventPassCard } from '@/modules/events/components/EventPassCard';
 import { OFFLINE_PASS_INVALID_MESSAGE } from './offline/offline-sync';
-import {
-  ActionNotice,
-  ActionStatusNotice,
-  OFFLINE_ACTION_MESSAGE,
-} from '@/shared/components/action-notice';
-import { useActionStatus } from '@/shared/hooks/use-action-status';
-import { useOnlineStatus } from '@/shared/hooks/use-online-status';
 
 interface EventPassQrCardProps {
   pass: EventPassDto;
-  offlineUnverified?: boolean;
+  savedOffline?: boolean;
+  updated?: boolean;
+  offline?: boolean;
+  backHref?: string;
+  /** true cuando el pase viene del dispositivo (sin conexión): no se ofrece guardarlo de nuevo. */
   fromOfflineStorage?: boolean;
 }
 
@@ -43,83 +37,44 @@ function formatEventDate(value?: string): string {
 
 export function EventPassQrCard({
   pass,
-  offlineUnverified = false,
+  savedOffline = false,
+  updated = false,
+  offline = false,
+  backHref = '/mis-pases',
   fromOfflineStorage = false,
 }: EventPassQrCardProps) {
-  const [isSavedOffline, setIsSavedOffline] = useState(false);
-
-  const isOnline = useOnlineStatus();
-
-  const {
-    status,
-    errorMessage,
-    isLoading,
-    run,
-    retry,
-    reset,
-  } = useActionStatus();
+  const isValid =
+    pass.status === 'ACTIVO' && pass.isValidForAccess;
 
   const details = pass.eventDetails;
+const [isSavedOffline, setIsSavedOffline] = useState(false);
+const [isSavingOffline, setIsSavingOffline] = useState(false);
+const [saveOfflineMessage, setSaveOfflineMessage] = useState('');
 
-  const isValid =
-    pass.status === 'ACTIVO' &&
-    pass.isValidForAccess === true &&
-    Boolean(pass.qrToken?.trim());
+const handleSaveOffline = async () => {
+  if (!isValid || !details || isSavingOffline || isSavedOffline) {
+    return;
+  }
 
-  const canDisplayOfflineQr =
-    offlineUnverified &&
-    fromOfflineStorage &&
-    isValid;
+  if (
+    !pass.id?.trim() ||
+    !pass.userId?.trim() ||
+    !pass.qrToken?.trim() ||
+    !details.name?.trim() ||
+    !details.userName?.trim() ||
+    !details.dateTime?.trim() ||
+    !details.location?.trim()
+  ) {
+    setSaveOfflineMessage(
+      'No se puede guardar: faltan datos del pase o del evento.'
+    );
+    return;
+  }
 
-  const canDisplayQr = isValid || canDisplayOfflineQr;
+  setIsSavingOffline(true);
+  setSaveOfflineMessage('');
 
-  useEffect(() => {
-    let active = true;
-
-    async function checkOfflinePass() {
-      setIsSavedOffline(false);
-
-      if (!pass.id || !pass.userId) return;
-
-      try {
-        const savedPass = await getOfflineQrPass(
-          pass.id,
-          pass.userId,
-        );
-
-        if (!active) return;
-
-        if (savedPass) {
-          setIsSavedOffline(true);
-        }
-      } catch {
-        // La consulta local no debe impedir mostrar el pase.
-      }
-    }
-
-    void checkOfflinePass();
-
-    return () => {
-      active = false;
-    };
-  }, [pass.id, pass.userId]);
-
-  const saveOfflinePass = async () => {
-    if (
-      !details ||
-      !pass.id?.trim() ||
-      !pass.userId?.trim() ||
-      !pass.qrToken?.trim() ||
-      !details.name?.trim() ||
-      !details.userName?.trim() ||
-      !details.dateTime?.trim() ||
-      !details.location?.trim()
-    ) {
-      throw new Error(
-        'No se puede guardar: faltan datos del pase o del evento.',
-      );
-    }
-
+  try {
     await saveOfflineQrPass({
       id: pass.id,
       userId: pass.userId,
@@ -130,43 +85,23 @@ export function EventPassQrCard({
         dateTime: details.dateTime,
         location: details.location,
       },
-      status: pass.status,
-      isValidForAccess: pass.isValidForAccess,
     });
 
     setIsSavedOffline(true);
-  };
-
-  const handleSaveOffline = () => {
-    if (!isValid || !details || isLoading || isSavedOffline) {
-      return;
-    }
-
-    void run(saveOfflinePass, { requiresConnection: true });
-  };
-
-  const saveOfflineNotice =
-    !isOnline && !isSavedOffline ? (
-      <ActionNotice
-        state="offline"
-        message={OFFLINE_ACTION_MESSAGE}
-      />
-    ) : (
-      <ActionStatusNotice
-        status={status}
-        messages={{
-          loading: 'Guardando tu pase QR…',
-          success: 'QR guardado en tu dispositivo',
-          error: 'No se pudo guardar el pase QR',
-        }}
-        errorDetail={errorMessage}
-        onRetry={() => void retry()}
-        onDismiss={reset}
-      />
+    setSaveOfflineMessage('Tu pase QR se guardó en este dispositivo.');
+  } catch (error) {
+    setSaveOfflineMessage(
+      error instanceof Error
+        ? `${error.message} Puedes intentarlo nuevamente.`
+        : 'No se pudo guardar el pase. Inténtalo nuevamente.'
     );
+  } finally {
+    setIsSavingOffline(false);
+  }
+};
 
   const statusLabel = isValid
-    ? 'PASE ACTIVO'
+    ? (offline ? 'ESTADO SIN VERIFICAR' : 'INSCRIPCIÓN CONFIRMADA')
     : pass.status === 'VENCIDO'
       ? 'PASE VENCIDO'
       : pass.status === 'INVALIDADO'
@@ -180,33 +115,59 @@ export function EventPassQrCard({
         ? `${OFFLINE_PASS_INVALID_MESSAGE}. Fue invalidado y ya no permite el acceso al evento.`
         : 'Este pase no está habilitado para acceder al evento.';
 
+  if (!isValid) {
+    return (
+      <div className="hu12-invalid-wrapper">
+        <article className="hu12-invalid-card">
+          <div className="hu12-invalid-visual" aria-label="Pase no válido">
+            <div className="hu12-invalid-pattern" aria-hidden="true">
+              <QRCodeSVG
+                value="PASE NO VALIDO"
+                size={160}
+                fgColor="#eee9df"
+                bgColor="#293b50"
+              />
+            </div>
+            <span>NO VÁLIDO</span>
+          </div>
+          <div className="hu12-invalid-content">
+            <h2>{details?.name || 'Evento sin nombre'}</h2>
+            <p className="hu12-invalid-badge">{statusLabel}</p>
+            <p className="hu12-invalid-description">{statusDescription}</p>
+            <p className="hu12-invalid-id">ID PASE: {pass.id}</p>
+            <Link href={backHref} className="hu12-invalid-back">
+              Volver a mis pases
+            </Link>
+          </div>
+        </article>
+        <section className="hu12-invalid-notice" role="status">
+          <strong>Pase no vigente</strong>
+          <p>El evento o tu inscripción cambió. Este código ya no permite registrar asistencia.</p>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <EventPassCard
       status={isValid ? 'ACTIVO' : 'INVALID'}
-      statusLabel={
-        canDisplayOfflineQr
-          ? 'GUARDADO SIN CONEXIÓN'
-          : statusLabel
-      }
-      offlineUnverified={canDisplayOfflineQr}
+      statusLabel={statusLabel}
       statusDescription={statusDescription}
-      hideBackButton
+      savedOffline={savedOffline}
+      updated={updated}
+      offline={offline}
+      backHref={backHref}
       eventName={details?.name || 'Evento sin nombre'}
       userName={details?.userName || 'Titulado'}
       dateTime={formatEventDate(details?.dateTime)}
       location={details?.location || 'Ubicación no disponible'}
       passId={pass.id}
-      qrToken={canDisplayQr ? pass.qrToken : undefined}
-      onSaveOffline={
-        isValid && !offlineUnverified && !fromOfflineStorage
-          ? handleSaveOffline
-          : undefined
-      }
+      qrToken={isValid ? pass.qrToken : undefined}
+      onBack={() => window.location.assign(backHref)}
+      onSaveOffline={isValid && !fromOfflineStorage ? handleSaveOffline : undefined}
       isSavedOffline={isSavedOffline}
-      isSavingOffline={isLoading}
-      saveOfflineDisabled={!isOnline}
-      saveOfflineNotice={saveOfflineNotice}
-      onBack={() => window.history.back()}
+      isSavingOffline={isSavingOffline}
+      saveOfflineMessage={saveOfflineMessage}
     />
   );
 }

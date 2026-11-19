@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ApiError } from '@/shared/services/api-client';
 import { SurveyContainer } from './survey-container';
-import { getSurveySubmissionStatus, submitSurvey } from '../services/surveys.service';
+import { getSurveyStatusInfo, submitSurvey } from '../services/surveys.service';
 
 // En Jest, renderizar un <img> sencillo evita que la implementación interna
 // de next/image pase fetchPriority al DOM de React 18 en este entorno de pruebas.
@@ -27,16 +27,16 @@ jest.mock('../hooks/use-survey-user-id', () => ({
 }));
 jest.mock('../services/surveys.service', () => ({
   ...jest.requireActual('../services/surveys.service'),
-  getSurveySubmissionStatus: jest.fn().mockResolvedValue(false),
+  getSurveyStatusInfo: jest.fn().mockResolvedValue({ submitted: false, hasActiveSurvey: true, surveyId: null }),
   submitSurvey: jest.fn(),
 }));
 
 const mockedSubmit = submitSurvey as jest.Mock;
-const mockedSubmissionStatus = getSurveySubmissionStatus as jest.Mock;
+const mockedSubmissionStatus = getSurveyStatusInfo as jest.Mock;
 
 beforeEach(() => {
   mockedSubmissionStatus.mockReset();
-  mockedSubmissionStatus.mockResolvedValue(false);
+  mockedSubmissionStatus.mockResolvedValue({ submitted: false, hasActiveSurvey: true, surveyId: null });
   mockedSubmit.mockReset();
   window.localStorage.clear();
   Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
@@ -94,6 +94,13 @@ describe('T3.4: integración visual del formulario y confirmación', () => {
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
     fireEvent(window, new Event('offline'));
     expect(screen.getAllByText('Sin conexión a Internet').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Confirmar y enviar' })).toBeDisabled();
+
+    // Al recuperar la conexión se reactiva el envío
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+    fireEvent(window, new Event('online'));
+    expect(screen.getByRole('button', { name: 'Confirmar y enviar' })).not.toBeDisabled();
+
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar y enviar' }));
     expect(await screen.findByText('No se pudo enviar la encuesta. Intente nuevamente')).toBeInTheDocument();
     expect(screen.getByText(/No fue posible conectar con el servidor/)).toBeInTheDocument();

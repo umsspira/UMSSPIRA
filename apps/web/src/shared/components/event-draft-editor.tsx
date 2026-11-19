@@ -18,6 +18,7 @@ import {
   removeEventCover,
   uploadEventCover,
   publishDraftEvent,
+  scheduleDraftEvent,
   updateDraftEvent,
 } from '@/shared/services/events-service';
 import { useAuthenticatedUserId } from '@/modules/auth/frontend/components/authenticated-user-context';
@@ -134,6 +135,40 @@ export function EventDraftEditor({
     }
   };
 
+  const handleSchedule = async (
+    event: CreateEventDto,
+    image: File | null,
+    scheduledAt: string,
+  ) => {
+    if (!userId) throw new Error('No se pudo identificar la sesión. Vuelve a iniciar sesión.');
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    let uploadedImageUrl: string | undefined;
+    let imagePersisted = false;
+
+    try {
+      if (image) uploadedImageUrl = await uploadEventCover(image);
+      const { status: _status, ...changes } = event;
+      const updated = await updateDraftEvent(
+        eventId,
+        { ...changes, ...(uploadedImageUrl ? { imageUrl: uploadedImageUrl } : {}) },
+        userId,
+      );
+      imagePersisted = true;
+      setDraft(updated);
+      await scheduleDraftEvent(eventId, scheduledAt, userId);
+      router.push('/events');
+    } catch (error) {
+      if (uploadedImageUrl && !imagePersisted) {
+        await removeEventCover(uploadedImageUrl).catch(() => undefined);
+      }
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <main className="events-page event-create-page">
       <header className="event-create-heading">
@@ -156,6 +191,7 @@ export function EventDraftEditor({
           <EventForm
             initialEvent={draft}
             onSubmit={handleSubmit}
+            onSchedule={handleSchedule}
             onCancel={() => router.push('/events')}
             onValidationChange={setValidationCount}
             isSubmitting={isSubmitting}

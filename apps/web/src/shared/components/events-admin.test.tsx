@@ -239,6 +239,7 @@ describe('Gestión administrativa de eventos HU1', () => {
     fireEvent.click(screen.getByRole('button', {
       name: `Acciones para ${publishedEvent.title}`,
     }));
+    expect(screen.getByRole('group', { name: `Opciones de ${publishedEvent.title}` })).toHaveTextContent('Opciones del evento');
     expect(screen.getByRole('link', { name: 'Ver participantes' })).toHaveAttribute(
       'href',
       '/events/published-1/participants',

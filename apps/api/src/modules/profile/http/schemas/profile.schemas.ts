@@ -66,6 +66,25 @@ export const certificationSchema = z.strictObject({
   grado: text(50),
   anioEmision: certificationYearSchema,
 });
+// HU-19 (T19.2): solo direcciones https válidas, la misma regla que el formulario
+export const PROJECT_URL_MESSAGE = 'Ingresa un enlace válido que empiece con https://';
+const httpsUrlSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((value) => {
+    try {
+      return new URL(value).protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, PROJECT_URL_MESSAGE);
+export const projectSchema = z.strictObject({
+  nombre: text(150),
+  enlace: httpsUrlSchema,
+  descripcion: text(500),
+  tecnologias: z.string().trim().max(300).nullable().optional(),
+});
 export const DEFAULT_CERTIFICATION_DEGREE = 'Profesional';
 export const createCertificationSchema = certificationSchema.extend({
   grado: text(50).default(DEFAULT_CERTIFICATION_DEGREE),
@@ -87,4 +106,5 @@ export const profileChangeSchema = z.discriminatedUnion('section', [
   z.strictObject({ section: z.literal('formacion-academica'), data: educationSchema }),
   z.strictObject({ section: z.literal('experiencia-laboral'), data: experienceSchema }),
   z.strictObject({ section: z.literal('certificaciones'), data: certificationSchema }),
+  z.strictObject({ section: z.literal('proyectos'), data: projectSchema }),
 ]);

@@ -6,6 +6,7 @@
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
     { "key": "accessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
     { "key": "surveyId", "value": "" }
   ],
   "item": [
@@ -43,7 +44,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"id_encuesta\": \"{{surveyId}}\",\n  \"condicion_laboral\": true,\n  \"cargo\": \"Analista\",\n  \"empresa\": \"Empresa de ejemplo\",\n  \"area\": \"Sistemas\",\n  \"modalidad\": \"Remoto\",\n  \"salario_mensual\": \"3500\",\n  \"tiempo_insercion\": \"3\"\n}"
+          "raw": "{\n  \"id_encuesta\": \"{{surveyId}}\",\n  \"condicion_laboral\": true,\n  \"cargo\": \"Analista\",\n  \"empresa\": \"Empresa de ejemplo\",\n  \"area\": \"Sistemas\",\n  \"modalidad\": \"Remoto\",\n  \"salario_mensual\": \"3.000–5.000\",\n  \"tiempo_insercion\": \"3\"\n}"
         }
       }
     },
@@ -81,7 +82,177 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"id_encuesta\": \"{{surveyId}}\",\n  \"condicion_laboral\": true,\n  \"cargo\": \"Analista\",\n  \"empresa\": \"Empresa de ejemplo\",\n  \"area\": \"Sistemas\",\n  \"modalidad\": \"Remoto\",\n  \"salario_mensual\": \"3500\",\n  \"tiempo_insercion\": \"3\"\n}"
+          "raw": "{\n  \"id_encuesta\": \"{{surveyId}}\",\n  \"condicion_laboral\": true,\n  \"cargo\": \"Analista\",\n  \"empresa\": \"Empresa de ejemplo\",\n  \"area\": \"Sistemas\",\n  \"modalidad\": \"Remoto\",\n  \"salario_mensual\": \"3.000–5.000\",\n  \"tiempo_insercion\": \"3\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Consultar estado de la encuesta",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"indica si el titulado ya envió la encuesta\", () => {",
+              "  pm.expect(body.data.submitted).to.be.a(\"boolean\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/surveys/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "surveys", "status"]
+        }
+      }
+    },
+    {
+      "name": "Consultar encuesta enviada",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"devuelve si respondió y sus respuestas\", () => {",
+              "  pm.expect(body.data.responded).to.be.a(\"boolean\");",
+              "  if (body.data.responded) {",
+              "    pm.expect(body.data.response).to.be.an(\"object\");",
+              "    pm.expect(body.data.response.condicion_laboral).to.be.a(\"boolean\");",
+              "  } else {",
+              "    pm.expect(body.data.response).to.equal(null);",
+              "  }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/surveys/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "surveys", "me"]
+        }
+      }
+    },
+    {
+      "name": "Reporte de encuestas",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"devuelve el total de respuestas\", () => {",
+              "  pm.expect(body.data.total).to.be.a(\"number\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reports/surveys?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reports", "surveys"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Reporte de encuestas con token de titulado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+              "const body = pm.response.json();",
+              "pm.test(\"acceso prohibido\", () => {",
+              "  pm.expect(body.error.code).to.eql(\"FORBIDDEN\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reports/surveys?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reports", "surveys"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Reporte de encuestas sin token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+              "const body = pm.response.json();",
+              "pm.test(\"requiere iniciar sesión\", () => {",
+              "  pm.expect(body.error.code).to.eql(\"UNAUTHENTICATED\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": { "type": "noauth" },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reports/surveys?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reports", "surveys"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" }
+          ]
         }
       }
     }

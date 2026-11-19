@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SurveyDraftStatus } from '../components/survey-draft-notice';
 import type { SurveyDraft, WorkCondition, WorkModality } from '../types/survey.types';
 
@@ -104,6 +104,33 @@ export function clearAllSurveyDrafts(): void {
 export function useSurveyDraft(userId: string | undefined) {
   const [draft, setDraft] = useState<SurveyDraft | null>(null);
   const [status, setStatus] = useState<SurveyDraftStatus>('idle');
+  const previousUserIdRef = useRef<string | undefined>(userId);
+
+  // Borrar el borrador cuando cambia la sesión o se cierra sesión (userId cambia o desaparece)
+  useEffect(() => {
+    const prev = previousUserIdRef.current;
+    if (prev && prev !== userId) {
+      clearSurveyDraft(prev);
+      setDraft(null);
+      setStatus('idle');
+    }
+    previousUserIdRef.current = userId;
+  }, [userId]);
+
+  // Escuchar eventos storage para detectar cierre de sesión o cambio de cuenta entre pestañas
+  useEffect(() => {
+    function handleStorage(event: StorageEvent) {
+      if (!event.key || event.key.includes('auth') || event.key.includes('token') || event.key.includes('user')) {
+        if (!event.newValue && userId) {
+          clearSurveyDraft(userId);
+          setDraft(null);
+          setStatus('idle');
+        }
+      }
+    }
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;

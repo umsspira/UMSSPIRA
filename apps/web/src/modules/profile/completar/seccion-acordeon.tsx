@@ -13,7 +13,8 @@ type SeccionAcordeonProps = {
   abiertaInicial?: boolean;
   // Errores sin corregir en el formulario de la sección (HU-02, AC 6)
   errores?: number;
-  children?: React.ReactNode;
+  // Como función recibe cerrar(): «Cancelar» de un formulario cierra su sección (HU-21, CA-06)
+  children?: React.ReactNode | ((cerrar: () => void) => React.ReactNode);
 };
 
 // Cabecera de sección según la v3 del Figma: número o check, título en mayúsculas y estado
@@ -97,7 +98,7 @@ export function SeccionAcordeon({
 
       {/* Se oculta en vez de desmontarse para que los errores (y su contador) sigan al cerrar la sección */}
       <div hidden={!abierta} className="border-t border-oatmeal/70 px-4 py-4 md:px-6 md:py-5">
-        {children}
+        {typeof children === 'function' ? children(() => setAbierta(false)) : children}
       </div>
     </section>
   );

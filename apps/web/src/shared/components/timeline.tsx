@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { FileText } from 'lucide-react';
 
-import type { TimelineItem, TimelineSection } from '@/modules/profile/data/profile-data';
+import type { TimelineSection } from '@/modules/profile/data/profile-data';
 import CertificationItem from '@/modules/profile/ver/certification-item';
 
 const SECTION_CERTIFICATIONS = 'CERTIFICACIONES';
@@ -21,24 +21,7 @@ function Connector() {
   );
 }
 
-const STATUS_STYLES: Record<NonNullable<TimelineItem['status']>, { label: string; badge: string; dot: string }> = {
-  verified: { label: 'Respaldo verificado', badge: 'bg-[#D1E7DD] text-[#0F5132]', dot: 'bg-[#0F5132]' },
-  pending: { label: 'Respaldo en revisión', badge: 'bg-[#FFF3CD] text-[#664D03]', dot: 'bg-[#664D03]' },
-  missing: { label: 'Sin respaldo', badge: 'bg-[#E2E3E5] text-[#383D41]', dot: 'bg-[#383D41]' },
-};
-
-function StatusBadge({ status }: { status: NonNullable<TimelineItem['status']> }) {
-  const { label, badge, dot } = STATUS_STYLES[status];
-  return (
-    <span
-      className={`inline-flex w-fit shrink-0 items-center gap-1 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-[0.05em] ${badge}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      {label}
-    </span>
-  );
-}
-
+// HU-21, CA-02: el resumen ya no muestra etiquetas de validación de respaldos («Respaldo verificado»...)
 export default function Timeline({ sections }: TimelineProps) {
   // Solo una certificación abierta a la vez; todas cerradas al inicio
   const [openCertification, setOpenCertification] = useState<string | null>(null);
@@ -69,7 +52,6 @@ export default function Timeline({ sections }: TimelineProps) {
                   onToggle={() =>
                     setOpenCertification((current) => (current === item.title ? null : item.title))
                   }
-                  status={item.status && <StatusBadge status={item.status} />}
                 />
               </article>
             ) : (
@@ -97,9 +79,6 @@ export default function Timeline({ sections }: TimelineProps) {
                         {item.date}
                       </span>
                     )}
-
-                    {/* Estado del respaldo */}
-                    {item.status && <StatusBadge status={item.status} />}
                   </div>
 
                   {/* Documento de respaldo */}

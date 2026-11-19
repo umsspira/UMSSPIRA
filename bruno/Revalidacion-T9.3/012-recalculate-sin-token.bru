@@ -1,0 +1,30 @@
+meta {
+  name: 012 CA-HU9-04 POST recalculate sin token
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/v1/radar/recalculate
+  body: none
+  auth: none
+}
+
+tests {
+  test("Status 401", function() {
+    expect(res.status).to.equal(401);
+  });
+
+  test("Nunca responde 404", function() {
+    expect(res.status).to.not.equal(404);
+  });
+
+  test("Codigo UNAUTHENTICATED", function() {
+    expect(res.body.error.code).to.equal("UNAUTHENTICATED");
+  });
+}
+
+docs {
+  CA-HU9-04: POST /radar/recalculate sin token responde 401. Un 404 incumple el
+  criterio. No requiere credenciales.
+}

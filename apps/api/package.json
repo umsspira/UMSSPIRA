@@ -22,6 +22,7 @@
     "db:status": "prisma migrate status",
     "db:seed": "prisma db seed",
     "account:create": "tsx scripts/accounts/create.ts",
+    "account:create-graduate": "tsx scripts/accounts/create-graduate.ts",
     "invitation:create": "tsx scripts/invitations/create.ts",
     "auth:prune": "tsx scripts/accounts/prune-sessions.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\" \"*.mjs\" \"*.cjs\" \"*.json\"",
@@ -50,8 +51,8 @@
     "reflect-metadata": "0.1.14",
     "rxjs": "7.8.2",
     "socket.io": "^4.8.4",
-    "zod": "4.6.7",
-    "@umsspira/shared-types": "workspace:*"
+    "web-push": "^3.6.7",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "10.4.9",
@@ -64,6 +65,7 @@
     "@types/pdfmake": "0.2.13",
     "@types/pg": "8.23.1",
     "@types/supertest": "^6.0.3",
+    "@types/web-push": "^3.6.4",
     "eslint": "10.12.0",
     "jest": "29.7.0",
     "prettier": "3.9.10",

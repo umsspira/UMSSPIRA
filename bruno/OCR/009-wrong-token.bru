@@ -1,0 +1,34 @@
+meta {
+  name: Rechazar token ajeno
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/applications/ocr/{{ocrJobId}}/renew
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "00000000-0000-4000-8000-000000000000"
+  }
+}
+
+tests {
+  test("HTTP 409", function () { expect(res.getStatus()).to.equal(409); });
+
+}
+
+docs {
+  Usar exclusivamente solicitudes ficticias. Requiere baseUrl y accessToken; ejecutar claim tras enviar una solicitud pendiente.
+}

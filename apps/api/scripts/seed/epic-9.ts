@@ -1,5 +1,11 @@
 import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
+import { radarLevel } from './radar-levels';
+import { AFFINITY_AREAS } from '@umsspira/shared-types';
 import { DEMO_ADMIN_ASSIGNMENT_ID, DEMO_CAREER_ID } from './demo-accounts';
+import { calculateAreaAffinity } from '../../src/modules/radar/domain/policies/affinity-calculator';
+import { RADAR_DICTIONARY } from '../../src/modules/radar/domain/affinity-catalog';
+import { RADAR_AREA_IDS } from '../../src/modules/radar/domain/entities/radar-area';
+import { seedSystemsCareer, withSystemsCareer } from './systems-career';
 
 // Los reportes HTTP se generan con las solicitudes de la épica 1; no son archivos estáticos.
 const DEMO_SURVEY_ID = '99000000-0000-4000-8000-000000000001';
@@ -14,7 +20,7 @@ export const encuestas: Array<Prisma.EncuestaCreateManyInput & { id: string }> =
     fecha_inicio: new Date('2026-01-01T00:00:00Z'),
     fecha_fin: new Date('2026-12-31T00:00:00Z'),
     fecha_creacion: new Date(),
-    estado: 'BORRADOR',
+    estado: 'PUBLICADA',
     formato: 'WEB',
   },
 ];
@@ -65,8 +71,8 @@ function demoId(prefix: string, sequence: number): string {
   return `${prefix}-0000-4000-8000-${sequence.toString().padStart(12, '0')}`;
 }
 
-const demoGraduates: Prisma.TituladoCreateManyInput[] = graduateNames.map(
-  ([nombre, apellido], index) => ({
+export const demoGraduates: Array<Prisma.TituladoCreateManyInput & { id: string }> =
+  graduateNames.map(([nombre, apellido], index) => ({
     id: demoId('99100000', index + 1),
     id_carrera: DEMO_CAREER_ID,
     nombre,
@@ -75,8 +81,79 @@ const demoGraduates: Prisma.TituladoCreateManyInput[] = graduateNames.map(
     anio_egreso: 2021 + (index % 5),
     grado: 'Licenciatura',
     expedido_en: 'CB',
-  }),
-);
+  }));
+
+const systemsRadarAdditionalGraduates: Array<Prisma.TituladoCreateManyInput & { id: string }> = [
+  ['Emilia', 'Reyes'],
+  ['Franco', 'Ledezma'],
+  ['Lorena', 'Vargas'],
+].map(([nombre, apellido], index) => ({
+  id: demoId('99400000', index + 1),
+  id_carrera: DEMO_CAREER_ID,
+  nombre,
+  apellido,
+  anio_ingreso: 2021,
+  anio_egreso: 2026,
+  grado: 'Licenciatura',
+  expedido_en: 'CB',
+}));
+
+export const systemsRadarGraduates = [...demoGraduates, ...systemsRadarAdditionalGraduates];
+
+const systemsRadarSeed = systemsRadarGraduates.map((graduate, graduateIndex) => {
+  const calculationId = demoId('99410000', graduateIndex + 1);
+  const calculation = {
+    id: calculationId,
+    id_titulado: graduate.id,
+    version_algoritmo: 'qa-seed-v1',
+    estado: 'COMPLETADO',
+    fecha_calculo: new Date(Date.UTC(2026, 1, 1 + graduateIndex)),
+  } satisfies Prisma.CalculoRadarCreateManyInput;
+
+  const affinities = AFFINITY_AREAS.flatMap((area, areaIndex) => {
+    // Esta ausencia intencional permite comprobar CA-05: el área se omite, no se registra como 0 %.
+    if (graduate.anio_egreso === 2025 && area === 'data-ai') {
+      return [];
+    }
+
+    const definitions = RADAR_DICTIONARY[area];
+    const weights = definitions.map(({ term, weight }) => ({ term, peso: weight }));
+    const start = (graduateIndex * 3 + areaIndex) % definitions.length;
+    // Nivel por cohorte y área: el mapa usa los 5 tramos de color (HU-002 CA-02).
+    const [keywordCount, frequency] = radarLevel(graduate.anio_egreso, areaIndex);
+    const keywords = Array.from({ length: keywordCount }, (_, offset) => {
+      const definition = definitions[(start + offset) % definitions.length];
+      if (!definition) {
+        throw new Error(`Falta una keyword del área de radar ${area}`);
+      }
+      return { term: definition.term, count: frequency };
+    });
+    const result = calculateAreaAffinity(keywords, weights);
+    const topKeywords: Prisma.InputJsonValue = result.palabrasClaveTop.map((keyword) => ({
+      keyword: keyword.keyword,
+      weight: keyword.weight,
+      frequency: keyword.frequency,
+      points: keyword.points,
+      percentage: keyword.percentage,
+    }));
+
+    return [
+      {
+        id: demoId('99420000', graduateIndex * AFFINITY_AREAS.length + areaIndex + 1),
+        id_calculo_radar: calculationId,
+        id_area: RADAR_AREA_IDS[area],
+        puntaje: result.puntaje,
+        porcentaje: result.porcentaje,
+        palabras_clave_top: topKeywords,
+      } satisfies Prisma.AfinidadRadarCreateManyInput,
+    ];
+  });
+
+  return { calculation, affinities };
+});
+
+export const systemsRadarCalculations = systemsRadarSeed.map(({ calculation }) => calculation);
+export const systemsRadarAffinities = systemsRadarSeed.flatMap(({ affinities }) => affinities);
 
 // La cuenta titulado@umss.edu.bo queda sin respuesta para que QA pueda enviar la encuesta y ver el guardado.
 const respondentIds = demoGraduates.map(({ id }) => id);
@@ -88,7 +165,7 @@ type EmploymentResponse = Omit<
 
 const responseScenarios: Array<EmploymentResponse | null> = [
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de datos',
     empresa: 'Andes Analytics',
     area: 'Tecnología',
@@ -97,7 +174,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador backend',
     empresa: 'Quarksoft Bolivia',
     area: 'Desarrollo de software',
@@ -106,7 +183,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '2',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Ingeniera de soporte',
     empresa: 'Cooperativa San Martín',
     area: 'Tecnología',
@@ -116,7 +193,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador frontend',
     empresa: 'Nube Andina',
     area: 'Desarrollo de software',
@@ -125,7 +202,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Asistente de proyectos',
     empresa: 'Constructora Tunari',
     area: 'Gestión de proyectos',
@@ -134,7 +211,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '15',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Administradora de bases de datos',
     empresa: 'DataSur',
     area: 'Tecnología',
@@ -144,7 +221,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de calidad de software',
     empresa: 'Soluciones Kuntur',
     area: 'Desarrollo de software',
@@ -153,7 +230,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Consultor independiente',
     empresa: 'Servicios profesionales propios',
     area: 'Consultoría tecnológica',
@@ -162,7 +239,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '2',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Especialista de redes',
     empresa: 'Telecom Valle',
     area: 'Infraestructura',
@@ -172,7 +249,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrolladora móvil',
     empresa: 'Yungas Digital',
     area: 'Desarrollo de software',
@@ -181,7 +258,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Técnico de soporte',
     empresa: 'Universidad del Valle Central',
     area: 'Soporte técnico',
@@ -190,7 +267,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '9',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de seguridad informática',
     empresa: 'Bóveda Ciberseguridad',
     area: 'Seguridad informática',
@@ -200,7 +277,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Asistente de análisis de negocio',
     empresa: 'Banco Metropolitano',
     area: 'Análisis de negocio',
@@ -209,7 +286,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador de aplicaciones',
     empresa: 'Pacha Labs',
     area: 'Desarrollo de software',
@@ -218,7 +295,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '9',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Coordinadora de proyectos',
     empresa: 'Fundación Horizonte',
     area: 'Gestión de proyectos',
@@ -228,7 +305,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Ingeniero de infraestructura cloud',
     empresa: 'Altura Cloud',
     area: 'Infraestructura',
@@ -237,7 +314,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de inteligencia de negocios',
     empresa: 'Mercado Andino',
     area: 'Análisis de datos',
@@ -246,7 +323,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '2',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Soporte de aplicaciones',
     empresa: 'Clínica Los Álamos',
     area: 'Soporte técnico',
@@ -256,7 +333,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrolladora full stack',
     empresa: 'Chaski Tecnología',
     area: 'Desarrollo de software',
@@ -265,7 +342,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Administrador de sistemas',
     empresa: 'Servicios Mineros del Sur',
     area: 'Infraestructura',
@@ -274,7 +351,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '15',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Consultora de transformación digital',
     empresa: 'Independiente',
     area: 'Consultoría tecnológica',
@@ -284,7 +361,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de infraestructura',
     empresa: 'Redes del Centro',
     area: 'Infraestructura',
@@ -293,7 +370,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '9',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador de software',
     empresa: 'Cóndor Sistemas',
     area: 'Desarrollo de software',
@@ -302,7 +379,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '2',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Especialista de datos',
     empresa: 'Observatorio Económico Andino',
     area: 'Análisis de datos',
@@ -312,7 +389,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Líder técnica de proyectos',
     empresa: 'Innovación Cercado',
     area: 'Gestión de proyectos',
@@ -321,7 +398,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '9',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de soporte TI',
     empresa: 'Caja Popular Cochabamba',
     area: 'Soporte técnico',
@@ -330,7 +407,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrollador de soluciones cloud',
     empresa: 'Inti Digital',
     area: 'Infraestructura',
@@ -340,7 +417,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   },
   null,
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Analista de procesos',
     empresa: 'Logística Cordillera',
     area: 'Análisis de negocio',
@@ -349,7 +426,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '15',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Desarrolladora de software',
     empresa: 'Wara Tech',
     area: 'Desarrollo de software',
@@ -358,7 +435,7 @@ const responseScenarios: Array<EmploymentResponse | null> = [
     tiempoInsercion: '4',
   },
   {
-    condicionLaboral: 'true',
+    condicionLaboral: true,
     cargo: 'Asistente de seguridad informática',
     empresa: 'Red Segura Bolivia',
     area: 'Seguridad informática',
@@ -369,30 +446,39 @@ const responseScenarios: Array<EmploymentResponse | null> = [
   null,
 ];
 
-const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios.slice(0, respondentIds.length).map(
-  (scenario, index) => {
+const respuestas: Prisma.RespuestaEncuestaCreateManyInput[] = responseScenarios
+  .slice(0, respondentIds.length)
+  .map((scenario, index) => {
     const idTitulado = respondentIds[index];
     if (!idTitulado) {
       throw new Error(`Falta el titulado de demostración para la respuesta ${index + 1}`);
     }
     return {
-      ...(scenario ?? { condicionLaboral: 'false' }),
+      ...(scenario ?? { condicionLaboral: false }),
       id: demoId('99200000', index + 1),
       idEncuesta: DEMO_SURVEY_ID,
       idTitulado,
       // Cada 7 días desde el 15/01/2026: la última queda antes de la fecha actual del sprint.
       fechaEnvio: new Date(Date.UTC(2026, 0, 15 + index * 7)),
     };
-  },
-);
+  });
 
 export async function seedEpic9(prisma: PrismaClient): Promise<void> {
-  await prisma.titulado.createMany({ data: demoGraduates, skipDuplicates: true });
+  const careerId = await seedSystemsCareer(prisma);
+  await prisma.titulado.createMany({
+    data: withSystemsCareer(systemsRadarGraduates, careerId),
+    skipDuplicates: true,
+  });
   if (reportes.length > 0) {
     await prisma.reporte.createMany({ data: reportes, skipDuplicates: true });
   }
   if (encuestas.length > 0) {
-    await prisma.encuesta.createMany({ data: encuestas, skipDuplicates: true });
+    await prisma.encuesta.createMany({
+      data: withSystemsCareer(encuestas, careerId),
+      skipDuplicates: true,
+    });
   }
   await prisma.respuestaEncuesta.createMany({ data: respuestas, skipDuplicates: true });
+  await prisma.calculoRadar.createMany({ data: systemsRadarCalculations, skipDuplicates: true });
+  await prisma.afinidadRadar.createMany({ data: systemsRadarAffinities, skipDuplicates: true });
 }

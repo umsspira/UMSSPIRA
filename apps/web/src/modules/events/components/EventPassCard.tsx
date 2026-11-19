@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
-
+// 👇 Importamos el botón que me acabas de mostrar (Ajusta la ruta si es necesario)
 import { Button } from "@/shared/components/button";; 
 
 type PassStatus = "VALID" | "ACTIVO" | "INVALID" | "ERROR" | "RECOVERED";
@@ -20,18 +21,14 @@ interface EventPassProps {
   statusLabel?: string;
   statusDescription?: string;
   hideBackButton?: boolean;
+  savedOffline?: boolean;
+  updated?: boolean;
+  offline?: boolean;
+  backHref?: string;
   onSaveOffline?: () => void;
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
   saveOfflineMessage?: string;
-
-  offlineUnverified?: boolean;
-
-  /** HU10: aviso de carga / éxito / error / sin conexión (reemplaza saveOfflineMessage). */
-  saveOfflineNotice?: React.ReactNode;
-  /** HU10 CA-04: deshabilita el botón (por ejemplo, sin conexión). */
-  saveOfflineDisabled?: boolean;
-
 }
 
 export const EventPassCard: React.FC<EventPassProps> = ({
@@ -47,23 +44,20 @@ export const EventPassCard: React.FC<EventPassProps> = ({
   statusLabel,
   statusDescription,
   hideBackButton = false,
+  savedOffline = false,
+  updated = false,
+  offline = false,
+  backHref,
   onSaveOffline,
   isSavedOffline = false,
   isSavingOffline = false,
   saveOfflineMessage,
-
-  offlineUnverified = false,
-
-  saveOfflineNotice,
-  saveOfflineDisabled = false,
-
 }) => {
   const isError = status === "ERROR";
   const isInvalid = status === "INVALID" || status === "INVALIDADO" || status === "VENCIDO";
   const isRecovered = status === "RECOVERED";
   
   const isValid = status === "VALID" || status === "ACTIVO" || isRecovered;
-const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
 
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col md:flex-row rounded-2xl overflow-hidden shadow-umss-lg border border-oatmeal font-sans">
@@ -118,17 +112,11 @@ const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
         {/* Badges y código inferior */}
         {!isError && (
           <>
-            <div
-  className={`mt-auto text-[11px] font-bold py-1 px-4 rounded-full ${
-    isInvalid
-      ? 'hidden'
-      : offlineUnverified
-        ? 'bg-burning-flame text-abyssal-blue'
-        : 'bg-palladian text-abyssal-blue'
-  }`}
->
-  {offlineUnverified ? 'VIGENCIA NO VERIFICADA' : 'VÁLIDO'}
-</div>
+            {!isInvalid && (
+              <div className="mt-auto text-[11px] font-bold py-1 px-4 rounded-full bg-palladian text-abyssal-blue">
+                {offline ? 'SIN CONEXIÓN' : 'VÁLIDO'}
+              </div>
+            )}
             {passId && (
               <div className="mt-4 text-left w-full">
                 <p className="text-oatmeal text-[10px] uppercase font-semibold">ID Pase</p>
@@ -147,6 +135,12 @@ const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
       {/* COLUMNA DERECHA (60%) - Fondo Palladian */}
       <div className="md:w-[60%] bg-palladian p-8 md:p-12 flex flex-col justify-center">
         
+        {(updated || savedOffline) && (
+          <p className="hu12-saved-badge" role="status">
+            {updated ? 'PASE ACTUALIZADO' : 'GUARDADO EN ESTE DISPOSITIVO'}
+          </p>
+        )}
+
         {/* Título Oficial H1/H2 según manual (Inter, Bold, 32px) */}
         <h1 className="font-sans font-bold text-[32px] leading-[40px] text-abyssal-blue mb-4">
           {eventName}
@@ -190,23 +184,9 @@ const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
              </div>
            </div>
         )}
-{offlineUnverified && (
-  <div
-    role="status"
-    className="mb-6 border border-burning-flame bg-burning-flame/10 p-4 rounded-lg"
-  >
-    <p className="text-abyssal-blue text-sm font-bold">
-      Pase guardado sin conexión
-    </p>
 
-    <p className="text-abyssal-blue text-xs mt-2">
-      No se puede verificar la vigencia de este pase sin conexión.
-      Conéctate a Internet para confirmar que sigue habilitado.
-    </p>
-  </div>
-)}
         {/* Datos del evento usando etiquetas (11px/13px) y cuerpos (14px) del manual */}
-        {canDisplayQr && qrToken && (
+        {isValid && !isRecovered && (
           <div className="space-y-5">
             <div>
               <p className="text-[11px] text-abyssal-blue/60 uppercase font-semibold">Titulado</p>
@@ -233,7 +213,7 @@ const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
       type="button"
       variant="primary"
       onClick={onSaveOffline}
-      disabled={isSavingOffline || isSavedOffline || saveOfflineDisabled}
+      disabled={isSavingOffline || isSavedOffline}
       className="w-full"
     >
       {isSavingOffline
@@ -243,26 +223,28 @@ const canDisplayQr = (isValid || offlineUnverified) && Boolean(qrToken);
           : 'Guardar sin conexión'}
     </Button>
 
-    {saveOfflineNotice ? (
-      <div className="mt-3">{saveOfflineNotice}</div>
-    ) : (
-      saveOfflineMessage && (
-        <p className="text-abyssal-blue text-xs mt-2" role="status">
-          {saveOfflineMessage}
-        </p>
-      )
+    {saveOfflineMessage && (
+      <p className="text-abyssal-blue text-xs mt-2" role="status">
+        {saveOfflineMessage}
+      </p>
     )}
   </div>
 )}
         <div className="mt-auto pt-8 flex flex-col md:flex-row gap-4">
           {!hideBackButton && (
-            <Button
-              variant="secondary"
-              onClick={onBack}
-              className="flex-1 md:flex-none"
-            >
-              {isError ? 'Volver a mis eventos' : 'Volver a mis pases'}
-            </Button>
+            backHref ? (
+              <Link href={backHref} className="hu12-back-link">
+                Volver a mis pases
+              </Link>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={onBack}
+                className="flex-1 md:flex-none"
+              >
+                {isError ? 'Volver a mis eventos' : 'Volver a mis pases'}
+              </Button>
+            )
           )}
 
           {isError && (

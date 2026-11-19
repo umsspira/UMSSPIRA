@@ -2,8 +2,7 @@
 'use client';
  
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Briefcase, Check, Eye, ShieldCheck } from 'lucide-react';
-import Link from 'next/link';
+import { Briefcase, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { BarraProgreso } from './barra-progreso';
 import { SeccionAcordeon } from './seccion-acordeon';
@@ -11,18 +10,23 @@ import { FormularioExperiencia, type Experiencia } from './experiencia-laboral';
 import { FormacionAcademicaForm, type FormacionAcademica } from './formacion-academica';
 import { FormularioCertificaciones, type Certificacion } from './certificaciones';
 import { FormularioDescripcion } from './descripcion-profesional';
+import { FormularioProyectos, type Proyecto } from './proyectos';
 import {
   crearCertificacion,
   crearExperiencia,
   crearFormacion,
+  crearProyecto,
   guardarDescripcion,
   subirRespaldo,
 } from '@/modules/profile/services/perfil-api';
 import { DeleteRecordModal } from '@/modules/profile/components/delete-record-modal';
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
+import { BackButton } from '@/shared/components/back-button';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
+import { backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
 import {
   profileCompleteness,
   type CompletenessSectionId,
@@ -32,6 +36,7 @@ import type {
   EducationRecord,
   DeleteRecordErrorCode,
   ExperienceRecord,
+  ProjectRecord,
 } from '@/modules/profile/types/profile-record';
  
 // returnTo: ruta interna desde la que se llegó (por ejemplo /afinidad); al terminar se vuelve ahí (E2.3).
@@ -53,8 +58,10 @@ export function AcordeonPerfil({
     addEducation,
     addExperience,
     addCertification,
+    addProject,
     setDescription,
     removeRecord,
+    updateRecord,
   } = useProfileStore();
   const router = useRouter();
   const [avisoBorrador, setAvisoBorrador] = useState(false);
@@ -62,6 +69,7 @@ export function AcordeonPerfil({
   const [erroresFormacion, setErroresFormacion] = useState(0);
   const [erroresExperiencia, setErroresExperiencia] = useState(0);
   const [erroresCertificaciones, setErroresCertificaciones] = useState(0);
+  const [erroresProyectos, setErroresProyectos] = useState(0);
   // Avance (0 a 100) de la subida del respaldo mientras se guarda una certificación
   const [progresoSubida, setProgresoSubida] = useState<number>();
   // Certificación que se va a eliminar desde Completar perfil (BUG HU8-02), con el mismo modal que Mis registros
@@ -85,6 +93,8 @@ export function AcordeonPerfil({
     }
   }
   // Certificación ya creada cuyo respaldo no se pudo subir: al reintentar se sube solo la foto, sin duplicar (T8.6)
+  // Id de la última certificación guardada, para «Cambiar respaldo» (T18.1)
+  const ultimaGuardadaRef = useRef<string | null>(null);
   const pendienteRef = useRef<{ clave: string; idOperacion: string; creada?: CertificationRecord } | null>(null);
  
   useEffect(() => {
@@ -128,7 +138,19 @@ export function AcordeonPerfil({
     [records.certification],
   );
  
-  // Mismo cálculo que el indicador del resumen: las 3 secciones de registros y la descripción
+  // HU-19: proyectos ya guardados, para listarlos en la sección 5
+  const proyectos = useMemo<Proyecto[]>(
+    () =>
+      (records.project as ProjectRecord[]).map((registro) => ({
+        nombre: registro.name,
+        enlace: registro.url,
+        descripcion: registro.description,
+        tecnologias: registro.technologies ?? '',
+      })),
+    [records.project],
+  );
+
+  // Mismo cálculo que el indicador del resumen: las 4 secciones de registros y la descripción
   const secciones = profileCompleteness(records, description).sections;
   const completas = secciones.filter((seccion) => seccion.complete).length;
  
@@ -168,41 +190,24 @@ export function AcordeonPerfil({
             <span className="text-sm font-semibold text-truffle-trouble">
               {completas} de {secciones.length} secciones completas
             </span>
-            {returnTo && (
-              <Link
-                href={returnTo}
-                className="inline-flex items-center gap-2 rounded-lg border border-blue-fantastic px-3 py-1.5 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Volver
-              </Link>
-            )}
-            <Link
-              href="/profile"
-              className="inline-flex items-center gap-2 rounded-lg border border-blue-fantastic px-3 py-1.5 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
-            >
-              <Eye className="h-4 w-4" aria-hidden="true" />
-              Ver resumen
-            </Link>
+            {/* Sin returnTo se vuelve a Mi perfil (HU-11) */}
+            <BackButton href="/profile" returnTo={returnTo} ariaLabel={returnTo ? 'Volver' : 'Volver a Mi perfil'} />
           </div>
         </div>
         <BarraProgreso completas={completas} total={secciones.length} />
+        <ProfileQuickLinks />
       </header>
  
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Tarjeta informativa (v3: "Tu Base de Datos Egresado") */}
+        {/* Tarjeta informativa (HU-21, CA-08: «Tu base de datos de titulado») */}
         <aside className="flex flex-col gap-4 rounded-2xl border border-abyssal-blue/10 bg-white p-6 lg:w-[300px] lg:shrink-0">
-          <h2 className="text-lg font-bold text-blue-fantastic">Tu Base de Datos Egresado</h2>
+          <h2 className="text-lg font-bold text-blue-fantastic">Tu base de datos de titulado</h2>
           <p className="text-[13px] leading-[1.5] text-blue-fantastic/70">
             La información registrada se consolida en un formato estructurado (JSON base) para fines de
             acreditación universitaria y bolsa de empleo oficial de la UMSS.
           </p>
           <div className="flex flex-col gap-3 border-t border-oatmeal pt-4">
             <h3 className="text-sm font-bold uppercase text-blue-fantastic">¿Por qué es importante?</h3>
-            <p className="flex gap-2 text-[13px] text-blue-fantastic/80">
-              <ShieldCheck className="h-4 w-4 shrink-0 text-truffle-trouble" aria-hidden="true" />
-              Información certificada directamente por el departamento de posgrado.
-            </p>
             <p className="flex gap-2 text-[13px] text-blue-fantastic/80">
               <Briefcase className="h-4 w-4 shrink-0 text-truffle-trouble" aria-hidden="true" />
               Acceso directo a las ofertas laborales de las empresas aliadas a Jalasoft y UMSS.
@@ -220,14 +225,17 @@ export function AcordeonPerfil({
         cantidad={formaciones.length}
         errores={erroresFormacion}
       >
+        {(cerrar) => (
         <FormacionAcademicaForm
           formaciones={formaciones}
           onErroresChange={setErroresFormacion}
+          onCancelar={cerrar}
           onAgregar={async (formacion) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addEducation(await crearFormacion(formacion));
           }}
         />
+        )}
       </SeccionAcordeon>
       <SeccionAcordeon
         numero={2}
@@ -237,14 +245,17 @@ export function AcordeonPerfil({
         cantidad={experiencias.length}
         errores={erroresExperiencia}
       >
+        {(cerrar) => (
         <FormularioExperiencia
           experiencias={experiencias}
           onErroresChange={setErroresExperiencia}
+          onCancelar={cerrar}
           onAgregar={async (experiencia) => {
             // Solo se agrega al estado lo que la API guardó (201), con su id real
             addExperience(await crearExperiencia(experiencia));
           }}
         />
+        )}
       </SeccionAcordeon>
       <SeccionAcordeon
         numero={3}
@@ -254,6 +265,7 @@ export function AcordeonPerfil({
         cantidad={certificaciones.length}
         errores={erroresCertificaciones}
       >
+        {(cerrar) => (
         <FormularioCertificaciones
           certificaciones={certificaciones}
           onErroresChange={setErroresCertificaciones}
@@ -264,7 +276,8 @@ export function AcordeonPerfil({
             const creada = pendienteRef.current?.creada;
             if (creada) addCertification(creada);
             pendienteRef.current = null;
-            router.push(returnTo ?? '/profile');
+            // HU-21, CA-06: se limpia, se cierra la sección y se sigue en Completar perfil
+            cerrar();
           }}
           hrefEditar={(id) => {
             // Al terminar de editar se vuelve a esta sección conservando el regreso a Afinidad (returnTo)
@@ -307,9 +320,27 @@ export function AcordeonPerfil({
               backupFile: certificacion.respaldo?.name,
               backupUrl: urlDeArchivo(certificacion.respaldo),
               backupVerified: false,
+              backupType: certificacion.respaldo ? backupTypeOf(certificacion.respaldo) : undefined,
+            });
+            ultimaGuardadaRef.current = creada.id;
+          }}
+          onCambiarRespaldo={async (archivo) => {
+            // HU-18 (T18.1): mismo endpoint de subida; el backend reemplaza el respaldo de ese registro
+            const id = ultimaGuardadaRef.current;
+            const registro = (records.certification as CertificationRecord[]).find((r) => r.id === id);
+            if (!id || !registro) return;
+            setProgresoSubida(undefined);
+            await subirRespaldo(id, archivo, setProgresoSubida);
+            updateRecord('certification', {
+              ...registro,
+              backupFile: archivo.name,
+              backupUrl: urlDeArchivo(archivo),
+              backupVerified: false,
+              backupType: backupTypeOf(archivo),
             });
           }}
         />
+        )}
       </SeccionAcordeon>
       {certificacionAEliminar && (
         <DeleteRecordModal
@@ -329,20 +360,45 @@ export function AcordeonPerfil({
         cantidad={description ? 1 : 0}
         textoCompleto="(Completado)"
       >
+        {(cerrar) => (
         <FormularioDescripcion
           descripcion={description}
+          onCancelar={cerrar}
           onGuardar={async (descripcion) => {
             // El resumen muestra lo que la API guardó; si falla, el estado no cambia
             setDescription(await guardarDescripcion(descripcion));
           }}
         />
+        )}
+      </SeccionAcordeon>
+      {/* HU-19 (T19.1): sección 5 «Proyectos y portafolio» */}
+      <SeccionAcordeon
+        numero={5}
+        abiertaInicial={seccionInicial === 'proyectos'}
+        titulo="Proyectos y portafolio"
+        descripcion="Tus proyectos y trabajos publicados"
+        cantidad={proyectos.length}
+        errores={erroresProyectos}
+      >
+        {(cerrar) => (
+        <FormularioProyectos
+          proyectos={proyectos}
+          onErroresChange={setErroresProyectos}
+          onCancelar={cerrar}
+          onAgregar={async (proyecto) => {
+            // Solo se agrega al estado lo que la API guardó (201), con su id real
+            addProject(await crearProyecto(proyecto));
+          }}
+        />
+        )}
       </SeccionAcordeon>
 
           {/* Acciones finales (v3) */}
           <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <button
               type="button"
-              onClick={() => router.push(returnTo ?? '/profile')}
+              // Sin returnTo vuelve al resumen con el aviso «Se guardó correctamente» (HU-21, CA-01)
+              onClick={() => router.push(returnTo ?? '/profile?guardado=1')}
               className="h-12 flex-1 rounded-lg bg-burning-flame text-base font-bold text-abyssal-blue transition hover:brightness-95"
             >
               Guardar perfil profesional
