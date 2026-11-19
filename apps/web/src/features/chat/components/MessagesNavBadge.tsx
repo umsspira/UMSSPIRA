@@ -8,7 +8,9 @@ import { useOnlineStatus } from "@/shared/hooks/use-online-status";
 
 /**
  * CA-01 — Contador total con «99+».
+ * CA-05 — Se actualiza sin recargar (useUnreadSummary escucha chat:changed).
  * CA-07 — Sin conexión no se muestra contador.
+ * CA-08 — Solo se actualiza el indicador en pantalla.
  */
 export function MessagesNavBadge() {
   const { summary } = useUnreadSummary();
