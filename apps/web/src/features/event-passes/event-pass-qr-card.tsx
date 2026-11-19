@@ -1,8 +1,14 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { EventPassDto } from '@umsspira/shared-types';
-import { saveOfflineQrPass } from './offline/offline-qr-storage';
+
+import {
+  getOfflineQrPass,
+  saveOfflineQrPass,
+} from './offline/offline-qr-storage';
+
 import { EventPassCard } from '@/modules/events/components/EventPassCard';
 import { OFFLINE_PASS_INVALID_MESSAGE } from './offline/offline-sync';
 import {
@@ -15,7 +21,7 @@ import { useOnlineStatus } from '@/shared/hooks/use-online-status';
 
 interface EventPassQrCardProps {
   pass: EventPassDto;
-  /** true cuando el pase viene del dispositivo (sin conexión): no se ofrece guardarlo de nuevo. */
+  offlineUnverified?: boolean;
   fromOfflineStorage?: boolean;
 }
 
@@ -37,19 +43,67 @@ function formatEventDate(value?: string): string {
 
 export function EventPassQrCard({
   pass,
+  offlineUnverified = false,
   fromOfflineStorage = false,
 }: EventPassQrCardProps) {
-  const isValid =
-    pass.status === 'ACTIVO' && pass.isValidForAccess;
+  const [isSavedOffline, setIsSavedOffline] = useState(false);
+
+  const isOnline = useOnlineStatus();
+
+  const {
+    status,
+    errorMessage,
+    isLoading,
+    run,
+    retry,
+    reset,
+  } = useActionStatus();
 
   const details = pass.eventDetails;
-  const [isSavedOffline, setIsSavedOffline] = useState(false);
-  const isOnline = useOnlineStatus();
-  const { status, errorMessage, run, retry, reset } = useActionStatus();
-  const isSavingOffline = status === 'loading';
 
-  // HU10: toda la validación y el guardado pasan por useActionStatus
-  // (carga inmediata, éxito, error con «Reintentar» y aviso sin conexión).
+  const isValid =
+    pass.status === 'ACTIVO' &&
+    pass.isValidForAccess === true &&
+    Boolean(pass.qrToken?.trim());
+
+  const canDisplayOfflineQr =
+    offlineUnverified &&
+    fromOfflineStorage &&
+    isValid;
+
+  const canDisplayQr = isValid || canDisplayOfflineQr;
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkOfflinePass() {
+      setIsSavedOffline(false);
+
+      if (!pass.id || !pass.userId) return;
+
+      try {
+        const savedPass = await getOfflineQrPass(
+          pass.id,
+          pass.userId,
+        );
+
+        if (!active) return;
+
+        if (savedPass) {
+          setIsSavedOffline(true);
+        }
+      } catch {
+        // La consulta local no debe impedir mostrar el pase.
+      }
+    }
+
+    void checkOfflinePass();
+
+    return () => {
+      active = false;
+    };
+  }, [pass.id, pass.userId]);
+
   const saveOfflinePass = async () => {
     if (
       !details ||
@@ -61,7 +115,9 @@ export function EventPassQrCard({
       !details.dateTime?.trim() ||
       !details.location?.trim()
     ) {
-      throw new Error('Faltan datos del pase o del evento.');
+      throw new Error(
+        'No se puede guardar: faltan datos del pase o del evento.',
+      );
     }
 
     await saveOfflineQrPass({
@@ -74,20 +130,27 @@ export function EventPassQrCard({
         dateTime: details.dateTime,
         location: details.location,
       },
+      status: pass.status,
+      isValidForAccess: pass.isValidForAccess,
     });
 
     setIsSavedOffline(true);
   };
 
   const handleSaveOffline = () => {
-    if (!isValid || isSavingOffline || isSavedOffline) return;
-    // Guardar un QR nuevo requiere conexión (HU10 CA-04).
+    if (!isValid || !details || isLoading || isSavedOffline) {
+      return;
+    }
+
     void run(saveOfflinePass, { requiresConnection: true });
   };
 
   const saveOfflineNotice =
     !isOnline && !isSavedOffline ? (
-      <ActionNotice state="offline" message={OFFLINE_ACTION_MESSAGE} />
+      <ActionNotice
+        state="offline"
+        message={OFFLINE_ACTION_MESSAGE}
+      />
     ) : (
       <ActionStatusNotice
         status={status}
@@ -120,7 +183,12 @@ export function EventPassQrCard({
   return (
     <EventPassCard
       status={isValid ? 'ACTIVO' : 'INVALID'}
-      statusLabel={statusLabel}
+      statusLabel={
+        canDisplayOfflineQr
+          ? 'GUARDADO SIN CONEXIÓN'
+          : statusLabel
+      }
+      offlineUnverified={canDisplayOfflineQr}
       statusDescription={statusDescription}
       hideBackButton
       eventName={details?.name || 'Evento sin nombre'}
@@ -128,10 +196,14 @@ export function EventPassQrCard({
       dateTime={formatEventDate(details?.dateTime)}
       location={details?.location || 'Ubicación no disponible'}
       passId={pass.id}
-      qrToken={isValid ? pass.qrToken : undefined}
-onSaveOffline={isValid && !fromOfflineStorage ? handleSaveOffline : undefined}
+      qrToken={canDisplayQr ? pass.qrToken : undefined}
+      onSaveOffline={
+        isValid && !offlineUnverified && !fromOfflineStorage
+          ? handleSaveOffline
+          : undefined
+      }
       isSavedOffline={isSavedOffline}
-      isSavingOffline={isSavingOffline}
+      isSavingOffline={isLoading}
       saveOfflineDisabled={!isOnline}
       saveOfflineNotice={saveOfflineNotice}
       onBack={() => window.history.back()}

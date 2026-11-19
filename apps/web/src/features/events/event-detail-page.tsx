@@ -249,7 +249,7 @@ export default function EventDetailPage({
             <Link href="/portal/eventos/mis-eventos" className="hu3-result-action">
                  Ver mis eventos
             </Link>
-              <Link href="/mis-pases" className="hu3-result-action hu3-result-action-primary">
+              <Link href="/events/catalog/passes" className="hu3-result-action hu3-result-action-primary">
                 Ver pase QR
               </Link>
             </div>
@@ -417,7 +417,7 @@ export default function EventDetailPage({
             <Link href="/portal/eventos/mis-eventos" className="hu3-result-action">
                    Ver mis eventos
                  </Link>
-              <Link href="/mis-pases" className="hu3-result-action hu3-result-action-primary">
+              <Link href="/events/catalog/passes" className="hu3-result-action hu3-result-action-primary">
                 Ver pase QR
               </Link>
             </div>
