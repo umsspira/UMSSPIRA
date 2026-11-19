@@ -173,6 +173,44 @@ export class OcrService {
     });
   }
 
+  retry(actor: ActorContext, id: string) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const [identity] = await tx.$queryRaw<{ id_solicitud: string }[]>`
+        SELECT id_solicitud FROM ocr_trabajo WHERE id=${id}::uuid`;
+        if (!identity) {
+          throw stale();
+        }
+        // Same lock order as claim/complete and re-submission: application, then job.
+        await tx.$queryRaw`SELECT id FROM solicitud WHERE id=${identity.id_solicitud}::uuid FOR UPDATE`;
+        const application = await tx.solicitud.findFirst({
+          where: scopedApplication(actor, identity.id_solicitud),
+        });
+        if (!application || !['PENDIENTE', 'PENDING'].includes(application.estado ?? '')) {
+          throw stale();
+        }
+        const [job] = await tx.$queryRaw<JobRow[]>`
+        SELECT * FROM ocr_trabajo WHERE id=${id}::uuid
+          AND revision=${application.version_vigente}
+          AND id_documento=${application.id_documento_respaldo}::uuid
+          AND (estado='FALLIDO' OR (estado='EN_CURSO' AND intentos>=3 AND reserva_hasta<=clock_timestamp()))
+          AND NOT EXISTS (SELECT 1 FROM ocr_resultado WHERE id_trabajo=${id}::uuid)
+        FOR UPDATE`;
+        if (!job) {
+          throw new BusinessRuleError(
+            'conflict',
+            'OCR_RETRY_NOT_ALLOWED',
+            'El análisis ya cambió de estado. Vuelve a consultar el expediente.',
+          );
+        }
+        await tx.$executeRaw`UPDATE ocr_trabajo SET estado='PENDIENTE',intentos=0,error=NULL,
+        finalizado_en=NULL,reserva_token=NULL,reservado_por=NULL,reserva_hasta=NULL WHERE id=${id}::uuid`;
+        return { saved: true };
+      },
+      { timeout: 15000 },
+    );
+  }
+
   async statuses(actor: ActorContext, ids: string[]) {
     if (!ids.length || !actor.scopes.careerIds.length) {
       return [];
@@ -181,7 +219,9 @@ export class OcrService {
       { applicationId: string; status: OcrAnalysis['status']; revision: number }[]
     >(Prisma.sql`
       SELECT s.id AS "applicationId",
-        CASE WHEN j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()
+        CASE WHEN COALESCE(s.estado,'') NOT IN ('PENDIENTE','PENDING') AND j.estado IN ('PENDIENTE','EN_CURSO')
+          THEN 'DESCARTADO'
+          WHEN j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()
           THEN CASE WHEN j.intentos>=3 THEN 'FALLIDO' ELSE 'PENDIENTE' END
           ELSE j.estado END AS status,j.revision FROM solicitud s
       JOIN detalle_solicitud d ON d.id=s.id_detalle_solicitud
