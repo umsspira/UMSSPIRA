@@ -14,7 +14,6 @@ import {
   Bookmark,
   MapPin,
   Clock3,
-  Settings,
   QrCode,
   WifiOff,
   Wifi,
@@ -411,15 +410,6 @@ export default function Home() {
           </p>
         )}
       </section>
-
-      <Link
-        href="/portal/configuracion"
-        className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-[#1B2632] text-white rounded-full shadow-lg hover:bg-slate-800 transition-colors z-50 font-medium"
-        title="Configuración de la PWA"
-      >
-        <Settings className="w-5 h-5" />
-        <span>Configuración</span>
-      </Link>
 
       {showReconnectedToast && (
         <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
