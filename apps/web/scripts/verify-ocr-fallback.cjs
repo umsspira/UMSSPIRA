@@ -2,7 +2,7 @@ const { strict: assert } = require("node:assert");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { build } = require("esbuild");
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "@playwright/test");
 async function main() {
   const compiled = await build({
     entryPoints: [

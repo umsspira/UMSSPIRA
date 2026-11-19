@@ -126,7 +126,10 @@ export function JobPostingsList() {
     return () => { active = false; };
   }, [state, affinityRetryCount]);
 
-  const postings = state.status === 'loaded' ? state.postings : [];
+  const postings = useMemo(
+    () => (state.status === 'loaded' ? state.postings : []),
+    [state],
+  );
   const modalities = useMemo(
     () => Array.from(new Set(postings.map((posting) => posting.modalidad).filter((item): item is string => Boolean(item)))).sort(),
     [postings],
