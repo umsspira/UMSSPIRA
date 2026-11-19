@@ -6,8 +6,7 @@ import { getReceivedRequest, listReceivedRequests, ReceivedRequestsError, respon
 
 const mockReplace = jest.fn();
 const mockRouter = { replace: mockReplace };
-const mockSearchParams = new URLSearchParams();
-jest.mock('next/navigation', () => ({ useRouter: () => mockRouter, useSearchParams: () => mockSearchParams }));
+jest.mock('next/navigation', () => ({ useRouter: () => mockRouter }));
 jest.mock('../services/mentorship-api', () => ({ getMentorProfile: jest.fn() }));
 jest.mock('../services/received-requests-api', () => ({
   getReceivedRequest: jest.fn(),
@@ -31,7 +30,6 @@ const request = (
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockSearchParams.delete('view');
   (getMentorProfile as jest.Mock).mockResolvedValue({ isActive: true });
   (listReceivedRequests as jest.Mock).mockImplementation(async (status: string, page = 1) => {
     const item = status === 'PENDIENTE' ? request() : null;
@@ -50,24 +48,6 @@ it('muestra la bandeja en una tabla compacta con solicitante, fecha y motivo', a
   expect(screen.queryByText(/Modo de prueba/)).not.toBeInTheDocument();
   expect(screen.getByRole('table')).toBeInTheDocument();
   expect(listReceivedRequests).toHaveBeenCalledWith('PENDIENTE', 1, expect.anything(), 5);
-});
-
-it('muestra las solicitudes enviadas con fecha completa y orden descendente', () => {
-  mockSearchParams.set('view', 'sent');
-  render(<ReceivedRequests />);
-
-  const table = screen.getByRole('table');
-  const rows = within(table).getAllByRole('row');
-  expect(rows).toHaveLength(6);
-  expect(within(rows[1]).getByText('Enviada el')).toBeInTheDocument();
-  expect(within(rows[1]).getByText('23/10/2026')).toBeInTheDocument();
-  expect(within(rows[2]).getByText('22/10/2026')).toBeInTheDocument();
-  expect(screen.getByText('Mostrando 1–5 de 7 · Más recientes primero')).toBeInTheDocument();
-  expect(listReceivedRequests).not.toHaveBeenCalled();
-
-  fireEvent.click(screen.getByRole('button', { name: 'Página 2' }));
-  expect(within(screen.getByRole('table')).getByText('09/10/2026')).toBeInTheDocument();
-  expect(within(screen.getByRole('table')).getByText('05/10/2026')).toBeInTheDocument();
 });
 
 it('filtra por aceptadas desde el servicio', async () => {
@@ -220,4 +200,37 @@ it('redirige a un usuario que no participa activamente como mentor', async () =>
   render(<ReceivedRequests />);
   await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/mentorship'));
   expect(listReceivedRequests).not.toHaveBeenCalled();
+});
+
+it('muestra una solicitud cancelada sin acciones de aceptar o rechazar', async () => {
+  const canceled = { ...request('CANCELADO'), fecha_actualizacion: '2026-10-22' };
+  (listReceivedRequests as jest.Mock).mockImplementation(async (status: string) => {
+    const item = status === 'CANCELADO' ? canceled : null;
+    return { items: item ? [item] : [], page: 1, pageSize: 20, total: item ? 1 : 0, totalPages: 1 };
+  });
+  (getReceivedRequest as jest.Mock).mockResolvedValue(canceled);
+
+  render(<ReceivedRequests />);
+  fireEvent.click(await screen.findByRole('tab', { name: /Canceladas/ }));
+
+  expect(await screen.findByText('Cancelada')).toBeInTheDocument();
+  expect(screen.getByText(/Cancelada: 22\/10\/2026/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Aceptar' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Ver detalles' }));
+
+  expect(
+    await screen.findByText('Cancelada por el solicitante el 22/10/2026'),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Aceptar' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument();
+});
+
+it('no muestra la vista falsa de solicitudes enviadas', async () => {
+  render(<ReceivedRequests />);
+  await screen.findByText('Juan Pérez');
+  expect(screen.queryByRole('heading', { name: 'Mis solicitudes de mentoría' })).not.toBeInTheDocument();
+  expect(screen.queryByText(/sent-/)).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Solicitudes de mentoría recibidas' })).toBeInTheDocument();
 });
