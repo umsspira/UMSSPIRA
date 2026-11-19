@@ -11,7 +11,7 @@ import {
   RecordNotFound,
 } from '@/modules/profile/components/edit-record-layout';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
-import { recordsHref } from '@/modules/profile/data/profile-records-data';
+import { recordsHref, updatedRecordHref } from '@/modules/profile/data/profile-records-data';
 import { actualizarFormacion } from '@/modules/profile/services/perfil-api';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import type { EducationRecord } from '@/modules/profile/types/profile-record';
@@ -82,6 +82,14 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
     }
   }
 
+  // Deshace la foto elegida que aún no se guardó y vuelve al respaldo que ya tenía el registro
+  function handleDocumentRemove() {
+    setDocumentName(education.backupFile ?? '');
+    setDocumentUrl(education.backupUrl);
+    setIsNewDocument(false);
+    setIsSaved(false);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
@@ -113,6 +121,8 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
         backupUrl: documentName ? documentUrl : undefined,
       });
       setIsSaved(true);
+      // Vuelve a la pestaña de formación con el aviso «Registro actualizado» (HU-11)
+      router.push(updatedRecordHref('education'));
     } catch (apiError) {
       if (!(apiError instanceof ApiError)) throw apiError;
       setSaveError(apiError.message);
@@ -192,6 +202,9 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
         documentUrl={documentUrl}
         isVerified={Boolean(documentName) && !isNewDocument}
         onDocumentChange={handleDocumentChange}
+        onDocumentRemove={
+          isNewDocument && documentName !== (education.backupFile ?? '') ? handleDocumentRemove : undefined
+        }
       />
 
       <MensajeError id="error-education-save" mensaje={saveError} />

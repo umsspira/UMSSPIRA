@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import { profileHeader } from '@/modules/profile/data/profile-data';
-import { PROFILE_RECORDS_MOCK } from '@/modules/profile/data/profile-records-data';
+import { profileHeader } from '@/modules/profile/testing/profile-fixtures';
+import { PROFILE_RECORDS_MOCK } from '@/modules/profile/testing/profile-fixtures';
 
 import DownloadProfileButton from './download-profile-button';
 
@@ -57,7 +57,7 @@ describe('DownloadProfileButton', () => {
 
   it('se desactiva cuando el perfil no tiene bloques', () => {
     render(
-      <DownloadProfileButton header={profileHeader} records={{ education: [], experience: [], certification: [] }} />,
+      <DownloadProfileButton header={profileHeader} records={{ education: [], experience: [], certification: [], project: [] }} />,
     );
 
     expect(screen.getByRole('button', { name: 'Descargar' })).toBeDisabled();

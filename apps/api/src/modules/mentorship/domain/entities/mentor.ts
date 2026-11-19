@@ -27,6 +27,7 @@ export interface AreaReference {
 
 export interface MentorInterest extends AreaReference {
   area: AreaReference;
+  esPersonalizado?: boolean;
 }
 
 export interface MentorAreas {
@@ -35,9 +36,16 @@ export interface MentorAreas {
   interests: MentorInterest[];
 }
 
+export interface InterestCatalogArea extends AreaReference {
+  description: string;
+  selected: boolean;
+  locked: boolean;
+}
+
 export interface InterestCatalogGroup {
-  area: AreaReference;
+  area: InterestCatalogArea;
   interests: (MentorInterest & { selected: boolean })[];
+  customInterestsAvailable?: boolean;
 }
 
 export interface DirectoryMentor {
@@ -64,6 +72,11 @@ export interface MentorSchedule {
   weekday: number;
   start: string;
   end: string;
+}
+
+export interface MentorWeeklySchedule {
+  schedule: MentorSchedule[];
+  updatedAt: Date | null;
 }
 
 export interface MentorBooking {

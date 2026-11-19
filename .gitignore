@@ -34,3 +34,6 @@ apps/api/skills-lock.json
 bruno/environments/
 
 holaaa
+
+apps/web/public/ocr/runtime/
+apps/web/public/ocr/models/*.tar

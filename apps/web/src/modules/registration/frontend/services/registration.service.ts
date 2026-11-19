@@ -19,7 +19,13 @@ export type CreateSessionResult =
   | { ok: false; message: string; errors: FieldErrorDetail[] };
 
 export type SessionCheckResult =
-  | { status: 'active'; expiresInSeconds: number }
+  | {
+      status: 'active';
+      expiresInSeconds: number;
+      hasVerificationCode: boolean;
+      codeExpiresInSeconds: number;
+      resendAvailableInSeconds: number;
+    }
   | { status: 'expired'; message: string }
   | { status: 'unknown' };
 
@@ -86,10 +92,23 @@ export async function checkRegistrationSession(sessionToken: string): Promise<Se
       `${API_BASE_URL}/registrations/sessions/${encodeURIComponent(sessionToken)}`,
       { cache: 'no-store' },
     );
-    const body = await readJson<{ data?: { expiresInSeconds: number } } & ApiErrorBody>(response);
+    const body = await readJson<{
+      data?: {
+        expiresInSeconds: number;
+        hasVerificationCode: boolean;
+        codeExpiresInSeconds: number;
+        resendAvailableInSeconds: number;
+      };
+    } & ApiErrorBody>(response);
 
     if (response.ok && body?.data) {
-      return { status: 'active', expiresInSeconds: body.data.expiresInSeconds };
+      return {
+        status: 'active',
+        expiresInSeconds: body.data.expiresInSeconds,
+        hasVerificationCode: body.data.hasVerificationCode,
+        codeExpiresInSeconds: body.data.codeExpiresInSeconds,
+        resendAvailableInSeconds: body.data.resendAvailableInSeconds,
+      };
     }
     if (response.status === 410) {
       return {

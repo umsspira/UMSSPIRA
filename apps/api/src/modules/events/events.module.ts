@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OptionalAuthenticationGuard } from '../../shared/http/auth/guards/optional-authentication.guard';
 import { eventsProviders } from './infrastructure/providers/events.providers';
 import { GetEventCatalogController } from './http/controllers/get-event-catalog.controller';
@@ -13,6 +14,9 @@ import { CreateEventController } from './http/controllers/create-event.controlle
 import { UpdateEventDraftController } from './http/controllers/update-event-draft.controller';
 import { UpdatePublishedEventController } from './http/controllers/update-published-event.controller';
 import { PublishEventDraftController } from './http/controllers/publish-event-draft.controller';
+import { ScheduleEventDraftController } from './http/controllers/schedule-event-draft.controller';
+import { ScheduledEventPublicationWorker } from './infrastructure/workers/scheduled-event-publication.worker';
+import { CancelEventScheduleController } from './http/controllers/cancel-event-schedule.controller';
 import { ListInactiveEventsController } from './http/controllers/list-inactive-events.controller';
 import { RetireEventController } from './http/controllers/retire-event.controller';
 import { DeleteEventCoverController } from './http/controllers/delete-event-cover.controller';
@@ -21,14 +25,20 @@ import { UploadEventCoverController } from './http/controllers/upload-event-cove
 import { RegisterEventController } from './http/controllers/register-event.controller';
 import { GetEventParticipantsController } from './http/controllers/get-event-participants.controller';
 import { GenerateEventPassService } from './application/generate-event-pass.service';
-import { ListUserPassesService } from './application/list-user-passes.service'; // <-- 1. AÑADIDO AQUÍ
+import { ListUserPassesService } from './application/list-user-passes.service';
 import { EventPassesController } from './http/event-passes.controller';
 import { CancelPublishedEventController } from './http/controllers/cancel-published-event.controller';
 import { CancelEventRegistrationController } from './http/controllers/cancel-event-registration.controller';
+import { ValidateAttendancePassController } from './http/controllers/validate-attendance-pass.controller';
+import { ValidateAttendancePassService } from './application/validate-attendance-pass.service';
+import { CertificateTemplateController } from './http/controllers/certificate-template.controller';
+import { certificateTemplatesProviders } from './infrastructure/providers/certificate-templates.providers';
+
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [
+    CertificateTemplateController,
     GetEventCatalogController,
     ListMyEventRegistrationsController,
     ListOwnedEventsController,
@@ -38,6 +48,8 @@ import { CancelEventRegistrationController } from './http/controllers/cancel-eve
     UpdateEventDraftController,
     UpdatePublishedEventController,
     PublishEventDraftController,
+    ScheduleEventDraftController,
+    CancelEventScheduleController,
     ListInactiveEventsController,
     RetireEventController,
     DeleteEventCoverController,
@@ -47,9 +59,18 @@ import { CancelEventRegistrationController } from './http/controllers/cancel-eve
     RegisterEventController,
     CancelEventRegistrationController,
     GetEventParticipantsController,
+    ValidateAttendancePassController,
     EventPassesController,
     CancelPublishedEventController,
   ],
-  providers: [...eventsProviders, OptionalAuthenticationGuard , GenerateEventPassService, ListUserPassesService],
+  providers: [
+    ScheduledEventPublicationWorker,
+    ...eventsProviders,
+    ...certificateTemplatesProviders,
+    OptionalAuthenticationGuard,
+    GenerateEventPassService,
+    ListUserPassesService,
+    ValidateAttendancePassService,
+  ],
 })
 export class EventsModule {}

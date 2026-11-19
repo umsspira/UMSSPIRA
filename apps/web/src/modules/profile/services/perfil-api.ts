@@ -1,12 +1,14 @@
 import type { Certificacion } from '@/modules/profile/completar/certificaciones';
 import type { Experiencia } from '@/modules/profile/completar/experiencia-laboral';
 import type { FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
-import { CURRENT_GRADUATE_ID } from '@/modules/profile/data/profile-records-data';
+import type { Proyecto } from '@/modules/profile/completar/proyectos';
+import type { ProfileHeader } from '@/modules/profile/data/profile-data';
 import type {
   CertificationRecord,
   EducationRecord,
   ExperienceRecord,
   ProfileRecords,
+  ProjectRecord,
 } from '@/modules/profile/types/profile-record';
 import { ApiError, apiFetch } from '@/shared/services/api-client';
 import { apiUrl, readApiError } from '@/shared/services/api-contract';
@@ -57,14 +59,28 @@ type CertificacionCuerpo = {
 
 export type CertificacionApi = RegistroApi & Required<CertificacionCuerpo> & {
   // tieneRespaldo null = el backend todavía no sabe leer respaldos
-  respaldo?: { tieneRespaldo: boolean | null };
+  respaldo?: { tieneRespaldo: boolean | null; tipo?: 'FOTO' | 'QR' | 'DOCUMENTO' | null };
 };
+
+// Cuerpo de POST/PUT de proyectos (projectSchema del backend, HU-19)
+type ProyectoCuerpo = {
+  nombre: string;
+  enlace: string;
+  descripcion: string;
+  tecnologias: string | null;
+};
+
+export type ProyectoApi = RegistroApi & ProyectoCuerpo;
 
 // GET /api/v1/perfil (profile.presenter.ts del backend)
 export type PerfilApi = {
+  // nombre y carrera null = no registrados; promocion todavía llega null
+  titulado: { id: string; nombre: string | null; carrera: string | null; promocion: number | null };
   formacionAcademica: { registros: FormacionApi[] };
   experienciaLaboral: { registros: ExperienciaApi[] };
   certificaciones: { registros: CertificacionApi[] };
+  // HU-19: una API anterior a los proyectos no envía la sección
+  proyectos?: { registros: ProyectoApi[] };
   // Descripción profesional guardada en perfil_area (T6.4); vacía = sin registrar
   descripcionProfesional: string;
 };
@@ -77,15 +93,16 @@ export type DescripcionApi = {
 
 // Resumen del perfil: registros de las 3 secciones y descripción profesional (vacía = sin registrar)
 export type ResumenPerfil = {
+  header: ProfileHeader;
   records: ProfileRecords;
   description: string;
 };
 
-// La API solo devuelve registros del titulado actual, así que todos son del egresado con sesión
+// La API solo devuelve registros del titulado actual; ownerId es su id (idTitulado)
 export function aEducationRecord(formacion: FormacionApi): EducationRecord {
   return {
     id: formacion.id,
-    ownerId: CURRENT_GRADUATE_ID,
+    ownerId: formacion.idTitulado,
     institution: formacion.institucion,
     title: formacion.titulo,
     graduationYear: String(formacion.anioEgreso),
@@ -96,7 +113,7 @@ export function aEducationRecord(formacion: FormacionApi): EducationRecord {
 export function aExperienceRecord(experiencia: ExperienciaApi): ExperienceRecord {
   return {
     id: experiencia.id,
-    ownerId: CURRENT_GRADUATE_ID,
+    ownerId: experiencia.idTitulado,
     company: experiencia.empresa,
     position: experiencia.cargo,
     startDate: experiencia.fechaInicio,
@@ -106,15 +123,30 @@ export function aExperienceRecord(experiencia: ExperienciaApi): ExperienceRecord
 
 // La API no devuelve el nombre del archivo de respaldo ni si fue validado: solo si existe
 export function aCertificationRecord(certificacion: CertificacionApi): CertificationRecord {
+  const esPdf = certificacion.respaldo?.tipo === 'DOCUMENTO';
   return {
     id: certificacion.id,
-    ownerId: CURRENT_GRADUATE_ID,
+    ownerId: certificacion.idTitulado,
     name: certificacion.nombre,
     issuer: certificacion.entidadEmisora,
     degree: certificacion.grado,
     issueYear: String(certificacion.anioEmision),
-    backupFile: certificacion.respaldo?.tieneRespaldo ? 'respaldo.jpg' : undefined,
+    backupFile: certificacion.respaldo?.tieneRespaldo ? (esPdf ? 'respaldo.pdf' : 'respaldo.jpg') : undefined,
     backupVerified: false,
+    // HU-18: el backend guarda el PDF como DOCUMENTO y la foto como FOTO
+    backupType: certificacion.respaldo?.tieneRespaldo ? (esPdf ? 'pdf' : 'image') : undefined,
+  };
+}
+
+export function aProjectRecord(proyecto: ProyectoApi): ProjectRecord {
+  return {
+    id: proyecto.id,
+    ownerId: proyecto.idTitulado,
+    name: proyecto.nombre,
+    url: proyecto.enlace,
+    description: proyecto.descripcion,
+    technologies: proyecto.tecnologias ?? undefined,
+    createdAt: proyecto.fechaCreacion ?? undefined,
   };
 }
 
@@ -181,13 +213,53 @@ export async function actualizarExperiencia(id: string, experiencia: Experiencia
 export async function obtenerResumenPerfil(): Promise<ResumenPerfil> {
   const perfil = await apiFetch<PerfilApi>(PERFIL_URL);
   return {
+    // Si una versión anterior de la API no envía el titulado, el perfil se muestra igual sin nombre
+    header: {
+      id: perfil.titulado?.id ?? '',
+      name: perfil.titulado?.nombre?.trim() ?? '',
+      career: perfil.titulado?.carrera?.trim() ?? '',
+      graduationYear: perfil.titulado?.promocion ?? null,
+    },
     records: {
       education: perfil.formacionAcademica.registros.map(aEducationRecord),
       experience: perfil.experienciaLaboral.registros.map(aExperienceRecord),
       certification: perfil.certificaciones.registros.map(aCertificationRecord),
+      project: (perfil.proyectos?.registros ?? []).map(aProjectRecord),
     },
     description: perfil.descripcionProfesional?.trim() ?? '',
   };
+}
+
+function cuerpoProyecto(proyecto: Proyecto): ProyectoCuerpo {
+  return {
+    nombre: proyecto.nombre.trim(),
+    enlace: proyecto.enlace.trim(),
+    descripcion: proyecto.descripcion.trim(),
+    tecnologias: proyecto.tecnologias.trim() || null,
+  };
+}
+
+// POST /api/v1/perfil/proyectos -> 201 con el proyecto creado o 400 si el enlace no es https (HU-19)
+export async function crearProyecto(proyecto: Proyecto): Promise<ProjectRecord> {
+  const creado = await apiFetch<ProyectoApi>(`${PERFIL_URL}/proyectos`, {
+    method: 'POST',
+    body: JSON.stringify(cuerpoProyecto(proyecto)),
+  });
+  return aProjectRecord(creado);
+}
+
+// PUT /api/v1/perfil/proyectos/:id -> el mismo proyecto actualizado, 403 si es de otro egresado (HU-19)
+export async function actualizarProyecto(id: string, proyecto: Proyecto): Promise<ProjectRecord> {
+  const actualizado = await apiFetch<ProyectoApi>(`${PERFIL_URL}/proyectos/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(cuerpoProyecto(proyecto)),
+  });
+  return aProjectRecord(actualizado);
+}
+
+// GET /api/v1/perfil/proyectos/:id -> el proyecto, 404 si no existe o 403 si es de otro egresado
+export async function obtenerProyecto(id: string): Promise<ProjectRecord> {
+  return aProjectRecord(await apiFetch<ProyectoApi>(`${PERFIL_URL}/proyectos/${id}`));
 }
 
 // GET /api/v1/perfil/certificaciones/:id -> la certificación guardada, 404 si no existe o 403 si es de otro egresado
@@ -216,8 +288,8 @@ export async function actualizarCertificacion(
   return aCertificationRecord(actualizada);
 }
 
-// PUT /api/v1/perfil/descripcion-profesional -> la descripción guardada (recortada) o 400 si supera 5000
-// caracteres. Solo cambia la del egresado con sesión; vacía la borra
+// PUT /api/v1/perfil/descripcion-profesional -> la descripción guardada (recortada) o 400 si está vacía o
+// supera 5000 caracteres. Solo cambia la del egresado con sesión
 export async function guardarDescripcion(descripcion: string): Promise<string> {
   const guardada = await apiFetch<DescripcionApi>(`${PERFIL_URL}/descripcion-profesional`, {
     method: 'PUT',

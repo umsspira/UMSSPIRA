@@ -37,6 +37,13 @@ const WORK_FIELD_NAMES: (keyof SurveyWorkFields)[] = [
   'cargo', 'empresa', 'area', 'modalidad', 'salario_mensual', 'tiempo_insercion',
 ];
 
+/** Evita aceptar valores sin contenido semántico en los campos de texto. */
+export function isMeaningfulText(value: string): boolean {
+  const normalized = value.trim();
+  const letters = normalized.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g) ?? [];
+  return normalized.length > 0 && letters.length >= 2;
+}
+
 /**
  * Normalización defensiva para integrar futuros borradores (T1.3).
  * Una respuesta «No trabaja» jamás conserva información laboral oculta,

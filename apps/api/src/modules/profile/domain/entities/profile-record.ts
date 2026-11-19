@@ -4,6 +4,7 @@ export const PROFILE_SECTIONS = [
   'formacion-academica',
   'experiencia-laboral',
   'certificaciones',
+  'proyectos',
 ] as const;
 export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 
@@ -46,7 +47,16 @@ export interface CertificationBackup {
   uploadedAt: Date | null;
 }
 
-export type ProfileRecord = EducationRecord | ExperienceRecord | CertificationRecord;
+// Proyecto o portafolio del titulado (HU-19)
+export interface ProjectRecord extends ProfileRecordBase {
+  kind: 'project';
+  name: string;
+  url: string;
+  description: string;
+  technologies: string | null;
+}
+
+export type ProfileRecord = EducationRecord | ExperienceRecord | CertificationRecord | ProjectRecord;
 
 export interface ProfileSnapshot {
   graduate: {
@@ -58,5 +68,6 @@ export interface ProfileSnapshot {
   education: EducationRecord[];
   experience: ExperienceRecord[];
   certifications: CertificationRecord[];
+  projects: ProjectRecord[];
   description: ProfessionalDescription;
 }
