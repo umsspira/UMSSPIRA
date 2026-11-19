@@ -129,9 +129,21 @@ export default function OfflinePage() {
           )}
           <div className="mt-6 rounded-xl bg-[#EDF2FA] p-4 text-left">
             <h2 className="mb-3 text-sm font-semibold">Disponible sin conexión</h2>
-            <div className="grid gap-3 md:grid-cols-3">
+            {/* HU09 CA-02: acceso destacado a Mis códigos QR sin recorrer el menú. */}
+            <a
+              href="/mis-pases"
+              data-testid="offline-link-passes"
+              className="mb-3 flex min-h-[56px] items-center gap-3 rounded-xl bg-[#1B2632] px-4 py-3 text-[#EEE9DF] transition-colors hover:bg-[#2C3B4D]"
+            >
+              <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[#FFB162] text-[#1B2632]">▦</span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold">Mis códigos QR</span>
+                <span className="block text-xs opacity-85">Abre tus pases guardados en este dispositivo.</span>
+              </span>
+              <span aria-hidden="true" className="ml-auto text-xl text-[#FFB162]">›</span>
+            </a>
+            <div className="grid gap-3 md:grid-cols-2">
               {[
-                { href: '/events/catalog/passes', testid: 'offline-link-passes', label: '▦ Mis códigos QR' },
                 { href: '/portal/eventos', testid: 'offline-link-events', label: '📅 Eventos visitados' },
                 { href: '/portal/configuracion', testid: 'offline-link-settings', label: '⚙ Configuración' },
               ].map(tile => (

@@ -19,6 +19,17 @@ describe('HU14 · página de respaldo', () => {
     expect(screen.getByTestId('offline-link-settings')).toHaveTextContent('Configuración');
   });
 
+  it('HU09 CA-02: el acceso a Mis códigos QR es destacado y va antes que los otros accesos', () => {
+    render(<OfflinePage />);
+    const hero = screen.getByTestId('offline-link-passes');
+    // Destacado: enlace a la ruta de HU09 con el estilo promocionado (fondo oscuro).
+    expect(hero).toHaveAttribute('href', '/mis-pases');
+    expect(hero.className).toContain('bg-[#1B2632]');
+    // Aparece en el DOM antes que los accesos secundarios (sin recorrer el menú).
+    const links = Array.from(hero.parentElement!.querySelectorAll('a'));
+    expect(links.indexOf(hero as HTMLAnchorElement)).toBe(0);
+  });
+
   it('CA-03: sin conexión, Reintentar avisa y no consulta la red ni recarga', async () => {
     setOnline(false);
     const fetchMock = jest.fn();
