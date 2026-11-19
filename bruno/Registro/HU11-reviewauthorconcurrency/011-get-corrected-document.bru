@@ -1,0 +1,35 @@
+meta {
+  name: Consultar expediente con documento reemplazado
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/v1/applications/{{correctedApplicationId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("Conserva el expediente y devuelve los datos corregidos", function () {
+    expect(res.getStatus()).to.equal(200);
+    const data = res.getBody().data;
+    expect(data.id).to.equal(bru.getVar("correctedApplicationId"));
+    expect(data.firstName).to.equal(bru.getVar("correctedFirstName"));
+    expect(data.documentPath).to.equal(bru.getVar("correctedFileId"));
+    expect(data.documentName).to.equal(bru.getVar("correctedFileName"));
+    expect(data.documentFormat).to.equal(bru.getVar("correctedFileMime"));
+  });
+}
+
+docs {
+  Preparar una solicitud observada y corregir nombre y documento con el flujo HU-10.
+  Configurar correctedApplicationId con el ID original, correctedFirstName con el nuevo nombre,
+  correctedFileId con el ID del archivo nuevo (ruta_storage), correctedFileName y correctedFileMime.
+  Usar accessToken de un administrador autorizado. Reenviar la solicitud y ejecutar esta consulta.
+  Abrir el expediente: la vista previa debe mostrar el archivo nuevo, conservando el ID original.
+}

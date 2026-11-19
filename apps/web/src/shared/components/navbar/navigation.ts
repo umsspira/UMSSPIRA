@@ -32,6 +32,7 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
     { id: 'inst-empleos', label: 'Sobre la bolsa de trabajo', href: '/portal/institucional?tab=empleos', guestOnly: true },
     { id: 'jobs', label: 'Oportunidades laborales', href: '/portal/empleos', roles: signedIn, hidden: true },
     { id: 'job-postings', label: 'Ofertas laborales actuales', href: '/job-postings', roles: signedIn },
+    { id: 'my-applications', label: 'Mis postulaciones', href: '/my-applications', roles: graduates },
     { id: 'company', label: 'Perfil de mi empresa', href: '/companies', roles: employers },
     { id: 'publish-job', label: 'Publicar una vacante', href: '/empresa/vacantes/publicar', roles: employers },
   ] },
@@ -56,11 +57,14 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
 
 export const NAVBAR_ACCOUNT_LINKS: NavbarLink[] = [
   { id: 'my-profile', label: 'Mi perfil profesional', href: '/profile', roles: members },
+  { id: 'my-applications', label: 'Mis postulaciones', href: '/my-applications', roles: graduates },
   { id: 'my-company', label: 'Perfil de Empresa', href: '/companies', roles: employers },
   { id: 'account-publish-job', label: 'Publicar Vacante', href: '/empresa/vacantes/publicar', roles: employers },
   
   // 👇 AQUÍ ESTÁ EL CAMBIO: Le pusimos el href y quitamos el 'Próximamente' 👇
-  { id: 'my-jobs', label: 'Mis Vacantes', href: '/empresa/mis-vacantes', roles: employers },
+  { id: 'my-jobs', label: 'Mis Vacantes', href: '/empresa/mis-vacantes', roles: employers },  
+  { id: 'company-users', label: 'Gestión de usuarios', href: '/empresa/gestion_usuarios', roles: employers },
+
   // 👆 FIN DEL CAMBIO 👆
 
   { id: 'applicants', label: 'Postulantes', href: '/empresa/postulantes', roles: employers },

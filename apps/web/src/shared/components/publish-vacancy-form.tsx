@@ -30,7 +30,7 @@ const initialFormData: VacancyFormData = {
 type Feedback = { type: "success" | "error"; text: string } | null;
 
 const inputBase =
-  "w-full rounded-lg border bg-[#EEE9DF] text-sm text-abyssal outline-none transition focus:bg-white focus:ring-1 focus:ring-[#2C3B4D]";
+  "w-full rounded-lg border bg-[#EEE9DF] text-base md:text-sm text-abyssal outline-none transition focus:bg-white focus:ring-1 focus:ring-[#2C3B4D]";
 
 export function PublishVacancyForm() {
   const [formData, setFormData] = useState<VacancyFormData>(initialFormData);
@@ -55,7 +55,7 @@ export function PublishVacancyForm() {
 
   const fieldError = (field: string) =>
     errors[field] ? (
-      <p className="mt-1 text-xs text-red-500">{errors[field]}</p>
+      <p className="mt-1 text-xs text-red-500 break-words">{errors[field]}</p>
     ) : null;
 
   const handleCancel = () => {
@@ -109,15 +109,15 @@ export function PublishVacancyForm() {
 
   return (
     <main className="min-h-screen bg-[#F7F4EE]">
-      <div className="mx-auto w-full max-w-6xl px-6 py-10">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-10">
         <div className="mb-7">
-          <div className="mb-2 flex items-center gap-3">
+          <div className="mb-2 flex items-center gap-3 min-w-0">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF1E3] text-[#D97720]">
               <BriefcaseBusiness className="h-5 w-5" />
             </div>
-            <h1 className="text-2xl font-bold text-abyssal">Publicar una vacante</h1>
+            <h1 className="text-2xl font-bold text-abyssal break-words">Publicar una vacante</h1>
           </div>
-          <p className="ml-[52px] text-sm text-[#66717C]">
+          <p className="md:ml-[52px] text-sm text-[#66717C]">
             Completa la información de la vacante para encontrar al perfil que buscas.
           </p>
         </div>
@@ -235,8 +235,8 @@ export function PublishVacancyForm() {
                   role={feedback.type === "error" ? "alert" : "status"}
                   className={
                     feedback.type === "error"
-                      ? "rounded-lg border border-red-500 bg-red-50 p-3 text-sm font-semibold text-red-700"
-                      : "rounded-lg border border-green-500 bg-green-50 p-3 text-sm font-semibold text-green-800"
+                      ? "rounded-lg border border-red-500 bg-red-50 p-3 text-sm font-semibold text-red-700 break-words"
+                      : "rounded-lg border border-green-500 bg-green-50 p-3 text-sm font-semibold text-green-800 break-words"
                   }
                 >
                   {feedback.text}
@@ -244,19 +244,19 @@ export function PublishVacancyForm() {
               )}
 
               {/* Acciones */}
-              <div className="flex items-center justify-end gap-3 border-t border-[#EEE9DF] pt-5">
+              <div className="flex flex-col-reverse gap-3 border-t border-[#EEE9DF] pt-5 md:flex-row md:items-center md:justify-end">
                 <button
                   type="button"
                   onClick={handleCancel}
                   disabled={loading}
-                  className="h-11 rounded-lg border border-oatmeal bg-white px-6 text-sm font-semibold text-abyssal transition hover:bg-[#F7F4EE] disabled:opacity-50"
+                  className="h-11 w-full md:w-auto rounded-lg border border-oatmeal bg-white px-6 text-sm font-semibold text-abyssal transition hover:bg-[#F7F4EE] disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="h-11 rounded-lg bg-burning-flame px-6 text-sm font-bold text-abyssal shadow-sm transition hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-[#2C3B4D] focus:ring-offset-2 disabled:opacity-50"
+                  className="h-11 w-full md:w-auto rounded-lg bg-burning-flame px-6 text-sm font-bold text-abyssal shadow-sm transition hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-[#2C3B4D] focus:ring-offset-2 disabled:opacity-50"
                 >
                   {loading ? "Publicando..." : "Publicar vacante"}
                 </button>

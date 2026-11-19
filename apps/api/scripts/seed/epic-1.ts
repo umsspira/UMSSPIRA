@@ -3,6 +3,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { DEMO_ACCOUNTS, DEMO_CAREER_ID, DEMO_GRADUATE_ID } from './demo-accounts';
 import { CATALOG_IDS, DEMO_IDS } from './demo-ids';
 import { demoDocument } from './demo-document';
+import { seedSystemsCareer, withSystemsCareer } from './systems-career';
 
 const now = new Date();
 const submittedAt = new Date(now.getTime() - 3 * 86400000);
@@ -145,8 +146,12 @@ export const auditorias: Array<Prisma.AuditoriaCreateManyInput & { id: string }>
 ];
 
 export async function seedEpic1(prisma: PrismaClient): Promise<void> {
+  const careerId = await seedSystemsCareer(prisma);
   if (detalles.length > 0) {
-    await prisma.detalleSolicitud.createMany({ data: detalles, skipDuplicates: true });
+    await prisma.detalleSolicitud.createMany({
+      data: withSystemsCareer(detalles, careerId),
+      skipDuplicates: true,
+    });
   }
   if (documentos.length > 0) {
     await prisma.documentoRespaldo.createMany({ data: documentos, skipDuplicates: true });
@@ -156,7 +161,7 @@ export async function seedEpic1(prisma: PrismaClient): Promise<void> {
   }
   if (administradoresSistema.length > 0) {
     await prisma.administradorSistema.createMany({
-      data: administradoresSistema,
+      data: withSystemsCareer(administradoresSistema, careerId),
       skipDuplicates: true,
     });
   }
@@ -191,7 +196,7 @@ export async function seedEpic1(prisma: PrismaClient): Promise<void> {
             expedidoEn: 'CB',
             correo: item.email,
             telefono: '70000000',
-            carreraId: DEMO_CAREER_ID,
+            carreraId: careerId,
             anioEgreso: 2025,
             codigoSis: item.codSis,
           },

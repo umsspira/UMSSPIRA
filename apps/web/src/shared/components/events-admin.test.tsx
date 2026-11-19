@@ -239,6 +239,7 @@ describe('Gestión administrativa de eventos HU1', () => {
     fireEvent.click(screen.getByRole('button', {
       name: `Acciones para ${publishedEvent.title}`,
     }));
+    expect(screen.getByRole('group', { name: `Opciones de ${publishedEvent.title}` })).toHaveTextContent('Opciones del evento');
     expect(screen.getByRole('link', { name: 'Ver participantes' })).toHaveAttribute(
       'href',
       '/events/published-1/participants',
@@ -551,6 +552,7 @@ describe('Eventos inactivos HU7', () => {
     expect(screen.getByText('Finalizado')).toBeInTheDocument();
     expect(screen.getByText('3 inscripciones · 2 pases')).toBeInTheDocument();
     expect(screen.getByText('0 inscripciones · 0 pases')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Volver a gestión' })).toHaveAttribute('href', '/events');
     expect(mockGetInactiveEvents).toHaveBeenCalledWith('user-1');
   });
 

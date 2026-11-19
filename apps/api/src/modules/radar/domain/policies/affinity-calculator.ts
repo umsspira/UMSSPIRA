@@ -54,18 +54,10 @@ function readFiniteNumber(value: unknown): number | null {
 }
 
 /**
- * Normaliza una instantánea de palabras clave influyentes leída de la base de datos.
- *
- * Reglas del contrato:
- * - descarta elementos incompletos o con aporte no positivo;
- * - elimina repetidos por término y conserva el de mayor aporte;
- * - ordena de mayor a menor `points` y desempata alfabéticamente por `keyword`;
- * - recorta a TOP_KEYWORDS_LIMIT elementos;
- * - recalcula `percentage` a partir de `points` para no confiar en datos antiguos.
- *
- * Es tolerante a `null` y a valores con forma inválida: devuelve un arreglo vacío.
+ * Normaliza la lista completa de contribuciones por keyword leída o calculada.
+ * Conserva todas las contribuciones válidas sin recortar a TOP_KEYWORDS_LIMIT (CA-HU13-08).
  */
-export function normalizeTopKeywords(value: unknown): KeywordContribution[] {
+export function normalizeKeywordContributions(value: unknown): KeywordContribution[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -105,12 +97,86 @@ export function normalizeTopKeywords(value: unknown): KeywordContribution[] {
     }
   }
 
-  return [...byKeyword.values()]
-    .sort(
-      (left, right) =>
-        right.points - left.points || compareKeywords(left.keyword, right.keyword),
-    )
-    .slice(0, TOP_KEYWORDS_LIMIT);
+  return [...byKeyword.values()].sort(
+    (left, right) =>
+      right.points - left.points || compareKeywords(left.keyword, right.keyword),
+  );
+}
+
+/**
+ * Normaliza una instantánea de palabras clave influyentes leída de la base de datos.
+ *
+ * Reglas del contrato:
+ * - descarta elementos incompletos o con aporte no positivo;
+ * - elimina repetidos por término y conserva el de mayor aporte;
+ * - ordena de mayor a menor `points` y desempata alfabéticamente por `keyword`;
+ * - recorta a TOP_KEYWORDS_LIMIT elementos;
+ * - recalcula `percentage` a partir de `points` para no confiar en datos antiguos.
+ *
+ * Es tolerante a `null` y a valores con forma inválida: devuelve un arreglo vacío.
+ */
+export function normalizeTopKeywords(value: unknown): KeywordContribution[] {
+  return normalizeKeywordContributions(value).slice(0, TOP_KEYWORDS_LIMIT);
+}
+
+/**
+ * Calcula todas las contribuciones individuales de keywords para un área sin recortar a 5.
+ * Utilizado para persistir `contribuciones_keyword` en la migración M2 (T13.3).
+ */
+export function calculateAreaKeywordContributions(
+  keywords: KeywordMatch[],
+  areaWeights: AreaKeywordWeight[],
+): KeywordContribution[] {
+  const weightMap = new Map<string, number>();
+  for (const weight of areaWeights) {
+    const term = weight.term.trim().toLowerCase();
+    if (term.length === 0 || !Number.isFinite(weight.peso) || weight.peso < 1 || weight.peso > 5) {
+      continue;
+    }
+    const previous = weightMap.get(term);
+    weightMap.set(term, previous === undefined ? weight.peso : Math.max(previous, weight.peso));
+  }
+
+  const frequencyByTerm = new Map<string, number>();
+  for (const keyword of keywords) {
+    if (!Number.isFinite(keyword.count) || keyword.count <= 0) {
+      continue;
+    }
+    const term = keyword.term.trim().toLowerCase();
+    if (term.length === 0) {
+      continue;
+    }
+    const previous = frequencyByTerm.get(term);
+    frequencyByTerm.set(
+      term,
+      previous === undefined ? keyword.count : Math.max(previous, keyword.count),
+    );
+  }
+
+  const contributions: KeywordContribution[] = [];
+
+  for (const [term, frequency] of frequencyByTerm) {
+    const peso = weightMap.get(term);
+    if (peso === undefined) {
+      continue;
+    }
+
+    const cappedFrequency = Math.min(frequency, TOP_FREQUENCY);
+    const points = peso * cappedFrequency;
+    if (points <= 0) {
+      continue;
+    }
+
+    contributions.push({
+      keyword: term,
+      weight: peso,
+      frequency,
+      points,
+      percentage: roundPercentage((points * 100) / MAX_POSSIBLE_SCORE),
+    });
+  }
+
+  return normalizeKeywordContributions(contributions);
 }
 
 /**
@@ -124,75 +190,19 @@ export function calculateAreaAffinity(
   keywords: KeywordMatch[],
   areaWeights: AreaKeywordWeight[],
 ): AreaCalculationResult {
-  // Mapa en minúsculas para buscar rápidamente el peso de cada palabra sin recorrer arreglos.
-  // Si el catálogo repitiera un término, se conserva el peso mayor para no depender del orden.
-  const weightMap = new Map<string, number>();
-  for (const weight of areaWeights) {
-    const term = weight.term.trim().toLowerCase();
-    if (term.length === 0 || !Number.isFinite(weight.peso) || weight.peso < 1 || weight.peso > 5) {
-      continue;
-    }
-    const previous = weightMap.get(term);
-    weightMap.set(term, previous === undefined ? weight.peso : Math.max(previous, weight.peso));
-  }
-
-  // Agrupa por término para no contar dos veces la misma keyword. Si NLP repitiera
-  // un término se conserva la frecuencia mayor.
-  const frequencyByTerm = new Map<string, number>();
-  for (const keyword of keywords) {
-    if (!Number.isFinite(keyword.count) || keyword.count <= 0) {
-      continue;
-    }
-    const term = keyword.term.trim().toLowerCase();
-    if (term.length === 0) {
-      continue;
-    }
-    const previous = frequencyByTerm.get(term);
-    frequencyByTerm.set(term, previous === undefined ? keyword.count : Math.max(previous, keyword.count));
-  }
+  const contributions = calculateAreaKeywordContributions(keywords, areaWeights);
 
   let puntajeTotal = 0;
   let maxWeight: number | null = null;
-  const contributions: KeywordContribution[] = [];
 
-  for (const [term, frequency] of frequencyByTerm) {
-    const peso = weightMap.get(term);
-
-    // La keyword solo aporta al área donde tiene peso configurado.
-    if (peso === undefined) {
-      continue;
+  for (const item of contributions) {
+    puntajeTotal += item.points;
+    if (maxWeight === null || item.weight > maxWeight) {
+      maxWeight = item.weight;
     }
-
-    // 1. Aplicar el tope de frecuencia (máximo 3) sin perder la frecuencia real.
-    const cappedFrequency = Math.min(frequency, TOP_FREQUENCY);
-
-    // 2. Calcular los puntos: aporte = peso * frecuencia recortada.
-    const points = peso * cappedFrequency;
-
-    if (points <= 0) {
-      continue;
-    }
-
-    puntajeTotal += points;
-
-    // 3. Guardar la ponderación más alta encontrada en esta área.
-    if (maxWeight === null || peso > maxWeight) {
-      maxWeight = peso;
-    }
-
-    contributions.push({
-      keyword: term,
-      weight: peso,
-      frequency,
-      points,
-      percentage: roundPercentage((points * 100) / MAX_POSSIBLE_SCORE),
-    });
   }
 
-  // 4. Orden descendente por aporte, desempate alfabético y máximo cinco elementos.
-  const topKeywords = normalizeTopKeywords(contributions);
-
-  // 5. Calcular el porcentaje del área y aplicar saturación (clamp: nunca menor a 0 ni mayor a 100).
+  const topKeywords = contributions.slice(0, TOP_KEYWORDS_LIMIT);
   const rawPercentage = (puntajeTotal * 100) / MAX_POSSIBLE_SCORE;
   const porcentaje = roundPercentage(Math.min(100, Math.max(0, rawPercentage)));
 

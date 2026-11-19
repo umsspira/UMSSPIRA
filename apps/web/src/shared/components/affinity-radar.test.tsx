@@ -36,14 +36,14 @@ describe('AffinityRadar Component', () => {
     render(<AffinityRadar affinityData={mockData as any} hasData={true} />);
 
     // Verificar estado inicial vacío
-    expect(screen.getByText('Selecciona un área en el radar para ver el detalle de afinidad del titulado.')).toBeInTheDocument();
+    expect(screen.getByText('Selecciona un área del radar para consultar sus coincidencias de palabras clave.')).toBeInTheDocument();
 
     // Clic en la primera área (Desarrollo de Software)
     const softwareDevLabel = screen.getByText(/Desarrollo de Software/i);
     fireEvent.click(softwareDevLabel);
 
     // Debe mostrar la etiqueta correcta y el porcentaje redondeado formateado
-    expect(screen.getByText('ÁREA SELECCIONADA (CLICK)')).toBeInTheDocument();
+    expect(screen.getByText('ÁREA SELECCIONADA')).toBeInTheDocument();
     expect(screen.getByText('86%')).toBeInTheDocument();
 
     // Clic en la segunda área (Cloud/DevOps)
@@ -82,7 +82,7 @@ describe('AffinityRadar Component', () => {
   it('en modo controlado marca el eje indicado por selectedAreaId', () => {
     render(<AffinityRadar affinityData={mockData as any} hasData={true} selectedAreaId="cloud-devops" />);
 
-    expect(screen.getByText('ÁREA SELECCIONADA (CLICK)')).toBeInTheDocument();
+    expect(screen.getByText('ÁREA SELECCIONADA')).toBeInTheDocument();
     expect(screen.getByText('70%')).toBeInTheDocument();
   });
 
@@ -101,7 +101,7 @@ describe('AffinityRadar Component', () => {
     
     expect(onSelectArea).toHaveBeenCalledWith('cloud-devops');
     expect(
-      screen.getByText('Selecciona un área en el radar para ver el detalle de afinidad del titulado.')
+      screen.getByText('Selecciona un área del radar para consultar sus coincidencias de palabras clave.')
     ).toBeInTheDocument();
     expect(screen.queryByText('70%')).not.toBeInTheDocument();
   });
@@ -113,7 +113,7 @@ describe('AffinityRadar Component', () => {
     fireEvent.click(screen.getByText(/Desarrollo de Software/i));
 
     expect(onSelectArea).toHaveBeenCalledWith('software-development');
-    expect(screen.getByText('ÁREA SELECCIONADA (CLICK)')).toBeInTheDocument();
+    expect(screen.getByText('ÁREA SELECCIONADA')).toBeInTheDocument();
   });
   it('llama a onSelectArea cuando se hace clic sobre la línea del eje', () => {
     const handleSelectArea = jest.fn();
@@ -206,7 +206,7 @@ describe('AffinityRadar variante mini', () => {
   it('no muestra el panel de area seleccionada', () => {
     render(<AffinityRadar affinityData={mockData as any} variant="mini" />);
 
-    expect(screen.queryByText('ÁREA SELECCIONADA (CLICK)')).not.toBeInTheDocument();
+    expect(screen.queryByText('ÁREA SELECCIONADA')).not.toBeInTheDocument();
   });
 
   it('muestra etiquetas cortas con porcentaje', () => {
@@ -228,7 +228,7 @@ describe('AffinityRadar variante mini', () => {
     expect(container.querySelector('.cursor-pointer')).toBeNull();
 
     fireEvent.click(screen.getByText('Desarrollo de Software (86%)'));
-    expect(screen.queryByText('ÁREA SELECCIONADA (CLICK)')).not.toBeInTheDocument();
+    expect(screen.queryByText('ÁREA SELECCIONADA')).not.toBeInTheDocument();
   });
 
   it('pinta el radar en rojo solo cuando esta destacado', () => {
@@ -252,7 +252,7 @@ describe('AffinityRadar variante mini', () => {
       // Sin etiquetas ni porcentajes
       expect(container.querySelectorAll('text')).toHaveLength(0);
       expect(screen.queryByText(/%/)).not.toBeInTheDocument();
-      expect(screen.queryByText('ÁREA SELECCIONADA (CLICK)')).not.toBeInTheDocument();
+      expect(screen.queryByText('ÁREA SELECCIONADA')).not.toBeInTheDocument();
     };
 
     // Caso 1: hasData en false (aunque haya datos)

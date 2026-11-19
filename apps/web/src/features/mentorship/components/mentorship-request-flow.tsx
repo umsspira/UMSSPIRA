@@ -17,6 +17,7 @@ import {
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { MentorSlotPicker } from './mentor-slot-picker';
 import { PrimaryButton, SecondaryButton } from './mentor-button';
+import { mentorInitials } from '../model/mentor-directory';
 import { formatLongDate } from '../model/slot-calendar';
 import {
   createMentorshipRequest,
@@ -29,6 +30,42 @@ import {
   REQUEST_MESSAGE_LIMIT,
   SLOT_UNAVAILABLE_MESSAGE,
 } from '../services/mentorship-request-api';
+
+const AVAILABILITY_LABELS = {
+  AVAILABLE: { label: 'Disponible', className: 'is-available' },
+  PAUSED: { label: 'Disponibilidad pausada', className: 'is-paused' },
+  NONE: { label: 'Disponibilidad sin configurar', className: 'is-paused' },
+} as const;
+
+function MentorRequestProfile({ mentor }: { mentor: DirectoryMentor }) {
+  const availability = AVAILABILITY_LABELS[mentor.availabilityStatus ?? 'NONE'];
+
+  return (
+    <div className="mentor-request-profile">
+      <div className="mentor-request-profile-photo">
+        <span role="img" aria-label={`Avatar de ${mentor.name}`}>{mentorInitials(mentor.name)}</span>
+      </div>
+      <div className="mentor-request-profile-data">
+        <h2 id="mentor-request-heading">{mentor.name}</h2>
+        <span className={`mentor-request-availability ${availability.className}`}>
+          <span aria-hidden="true" className="mentor-request-availability-dot" />
+          {availability.label}
+        </span>
+        {mentor.experienceYears !== null && (
+          <p className="mentor-request-profile-meta">
+            {mentor.experienceYears} {mentor.experienceYears === 1 ? 'año' : 'años'} de experiencia
+          </p>
+        )}
+        {mentor.description && <p>{mentor.description}</p>}
+        {mentor.areas.length > 0 && (
+          <ul className="mentor-directory-areas" aria-label="Áreas del mentor">
+            {mentor.areas.map((area) => <li key={area.id}>{area.name}</li>)}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const REQUIRED_MESSAGE = 'Faltan datos obligatorios. Revisa los campos marcados para continuar.';
 
@@ -141,23 +178,12 @@ export function MentorshipRequestFlow({ mentorId }: { mentorId: string }) {
   return (
     <section className="mentor-request-card" aria-labelledby="mentor-request-heading">
       <ol className="mentor-request-steps" aria-label="Pasos de la solicitud">
-        <li aria-current={step === 1 ? 'step' : undefined} className={step === 1 ? 'is-current' : 'is-done'}>Paso 1: Horario y motivo</li>
-        <li aria-current={step === 2 ? 'step' : undefined} className={step === 2 ? 'is-current' : ''}>Paso 2: Confirmación</li>
+        <li aria-current={step === 1 ? 'step' : undefined} className={step === 1 ? 'is-current' : 'is-done'}>Paso 1: Completar solicitud</li>
+        <li aria-current={step === 2 ? 'step' : undefined} className={step === 2 ? 'is-current' : ''}>Paso 2: Revisar y confirmar</li>
       </ol>
 
-      <div className="mentor-request-mentor">
-        <span aria-hidden="true" className="mentor-directory-avatar"><UserRoundIcon /></span>
-        <div>
-          <h2 id="mentor-request-heading">{mentor.name}</h2>
-          {mentor.description && <p>{mentor.description}</p>}
-          {mentor.areas.length > 0 && (
-            <ul className="mentor-directory-areas" aria-label="Áreas del mentor">
-              {mentor.areas.map((area) => <li key={area.id}>{area.name}</li>)}
-            </ul>
-          )}
-        </div>
-      </div>
-
+      <div className="mentor-request-layout">
+      <div className="mentor-request-main">
       {step === 1 ? (
         <form noValidate onSubmit={(event) => { event.preventDefault(); goToSummary(); }}>
           {showRequired && <div className="mentor-request-alert" role="alert"><InfoIcon aria-hidden="true" /><p>{REQUIRED_MESSAGE}</p></div>}
@@ -213,6 +239,11 @@ export function MentorshipRequestFlow({ mentorId }: { mentorId: string }) {
           </div>
         </div>
       )}
+      </div>
+      <aside className="mentor-request-aside" aria-label="Perfil del mentor">
+        <MentorRequestProfile mentor={mentor} />
+      </aside>
+      </div>
 
       <ConfirmModal
         open={sent}

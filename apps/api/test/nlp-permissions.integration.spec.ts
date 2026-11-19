@@ -11,11 +11,18 @@ const integration = process.env.RUN_NLP_PERMISSIONS_READONLY_TEST === 'true' ? d
 integration('Permisos: integración PostgreSQL de solo lectura', () => {
   it('dry-run funciona con RLS y no cambia permisos ni asociaciones', async () => {
     const file = parse(readFileSync(resolve(__dirname, '../.env')));
-    assertTeamPermissionTarget(file.DIRECT_URL);
+
+    assertTeamPermissionTarget(file.DIRECT_URL, 'dry-run');
+
     if (file.DATABASE_URL) {
-      assertTeamPermissionTarget(file.DATABASE_URL);
+      assertTeamPermissionTarget(file.DATABASE_URL, 'dry-run');
     }
-    const client = new Client({ connectionString: file.DIRECT_URL, connectionTimeoutMillis: 5000 });
+
+    const client = new Client({
+      connectionString: file.DIRECT_URL,
+      connectionTimeoutMillis: 5000,
+    });
+
     try {
       await client.connect();
       const snapshot = async () => (await client.query(

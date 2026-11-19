@@ -8,6 +8,7 @@ import type { AreaScoreRecord } from '../../src/modules/radar/application/ports/
 import { RecalculateRadarUseCase } from '../../src/modules/radar/application/use-cases/recalculate-radar.use-case';
 import { RADAR_AREA_IDS } from '../../src/modules/radar/domain/entities/radar-area';
 import { PrismaRadarRepository } from '../../src/modules/radar/infrastructure/repositories/prisma-radar.repository';
+import { PrismaAreaWeightReaderAdapter } from '../../src/modules/radar/infrastructure/adapters/prisma-area-weight-reader.adapter';
 import type { PrismaService } from '../../src/shared/infrastructure/database/prisma.service';
 import { startTestDatabase, type TestDatabase } from './support/test-database';
 
@@ -33,7 +34,9 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
   beforeAll(async () => {
     database = await startTestDatabase();
     pool = new Pool({ connectionString: database.connectionString });
-    prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: database.connectionString }) });
+    prisma = new PrismaClient({
+      adapter: new PrismaPg({ connectionString: database.connectionString }),
+    });
     repository = new PrismaRadarRepository(prisma as unknown as PrismaService);
 
     for (const [slug, id] of Object.entries(AREA_IDS)) {
@@ -73,7 +76,10 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
     }));
   }
 
-  async function contar(tabla: 'calculo_radar' | 'palabra_clave_no_mapeada', tituladoId: string): Promise<number> {
+  async function contar(
+    tabla: 'calculo_radar' | 'palabra_clave_no_mapeada',
+    tituladoId: string,
+  ): Promise<number> {
     const { rows } = await pool.query<{ total: number }>(
       `SELECT count(*)::int AS total FROM ${tabla} WHERE id_titulado = $1`,
       [tituladoId],
@@ -91,7 +97,9 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
     return rows[0].total;
   }
 
-  async function terminos(tituladoId: string): Promise<Array<{ termino: string; frecuencia: number }>> {
+  async function terminos(
+    tituladoId: string,
+  ): Promise<Array<{ termino: string; frecuencia: number }>> {
     const { rows } = await pool.query<{ termino: string; frecuencia: number }>(
       'SELECT termino, frecuencia FROM palabra_clave_no_mapeada WHERE id_titulado = $1 ORDER BY termino',
       [tituladoId],
@@ -101,7 +109,11 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
 
   function guardar(
     tituladoId: string,
-    opciones: { areas?: AreaScoreRecord[]; unmapped?: Array<{ term: string; count: number }>; hash?: string } = {},
+    opciones: {
+      areas?: AreaScoreRecord[];
+      unmapped?: Array<{ term: string; count: number }>;
+      hash?: string;
+    } = {},
   ) {
     return repository.saveCalculation({
       tituladoId,
@@ -269,7 +281,9 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
       const recalcular = () =>
         repository.executeWithAdvisoryLock(tituladoId, async (transaccional) => {
           const ultimo = await transaccional.getLatestCalculation(tituladoId);
-          if (ultimo?.hashEntrada === hash) {return 'sin-cambios';}
+          if (ultimo?.hashEntrada === hash) {
+            return 'sin-cambios';
+          }
           await sleep(300);
           await transaccional.saveCalculation({
             tituladoId,
@@ -331,11 +345,10 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
       const palabraId = rows[0].id;
       const areas = Object.values(AREA_IDS);
       const insertar = (areaId: string, peso: number) =>
-        pool.query('INSERT INTO palabra_clave_area (id_palabra_clave, id_area, peso) VALUES ($1, $2, $3)', [
-          palabraId,
-          areaId,
-          peso,
-        ]);
+        pool.query(
+          'INSERT INTO palabra_clave_area (id_palabra_clave, id_area, peso) VALUES ($1, $2, $3)',
+          [palabraId, areaId, peso],
+        );
 
       await expect(insertar(areas[0], 6)).rejects.toMatchObject({
         code: '23514',
@@ -388,7 +401,10 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
           'INSERT INTO palabra_clave_no_mapeada (id_titulado, termino, frecuencia) VALUES ($1, $2, 0)',
           [tituladoId, 'cero'],
         ),
-      ).rejects.toMatchObject({ code: '23514', constraint: 'palabra_clave_no_mapeada_frecuencia_check' });
+      ).rejects.toMatchObject({
+        code: '23514',
+        constraint: 'palabra_clave_no_mapeada_frecuencia_check',
+      });
     });
 
     it('las migraciones dejaron hash_entrada, palabras_clave_top y porcentaje NUMERIC(5,2)', async () => {
@@ -404,10 +420,15 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
              OR (table_name = 'afinidad_radar' AND column_name IN ('palabras_clave_top', 'porcentaje'))`,
       );
 
-      const porNombre = new Map(rows.map((fila) => [`${fila.table_name}.${fila.column_name}`, fila]));
+      const porNombre = new Map(
+        rows.map((fila) => [`${fila.table_name}.${fila.column_name}`, fila]),
+      );
       expect(porNombre.has('calculo_radar.hash_entrada')).toBe(true);
       expect(porNombre.has('afinidad_radar.palabras_clave_top')).toBe(true);
-      expect(porNombre.get('afinidad_radar.porcentaje')).toMatchObject({ numeric_precision: 5, numeric_scale: 2 });
+      expect(porNombre.get('afinidad_radar.porcentaje')).toMatchObject({
+        numeric_precision: 5,
+        numeric_scale: 2,
+      });
     });
   });
 
@@ -467,25 +488,39 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
   describe('D. RecalculateRadarUseCase con repositorio y base reales', () => {
     const PESO_TYPESCRIPT = 5;
     const SW = RADAR_AREA_IDS['software-development'];
-    type Resultado = { keywords: Array<{ term: string; count: number }>; unmapped: Array<{ term: string; count: number }> };
+    type Resultado = {
+      keywords: Array<{ term: string; count: number }>;
+      unmapped: Array<{ term: string; count: number }>;
+    };
 
     /** Extractor falso: responde segun el texto, como lo haria el motor NLP. */
     function extractor(respuestas: Record<string, Resultado | Error>): KeywordExtractorPort {
       return {
         extractFromTexts: async (texts: string[]) => {
           const respuesta = respuestas[texts.join('|')];
-          if (respuesta instanceof Error) {throw respuesta;}
+          if (respuesta instanceof Error) {
+            throw respuesta;
+          }
           return respuesta ?? { keywords: [], unmapped: [] };
         },
       };
     }
 
     function casoDeUso(respuestas: Record<string, Resultado | Error>) {
-      return new RecalculateRadarUseCase(extractor(respuestas), repository);
+      return new RecalculateRadarUseCase(
+        extractor(respuestas),
+        repository,
+        new PrismaAreaWeightReaderAdapter(prisma as unknown as PrismaService),
+      );
     }
 
     async function afinidades(tituladoId: string) {
-      const { rows } = await pool.query<{ id_area: string; porcentaje: string; estado: string; top: unknown }>(
+      const { rows } = await pool.query<{
+        id_area: string;
+        porcentaje: string;
+        estado: string;
+        top: unknown;
+      }>(
         `SELECT a.id_area, a.porcentaje, c.estado, a.palabras_clave_top AS top
            FROM afinidad_radar a JOIN calculo_radar c ON c.id = a.id_calculo_radar
           WHERE c.id_titulado = $1`,
@@ -536,7 +571,9 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
     it('la segunda llamada con el mismo texto no crea otro calculo (mismo hash)', async () => {
       const tituladoId = await crearTitulado();
       const texto = 'Desarrollo con TypeScript';
-      const recalcular = casoDeUso({ [texto]: { keywords: [{ term: 'typescript', count: 1 }], unmapped: [] } });
+      const recalcular = casoDeUso({
+        [texto]: { keywords: [{ term: 'typescript', count: 1 }], unmapped: [] },
+      });
 
       await recalcular.execute(tituladoId, [texto], true);
       await recalcular.execute(tituladoId, [texto], true);
@@ -550,8 +587,14 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
       const primero = 'Desarrollo con TypeScript';
       const segundo = 'Desarrollo con TypeScript y Kubernetes';
       const recalcular = casoDeUso({
-        [primero]: { keywords: [{ term: 'typescript', count: 1 }], unmapped: [{ term: 'antiguo', count: 2 }] },
-        [segundo]: { keywords: [{ term: 'typescript', count: 3 }], unmapped: [{ term: 'kubernetes', count: 1 }] },
+        [primero]: {
+          keywords: [{ term: 'typescript', count: 1 }],
+          unmapped: [{ term: 'antiguo', count: 2 }],
+        },
+        [segundo]: {
+          keywords: [{ term: 'typescript', count: 3 }],
+          unmapped: [{ term: 'kubernetes', count: 1 }],
+        },
       });
 
       await recalcular.execute(tituladoId, [primero], true);
@@ -568,11 +611,9 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
       const tituladoId = await crearTitulado();
       const texto = 'Vendedor en tienda de barrio';
 
-      await casoDeUso({ [texto]: { keywords: [], unmapped: [{ term: 'vendedor', count: 1 }] } }).execute(
-        tituladoId,
-        [texto],
-        false,
-      );
+      await casoDeUso({
+        [texto]: { keywords: [], unmapped: [{ term: 'vendedor', count: 1 }] },
+      }).execute(tituladoId, [texto], false);
 
       const filas = await afinidades(tituladoId);
       expect(filas).toHaveLength(6);
@@ -589,7 +630,11 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
       const texto = 'Texto que rompe el motor';
 
       await expect(
-        casoDeUso({ [texto]: new Error('Diccionario de keywords no disponible') }).execute(tituladoId, [texto], true),
+        casoDeUso({ [texto]: new Error('Diccionario de keywords no disponible') }).execute(
+          tituladoId,
+          [texto],
+          true,
+        ),
       ).rejects.toThrow('Diccionario de keywords no disponible');
 
       expect(await contar('calculo_radar', tituladoId)).toBe(0);
@@ -600,7 +645,9 @@ describe('Radar - integracion con PostgreSQL real (T3.9)', () => {
     it('dos clics simultaneos con el mismo texto dejan un solo calculo', async () => {
       const tituladoId = await crearTitulado();
       const texto = 'Desarrollo con TypeScript';
-      const recalcular = casoDeUso({ [texto]: { keywords: [{ term: 'typescript', count: 1 }], unmapped: [] } });
+      const recalcular = casoDeUso({
+        [texto]: { keywords: [{ term: 'typescript', count: 1 }], unmapped: [] },
+      });
 
       await Promise.all([
         recalcular.execute(tituladoId, [texto], true),
