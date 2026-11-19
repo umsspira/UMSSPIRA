@@ -47,10 +47,16 @@ export const useConversations = () => {
     socket.on("connect", refresh);
     const stop = onUnreadRefresh(refresh);
     window.addEventListener("focus", refresh);
+    const timer = setInterval(refresh, 15000);
+    const invalidate = () => {
+      version.current++;
+    };
     return () => {
+      invalidate();
       socket.off("chat:changed", refresh);
       socket.off("connect", refresh);
       window.removeEventListener("focus", refresh);
+      clearInterval(timer);
       stop();
       releaseChatSocket();
     };
