@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import MyPassesPage from './page';
 import { apiClient } from '@/shared/services/api-client';
-import { getOfflineQrPasses } from '@/features/event-passes/offline/offline-qr-storage';
+import { getOfflineQrPasses, saveOfflineQrPass } from '@/features/event-passes/offline/offline-qr-storage';
 import { getOfflineSessionUserId } from '@/features/event-passes/offline/offline-session';
 
 jest.mock('@/shared/components/navbar/index', () => ({ ConnectedNavbar: () => null }));
@@ -12,10 +12,27 @@ jest.mock('@/features/event-passes/offline/offline-session', () => ({
 }));
 jest.mock('@/features/event-passes/offline/offline-qr-storage', () => ({
   getOfflineQrPasses: jest.fn(),
+  saveOfflineQrPass: jest.fn(),
 }));
 jest.mock('@/modules/events/components/EventPassCard', () => ({
-  EventPassCard: ({ eventName, qrToken }: { eventName: string; qrToken: string }) => (
-    <div data-testid="opened-offline-qr">{eventName}: {qrToken}</div>
+  EventPassCard: ({
+    eventName,
+    qrToken,
+    onSaveOffline,
+    saveOfflineMessage,
+  }: {
+    eventName: string;
+    qrToken: string;
+    onSaveOffline?: () => void;
+    saveOfflineMessage?: string;
+  }) => (
+    <>
+      <div data-testid="opened-offline-qr">{eventName}: {qrToken}</div>
+      {onSaveOffline && (
+        <button type="button" onClick={onSaveOffline}>Guardar nuevo QR</button>
+      )}
+      {saveOfflineMessage && <p role="status">{saveOfflineMessage}</p>}
+    </>
   ),
 }));
 
@@ -37,6 +54,7 @@ beforeEach(() => {
   jest.mocked(apiClient).mockResolvedValue([]);
   jest.mocked(getOfflineSessionUserId).mockReturnValue('user-1');
   jest.mocked(getOfflineQrPasses).mockResolvedValue([savedPass]);
+  jest.mocked(saveOfflineQrPass).mockResolvedValue(savedPass);
 });
 
 it('identifica Mis códigos QR y explica cómo abrir uno guardado', async () => {
@@ -57,4 +75,32 @@ it('abre y oculta el QR guardado con un toque en su acción', async () => {
   );
   fireEvent.click(screen.getByRole('button', { name: /Feria laboral.*Ocultar QR/ }));
   await waitFor(() => expect(screen.queryByTestId('opened-offline-qr')).not.toBeInTheDocument());
+});
+
+it('muestra Guardar nuevo QR en pases vigentes de la pantalla principal', async () => {
+  jest.mocked(apiClient).mockResolvedValue([{
+    id: 'server-pass-1',
+    registrationId: 'registration-1',
+    eventId: 'event-1',
+    userId: 'user-1',
+    qrToken: 'authorized-server-token',
+    status: 'ACTIVO',
+    isValidForAccess: true,
+    issuedAt: '2026-11-01T12:00:00.000Z',
+    eventDetails: savedPass.eventDetails,
+  }]);
+  jest.mocked(getOfflineQrPasses).mockResolvedValue([]);
+
+  render(<MyPassesPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Guardar nuevo QR' }));
+
+  await waitFor(() => expect(saveOfflineQrPass).toHaveBeenCalledWith({
+    id: 'server-pass-1',
+    userId: 'user-1',
+    qrToken: 'authorized-server-token',
+    eventDetails: savedPass.eventDetails,
+  }));
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Tu pase QR se guardó en este dispositivo.',
+  );
 });

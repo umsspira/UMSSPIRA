@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import type { EventPassDto } from '@umsspira/shared-types';
 import { ConnectedNavbar } from "@/shared/components/navbar/index";
 import { EventPassCard } from "@/modules/events/components/EventPassCard";
+import { EventPassQrCard } from "@/features/event-passes/event-pass-qr-card";
 import { apiClient } from "@/shared/services/api-client";
 import { QrCode } from "lucide-react";
 import {
@@ -18,7 +20,7 @@ interface PassData {
   eventId: string;
   userId: string;
   qrToken: string;
-  status: "VALID" | "INVALID" | "ERROR" | "RECOVERED" | "ACTIVO";
+  status: "VALID" | "INVALID" | "ERROR" | "RECOVERED" | "ACTIVO" | "INVALIDADO" | "VENCIDO";
   isValidForAccess: boolean;
   issuedAt: string;
   eventDetails?: {
@@ -29,6 +31,31 @@ interface PassData {
   };
 }
 
+
+function toEventPassDto(pass: PassData): EventPassDto {
+  const authorized =
+    pass.isValidForAccess &&
+    pass.qrToken.trim() !== '' &&
+    ['ACTIVO', 'VALID', 'RECOVERED'].includes(pass.status);
+
+  return {
+    id: pass.id,
+    registrationId: pass.registrationId,
+    eventId: pass.eventId,
+    userId: pass.userId,
+    qrToken: pass.qrToken,
+    status: authorized ? 'ACTIVO' : pass.status === 'VENCIDO' ? 'VENCIDO' : 'INVALIDADO',
+    isValidForAccess: authorized,
+    issuedAt: pass.issuedAt,
+    expiresAt: null,
+    eventDetails: {
+      name: pass.eventDetails?.name || 'Evento UMSSPIRA',
+      userName: pass.eventDetails?.userName || 'Titulado',
+      dateTime: pass.eventDetails?.dateTime || '',
+      location: pass.eventDetails?.location || 'Ubicación no disponible',
+    },
+  };
+}
 export default function MyPassesPage() {
   const [passes, setPasses] = useState<PassData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,17 +211,10 @@ export default function MyPassesPage() {
             <p>No tienes pases generados actualmente.</p>
           ) : (
             passes.map((pass) => (
-              <EventPassCard
+              <EventPassQrCard
                 key={pass.id}
-                status={!pass.isValidForAccess ? "INVALID" : pass.status}
-                eventName={pass.eventDetails?.name || "Evento UMSSPIRA"}
-                userName={pass.eventDetails?.userName || "Titulado"}
-                dateTime={pass.eventDetails?.dateTime || "Fecha por definir"}
-                location={pass.eventDetails?.location || "Campus UMSS"}
-                passId={pass.id.split("-").pop()}
-                qrToken={pass.qrToken}
-                onBack={() => window.history.back()}
-                onRetry={() => window.location.reload()}
+                pass={toEventPassDto(pass)}
+                backHref="/mis-pases"
               />
             ))
           )}
