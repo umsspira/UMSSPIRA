@@ -196,6 +196,16 @@ describe('service worker del portal', () => {
     }
   });
 
+  it('HU09 CA-02: el acceso a Mis códigos QR es destacado, apunta a /mis-pases y va antes que los otros accesos', async () => {
+    const html = await pantallaSinConexion('/portal/mensajes');
+    const hero = /<a class="qr-hero" href="\/mis-pases" data-testid="offline-link-passes">/;
+    expect(html).toMatch(hero);
+    // Destacado: usa la clase .qr-hero y aparece antes que el tile de Eventos.
+    expect(html.indexOf('class="qr-hero"')).toBeLessThan(html.indexOf('data-testid="offline-link-events"'));
+    // La grilla de tiles restantes pasa a 2 columnas (el QR ya no ocupa una celda).
+    expect(html).toContain('.tiles{display:grid;grid-template-columns:repeat(2,1fr)');
+  });
+
   it('HU14 CA-06: pide iniciar sesión en rutas privadas cuando no hay sesión', async () => {
     const html = await pantallaSinConexion('/portal/mensajes');
     expect(html).toContain('Inicia sesión para continuar');

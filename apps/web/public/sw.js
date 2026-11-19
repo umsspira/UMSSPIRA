@@ -353,7 +353,15 @@ function offlineHtml() {
   .notice[hidden]{display:none}
   .avail{margin-top:26px;padding:16px;border-radius:12px;background:#EDF2FA;text-align:left}
   .avail h2{margin:0 0 12px;font-size:.85rem;color:#1B2632}
-  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  /* HU09 CA-02: acceso destacado a Mis códigos QR, visible sin recorrer el menú. */
+  .qr-hero{display:flex;align-items:center;gap:12px;min-height:56px;margin-bottom:12px;padding:12px 16px;border-radius:12px;background:#1B2632;color:#EEE9DF;text-decoration:none}
+  .qr-hero:hover{background:#2C3B4D}
+  .qr-hero-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:#FFB162;color:#1B2632;font-size:1.2rem}
+  .qr-hero-text{display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left}
+  .qr-hero-text strong{font-size:.95rem}
+  .qr-hero-text span{font-size:.78rem;opacity:.85}
+  .qr-hero-go{margin-left:auto;font-size:1.2rem;color:#FFB162}
+  .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   .tile{display:flex;align-items:center;gap:8px;min-height:44px;padding:10px 14px;border-radius:8px;background:#fff;color:#1B2632;text-decoration:none;font-size:.85rem}
   .tile:hover{background:#FFF1DC}
   .foot{margin-top:22px;text-align:center;font-size:.75rem;color:rgba(44,56,77,.5)}
@@ -393,8 +401,13 @@ function offlineHtml() {
     <p class="notice" id="notice" role="status" aria-live="polite" hidden>Todavía no hay conexión</p>
     <div class="avail">
       <h2>Disponible sin conexión</h2>
+      <!-- HU09 CA-02: acceso destacado a Mis códigos QR sin recorrer el menú. -->
+      <a class="qr-hero" href="/mis-pases" data-testid="offline-link-passes">
+        <span class="qr-hero-icon" aria-hidden="true">&#9638;</span>
+        <span class="qr-hero-text"><strong>Mis códigos QR</strong><span>Abre tus pases guardados en este dispositivo.</span></span>
+        <span class="qr-hero-go" aria-hidden="true">&#8250;</span>
+      </a>
       <div class="tiles">
-        <a class="tile" href="/events/catalog/passes" data-testid="offline-link-passes">&#9638; Mis códigos QR</a>
         <a class="tile" href="/portal/eventos" data-testid="offline-link-events">&#128197; Eventos visitados</a>
         <a class="tile" href="/portal/configuracion" data-testid="offline-link-settings">&#9881; Configuración</a>
       </div>

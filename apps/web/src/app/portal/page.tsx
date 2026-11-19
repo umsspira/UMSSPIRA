@@ -14,7 +14,7 @@ import {
   Bookmark,
   MapPin,
   Clock3,
-  Settings,
+  QrCode,
   WifiOff,
   Wifi,
   AlertTriangle,
@@ -109,6 +109,7 @@ const quickLinks = [
   { href: '/portal/empleos', title: 'Bolsa de trabajo', text: 'Encuentra nuevas oportunidades laborales.', Icon: Briefcase, iconStyle: 'bg-blue-50 text-blue-600' },
   { href: '/portal/beneficios', title: 'Beneficios', text: 'Accede a descuentos y convenios exclusivos.', Icon: Star, iconStyle: 'bg-amber-50 text-amber-600' },
   { href: '/portal/comunidad', title: 'Comunidad', text: 'Conecta con otros egresados.', Icon: Users, iconStyle: 'bg-slate-100 text-slate-700' },
+
 ];
 
 const normalize = (text: string) =>
@@ -203,6 +204,50 @@ export default function Home() {
           </p>
         </div>
       )}
+
+      <section
+        aria-label="Accesos principales"
+        data-testid="home-primary-actions"
+        className="grid gap-3 sm:grid-cols-2"
+      >
+        <Link
+          href="/mis-pases"
+          data-testid={isOnline ? 'home-online-qr-access' : 'home-offline-qr-access'}
+          className="flex min-h-[60px] items-center gap-3 rounded-2xl bg-[#1B2632] px-5 py-4 text-[#EEE9DF] shadow-md transition-colors hover:bg-[#2C3B4D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB162]"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFB162] text-[#1B2632]"
+          >
+            <QrCode className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold">Mis códigos QR</span>
+            <span className="block text-xs opacity-85">
+              {isOnline
+                ? 'Abre tus pases guardados en este dispositivo.'
+                : 'Tus pases guardados están disponibles sin conexión.'}
+            </span>
+          </span>
+          <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-[#FFB162]" aria-hidden="true" />
+        </Link>
+        {isOnline && (
+          <Link
+            href="/portal/eventos"
+            data-testid="home-online-events-access"
+            className="flex min-h-[60px] items-center gap-3 rounded-2xl border border-[#C9C1B1] bg-white px-5 py-4 text-slate-900 shadow-sm transition-colors hover:bg-[#FCFAF5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B44735]"
+          >
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+              <Calendar className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold">Explorar eventos</span>
+              <span className="block text-xs text-slate-600">Encuentra actividades y abre tus pases confirmados.</span>
+            </span>
+            <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
+          </Link>
+        )}
+      </section>
 
       {/* Banner principal */}
       {/* Añadimos relative al section para posicionar la etiqueta */}
@@ -384,15 +429,6 @@ export default function Home() {
           </p>
         )}
       </section>
-
-      <Link
-        href="/portal/configuracion"
-        className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-[#1B2632] text-white rounded-full shadow-lg hover:bg-slate-800 transition-colors z-50 font-medium"
-        title="Configuración de la PWA"
-      >
-        <Settings className="w-5 h-5" />
-        <span>Configuración</span>
-      </Link>
 
       {showReconnectedToast && (
         <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
