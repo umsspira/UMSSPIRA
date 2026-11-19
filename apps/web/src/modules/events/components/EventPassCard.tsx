@@ -217,10 +217,10 @@ export const EventPassCard: React.FC<EventPassProps> = ({
       className="w-full"
     >
       {isSavingOffline
-        ? 'Guardando...'
+        ? 'Guardando QR...'
         : isSavedOffline
-          ? 'Guardado sin conexión'
-          : 'Guardar sin conexión'}
+          ? 'QR guardado en este dispositivo'
+          : 'Guardar nuevo QR'}
     </Button>
 
     {saveOfflineMessage && (
