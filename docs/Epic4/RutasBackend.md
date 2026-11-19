@@ -63,6 +63,13 @@ Archivos: `apps/api/src/modules/job-postings/http/controllers/create-job-posting
 - Etapas válidas: `postulado`, `en_revision`, `preseleccionado`, `entrevista`, `descartado`.
 - El porcentaje de afinidad nunca se calcula aquí; se devuelve el guardado en `postulacion.porcentaje_match`.
 
+## Mis postulaciones · `vacantes` (HU-006)
+
+| Método | Ruta | Permiso | Qué hace |
+| --- | --- | --- | --- |
+| `GET` | `/vacantes/mis-postulaciones` | Rol `titulado` | Lista las postulaciones del usuario autenticado, de más reciente a más antigua, con afinidad sin calcular cuando no existe |
+| `GET` | `/vacantes/:id/oferta` | Rol `titulado` | Devuelve la oferta publicada o una oferta cerrada a la que el usuario ya se postuló |
+
 ## Tablas que usa la épica
 
 `empresa`, `empresa_usuario`, `empresa_invitacion`, `correo_pendiente`, `vacante`, `vacante_requerimiento_laboral`, `postulacion` (lectura y cambio de `estado`), `usuario`, `titulado`.

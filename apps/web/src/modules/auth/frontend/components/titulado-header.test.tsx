@@ -30,6 +30,20 @@ describe("TituladoHeader", () => {
     expect(screen.getByRole("link", { name: "Mi perfil profesional" })).toHaveAttribute("href", "/profile");
   });
 
+  it("muestra el acceso a Mis postulaciones y marca la ruta activa", () => {
+    mockPathname = "/my-applications";
+    render(<TituladoHeader />);
+
+    expect(screen.getByRole("link", { name: "Mis postulaciones" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Mis postulaciones" })).toHaveAttribute(
+      "href",
+      "/my-applications",
+    );
+  });
+
   it("sigue sin mostrar ningún enlace administrativo y conserva cerrar sesión", () => {
     render(<TituladoHeader />);
 
