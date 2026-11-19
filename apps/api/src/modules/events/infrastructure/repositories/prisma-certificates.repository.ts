@@ -7,7 +7,7 @@ export class PrismaCertificatesRepository {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  // T1: Consulta de elegibilidad
+
   async getEligibleParticipants(eventId: string) {
     // Busca inscripciones con asistencia registrada, que NO tengan ya un certificado
     return this.prisma.inscripcionEvento.findMany({
@@ -29,9 +29,22 @@ export class PrismaCertificatesRepository {
       include: { plantillas_certificado: { where: { estado: 'ACTIVA' } } },
     });
 
-    if (!event) {throw new Error('Evento no encontrado');}
-    if (event.estado !== 'FINALIZADO') {throw new Error('El evento no ha finalizado');}
-    if (event.plantillas_certificado.length === 0) {throw new Error('No hay plantilla activa');}
+    if (!event) {
+      throw new Error('Evento no encontrado');
+    }
+
+    if (event.estado === 'BORRADOR' || event.estado === 'CANCELADO') {
+      throw new Error('El evento debe estar publicado para emitir certificados');
+    }
+
+    // 👉 Descomenta esto cuando quieras validar por fecha real (ajusta el nombre del campo según tu schema.prisma, ej: fecha_fin):
+    // if (event.fecha_fin && new Date(event.fecha_fin) > new Date()) {
+    //   throw new Error('El evento aún no ha finalizado');
+    // }
+
+    if (event.plantillas_certificado.length === 0) {
+      throw new Error('No hay plantilla activa');
+    }
 
     return {
       event,
@@ -57,5 +70,52 @@ export class PrismaCertificatesRepository {
       }
       throw error;
     }
+  }
+  // Resumen real para la página de emisión (HU18)
+  async getEmissionSummary(eventId: string) {
+    const inscripciones = await this.prisma.inscripcionEvento.findMany({
+      where: { id_evento: eventId },
+      include: {
+        asistencia: true,
+        usuario: {
+          include: {
+            certificados: { where: { id_evento: eventId } },
+          },
+        },
+      },
+    });
+
+    const totalInscripciones = inscripciones.length;
+    const conAsistencia = inscripciones.filter((i) => i.asistencia !== null);
+    const totalAsistencias = conAsistencia.length;
+    const sinAsistencia = totalInscripciones - totalAsistencias;
+
+    const detalles = conAsistencia.map((item) => {
+     const u = item.usuario as unknown as Record<string, unknown>;
+      const nombre =
+        (typeof u?.nombre_completo === 'string' && u.nombre_completo) ||
+        [u?.nombres, u?.apellidos].filter((v): v is string => typeof v === 'string' && v.length > 0).join(' ') ||
+        (typeof u?.nombre === 'string' && u.nombre) ||
+        (typeof u?.email === 'string' && u.email) ||
+        'Participante';
+
+      const yaEmitido = Array.isArray(item.usuario?.certificados) && item.usuario.certificados.length > 0;
+
+      return {
+        id_usuario: item.id_usuario,
+        nombre,
+        estado: (yaEmitido ? 'GENERADO' : 'PENDIENTE') as 'GENERADO' | 'PENDIENTE',
+      };
+    });
+
+    const emitidos = detalles.filter((d) => d.estado === 'GENERADO').length;
+
+    return {
+      inscripciones: totalInscripciones,
+      asistencias: totalAsistencias,
+      sinAsistencia,
+      emitidos,
+      detalles,
+    };
   }
 }

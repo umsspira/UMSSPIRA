@@ -395,6 +395,7 @@ export default function EventDetailPage({
           <h2>Descripción</h2>
           <p>{event.description || 'Sin descripción disponible.'}</p>
         </section>
+
         {isFull && !existingRegistration ? (
           <section className="hu3-capacity-alert" role="alert">
             <div>

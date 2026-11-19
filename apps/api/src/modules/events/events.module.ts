@@ -37,6 +37,10 @@ import { EventReminderWorker } from './infrastructure/workers/event-reminder.wor
 import { EventReminderSettingsController } from './http/controllers/event-reminder-settings.controller';
 import { EventReminderSettingsService } from './application/event-reminder-settings.service';
 
+import { GenerateCertificatesController } from './http/controllers/generate-certificates.controller';
+import { GenerateCertificatesService } from './application/generate-certificates.service';
+// 👉 ESTA ES LA LÍNEA QUE FALTABA:
+import { PrismaCertificatesRepository } from './infrastructure/repositories/prisma-certificates.repository';
 
 @Module({
   imports: [PrismaModule, AuthModule, NotificationsModule],
@@ -66,6 +70,7 @@ import { EventReminderSettingsService } from './application/event-reminder-setti
     ValidateAttendancePassController,
     EventPassesController,
     CancelPublishedEventController,
+    GenerateCertificatesController, 
   ],
   providers: [
     ScheduledEventPublicationWorker,
@@ -77,6 +82,8 @@ import { EventReminderSettingsService } from './application/event-reminder-setti
     GenerateEventPassService,
     ListUserPassesService,
     ValidateAttendancePassService,
+    GenerateCertificatesService, 
+    PrismaCertificatesRepository, // 👈 Y HABÍA QUE REGISTRARLO AQUÍ
   ],
 })
 export class EventsModule {}
