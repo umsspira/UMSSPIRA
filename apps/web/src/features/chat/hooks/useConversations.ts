@@ -5,6 +5,10 @@ import {
   getMyConversations,
   type ConversationSummary,
 } from "@/shared/services/chat-conversation.service";
+import {
+  retainChatSocket,
+  releaseChatSocket,
+} from "@/shared/services/chat-socket";
 
 export const useConversations = () => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -34,6 +38,17 @@ export const useConversations = () => {
 
   useEffect(() => {
     void load();
+    const socket = retainChatSocket();
+    const refresh = () => {
+      void load();
+    };
+    socket.on("chat:changed", refresh);
+    socket.on("connect", refresh);
+    return () => {
+      socket.off("chat:changed", refresh);
+      socket.off("connect", refresh);
+      releaseChatSocket();
+    };
   }, [load]);
 
   return { conversations, loading, error, reload: load, retry: load };
