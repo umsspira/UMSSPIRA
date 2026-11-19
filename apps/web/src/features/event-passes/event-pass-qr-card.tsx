@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -6,6 +5,13 @@ import type { EventPassDto } from '@umsspira/shared-types';
 import { saveOfflineQrPass } from './offline/offline-qr-storage';
 import { EventPassCard } from '@/modules/events/components/EventPassCard';
 import { OFFLINE_PASS_INVALID_MESSAGE } from './offline/offline-sync';
+import {
+  ActionNotice,
+  ActionStatusNotice,
+  OFFLINE_ACTION_MESSAGE,
+} from '@/shared/components/action-notice';
+import { useActionStatus } from '@/shared/hooks/use-action-status';
+import { useOnlineStatus } from '@/shared/hooks/use-online-status';
 
 interface EventPassQrCardProps {
   pass: EventPassDto;
@@ -37,34 +43,27 @@ export function EventPassQrCard({
     pass.status === 'ACTIVO' && pass.isValidForAccess;
 
   const details = pass.eventDetails;
-const [isSavedOffline, setIsSavedOffline] = useState(false);
-const [isSavingOffline, setIsSavingOffline] = useState(false);
-const [saveOfflineMessage, setSaveOfflineMessage] = useState('');
+  const [isSavedOffline, setIsSavedOffline] = useState(false);
+  const isOnline = useOnlineStatus();
+  const { status, errorMessage, run, retry, reset } = useActionStatus();
+  const isSavingOffline = status === 'loading';
 
-const handleSaveOffline = async () => {
-  if (!isValid || !details || isSavingOffline || isSavedOffline) {
-    return;
-  }
+  // HU10: toda la validación y el guardado pasan por useActionStatus
+  // (carga inmediata, éxito, error con «Reintentar» y aviso sin conexión).
+  const saveOfflinePass = async () => {
+    if (
+      !details ||
+      !pass.id?.trim() ||
+      !pass.userId?.trim() ||
+      !pass.qrToken?.trim() ||
+      !details.name?.trim() ||
+      !details.userName?.trim() ||
+      !details.dateTime?.trim() ||
+      !details.location?.trim()
+    ) {
+      throw new Error('Faltan datos del pase o del evento.');
+    }
 
-  if (
-    !pass.id?.trim() ||
-    !pass.userId?.trim() ||
-    !pass.qrToken?.trim() ||
-    !details.name?.trim() ||
-    !details.userName?.trim() ||
-    !details.dateTime?.trim() ||
-    !details.location?.trim()
-  ) {
-    setSaveOfflineMessage(
-      'No se puede guardar: faltan datos del pase o del evento.'
-    );
-    return;
-  }
-
-  setIsSavingOffline(true);
-  setSaveOfflineMessage('');
-
-  try {
     await saveOfflineQrPass({
       id: pass.id,
       userId: pass.userId,
@@ -78,17 +77,30 @@ const handleSaveOffline = async () => {
     });
 
     setIsSavedOffline(true);
-    setSaveOfflineMessage('Tu pase QR se guardó en este dispositivo.');
-  } catch (error) {
-    setSaveOfflineMessage(
-      error instanceof Error
-        ? `${error.message} Puedes intentarlo nuevamente.`
-        : 'No se pudo guardar el pase. Inténtalo nuevamente.'
+  };
+
+  const handleSaveOffline = () => {
+    if (!isValid || isSavingOffline || isSavedOffline) return;
+    // Guardar un QR nuevo requiere conexión (HU10 CA-04).
+    void run(saveOfflinePass, { requiresConnection: true });
+  };
+
+  const saveOfflineNotice =
+    !isOnline && !isSavedOffline ? (
+      <ActionNotice state="offline" message={OFFLINE_ACTION_MESSAGE} />
+    ) : (
+      <ActionStatusNotice
+        status={status}
+        messages={{
+          loading: 'Guardando tu pase QR…',
+          success: 'QR guardado en tu dispositivo',
+          error: 'No se pudo guardar el pase QR',
+        }}
+        errorDetail={errorMessage}
+        onRetry={() => void retry()}
+        onDismiss={reset}
+      />
     );
-  } finally {
-    setIsSavingOffline(false);
-  }
-};
 
   const statusLabel = isValid
     ? 'PASE ACTIVO'
@@ -118,9 +130,10 @@ const handleSaveOffline = async () => {
       passId={pass.id}
       qrToken={isValid ? pass.qrToken : undefined}
 onSaveOffline={isValid && !fromOfflineStorage ? handleSaveOffline : undefined}
-isSavedOffline={isSavedOffline}
-isSavingOffline={isSavingOffline}
-saveOfflineMessage={saveOfflineMessage}
+      isSavedOffline={isSavedOffline}
+      isSavingOffline={isSavingOffline}
+      saveOfflineDisabled={!isOnline}
+      saveOfflineNotice={saveOfflineNotice}
       onBack={() => window.history.back()}
     />
   );
