@@ -47,4 +47,6 @@ Un permiso no implementa por sí mismo un endpoint de otro módulo ni concede ac
 
 `pnpm --filter api account:create` recibe JSON por entrada estándar con `email`, `password`, `name` y `role`. Exige rol habilitado y contraseña de 15–128 caracteres; imprime únicamente ID y rol. No colocar contraseñas en argumentos del proceso ni archivos versionados.
 
+`pnpm --filter api account:create-graduate` recibe JSON por entrada estándar con `email`, `password`, `name`, `lastName` opcional y `careerId` opcional. Crea una cuenta con rol `titulado` y su perfil de titulado, pero **sin** perfil de mentor, para probar el onboarding desde cero. Si el correo ya existe y es un titulado, no cambia su contraseña ni su perfil; solo informa si ya tiene mentor.
+
 `pnpm --filter api auth:prune` elimina familias de sesión vencidas y sus renovaciones. Conservar hashes consumidos hasta ese vencimiento permite detectar reutilización. Los contadores de Redis expiran mediante TTL; este script no inicia tareas programadas.

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft, CalendarDays, Check, CircleAlert, Clock3, Eye, Inbox,
@@ -209,12 +208,6 @@ export function ReceivedRequests() {
   const dialogSentRequest = dialog?.requestId ? sentRequests.find(request => request.id === dialog.requestId) : null;
 
   return <main className="mentorship-shell received-page">
-    <nav className="received-breadcrumb" aria-label="Ruta de navegación">
-      <Link href="/">Inicio</Link><span>/</span><Link href="/mentorship">Mentorías</Link><span>/</span>
-      <Link href="/mentorship/profile">Mi perfil de mentor</Link><span>/</span><span aria-current="page">{screen === 'received' ? 'Solicitudes recibidas' : 'Mis solicitudes'}</span>
-      {selectedRequest && <><span>/</span><span aria-current="page">Detalle</span></>}
-    </nav>
-
     {screen === 'sent' ? <section className="sent-requests">
       <header className="received-title-block">
         <h1>Mis solicitudes de mentoría</h1>

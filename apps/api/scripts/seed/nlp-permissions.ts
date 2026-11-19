@@ -46,18 +46,43 @@ export class PermissionOperationError extends Error {
   }
 }
 
-export function assertTeamPermissionTarget(value: string | undefined): asserts value is string {
+export function assertTeamPermissionTarget(
+  value: string | undefined,
+  mode: PermissionMode,
+): asserts value is string {
   try {
     if (!value) {
       throw new Error();
     }
-    const url = new URL(value);
-    const ref = 'miiiuaynoxkhnngjjzvq';
-    const direct = url.hostname === `db.${ref}.supabase.co`;
-    const pooler =
-      url.hostname.endsWith('.pooler.supabase.com') &&
-      decodeURIComponent(url.username) === `postgres.${ref}`;
-    if (!['postgres:', 'postgresql:'].includes(url.protocol) || (!direct && !pooler)) {
+const url = new URL(value);
+const refEquipo = 'miiiuaynoxkhnngjjzvq';
+
+// QA solo se autoriza para operaciones de lectura.
+const refQa = process.env.NLP_PERMISSIONS_QA_PROJECT_REF;
+
+if (mode !== 'dry-run' && mode !== 'apply') {
+  throw new Error();
+}
+
+const proyectosPermitidos = [refEquipo];
+
+if (mode === 'dry-run' && refQa) {
+  if (!/^[a-z]{20}$/.test(refQa) || refQa === refEquipo) {
+    throw new Error();
+  }
+
+  proyectosPermitidos.push(refQa);
+}
+
+const destinoPermitido = proyectosPermitidos.some((ref) => {
+  const direct = url.hostname === `db.${ref}.supabase.co`;
+  const pooler =
+    url.hostname.endsWith('.pooler.supabase.com') &&
+    decodeURIComponent(url.username) === `postgres.${ref}`;
+
+  return direct || pooler;
+});
+    if (!['postgres:', 'postgresql:'].includes(url.protocol) || !destinoPermitido) {
       throw new Error();
     }
   } catch {

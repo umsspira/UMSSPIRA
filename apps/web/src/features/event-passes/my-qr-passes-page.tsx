@@ -1,37 +1,39 @@
-
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  AlertCircle,
+  Info,
+  LoaderCircle,
+  RefreshCw,
+  WifiOff,
+} from 'lucide-react';
 import type { EventPassDto } from '@umsspira/shared-types';
-
 import { ApiClientError } from '@/shared/services/api-client';
 import { SessionError } from '@/shared/services/auth-session';
 import { authStore } from '@/modules/auth/frontend/store';
-
 import { getMyEventPasses } from './event-passes-service';
-import { getOfflineQrPasses } from './offline/offline-qr-storage';
-import type { OfflineQrPass } from './offline/offline-qr-storage';
+import {
+  getOfflineQrPasses,
+  type OfflineQrPass,
+} from './offline/offline-qr-storage';
 import { getOfflineSessionUserId } from './offline/offline-session';
 import { OfflineSyncStatus } from './offline/offline-sync-status';
-import { EventPassQrCard } from './event-pass-qr-card';
 import { EventsMobileBottomNav } from '@/features/events/events-mobile-bottom-nav';
 
-type PassSource = 'online' | 'offline';
-type PassFilter = 'TODOS' | 'VIGENTES' | 'NO VIGENTES';
-type LoadState = 'loading' | 'success' | 'error' | 'unauthenticated';
+type LoadState = 'loading' | 'success' | 'error';
+type PassSource = 'server' | 'offline';
+type PassFilter = 'all' | 'inactive';
 
-interface MyQrPassesPageProps {
-  passesHref?: string;
-}
-
+/** Convierte un pase guardado en el dispositivo al formato que usa la tarjeta. */
 function toEventPassDto(saved: OfflineQrPass): EventPassDto {
   const status = saved.status ?? 'ACTIVO';
-
   const isValid =
     status === 'ACTIVO' &&
     saved.isValidForAccess !== false &&
-    Boolean(saved.qrToken);
+    saved.qrToken.trim() !== '';
 
   return {
     id: saved.id,
@@ -39,354 +41,298 @@ function toEventPassDto(saved: OfflineQrPass): EventPassDto {
     eventId: '',
     userId: saved.userId,
     qrToken: isValid ? saved.qrToken : '',
-    status: isValid ? 'ACTIVO' : status,
+    status: isValid ? 'ACTIVO' : status === 'ACTIVO' ? 'INVALIDADO' : status,
     isValidForAccess: isValid,
     issuedAt: saved.savedAt,
     expiresAt: null,
-    eventDetails: {
-      name: saved.eventDetails.name,
-      userName: saved.eventDetails.userName,
-      dateTime: saved.eventDetails.dateTime,
-      location: saved.eventDetails.location,
-    },
+    eventDetails: saved.eventDetails,
   };
 }
 
-function isValidPass(pass: EventPassDto): boolean {
-  return (
-    pass.status === 'ACTIVO' &&
-    pass.isValidForAccess === true &&
-    Boolean(pass.qrToken)
-  );
-}
-
-function isSessionError(error: unknown): boolean {
-  return (
-    (error instanceof ApiClientError && error.status === 401) ||
-    (error instanceof SessionError && error.status === 401)
-  );
-}
-
+/** Pases guardados del usuario con sesión vigente sin conexión (HU03 CA-06). */
 async function loadSavedPasses(): Promise<EventPassDto[]> {
   const userId = getOfflineSessionUserId();
-
   if (!userId) return [];
 
   const saved = await getOfflineQrPasses(userId);
   return saved.map(toEventPassDto);
 }
 
-export default function MyQrPassesPage({
-  passesHref = '/events/catalog/passes',
-}: MyQrPassesPageProps) {
+function isValidPass(pass: EventPassDto): boolean {
+  return pass.status === 'ACTIVO' && pass.isValidForAccess;
+}
+
+function passSchedule(pass: EventPassDto): string {
+  const value = pass.eventDetails?.dateTime;
+  if (!value || Number.isNaN(new Date(value).getTime())) return 'Fecha no disponible';
+  return new Intl.DateTimeFormat('es-BO', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/La_Paz',
+  }).format(new Date(value));
+}
+
+export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }: { passesHref?: string }) {
   const [passes, setPasses] = useState<EventPassDto[]>([]);
-  const [source, setSource] = useState<PassSource>('online');
+  const [source, setSource] = useState<PassSource>('server');
   const [loadState, setLoadState] = useState<LoadState>('loading');
-  const [loadError, setLoadError] = useState('');
+  const [loadError, setLoadError] = useState<'session' | 'forbidden' | 'unavailable' | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [filter, setFilter] = useState<PassFilter>('TODOS');
-
-  const validCount = useMemo(
-    () => passes.filter(isValidPass).length,
-    [passes],
-  );
-
-  const visiblePasses = useMemo(() => {
-    if (filter === 'VIGENTES') {
-      return passes.filter(isValidPass);
-    }
-
-    if (filter === 'NO VIGENTES') {
-      return passes.filter((pass) => !isValidPass(pass));
-    }
-
-    return passes;
-  }, [passes, filter]);
+  const hasLoaded = useRef(false);
+  const [filter, setFilter] = useState<PassFilter>('all');
+  const validCount = passes.filter(isValidPass).length;
+  const visiblePasses = filter === 'inactive' ? passes.filter((pass) => !isValidPass(pass)) : passes;
 
   const retry = useCallback(() => {
-    setLoadState('loading');
-    setLoadError('');
     setRetryCount((value) => value + 1);
   }, []);
 
   useEffect(() => {
-    let active = true;
     const controller = new AbortController();
-
     const unsubscribe = authStore.subscribe(() => {
-  if (authStore.getState().status === 'idle') {
-    setPasses([]);
-    setLoadState('unauthenticated');
-    setLoadError('');
-  }
-});
+      if (authStore.getState().status !== 'idle') return;
+      controller.abort();
+      setPasses([]);
+      setLoadError('session');
+      setLoadState('error');
+    });
 
     async function loadPasses() {
-      setLoadState('loading');
-      setLoadError('');
+      // En recargas posteriores no se vacía la lista: evita parpadeos al reconectar.
+      if (!hasLoaded.current) setLoadState('loading');
+      setLoadError(null);
 
       try {
-        if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          const savedPasses = await loadSavedPasses();
+        const result = await getMyEventPasses(controller.signal);
 
-          if (!active) return;
+        if (controller.signal.aborted) return;
 
-          if (!getOfflineSessionUserId()) {
-            setPasses([]);
-            setLoadState('unauthenticated');
-            return;
-          }
-
-          setPasses(savedPasses);
-          setSource('offline');
-          setLoadState('success');
-          return;
+        if (!Array.isArray(result)) {
+          throw new Error('La respuesta del servidor no es válida.');
         }
 
-        const onlinePasses = await getMyEventPasses(controller.signal);
-
-        if (!active) return;
-
-        setPasses(onlinePasses);
-        setSource('online');
+        setPasses(result);
+        setSource('server');
         setLoadState('success');
+        hasLoaded.current = true;
       } catch (error) {
-        if (!active || controller.signal.aborted) return;
+        if (controller.signal.aborted) return;
 
-        if (isSessionError(error)) {
-          setPasses([]);
-          setLoadState('unauthenticated');
-          return;
+        const isServerError =
+          error instanceof ApiClientError || error instanceof SessionError;
+
+        // Sin conexión (o fallo de red): se muestran los pases guardados.
+        // Si el servidor respondió con un error (ej. sesión rechazada) no se usan.
+        const isNetworkFailure = !navigator.onLine || !isServerError;
+
+        if (isNetworkFailure) {
+          try {
+            const saved = await loadSavedPasses();
+
+            if (controller.signal.aborted) return;
+
+            if (saved.length > 0) {
+              setPasses(saved);
+              setSource('offline');
+              setLoadState('success');
+              hasLoaded.current = true;
+              return;
+            }
+          } catch (storageError) {
+            console.error('No se pudieron leer los pases guardados:', storageError);
+          }
         }
 
-        try {
-          const savedPasses = await loadSavedPasses();
+        if (controller.signal.aborted) return;
 
-          if (!active) return;
+        const status = error instanceof ApiClientError || error instanceof SessionError
+          ? error.status : undefined;
+        setLoadError(status === 401 ? 'session' : status === 403 ? 'forbidden' : 'unavailable');
 
-          if (!getOfflineSessionUserId()) {
-            setPasses([]);
-            setLoadState('error');
-            setLoadError(
-              'No fue posible cargar tus pases. Comprueba tu conexión e inténtalo nuevamente.',
-            );
-            return;
-          }
-
-          if (savedPasses.length > 0) {
-            setPasses(savedPasses);
-            setSource('offline');
-            setLoadState('success');
-            return;
-          }
-        } catch {
-          // Se muestra el error general si tampoco se puede consultar IndexedDB.
-        }
-
-        setPasses([]);
         setLoadState('error');
-        setLoadError(
-          'No fue posible cargar tus pases. Comprueba tu conexión e inténtalo nuevamente.',
-        );
       }
     }
 
     void loadPasses();
 
-    const handleOnline = () => {
-      setRetryCount((value) => value + 1);
-    };
-
-    const handleOffline = async () => {
-      try {
-        const savedPasses = await loadSavedPasses();
-
-        if (!active) return;
-
-        if (!getOfflineSessionUserId()) {
-          setPasses([]);
-          setLoadState('unauthenticated');
-          return;
-        }
-
-        setPasses(savedPasses);
-        setSource('offline');
-        setLoadState('success');
-      } catch {
-        if (!active) return;
-        setPasses([]);
-        setLoadState('error');
-        setLoadError(
-          'No fue posible consultar los pases guardados en este dispositivo.',
-        );
-      }
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
     return () => {
-      active = false;
       controller.abort();
       unsubscribe();
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
     };
   }, [retryCount]);
 
+  // HU03 CA-01: al volver la conexión la lista se actualiza sola, sin recargar la página.
+  useEffect(() => {
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+  }, [retry]);
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 pb-24">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold">Mis pases QR</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Consulta tus pases y accede a ellos cuando los necesites.
-        </p>
-      </header>
+    <main className="qr-passes-page">
+      <div className="qr-passes-container">
+        <div className="qr-passes-topbar">
+          <header className="qr-passes-heading">
+            <h1>Mis pases QR</h1>
+            <p>Tus pases confirmados se guardan para consultarlos incluso sin Internet.</p>
+          </header>
+          <nav className="qr-passes-tabs" aria-label="Navegación de eventos">
+            <Link href="/portal/eventos">Explorar</Link>
+            <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
+            <Link href={passesHref} aria-current="page" className="active">Mis pases</Link>
+          </nav>
+        </div>
 
-      <nav
-        aria-label="Navegación de eventos"
-        className="mb-6 flex flex-wrap gap-5 border-b pb-3 text-sm"
-      >
-        <Link href="/portal/eventos">Explorar</Link>
-        <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
-        <Link href={passesHref} aria-current="page">
-          Mis pases
-        </Link>
-      </nav>
+        {/* HU03: resultado y última actualización de los pases guardados */}
+        <OfflineSyncStatus />
 
-      <OfflineSyncStatus />
-
-      {loadState === 'unauthenticated' && (
-        <div className="rounded-lg border p-6 text-center">
-          <p className="mb-4">
-            Inicia sesión para consultar tus pases QR.
+        {/* Aviso cuando se muestran los pases guardados en el dispositivo */}
+        {loadState === 'success' && source === 'offline' && (
+          <p
+            role="status"
+            className="mx-auto mb-6 flex w-full max-w-4xl items-center gap-2 rounded-xl border border-oatmeal bg-white p-4 font-sans text-[14px] text-abyssal-blue"
+          >
+            <WifiOff size={18} aria-hidden="true" />
+            Sin conexión: se muestran los pases guardados en este dispositivo.
           </p>
-          <Link
-            href="/login"
-            className="font-semibold underline"
-          >
-            Iniciar sesión
-          </Link>
-        </div>
-      )}
+        )}
 
-      {loadState === 'loading' && (
-        <p role="status" className="py-8 text-center">
-          Cargando tus pases...
-        </p>
-      )}
-
-      {loadState === 'error' && (
-        <div role="alert" className="rounded-lg border p-6">
-          <p>{loadError}</p>
-          <button
-            type="button"
-            onClick={retry}
-            className="mt-4 rounded-lg border px-4 py-2"
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
-
-      {loadState === 'success' && (
-        <>
-          {source === 'offline' && (
-            <div
-              role="status"
-              className="mb-5 rounded-lg border p-4 text-sm"
-            >
-              Estás consultando los pases guardados en este dispositivo.
-              Su vigencia no puede comprobarse sin conexión.
-            </div>
-          )}
-
+        {/* Estado de carga */}
+        {loadState === 'loading' && (
           <section
-            aria-label="Resumen de pases"
-            className="mb-5"
+            className="qr-passes-empty"
+            role="status"
+            aria-live="polite"
           >
-            <p className="font-semibold">
-              {validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}
+            <LoaderCircle
+              size={44}
+              className="qr-passes-spinner"
+              aria-hidden="true"
+            />
+
+            <h2>Cargando tus pases</h2>
+
+            <p>
+              Estamos consultando tus credenciales digitales.
             </p>
           </section>
+        )}
 
-          <div
-            role="group"
-            aria-label="Filtrar pases"
-            className="mb-6 flex flex-wrap gap-2"
+        {/* Estado de error */}
+        {loadState === 'error' && (
+          <section
+            className={`hu12-state-card ${loadError === 'session' ? 'hu12-state-session' : 'hu12-state-error'}`}
+            role="alert"
           >
-            {(['TODOS', 'VIGENTES', 'NO VIGENTES'] as PassFilter[]).map(
-              (value) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={filter === value}
-                  onClick={() => setFilter(value)}
-                  className={`rounded-full border px-4 py-2 text-sm ${
-                    filter === value ? 'font-bold' : ''
-                  }`}
-                >
-                  {value}
-                </button>
-              ),
-            )}
+            <span className="hu12-state-badge">
+              {loadError === 'session' ? 'ACCESO PROTEGIDO' : 'ERROR DE CARGA'}
+            </span>
+
+            <h2>
+              {loadError === 'session'
+                ? 'Tu sesión ha finalizado'
+                : 'No pudimos cargar tus pases'}
+            </h2>
+
+            <p>{loadError === 'session'
+              ? 'Tu sesión ha caducado. Los pases siguen asociados a tu cuenta.'
+              : loadError === 'forbidden'
+                ? 'Tu cuenta no tiene permiso para consultar estos pases.'
+                : 'Tus inscripciones pueden seguir activas. El problema ocurrió al consultar los pases.'}</p>
+
+            <p>{loadError === 'session'
+              ? 'Después de ingresar podrás consultar los pases asociados a tus inscripciones.'
+              : loadError === 'unavailable'
+                ? 'Comprueba tu conexión y vuelve a intentarlo. Si el problema continúa, regresa a Mis eventos.'
+                : ''}</p>
+
+            <div className="hu12-state-actions">
+              {loadError === 'session' ? (
+                <>
+                  <Link href="/portal/eventos" className="hu12-state-secondary">Explorar eventos</Link>
+                  <Link href="/login" className="hu12-state-primary">Iniciar sesión</Link>
+                </>
+              ) : (
+                <>
+                  {loadError === 'unavailable' && (
+                    <Link href="/portal/eventos/mis-eventos" className="hu12-state-secondary">
+                      Mis eventos
+                    </Link>
+                  )}
+                  <button type="button" className="hu12-state-primary" onClick={retry}>
+                    Reintentar
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
+        {loadState === 'success' && (
+          <div className="qr-passes-filter-bar">
+            <div role="group" aria-label="Filtrar pases" className="qr-passes-filter-options">
+              <button type="button" aria-pressed={filter === 'all'} className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>TODOS</button>
+              <button type="button" aria-pressed={filter === 'inactive'} className={filter === 'inactive' ? 'active' : ''} onClick={() => setFilter('inactive')}>NO VIGENTES</button>
+            </div>
+            <p>{validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}</p>
           </div>
+        )}
 
-          {passes.length === 0 ? (
-            <div className="rounded-lg border p-8 text-center">
-              <p className="font-semibold">
-                Todavía no tienes pases QR
-              </p>
-              <p className="mt-2 text-sm text-gray-600">
-                Cuando tengas una inscripción confirmada, tus pases aparecerán aquí.
-              </p>
-              <Link
-                href="/portal/eventos"
-                className="mt-4 inline-block underline"
-              >
-                Explorar eventos
-              </Link>
-            </div>
-          ) : visiblePasses.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-600">
-              No hay pases en esta categoría.
+        {/* Estado vacío */}
+        {loadState === 'success' && passes.length === 0 && (
+          <section className="qr-passes-empty">
+            <Info
+              size={44}
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
+
+            <h2>Todavía no tienes pases QR</h2>
+
+            <p>
+              Inscríbete a un evento disponible para obtener
+              tu pase digital cuando tu inscripción sea confirmada.
             </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              {visiblePasses.map((pass) => {
-                const valid = isValidPass(pass);
-                const detailHref =
-                  `${passesHref === '/mis-pases' ? '/mis-pases' : '/mis-pases'}/${encodeURIComponent(pass.id)}` +
-                  (passesHref === '/mis-pases' ? '' : '?from=catalog');
 
-                return (
-                  <article
-                    key={pass.id}
-                    className="min-w-0 rounded-xl border p-4"
-                  >
-                    <EventPassQrCard
-                      pass={pass}
-                      offlineUnverified={source === 'offline' && valid}
-                      fromOfflineStorage={source === 'offline'}
-                    />
+            <Link
+              href="/portal/eventos"
+              className="qr-passes-button"
+            >
+              Explorar eventos
+            </Link>
+          </section>
+        )}
 
-                    <div className="mt-3">
-                      <Link
-                        href={detailHref}
-                        className="font-semibold underline"
-                      >
-                        {valid ? 'Abrir pase' : 'Ver detalle'}
-                      </Link>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-
+        {/* Listado compacto; el pase completo se conserva al abrirlo. */}
+        {loadState === 'success' && passes.length > 0 && (
+          <>
+            {visiblePasses.length === 0 ? (
+              <p className="qr-passes-no-results" role="status">No tienes pases no vigentes.</p>
+            ) : (
+              <section className="qr-passes-grid" aria-label="Listado de mis pases">
+                {visiblePasses.map((pass) => {
+                  const valid = isValidPass(pass);
+                  return (
+                    <article key={pass.id} className={`qr-passes-list-card${valid ? '' : ' is-inactive'}`}>
+                      {valid && pass.qrToken ? (
+                        <div className="qr-passes-list-qr" aria-label="Vista previa del código QR">
+                          <QRCodeSVG value={pass.qrToken} size={130} fgColor="#1B2632" bgColor="#EEE9DF" />
+                        </div>
+                      ) : null}
+                      <div className="qr-passes-list-copy">
+                        <h2>{pass.eventDetails?.name || 'Evento sin nombre'}</h2>
+                        <span className={`qr-passes-list-status${valid ? '' : ' is-inactive'}`}>{valid ? 'VÁLIDO' : pass.status === 'VENCIDO' ? 'VENCIDO' : 'PASE INVALIDADO'}</span>
+                        <p>{valid ? `${passSchedule(pass)} · ${pass.eventDetails?.location || 'Ubicación no disponible'}` : 'El pase asociado ya no es válido para acceso.'}</p>
+                        <Link className="qr-passes-open" href={`/mis-pases/${encodeURIComponent(pass.id)}${passesHref === '/events/catalog/passes' ? '?from=catalog' : ''}`}>
+                          {valid ? 'Abrir pase' : 'Ver detalle'}
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
+              </section>
+            )}
+          </>
+        )}
+      </div>
       <EventsMobileBottomNav />
-    </div>
+    </main>
   );
 }

@@ -25,6 +25,16 @@ type FormacionAcademicaFormProps = {
   onAgregar: (formacion: FormacionAcademica) => void | Promise<void>;
   // Avisa cuántos errores hay a la vista, para el contador del encabezado de la sección (HU-02, AC 6)
   onErroresChange?: (errores: number) => void;
+  // Texto del botón de enviar; en Agregar registros es «Guardar en borrador» (HU-13)
+  textoBoton?: string;
+  // false: no lista las formaciones (siguen sirviendo para validar duplicadas), como en Agregar registros (HU-13)
+  mostrarRegistradas?: boolean;
+  // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
+  valoresIniciales?: FormacionAcademica;
+  // Avisa lo que hay escrito en cada cambio, para subirlo como borrador incompleto (HU-14)
+  onDatosChange?: (datos: FormacionAcademica) => void;
+  // «Cancelar»: limpia el formulario y avisa para cerrar la sección (HU-21, CA-06)
+  onCancelar?: () => void;
 };
 
 const VACIO: FormacionAcademica = { institucion: '', titulo: '', anioEgreso: '', grado: '' };
@@ -36,8 +46,18 @@ const labelObligatorioClase = `${labelClase} after:ml-1 after:text-[#A35139] aft
 const inputClase =
   'mt-1.5 h-11 w-full rounded-md border border-[#C9C1B1] bg-white px-3 text-sm text-[#2C3B4D] placeholder:text-[#2C3B4D]/40 focus:border-[#FFB162] focus:outline-none';
 
-export function FormacionAcademicaForm({ formaciones, onAgregar, onErroresChange }: FormacionAcademicaFormProps) {
-  const [datos, setDatos] = useState<FormacionAcademica>(VACIO);
+export function FormacionAcademicaForm({
+  formaciones,
+  onAgregar,
+  onErroresChange,
+  textoBoton = 'Agregar formación',
+  mostrarRegistradas = true,
+  valoresIniciales,
+  onDatosChange,
+  onCancelar,
+}: FormacionAcademicaFormProps) {
+  const [datos, setDatos] = useState<FormacionAcademica>(valoresIniciales ?? VACIO);
+  useEffect(() => onDatosChange?.(datos), [datos, onDatosChange]);
   // Error del año de egreso; una vez mostrado se recalcula mientras se corrige
   const [errorAnio, setErrorAnio] = useState<string>();
   // Formación ya registrada (Institución + Título + Año); se quita al cambiar cualquier campo
@@ -48,6 +68,14 @@ export function FormacionAcademicaForm({ formaciones, onAgregar, onErroresChange
   const cantidadErrores = [errorAnio, errorDuplicada, errorGuardar].filter(Boolean).length;
   useEffect(() => onErroresChange?.(cantidadErrores), [cantidadErrores, onErroresChange]);
   const [guardando, setGuardando] = useState(false);
+
+  function cancelar() {
+    setDatos(VACIO);
+    setErrorAnio(undefined);
+    setErrorDuplicada(undefined);
+    setErrorGuardar(undefined);
+    onCancelar?.();
+  }
 
   function cambiar(campo: keyof FormacionAcademica, valor: string) {
     setDatos({ ...datos, [campo]: valor });
@@ -84,7 +112,7 @@ export function FormacionAcademicaForm({ formaciones, onAgregar, onErroresChange
 
   return (
     <div>
-      {formaciones.length > 0 && (
+      {mostrarRegistradas && formaciones.length > 0 && (
         <div className="mb-5 border-b border-[#C9C1B1]/70 pb-5">
           <p className={subtituloClase}>Formación registrada</p>
           <ul className="mt-3 space-y-2">
@@ -189,8 +217,13 @@ export function FormacionAcademicaForm({ formaciones, onAgregar, onErroresChange
           className="inline-flex h-10 items-center gap-2 rounded-md border border-[#2C3B4D] bg-white px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
-          Agregar formación
+          {textoBoton}
         </button>
+        {onCancelar && (
+          <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
+            Cancelar
+          </button>
+        )}
       </form>
     </div>
   );

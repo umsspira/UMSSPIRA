@@ -25,12 +25,10 @@ it('muestra los datos del perfil y el indicador de intereses adicionales', () =>
   expect(screen.getByText('Disponible')).toBeInTheDocument();
 });
 
-it('reemplaza una fotografía que no carga por las iniciales', () => {
+it('ignora las fotografías heredadas y muestra siempre las iniciales', () => {
   const { container } = render(<MentorDirectoryCard mentor={{ ...mentor, photoUrl: 'https://example.com/photo.jpg' }} />);
-  const photo = container.querySelector('img')!;
-  fireEvent.error(photo);
   expect(container.querySelector('img')).not.toBeInTheDocument();
-  expect(within(screen.getByRole('img', { name: `Avatar de ${mentor.name}` })).getByText('PM')).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: `Avatar de ${mentor.name}` })).toHaveTextContent('PM');
 });
 
 it('distingue un campo pendiente del backend de un perfil sin intereses registrados', () => {

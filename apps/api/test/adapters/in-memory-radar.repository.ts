@@ -121,8 +121,4 @@ export class InMemoryRadarRepository implements RadarRepositoryPort {
 
     return snapshot;
   }
-
-  async getAreaWeights(): Promise<Record<string, Array<{ term: string; peso: number }>>> {
-    return this.areaWeights;
-  }
 }

@@ -141,4 +141,33 @@ describe('useSurveyDraft', () => {
     act(() => result.current.saveDraft({ workCondition: 'not-works' }));
     expect(result.current.status).toBe('idle');
   });
+
+  it('borra el borrador cuando cambia el userId de la sesión (Mejora 1.6)', () => {
+    const { result, rerender } = renderHook(({ id }: { id?: string }) => useSurveyDraft(id), {
+      initialProps: { id: 'user-1' as string | undefined },
+    });
+    act(() => result.current.saveDraft({ workCondition: 'works', cargo: 'Dev 1' }));
+    expect(window.localStorage.getItem(KEY)).not.toBeNull();
+
+    rerender({ id: 'user-2' });
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+    expect(result.current.draft).toBeNull();
+  });
+
+  it('borra el borrador cuando se detecta limpieza de autenticación en storage', () => {
+    const { result } = renderHook(() => useSurveyDraft('user-1'));
+    act(() => result.current.saveDraft({ workCondition: 'works', cargo: 'Dev 1' }));
+    expect(window.localStorage.getItem(KEY)).not.toBeNull();
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'umsspira:auth-token',
+          newValue: null,
+        }),
+      );
+    });
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+    expect(result.current.draft).toBeNull();
+  });
 });

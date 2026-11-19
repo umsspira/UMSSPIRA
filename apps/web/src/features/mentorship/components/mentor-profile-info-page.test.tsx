@@ -5,6 +5,7 @@ import {
   getMentorProfileInformation,
   updateMentorProfileInformation,
   deleteMentorProfileInformation,
+  type MentorProfileInformationData,
 } from '../services/mentor-profile-info-api';
 
 jest.mock('../services/mentor-profile-info-api');
@@ -28,16 +29,24 @@ const sampleProfile = {
   fecha_actualizacion: '2026-10-07',
 };
 
+const profileState = (exists: boolean, profile: MentorProfileInformationData | null) => ({
+  nombre: 'Juan Diego',
+  exists,
+  profile,
+});
+
 beforeEach(() => {
   jest.resetAllMocks();
 });
 
-describe('MentorProfileInfoPage (HU-6.5)', () => {
+describe('MentorProfileInfoPage (HU-6.20)', () => {
   it('muestra el estado vacío cuando el mentor no tiene información registrada', async () => {
-    mockGet.mockResolvedValue({ exists: false, profile: null });
+    mockGet.mockResolvedValue(profileState(false, null));
     render(<MentorProfileInfoPage />);
 
     expect(await screen.findByText('Aún no has agregado información a tu perfil de mentor')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Avatar de Juan Diego' })).toHaveTextContent('JD');
+    expect(screen.getByText('Se usan las iniciales de tu nombre en tu avatar.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /\+ Agregar información/i })).toBeEnabled();
     expect(
       screen.getByText('Tu perfil no muestra información a los estudiantes hasta que la agregues.')
@@ -46,7 +55,7 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
   });
 
   it('muestra la información guardada en modo lectura cuando existen datos previos', async () => {
-    mockGet.mockResolvedValue({ exists: true, profile: sampleProfile });
+    mockGet.mockResolvedValue(profileState(true, sampleProfile));
     render(<MentorProfileInfoPage />);
 
     expect(await screen.findByText(sampleProfile.descripcion)).toBeInTheDocument();
@@ -55,12 +64,14 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
     expect(screen.getByText('Mentor activo')).toBeInTheDocument();
     expect(screen.getByText(sampleProfile.fecha_actualizacion)).toBeInTheDocument();
 
+    expect(screen.getByRole('img', { name: 'Avatar de Juan Diego' })).toHaveTextContent('JD');
+    expect(screen.getByText('Se usan las iniciales de tu nombre en tu avatar.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Editar información/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Eliminar información/i })).toBeInTheDocument();
   });
 
   it('abre el formulario de edición y marca los campos obligatorios con asterisco', async () => {
-    mockGet.mockResolvedValue({ exists: false, profile: null });
+    mockGet.mockResolvedValue(profileState(false, null));
     render(<MentorProfileInfoPage />);
 
     const addBtn = await screen.findByRole('button', { name: /\+ Agregar información/i });
@@ -74,7 +85,7 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
   });
 
   it('muestra mensaje de error si se intenta guardar con campos obligatorios vacíos', async () => {
-    mockGet.mockResolvedValue({ exists: false, profile: null });
+    mockGet.mockResolvedValue(profileState(false, null));
     render(<MentorProfileInfoPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: /\+ Agregar información/i }));
@@ -88,7 +99,7 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
   });
 
   it('muestra indicador de cambios sin guardar al escribir en el formulario', async () => {
-    mockGet.mockResolvedValue({ exists: true, profile: sampleProfile });
+    mockGet.mockResolvedValue(profileState(true, sampleProfile));
     render(<MentorProfileInfoPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: /Editar información/i }));
@@ -102,7 +113,7 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
   });
 
   it('descarta cambios y regresa a la vista de lectura al pulsar Cancelar', async () => {
-    mockGet.mockResolvedValue({ exists: true, profile: sampleProfile });
+    mockGet.mockResolvedValue(profileState(true, sampleProfile));
     render(<MentorProfileInfoPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: /Editar información/i }));
@@ -117,13 +128,13 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
   });
 
   it('guarda exitosamente los cambios y muestra el banner verde de confirmación', async () => {
-    mockGet.mockResolvedValue({ exists: true, profile: sampleProfile });
+    mockGet.mockResolvedValue(profileState(true, sampleProfile));
     const updatedProfile = {
       ...sampleProfile,
       descripcion: 'Descripción actualizada con éxito',
       experiencia: 'Experiencia actualizada con éxito',
     };
-    mockUpdate.mockResolvedValue({ exists: true, profile: updatedProfile });
+    mockUpdate.mockResolvedValue(profileState(true, updatedProfile));
 
     render(<MentorProfileInfoPage />);
 
@@ -140,10 +151,15 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
     expect(await screen.findByText('Información actualizada correctamente')).toBeInTheDocument();
     expect(screen.getByText(updatedProfile.descripcion)).toBeInTheDocument();
     expect(screen.getByText(updatedProfile.experiencia)).toBeInTheDocument();
+    expect(mockUpdate).toHaveBeenCalledWith({
+      descripcion: updatedProfile.descripcion,
+      experiencia: updatedProfile.experiencia,
+      informacion_relevante: updatedProfile.informacion_relevante,
+    });
   });
 
   it('despliega modal de confirmación al eliminar y descarta al cancelar', async () => {
-    mockGet.mockResolvedValue({ exists: true, profile: sampleProfile });
+    mockGet.mockResolvedValue(profileState(true, sampleProfile));
     render(<MentorProfileInfoPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: /Eliminar información/i }));
@@ -159,8 +175,8 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
   });
 
   it('elimina la información al confirmar en el modal y retorna al estado inicial vacío', async () => {
-    mockGet.mockResolvedValue({ exists: true, profile: sampleProfile });
-    mockDelete.mockResolvedValue({ exists: false, profile: null });
+    mockGet.mockResolvedValue(profileState(true, sampleProfile));
+    mockDelete.mockResolvedValue(profileState(false, null));
 
     render(<MentorProfileInfoPage />);
 
@@ -175,7 +191,7 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
   });
 
   it('bloquea el guardado y marca el contador en rojo si se superan los límites de caracteres', async () => {
-    mockGet.mockResolvedValue({ exists: false, profile: null });
+    mockGet.mockResolvedValue(profileState(false, null));
     render(<MentorProfileInfoPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: /\+ Agregar información/i }));
@@ -191,28 +207,21 @@ describe('MentorProfileInfoPage (HU-6.5)', () => {
     expect(saveBtn).toBeDisabled();
   });
 
-  it('valida el tamaño y formato de archivo de la fotografía de perfil', async () => {
-    mockGet.mockResolvedValue({ exists: false, profile: null });
+  it('no ofrece controles de fotografía y muestra solo iniciales al editar', async () => {
+    mockGet.mockResolvedValue(profileState(true, {
+      ...sampleProfile,
+      foto_perfil: 'https://storage.example.com/mentor.jpg',
+    }));
     render(<MentorProfileInfoPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /\+ Agregar información/i }));
+    expect(await screen.findByRole('img', { name: 'Avatar de Juan Diego' })).toHaveTextContent('JD');
+    expect(document.querySelector('img')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Editar información/i }));
 
-    const fileInput = screen.getByLabelText('Subir fotografía de perfil');
-
-    // Archivo mayor a 5 MB
-    const hugeFile = new File([new ArrayBuffer(6 * 1024 * 1024)], 'foto_pesada.jpg', {
-      type: 'image/jpeg',
-    });
-    fireEvent.change(fileInput, { target: { files: [hugeFile] } });
-
-    expect(await screen.findByText(/supera los 5 MB permitidos/i)).toBeInTheDocument();
-
-    // Archivo con formato no admitido
-    const invalidFile = new File(['dummy'], 'documento.pdf', {
-      type: 'application/pdf',
-    });
-    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
-
-    expect(await screen.findByText(/formato de imagen no es admitido/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Avatar de Juan Diego' })).toHaveTextContent('JD');
+    expect(screen.getByText('Se usan las iniciales de tu nombre en tu avatar.')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Subir fotografía/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Cambiar foto|Eliminar foto|Subir foto/i })).not.toBeInTheDocument();
+    expect(document.querySelector('img')).not.toBeInTheDocument();
   });
 });

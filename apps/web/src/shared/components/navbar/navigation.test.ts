@@ -17,8 +17,10 @@ it('no muestra el catálogo en el menú de eventos y reserva la gestión para ad
 
 it('separa los accesos personales del titulado y los empresariales', () => {
   expect(destinations('titulado')).toContain('/mentorship/profile');
+  expect(destinations('titulado')).toContain('/my-applications');
   expect(destinations('titulado')).not.toContain('/companies');
   expect(destinations('empresa')).toContain('/empresa/vacantes/publicar');
+  expect(destinations('empresa')).not.toContain('/my-applications');
   expect(destinations('empresa')).not.toContain('/mentorship/profile');
 });
 
