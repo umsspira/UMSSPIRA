@@ -341,8 +341,8 @@ function Messages() {
                 Tu próxima conversación empieza aquí
               </p>
               <p className="max-w-sm text-sm">
-                Envía una solicitud a cualquier persona de la comunidad o retoma
-                uno de tus chats.
+                Envía una solicitud a cualquier persona de la comunidad o
+                retoma uno de tus chats.
               </p>
             </div>
           )}
