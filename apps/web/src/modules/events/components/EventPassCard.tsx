@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 // 👇 Importamos el botón que me acabas de mostrar (Ajusta la ruta si es necesario)
 import { Button } from "@/shared/components/button";; 
@@ -20,6 +21,14 @@ interface EventPassProps {
   statusLabel?: string;
   statusDescription?: string;
   hideBackButton?: boolean;
+  savedOffline?: boolean;
+  updated?: boolean;
+  offline?: boolean;
+  backHref?: string;
+  onSaveOffline?: () => void;
+  isSavedOffline?: boolean;
+  isSavingOffline?: boolean;
+  saveOfflineMessage?: string;
 }
 
 export const EventPassCard: React.FC<EventPassProps> = ({
@@ -35,6 +44,14 @@ export const EventPassCard: React.FC<EventPassProps> = ({
   statusLabel,
   statusDescription,
   hideBackButton = false,
+  savedOffline = false,
+  updated = false,
+  offline = false,
+  backHref,
+  onSaveOffline,
+  isSavedOffline = false,
+  isSavingOffline = false,
+  saveOfflineMessage,
 }) => {
   const isError = status === "ERROR";
   const isInvalid = status === "INVALID" || status === "INVALIDADO" || status === "VENCIDO";
@@ -95,9 +112,11 @@ export const EventPassCard: React.FC<EventPassProps> = ({
         {/* Badges y código inferior */}
         {!isError && (
           <>
-            <div className={`mt-auto text-[11px] font-bold py-1 px-4 rounded-full ${isInvalid ? 'hidden' : 'bg-palladian text-abyssal-blue'}`}>
-               VÁLIDO
-            </div>
+            {!isInvalid && (
+              <div className="mt-auto text-[11px] font-bold py-1 px-4 rounded-full bg-palladian text-abyssal-blue">
+                {offline ? 'SIN CONEXIÓN' : 'VÁLIDO'}
+              </div>
+            )}
             {passId && (
               <div className="mt-4 text-left w-full">
                 <p className="text-oatmeal text-[10px] uppercase font-semibold">ID Pase</p>
@@ -116,6 +135,12 @@ export const EventPassCard: React.FC<EventPassProps> = ({
       {/* COLUMNA DERECHA (60%) - Fondo Palladian */}
       <div className="md:w-[60%] bg-palladian p-8 md:p-12 flex flex-col justify-center">
         
+        {(updated || savedOffline) && (
+          <p className="hu12-saved-badge" role="status">
+            {updated ? 'PASE ACTUALIZADO' : 'GUARDADO EN ESTE DISPOSITIVO'}
+          </p>
+        )}
+
         {/* Título Oficial H1/H2 según manual (Inter, Bold, 32px) */}
         <h1 className="font-sans font-bold text-[32px] leading-[40px] text-abyssal-blue mb-4">
           {eventName}
@@ -182,15 +207,44 @@ export const EventPassCard: React.FC<EventPassProps> = ({
           </div>
         )}
         {/* BOTONES OFICIALES */}
+{onSaveOffline && (
+  <div className="mb-4">
+    <Button
+      type="button"
+      variant="primary"
+      onClick={onSaveOffline}
+      disabled={isSavingOffline || isSavedOffline}
+      className="w-full"
+    >
+      {isSavingOffline
+        ? 'Guardando...'
+        : isSavedOffline
+          ? 'Guardado sin conexión'
+          : 'Guardar sin conexión'}
+    </Button>
+
+    {saveOfflineMessage && (
+      <p className="text-abyssal-blue text-xs mt-2" role="status">
+        {saveOfflineMessage}
+      </p>
+    )}
+  </div>
+)}
         <div className="mt-auto pt-8 flex flex-col md:flex-row gap-4">
           {!hideBackButton && (
-            <Button
-              variant="secondary"
-              onClick={onBack}
-              className="flex-1 md:flex-none"
-            >
-              {isError ? 'Volver a mis eventos' : 'Volver a mis pases'}
-            </Button>
+            backHref ? (
+              <Link href={backHref} className="hu12-back-link">
+                Volver a mis pases
+              </Link>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={onBack}
+                className="flex-1 md:flex-none"
+              >
+                {isError ? 'Volver a mis eventos' : 'Volver a mis pases'}
+              </Button>
+            )
           )}
 
           {isError && (

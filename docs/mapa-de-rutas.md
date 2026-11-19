@@ -135,11 +135,13 @@
 | `/mentorship/profile/interests` | Intereses de mentoría | middleware |
 | `/mentorship/profile/availability` | Disponibilidad | middleware |
 
-### 3.5 Bolsa de trabajo y empresas (11)
+### 3.5 Bolsa de trabajo y empresas (13)
 
 | Ruta | Pantalla | Protección |
 | --- | --- | --- |
 | `/job-postings` | Ofertas laborales actuales | middleware |
+| `/my-applications` | Mis postulaciones del titulado | middleware + rol `titulado` |
+| `/my-applications/oferta/[id]` | Detalle de una oferta postulada | middleware + rol `titulado` |
 | `/companies` | Perfil de mi empresa | AuthGuard (layout) |
 | `/empresa/vacantes/publicar` | Publicar una vacante | AuthGuard (layout) |
 | `/empresa/mis-vacantes` | Mis vacantes | AuthGuard (layout) |
@@ -243,12 +245,14 @@ Todos los grupos viven bajo `/api/v1` salvo `/` y `/health`.
 | POST | `/api/v1/companies/invitations/:invitationId/resend` | permiso `empresas:invite` → administrador |
 | GET | `/api/v1/companies/registry` | permiso `empresas:invite` → administrador |
 
-### 4.5 Ofertas laborales — `job-postings`, `vacantes` (6)
+### 4.5 Ofertas laborales — `job-postings`, `vacantes` (8)
 
 | Verbo | Ruta | Acceso |
 | --- | --- | --- |
 | POST | `/api/v1/job-postings` | permiso `vacantes:create` → empresa |
 | GET | `/api/v1/vacantes/mis-vacantes` | sesión requerida |
+| GET | `/api/v1/vacantes/mis-postulaciones` | rol `titulado`; solo postulaciones del usuario autenticado (HU-006) |
+| GET | `/api/v1/vacantes/:id/oferta` | rol `titulado`; oferta publicada o vacante a la que se postuló |
 | GET | `/api/v1/vacantes/:id` | sesión requerida |
 | PATCH | `/api/v1/vacantes/:id` | sesión requerida |
 | PATCH | `/api/v1/vacantes/:id/cerrar` | sesión requerida |

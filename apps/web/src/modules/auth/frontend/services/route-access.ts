@@ -17,6 +17,7 @@ const TITULADO_MENTOR_ROUTES = [
   "/mentorship/mentors",
   "/mentorship/request",
 ];
+const GRADUATE_APPLICATION_ROUTES = ["/my-applications"];
 const RECRUITER_ROUTES = [
   "/afinidad/reclutador",
   "/empresa/postulantes",
@@ -51,10 +52,19 @@ export function decideAccess(
     return token ? { allowed: false, redirectTo: homeFor(role) } : { allowed: true };
   }
 
-  // CA-05.1: sin sesión no se ve ninguna pantalla protegida
+  // CA-05.1: sin sesión no se ve ninguna pantalla protegida.
   if (!token) {
     return { allowed: false, redirectTo: LOGIN_PATH };
   }
+
+  // E5 HU-004: el listado personalizado pertenece al titulado.
+  if (
+    (pathname === "/job-postings" || pathname === "/job-postings/") &&
+    role !== "titulado"
+  ) {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+
 
   // CA-05.5: solo el administrador entra al panel administrativo
   if (matchesRoute(pathname, ADMIN_HOME) && role !== "administrador") {
@@ -100,6 +110,13 @@ export function decideAccess(
     isGraduateAffinityRoute &&
     role !== "titulado" &&
     role !== "administrador"
+  ) {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+
+  if (
+    GRADUATE_APPLICATION_ROUTES.some((route) => matchesRoute(pathname, route)) &&
+    role !== "titulado"
   ) {
     return { allowed: false, redirectTo: homeFor(role) };
   }

@@ -37,9 +37,11 @@ describe('RadarErrorState', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('deshabilita Reintentar mientras isRetrying es true', () => {
+  it('deshabilita Reintentar y muestra "Actualizando tu afinidad…" mientras isRetrying es true', () => {
     const onRetry = jest.fn();
     render(<RadarErrorState {...defaultProps} onRetry={onRetry} isRetrying={true} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Actualizando tu afinidad…');
 
     const button = screen.getByRole('button', { name: 'Reintentar' });
     expect(button).toBeDisabled();

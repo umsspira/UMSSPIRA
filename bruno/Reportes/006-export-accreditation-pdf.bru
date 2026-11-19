@@ -1,0 +1,38 @@
+meta {
+  name: Descargar reporte ejecutivo de acreditación PDF
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reports/accreditation/pdf
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~careerId: {{careerId}}
+  ~cohorte: 2023
+  ~semestre: 1-2026
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("devuelve un PDF con el nombre acreditacion-<carrera>-<fecha>.pdf", function () {
+    expect(res.getHeader("content-type")).to.include("application/pdf");
+    expect(res.getHeader("content-disposition")).to.match(/acreditacion-[a-z0-9-]+-\d{4}-\d{2}-\d{2}\.pdf/);
+  });
+}
+
+docs {
+  HU-004 (T4.1): reporte ejecutivo del tablero de acreditación en PDF A4, con carrera, periodo, fecha de emisión, indicadores, empleabilidad por cohorte y mapa de calor. Solo carreras del administrador. Filtros opcionales: cohorte=2023 y semestre=1-2026. Si el periodo no tiene respuestas responde 404 con error.code ACCREDITATION_EMPTY_PERIOD.
+
+  Permiso: reportes:read.
+}

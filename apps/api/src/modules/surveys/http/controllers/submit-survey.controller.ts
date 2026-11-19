@@ -4,6 +4,7 @@ import {
   Controller,
   ConflictException,
   Inject,
+  Get,
   HttpCode,
   HttpStatus,
   InternalServerErrorException,
@@ -30,6 +31,33 @@ export class SubmitSurveyController {
     private readonly repository: SurveyRepositoryPort,
   ) {}
 
+  @Get('status')
+  @HttpCode(HttpStatus.OK)
+  @Roles('titulado')
+  async getStatus(@CurrentActor() actor: ActorContext) {
+    const tituladoId = actor.scopes.graduateId;
+    if (!tituladoId) {
+      throw new NotFoundException('Perfil de titulado no encontrado');
+    }
+
+    const survey = await this.repository.findActiveSurveyForGraduate(tituladoId);
+    if (!survey) {
+      return { data: { submitted: false, hasActiveSurvey: false, surveyId: null } };
+    }
+
+    const response = await this.prisma.respuestaEncuesta.findFirst({
+      where: { idEncuesta: survey.id, idTitulado: tituladoId },
+      select: { id: true },
+    });
+    return {
+      data: {
+        submitted: response !== null,
+        hasActiveSurvey: true,
+        surveyId: survey.id,
+      },
+    };
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles('titulado')
@@ -48,9 +76,10 @@ export class SubmitSurveyController {
       throw new NotFoundException('Perfil de titulado no encontrado');
     }
 
-    const survey = result.data.id_encuesta
-      ? await this.prisma.encuesta.findUnique({ where: { id: result.data.id_encuesta } })
-      : await this.prisma.encuesta.findFirst({ orderBy: { fecha_creacion: 'desc' } });
+    const survey = await this.repository.findActiveSurveyForGraduate(
+      tituladoId,
+      result.data.id_encuesta,
+    );
     if (!survey) {
       throw new NotFoundException('No existe una encuesta disponible');
     }
