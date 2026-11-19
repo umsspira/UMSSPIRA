@@ -14,6 +14,7 @@ import { CreateEventController } from './http/controllers/create-event.controlle
 import { UpdateEventDraftController } from './http/controllers/update-event-draft.controller';
 import { UpdatePublishedEventController } from './http/controllers/update-published-event.controller';
 import { PublishEventDraftController } from './http/controllers/publish-event-draft.controller';
+import { DownloadMyCertificateService } from './application/download-my-certificate.service';
 import { ScheduleEventDraftController } from './http/controllers/schedule-event-draft.controller';
 import { ScheduledEventPublicationWorker } from './infrastructure/workers/scheduled-event-publication.worker';
 import { CancelEventScheduleController } from './http/controllers/cancel-event-schedule.controller';
@@ -60,6 +61,7 @@ import { PrismaCertificatesRepository } from './infrastructure/repositories/pris
     ScheduleEventDraftController,
     CancelEventScheduleController,
     ListInactiveEventsController,
+    DownloadMyCertificateService,
     RetireEventController,
     DeleteEventCoverController,
     ReadEventCoverController,
