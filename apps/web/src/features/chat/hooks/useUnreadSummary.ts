@@ -1,11 +1,15 @@
 // apps/web/src/features/chat/hooks/useUnreadSummary.ts
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getUnreadSummary,
   type ConversationSummary,
 } from "@/shared/services/chat-conversation.service";
+import {
+  retainChatSocket,
+  releaseChatSocket,
+} from "@/shared/services/chat-socket";
 
 export const UNREAD_PANEL_LIMIT = 5;
 
@@ -50,6 +54,28 @@ export const useUnreadSummary = () => {
       /* Conservar el resumen durante cortes de red. */
     }
   }, []);
+
+  useEffect(() => {
+    void refresh();
+    const socket = retainChatSocket();
+    let debounce: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        void refresh();
+      }, 250);
+    };
+    socket.on("chat:changed", schedule);
+    socket.on("connect", schedule);
+    window.addEventListener("focus", schedule);
+    return () => {
+      clearTimeout(debounce);
+      socket.off("chat:changed", schedule);
+      socket.off("connect", schedule);
+      window.removeEventListener("focus", schedule);
+      releaseChatSocket();
+    };
+  }, [refresh]);
 
   return { summary, reload: refresh };
 };
