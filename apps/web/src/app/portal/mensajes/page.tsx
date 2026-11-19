@@ -11,6 +11,8 @@ import {
 } from "@/shared/services/chat-conversation.service";
 import { getChatSocket, retryConnection } from "@/shared/services/chat-socket";
 import { useConversations } from "@/features/chat/hooks/useConversations";
+import { ConversationPanel } from "@/features/chat/components/ConversationPanel";
+import { ComposeRequest } from "@/features/chat/components/ComposeRequest";
 import { MessagesOfflineGuard } from "@/features/chat/components/MessagesOfflineGuard";
 import { formatChatTime, getInitials } from "@/features/chat/utils/format";
 
@@ -302,16 +304,48 @@ function Messages() {
         <section
           className={`min-h-0 min-w-0 ${selectedId || compose ? "block" : "hidden md:block"}`}
         >
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-slate-500">
-            <MessageSquare size={40} strokeWidth={1} />
-            <p className="font-semibold">
-              Tu próxima conversación empieza aquí
-            </p>
-            <p className="max-w-sm text-sm">
-              Envía una solicitud a cualquier persona de la comunidad o retoma
-              uno de tus chats.
-            </p>
-          </div>
+          {compose ? (
+            <ComposeRequest
+              key={params.get("recipient") ?? "new"}
+              recipientId={params.get("recipient") ?? undefined}
+              onCancel={() => {
+                setCompose(false);
+                window.history.replaceState(null, "", "/portal/mensajes");
+              }}
+              onCreated={(id, created) => {
+                select(id);
+                if (!created)
+                  setNotice(
+                    "Ya existe una conversación con esta persona. Se abrió sin enviar otro mensaje.",
+                  );
+                void reload();
+              }}
+            />
+          ) : selected && actorId ? (
+            <ConversationPanel
+              key={selected.id}
+              conversation={selected}
+              actorId={actorId}
+              onBack={() => {
+                setSelectedId(null);
+                window.history.replaceState(null, "", "/portal/mensajes");
+              }}
+              onChange={() => {
+                void reload();
+              }}
+            />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-slate-500">
+              <MessageSquare size={40} strokeWidth={1} />
+              <p className="font-semibold">
+                Tu próxima conversación empieza aquí
+              </p>
+              <p className="max-w-sm text-sm">
+                Envía una solicitud a cualquier persona de la comunidad o retoma
+                uno de tus chats.
+              </p>
+            </div>
+          )}
         </section>
       </div>
     </main>
