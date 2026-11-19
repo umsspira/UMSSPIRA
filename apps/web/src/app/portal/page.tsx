@@ -217,6 +217,25 @@ export default function Home() {
         </div>
       )}
 
+      {/* HU09 CA-02: acceso destacado a Mis códigos QR al abrir la PWA sin conexión,
+          visible sin tener que recorrer el menú ni hacer scroll. */}
+      {!isOnline && (
+        <Link
+          href="/mis-pases"
+          data-testid="home-offline-qr-access"
+          className="flex min-h-[56px] items-center gap-3 rounded-2xl bg-[#1B2632] px-5 py-4 text-[#EEE9DF] shadow-md transition-colors hover:bg-[#2C3B4D]"
+        >
+          <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFB162] text-[#1B2632]">
+            <QrCode className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold">Mis códigos QR</span>
+            <span className="block text-xs opacity-85">Disponibles en este dispositivo, incluso sin conexión.</span>
+          </span>
+          <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-[#FFB162]" aria-hidden="true" />
+        </Link>
+      )}
+
       {/* Banner principal */}
       {/* Añadimos relative al section para posicionar la etiqueta */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
