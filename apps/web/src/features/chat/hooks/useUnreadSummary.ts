@@ -10,6 +10,7 @@ import {
   retainChatSocket,
   releaseChatSocket,
 } from "@/shared/services/chat-socket";
+import { useOnlineStatus } from "@/shared/hooks/use-online-status";
 import { onUnreadRefresh } from "../utils/unread-events";
 
 export const UNREAD_PANEL_LIMIT = 5;
@@ -39,6 +40,7 @@ export const buildUnreadSummary = (
 };
 
 export const useUnreadSummary = () => {
+  const isOnline = useOnlineStatus();
   const [summary, setSummary] = useState<UnreadSummary>({
     total: 0,
     conversations: [],
@@ -86,5 +88,10 @@ export const useUnreadSummary = () => {
     };
   }, [refresh]);
 
-  return { summary, reload: refresh };
+  // CA-07: sin conexión el total es 0 (no se muestran contadores).
+  const effectiveSummary: UnreadSummary = isOnline
+    ? summary
+    : { total: 0, conversations: [] };
+
+  return { summary: effectiveSummary, reload: refresh };
 };
