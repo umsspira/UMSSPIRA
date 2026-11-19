@@ -36,7 +36,8 @@ import { certificateTemplatesProviders } from './infrastructure/providers/certif
 import { EventReminderWorker } from './infrastructure/workers/event-reminder.worker';
 import { EventReminderSettingsController } from './http/controllers/event-reminder-settings.controller';
 import { EventReminderSettingsService } from './application/event-reminder-settings.service';
-
+import { MyCertificatesController } from './http/controllers/my-certificates.controller';
+import { ListMyCertificatesService } from './application/list-my-certificates.service';
 import { GenerateCertificatesController } from './http/controllers/generate-certificates.controller';
 import { GenerateCertificatesService } from './application/generate-certificates.service';
 // 👉 ESTA ES LA LÍNEA QUE FALTABA:
@@ -70,6 +71,7 @@ import { PrismaCertificatesRepository } from './infrastructure/repositories/pris
     ValidateAttendancePassController,
     EventPassesController,
     CancelPublishedEventController,
+    MyCertificatesController,
     GenerateCertificatesController, 
   ],
   providers: [
@@ -84,6 +86,7 @@ import { PrismaCertificatesRepository } from './infrastructure/repositories/pris
     ValidateAttendancePassService,
     GenerateCertificatesService, 
     PrismaCertificatesRepository, // 👈 Y HABÍA QUE REGISTRARLO AQUÍ
+    ListMyCertificatesService,
   ],
 })
 export class EventsModule {}
