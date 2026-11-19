@@ -9,6 +9,7 @@ import {
   retainChatSocket,
   releaseChatSocket,
 } from "@/shared/services/chat-socket";
+import { onUnreadRefresh } from "../utils/unread-events";
 
 export const useConversations = () => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -44,9 +45,13 @@ export const useConversations = () => {
     };
     socket.on("chat:changed", refresh);
     socket.on("connect", refresh);
+    const stop = onUnreadRefresh(refresh);
+    window.addEventListener("focus", refresh);
     return () => {
       socket.off("chat:changed", refresh);
       socket.off("connect", refresh);
+      window.removeEventListener("focus", refresh);
+      stop();
       releaseChatSocket();
     };
   }, [load]);
