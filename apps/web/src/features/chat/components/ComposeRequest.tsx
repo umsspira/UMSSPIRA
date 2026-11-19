@@ -22,6 +22,7 @@ export function ComposeRequest({
       ? { id: recipientId, name: "Contacto seleccionado", role: "" }
       : null,
   );
+  const [content, setContent] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -129,12 +130,33 @@ export function ComposeRequest({
             Para: <strong>{selected.name}</strong>
           </p>
         )}
+        <label
+          className="block text-sm font-medium"
+          htmlFor="chat-first-message"
+        >
+          Presenta el motivo de tu mensaje
+        </label>
+        <textarea
+          id="chat-first-message"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          maxLength={500}
+          rows={4}
+          placeholder="Hola, me gustaría conversar sobre…"
+          className="w-full resize-none rounded-xl border p-3 text-sm"
+        />
+        <p className="text-right text-xs text-slate-500">
+          {content.length}/500
+        </p>
         {error && (
           <p role="alert" className="text-sm text-red-700">
             {error}
           </p>
         )}
-        <button className="w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white">
+        <button
+          disabled={!selected || !content.trim()}
+          className="w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40"
+        >
           Enviar solicitud
         </button>
       </form>
