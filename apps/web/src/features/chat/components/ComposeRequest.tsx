@@ -25,10 +25,12 @@ export function ComposeRequest({
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setError(null);
     const timer = setTimeout(() => {
       void searchChatContacts(query, page)
         .then((result) => {
@@ -38,6 +40,14 @@ export function ComposeRequest({
             );
             setHasMore(result.hasMore);
           }
+        })
+        .catch((error) => {
+          if (active)
+            setError(
+              error instanceof Error
+                ? error.message
+                : "No se pudieron buscar contactos",
+            );
         })
         .finally(() => {
           if (active) setLoading(false);
@@ -117,6 +127,11 @@ export function ComposeRequest({
         {selected && (
           <p className="text-sm">
             Para: <strong>{selected.name}</strong>
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-red-700">
+            {error}
           </p>
         )}
         <button className="w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white">
