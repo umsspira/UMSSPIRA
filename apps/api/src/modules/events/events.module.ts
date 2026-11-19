@@ -41,7 +41,7 @@ import { MyCertificatesController } from './http/controllers/my-certificates.con
 import { ListMyCertificatesService } from './application/list-my-certificates.service';
 import { GenerateCertificatesController } from './http/controllers/generate-certificates.controller';
 import { GenerateCertificatesService } from './application/generate-certificates.service';
-// 👉 ESTA ES LA LÍNEA QUE FALTABA:
+// ðŸ‘‰ ESTA ES LA LÃNEA QUE FALTABA:
 import { PrismaCertificatesRepository } from './infrastructure/repositories/prisma-certificates.repository';
 
 @Module({
@@ -61,7 +61,6 @@ import { PrismaCertificatesRepository } from './infrastructure/repositories/pris
     ScheduleEventDraftController,
     CancelEventScheduleController,
     ListInactiveEventsController,
-    DownloadMyCertificateService,
     RetireEventController,
     DeleteEventCoverController,
     ReadEventCoverController,
@@ -87,8 +86,9 @@ import { PrismaCertificatesRepository } from './infrastructure/repositories/pris
     ListUserPassesService,
     ValidateAttendancePassService,
     GenerateCertificatesService, 
-    PrismaCertificatesRepository, // 👈 Y HABÍA QUE REGISTRARLO AQUÍ
+    PrismaCertificatesRepository, // ðŸ‘ˆ Y HABÃA QUE REGISTRARLO AQUÃ
     ListMyCertificatesService,
+    DownloadMyCertificateService,
   ],
 })
 export class EventsModule {}
