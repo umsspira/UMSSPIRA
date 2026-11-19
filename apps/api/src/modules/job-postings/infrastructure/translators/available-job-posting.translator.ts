@@ -13,16 +13,6 @@ export const availableJobPostingListSelect = {
   fecha_publicacion: true,
   descripcion_tecnica: true,
   modalidad: true,
-  empresa: {
-    select: {
-      razon_social: true,
-    },
-  },
-} satisfies Prisma.VacanteSelect;
-
-export const availableJobPostingDetailSelect = {
-  ...availableJobPostingListSelect,
-  nivel_experiencia: true,
   requisito_tecnico_registros: {
     select: {
       id: true,
@@ -33,6 +23,16 @@ export const availableJobPostingDetailSelect = {
       nombre: 'asc',
     },
   },
+  empresa: {
+    select: {
+      razon_social: true,
+    },
+  },
+} satisfies Prisma.VacanteSelect;
+
+export const availableJobPostingDetailSelect = {
+  ...availableJobPostingListSelect,
+  nivel_experiencia: true,
 } satisfies Prisma.VacanteSelect;
 
 type JobPostingListRecord = Prisma.VacanteGetPayload<{
@@ -56,6 +56,11 @@ export function toJobPostingListCandidate(record: JobPostingListRecord): JobPost
     companyName: record.empresa?.razon_social ?? null,
     technicalDescription: record.descripcion_tecnica,
     modality: record.modalidad,
+    requirements: record.requisito_tecnico_registros.map((requirement) => ({
+      id: requirement.id,
+      name: requirement.nombre,
+      normalizedName: requirement.nombre_normalizado,
+    })),
   };
 }
 
@@ -67,10 +72,5 @@ export function toJobPostingDetailCandidate(
     technicalDescription: record.descripcion_tecnica,
     modality: record.modalidad,
     experienceLevel: record.nivel_experiencia,
-    requirements: record.requisito_tecnico_registros.map((requirement) => ({
-      id: requirement.id,
-      name: requirement.nombre,
-      normalizedName: requirement.nombre_normalizado,
-    })),
   };
 }

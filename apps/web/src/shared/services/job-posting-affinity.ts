@@ -86,7 +86,7 @@ export async function calculateVacancyAffinity(
       apiFetch<ExtractedKeywordsResponse>(NLP_EXTRACT_ENDPOINT, {
         method: 'POST',
         body: JSON.stringify({ text }),
-      }).catch(() => ({ keywords: [] })),
+      }),
     ),
   );
   const skills = Array.from(new Set([
@@ -107,7 +107,7 @@ export async function loadTituladoSkills(): Promise<TituladoSkillsResult> {
       apiFetch<ExtractedKeywordsResponse>(NLP_EXTRACT_ENDPOINT, {
         method: 'POST',
         body: JSON.stringify({ text }),
-      }).catch(() => ({ keywords: [] })),
+      }),
     ),
   );
   const skills = Array.from(new Set([

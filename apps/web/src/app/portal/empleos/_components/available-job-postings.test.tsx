@@ -49,6 +49,7 @@ describe('AvailableJobPostingsSection', () => {
           descripcionTecnica: null,
           modalidad: null,
           fechaPublicacion: null,
+          requisitos:[],
         },
       ]);
 
@@ -73,6 +74,7 @@ describe('AvailableJobPostingsSection', () => {
         descripcionTecnica: 'Descripción técnica',
         modalidad: 'REMOTO',
         fechaPublicacion: '2026-11-16T10:00:00.000Z',
+        requisitos:[],
       },
     ]);
 

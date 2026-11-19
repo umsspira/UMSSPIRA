@@ -35,6 +35,7 @@ const posting: AvailableJobPosting = {
   ].join('\n'),
   modalidad: 'HIBRIDO',
   fechaPublicacion: '2026-11-16T10:00:00.000Z',
+  requisitos:[],
 };
 
 describe('JobPostingsList', () => {
@@ -62,7 +63,7 @@ describe('JobPostingsList', () => {
       '/portal/empleos/vacancy-1',
     );
     expect(calculateAffinity).toHaveBeenCalledWith(
-      [{ id: 'vacancy-1-requirement-1', nombre: 'React' }],
+      [{ id: 'requirement-1', nombre: 'React' }],
       ['React'],
     );
   });
@@ -73,7 +74,7 @@ describe('JobPostingsList', () => {
 
     render(<JobPostingsList />);
 
-    expect(await screen.findByText('Completa tu perfil')).toBeInTheDocument();
+    expect(await screen.findByText('Sin calcular')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Agrega tus habilidades al perfil' })).toHaveAttribute(
       'href',
       '/profile/completar?seccion=proyectos',
@@ -148,5 +149,171 @@ describe('JobPostingsList', () => {
     rows = screen.getAllByRole('row');
     expect(rows[1]).toHaveTextContent('Desarrollador JavaScript');
     expect(screen.getByText('Ordenadas por fecha de publicación')).toBeInTheDocument();
+  });
+  it('desempata por ID cuando la afinidad y la fecha coinciden', async () => {
+    listPostings.mockResolvedValue([
+      { ...posting, id: 'vacancy-b', titulo: 'Vacante B' },
+      { ...posting, id: 'vacancy-a', titulo: 'Vacante A' },
+    ]);
+
+    render(<JobPostingsList />);
+
+    // Espera a que termine el cálculo de ambas vacantes.
+    expect(await screen.findAllByText('95% Afinidad')).toHaveLength(2);
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Vacante A');
+    expect(rows[2]).toHaveTextContent('Vacante B');
+  });
+  it('muestra el estado vacío y deshabilita el selector de orden', async () => {
+    listPostings.mockResolvedValue([]);
+
+    render(<JobPostingsList />);
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Aún no hay vacantes disponibles',
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole('combobox', { name: 'Ordenar vacantes' }),
+    ).toBeDisabled();
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+    it('muestra Sin calcular cuando falla la carga del perfil', async () => {
+    loadSkills.mockRejectedValueOnce(new Error('Servicio no disponible'));
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('Sin calcular')).toBeInTheDocument();
+    expect(screen.getByText(posting.titulo)).toBeInTheDocument();
+    expect(screen.queryByText('95% Afinidad')).not.toBeInTheDocument();
+  });
+
+  it('mantiene 0 % antes de las vacantes sin cálculo y conserva su asociación', async () => {
+      listPostings.mockResolvedValue([
+      {
+        ...posting,
+        id: 'vacancy-pending',
+        titulo: 'Vacante sin cálculo',
+        descripcionTecnica: null,
+        requisitos: [],
+      },
+      {
+        ...posting,
+        id: 'vacancy-zero',
+        titulo: 'Vacante cero',
+        descripcionTecnica: null,
+        requisitos: [{ id: 'stored-python', nombre: 'Python' }],
+      },
+      {
+        ...posting,
+        id: 'vacancy-high',
+        titulo: 'Vacante alta',
+      },
+    ]);
+
+    calculateAffinity.mockImplementation((requirements) => {
+      if (requirements.length === 0) {
+        return { status: 'insufficient-requirements' };
+      }
+
+      return {
+        status: 'ready',
+        percentage: requirements[0]?.nombre === 'Python' ? 0 : 90,
+        calculatedAt: '2026-11-17T10:00:00.000Z',
+        comparison: [],
+      };
+    });
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('90% Afinidad')).toBeInTheDocument();
+
+    const rows = screen.getAllByRole('row');
+    expect(rows).toHaveLength(4);
+    expect(rows[1]).toHaveTextContent('Vacante alta');
+    expect(rows[1]).toHaveTextContent('90% Afinidad');
+    expect(rows[2]).toHaveTextContent('Vacante cero');
+    expect(rows[2]).toHaveTextContent('0% Afinidad');
+    expect(rows[3]).toHaveTextContent('Vacante sin cálculo');
+    expect(rows[3]).toHaveTextContent('Sin calcular');
+  });
+    it('actualiza disponibilidad y afinidades al consultar nuevamente', async () => {
+    const removedPosting = {
+      ...posting,
+      id: 'vacancy-removed',
+      titulo: 'Vacante retirada',
+            descripcionTecnica: null,
+      requisitos: [{ id: 'stored-python', nombre: 'Python' }],
+    };
+    const remainingPosting = {
+      ...posting,
+      id: 'vacancy-remaining',
+      titulo: 'Vacante vigente',
+    };
+
+    listPostings
+      .mockResolvedValueOnce([removedPosting, remainingPosting])
+      .mockResolvedValueOnce([remainingPosting]);
+
+    loadSkills
+      .mockResolvedValueOnce({ status: 'ready', skills: ['React'] })
+      .mockResolvedValueOnce({ status: 'ready', skills: ['SQL'] });
+
+    calculateAffinity.mockImplementation((requirements, skills) => ({
+      status: 'ready',
+      percentage: skills.includes('SQL')
+        ? 80
+        : requirements[0]?.nombre === 'Python'
+          ? 95
+          : 40,
+      calculatedAt: '2026-11-17T10:00:00.000Z',
+      comparison: [],
+    }));
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
+    expect(screen.getByText('40% Afinidad')).toBeInTheDocument();
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('Vacante retirada');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Actualizar vacantes' }),
+    );
+
+    expect(await screen.findByText('80% Afinidad')).toBeInTheDocument();
+    expect(screen.queryByText('Vacante retirada')).not.toBeInTheDocument();
+    expect(screen.queryByText('40% Afinidad')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('Vacante vigente');
+    expect(listPostings).toHaveBeenCalledTimes(2);
+    expect(loadSkills).toHaveBeenCalledTimes(2);
+  });
+
+    it('combina requisitos de descripción y base sin duplicarlos', async () => {
+    listPostings.mockResolvedValue([
+      {
+        ...posting,
+        requisitos: [
+          { id: 'stored-react', nombre: 'React' },
+          { id: 'stored-sql', nombre: 'SQL' },
+        ],
+      },
+    ]);
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
+
+    expect(calculateAffinity).toHaveBeenCalledWith(
+      [
+        { id: 'requirement-1', nombre: 'React' },
+        { id: 'requirement-2', nombre: 'SQL' },
+      ],
+      ['React'],
+    );
   });
 });

@@ -63,7 +63,7 @@ export class InMemoryJobPostingRepository implements JobPostingRepository {
           (right.publicationDate?.getTime() ?? Number.NEGATIVE_INFINITY) -
           (left.publicationDate?.getTime() ?? Number.NEGATIVE_INFINITY),
       )
-      .map(
+            .map(
         ({
           id,
           title,
@@ -73,6 +73,7 @@ export class InMemoryJobPostingRepository implements JobPostingRepository {
           technicalDescription,
           modality,
           publicationDate,
+          requirements,
         }) => ({
           id,
           title,
@@ -82,6 +83,7 @@ export class InMemoryJobPostingRepository implements JobPostingRepository {
           technicalDescription,
           modality,
           publicationDate,
+          requirements,
         }),
       );
   }

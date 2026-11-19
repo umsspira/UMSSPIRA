@@ -48,20 +48,20 @@ describe('calculateVacancyAffinity', () => {
       extractKeywords.mockRejectedValue(new Error('NLP no disponible'));
     });
 
-    it('conserva las tecnologías del portafolio cuando falla el extractor NLP', async () => {
-      await expect(loadTituladoSkills()).resolves.toEqual({
-        status: 'ready',
-        skills: ['React', 'SQL'],
-      });
+    it('propaga el fallo de NLP aunque existan tecnologías del portafolio', async () => {
+      await expect(loadTituladoSkills()).rejects.toThrow('NLP no disponible');
     });
 
-    it('indica que falta completar el perfil cuando no hay tecnologías ni texto extraíble', async () => {
+        it('distingue un perfil sin habilidades de un fallo del extractor', async () => {
+      extractKeywords.mockResolvedValue({ keywords: [], unmapped: [] });
       getProfile.mockResolvedValue({
         ...profile,
         records: { ...profile.records, project: [] },
       });
 
-      await expect(loadTituladoSkills()).resolves.toEqual({ status: 'profile-incomplete' });
+      await expect(loadTituladoSkills()).resolves.toEqual({
+        status: 'profile-incomplete',
+      });
     });
   });
 
@@ -95,13 +95,13 @@ describe('calculateVacancyAffinity', () => {
     expect(result).toMatchObject({ status: 'ready', percentage: 67 });
   });
 
-  it('conserva las tecnologías explícitas aunque falle el extractor NLP', async () => {
+    it('no devuelve un porcentaje cuando falla el extractor NLP', async () => {
     extractKeywords.mockRejectedValue(new Error('NLP no disponible'));
 
     await expect(calculateVacancyAffinity([
       { id: 'r1', nombre: 'PostgresSQL' },
       { id: 'r2', nombre: 'React14' },
-    ])).resolves.toMatchObject({ status: 'ready', percentage: 100 });
+    ])).rejects.toThrow('NLP no disponible');
   });
 
   it('no calcula 0% cuando la oferta no tiene requisitos identificados', async () => {

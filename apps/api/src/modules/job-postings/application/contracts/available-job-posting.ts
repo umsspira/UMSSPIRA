@@ -10,6 +10,7 @@ export interface JobPostingListCandidate extends JobPostingAvailabilityCandidate
   technicalDescription: string | null;
   modality: string | null;
   publicationDate: Date | null;
+  requirements: TechnicalRequirementCandidate[];
 }
 
 export interface TechnicalRequirementCandidate {
@@ -22,5 +23,4 @@ export interface JobPostingDetailCandidate extends JobPostingListCandidate {
   technicalDescription: string | null;
   modality: string | null;
   experienceLevel: string | null;
-  requirements: TechnicalRequirementCandidate[];
 }
