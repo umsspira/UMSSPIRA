@@ -17,14 +17,14 @@ export async function fetchCertificatePdf(
 ): Promise<Blob> {
   // El endpoint será proporcionado por la integración con HU18.
   // No se aceptan URL externas ni rutas fuera del módulo de eventos.
-  if (
-    !endpoint.startsWith('/api/v1/events/') ||
-    endpoint.includes('..') ||
-    endpoint.includes('?') ||
-    endpoint.includes('#')
-  ) {
-    throw new Error('Ruta de certificado no válida');
-  }
+  const allowedEndpoint =
+  /^\/api\/v1\/certificates\/me\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\/download$/.test(
+    endpoint,
+  );
+
+if (!allowedEndpoint) {
+  throw new Error('Ruta de certificado no válida');
+}
 
   const response = await authenticatedFetch(apiUrl(endpoint), {
     method: 'GET',

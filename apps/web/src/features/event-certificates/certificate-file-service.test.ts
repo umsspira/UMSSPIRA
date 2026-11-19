@@ -16,7 +16,8 @@ const mockedFetch = authenticatedFetch as jest.MockedFunction<
   typeof authenticatedFetch
 >;
 
-const endpoint = '/api/v1/events/certificates/test-id/file';
+const endpoint =
+  '/api/v1/certificates/me/a762c781-1f02-4e34-bc86-339c8e621bbc/download';
 
 function makeResponse(
   status: number,
