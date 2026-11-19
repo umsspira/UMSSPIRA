@@ -1,7 +1,11 @@
 // apps/web/src/features/chat/hooks/useUnreadSummary.ts
 "use client";
 
-import { type ConversationSummary } from "@/shared/services/chat-conversation.service";
+import { useCallback, useRef, useState } from "react";
+import {
+  getUnreadSummary,
+  type ConversationSummary,
+} from "@/shared/services/chat-conversation.service";
 
 export const UNREAD_PANEL_LIMIT = 5;
 
@@ -27,4 +31,25 @@ export const buildUnreadSummary = (
       )
       .slice(0, limit),
   };
+};
+
+export const useUnreadSummary = () => {
+  const [summary, setSummary] = useState<UnreadSummary>({
+    total: 0,
+    conversations: [],
+  });
+  const version = useRef(0);
+
+  const refresh = useCallback(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    const request = ++version.current;
+    try {
+      const result = await getUnreadSummary();
+      if (request === version.current) setSummary(result);
+    } catch {
+      /* Conservar el resumen durante cortes de red. */
+    }
+  }, []);
+
+  return { summary, reload: refresh };
 };
