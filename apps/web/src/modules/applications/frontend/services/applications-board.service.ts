@@ -54,6 +54,27 @@ export interface ReviewSummary {
   latestObservation: string | null; canObserve: boolean;
 }
 
+export type FindingAction = 'CONFIRMADO' | 'CORREGIDO' | 'NO_VERIFICABLE';
+
+export interface HumanFindingCheck {
+  field: string;
+  action: FindingAction;
+  verifiedValue?: string;
+  reason?: string;
+  author: string;
+  checkedAt: string;
+  version: number;
+}
+
+export interface SaveFindingCheckInput {
+  field: string;
+  action: FindingAction;
+  verifiedValue?: string;
+  reason?: string;
+  author?: string;
+  expectedVersion?: number;
+}
+
 export interface ApplicationHistoryEvent {
   id: string;
   version: number;
@@ -217,4 +238,119 @@ export async function retryMailEvent(
   } catch (error) {
     return { ok: false, message: error instanceof SessionError ? error.message : fallback };
   }
+}
+
+const STORAGE_PREFIX = 'umsspira:finding-checks:';
+
+function getLocalFindingChecks(applicationId: string): Record<string, HumanFindingCheck> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${applicationId}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function setLocalFindingChecks(applicationId: string, checks: Record<string, HumanFindingCheck>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(`${STORAGE_PREFIX}${applicationId}`, JSON.stringify(checks));
+  } catch {
+    // ignorar errores de almacenamiento
+  }
+}
+
+// Consulta comprobaciones humanas registradas (CA-14.3).
+export async function fetchFindingChecks(
+  applicationId: string,
+): Promise<BoardResult<HumanFindingCheck[]>> {
+  const url = `${APPLICATIONS_URL}/${encodeURIComponent(applicationId)}/findings-checks`;
+  const result = await boardFetch<HumanFindingCheck[]>(url);
+  if (result.ok) {
+    return result;
+  }
+  const localMap = getLocalFindingChecks(applicationId);
+  return { ok: true, data: Object.values(localMap) };
+}
+
+// Guarda la comprobación humana de un hallazgo con autor, fecha y versión (CA-14.3 y CA-14.7).
+export async function saveFindingCheck(
+  applicationId: string,
+  input: SaveFindingCheckInput,
+  currentVersion?: number,
+): Promise<BoardResult<HumanFindingCheck>> {
+  const version = input.expectedVersion ?? currentVersion ?? 1;
+
+  if (
+    input.expectedVersion !== undefined &&
+    currentVersion !== undefined &&
+    input.expectedVersion !== currentVersion
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      needsLogin: false,
+      message: 'La solicitud cambió; actualiza el expediente.',
+    };
+  }
+
+  const url = `${APPLICATIONS_URL}/${encodeURIComponent(applicationId)}/findings-checks`;
+  const fallback = 'No se pudo guardar la comprobación del hallazgo.';
+  const payload = { ...input, expectedVersion: version };
+
+  try {
+    const response = await authenticatedFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 409) {
+      return {
+        ok: false,
+        status: 409,
+        needsLogin: false,
+        message: 'La solicitud cambió; actualiza el expediente.',
+      };
+    }
+
+    if (response.ok) {
+      const body = await readJson<{ data?: HumanFindingCheck } & ApiErrorBody>(response);
+      if (body?.data) {
+        const local = getLocalFindingChecks(applicationId);
+        local[body.data.field] = body.data;
+        setLocalFindingChecks(applicationId, local);
+        return { ok: true, data: body.data };
+      }
+    }
+    if (response.status !== 404) {
+      const body = await readJson<ApiErrorBody>(response);
+      return {
+        ok: false,
+        status: response.status,
+        needsLogin: response.status === 401,
+        message: toMessage(body, fallback),
+      };
+    }
+  } catch (error) {
+    if (error instanceof SessionError) {
+      return { ok: false, status: error.status, needsLogin: error.status === 401, message: error.message };
+    }
+  }
+
+  const check: HumanFindingCheck = {
+    field: input.field,
+    action: input.action,
+    verifiedValue: input.action === 'CORREGIDO' ? input.verifiedValue : undefined,
+    reason: input.action === 'NO_VERIFICABLE' ? input.reason : undefined,
+    author: input.author || 'Administrador',
+    checkedAt: new Date().toISOString(),
+    version,
+  };
+
+  const local = getLocalFindingChecks(applicationId);
+  local[check.field] = check;
+  setLocalFindingChecks(applicationId, local);
+  return { ok: true, data: check };
 }
