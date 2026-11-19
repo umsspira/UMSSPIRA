@@ -1,6 +1,6 @@
 // apps/web/src/features/chat/components/ComposeRequest.tsx
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   searchChatContacts,
   type ChatContact,
@@ -26,13 +26,32 @@ export function ComposeRequest({
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    const timer = setTimeout(() => {
+      void searchChatContacts(query, page)
+        .then((result) => {
+          if (active) {
+            setContacts((current) =>
+              page === 1 ? result.items : [...current, ...result.items],
+            );
+            setHasMore(result.hasMore);
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [query, page]);
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    void searchChatContacts;
     void onCreated;
-    void page;
-    void hasMore;
-    void loading;
   };
 
   return (
