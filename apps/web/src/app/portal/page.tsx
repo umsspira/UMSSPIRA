@@ -106,8 +106,7 @@ const quickLinks = [
   { href: '/portal/empleos', title: 'Bolsa de trabajo', text: 'Encuentra nuevas oportunidades laborales.', Icon: Briefcase, iconStyle: 'bg-blue-50 text-blue-600' },
   { href: '/portal/beneficios', title: 'Beneficios', text: 'Accede a descuentos y convenios exclusivos.', Icon: Star, iconStyle: 'bg-amber-50 text-amber-600' },
   { href: '/portal/comunidad', title: 'Comunidad', text: 'Conecta con otros egresados.', Icon: Users, iconStyle: 'bg-slate-100 text-slate-700' },
-  // HU09 CA-01: acceso rápido a los QR guardados (1 toque desde el inicio).
-  { href: '/mis-pases', title: 'Mis códigos QR', text: 'Abre tus pases QR guardados en el dispositivo.', Icon: QrCode, iconStyle: 'bg-emerald-50 text-emerald-600' },
+
 ];
 
 const normalize = (text: string) =>
@@ -216,24 +215,49 @@ export default function Home() {
         </div>
       )}
 
-      {/* HU09 CA-02: acceso destacado a Mis códigos QR al abrir la PWA sin conexión,
-          visible sin tener que recorrer el menú ni hacer scroll. */}
-      {!isOnline && (
+      <section
+        aria-label="Accesos principales"
+        data-testid="home-primary-actions"
+        className="grid gap-3 sm:grid-cols-2"
+      >
         <Link
           href="/mis-pases"
-          data-testid="home-offline-qr-access"
-          className="flex min-h-[56px] items-center gap-3 rounded-2xl bg-[#1B2632] px-5 py-4 text-[#EEE9DF] shadow-md transition-colors hover:bg-[#2C3B4D]"
+          data-testid={isOnline ? 'home-online-qr-access' : 'home-offline-qr-access'}
+          className="flex min-h-[60px] items-center gap-3 rounded-2xl bg-[#1B2632] px-5 py-4 text-[#EEE9DF] shadow-md transition-colors hover:bg-[#2C3B4D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB162]"
         >
-          <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFB162] text-[#1B2632]">
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFB162] text-[#1B2632]"
+          >
             <QrCode className="h-5 w-5" />
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-bold">Mis códigos QR</span>
-            <span className="block text-xs opacity-85">Disponibles en este dispositivo, incluso sin conexión.</span>
+            <span className="block text-xs opacity-85">
+              {isOnline
+                ? 'Abre tus pases guardados en este dispositivo.'
+                : 'Tus pases guardados están disponibles sin conexión.'}
+            </span>
           </span>
           <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-[#FFB162]" aria-hidden="true" />
         </Link>
-      )}
+        {isOnline && (
+          <Link
+            href="/portal/eventos"
+            data-testid="home-online-events-access"
+            className="flex min-h-[60px] items-center gap-3 rounded-2xl border border-[#C9C1B1] bg-white px-5 py-4 text-slate-900 shadow-sm transition-colors hover:bg-[#FCFAF5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B44735]"
+          >
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+              <Calendar className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold">Explorar eventos</span>
+              <span className="block text-xs text-slate-600">Encuentra actividades y abre tus pases confirmados.</span>
+            </span>
+            <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
+          </Link>
+        )}
+      </section>
 
       {/* Banner principal */}
       {/* Añadimos relative al section para posicionar la etiqueta */}
@@ -329,7 +353,7 @@ export default function Home() {
       )}
 
       {filteredQuickLinks.length > 0 && (
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-stretch">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
           {filteredQuickLinks.map(({ href, title, text, Icon, iconStyle }) => (
             <Link
               key={href}
