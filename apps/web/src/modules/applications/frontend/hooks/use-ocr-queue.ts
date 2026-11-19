@@ -1,8 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { OcrJob } from "@umsspira/shared-types";
+import type { OcrJob, OcrFailure } from "@umsspira/shared-types";
 import { authenticatedFetch } from "@/shared/services/auth-session";
-import { ocrRequest } from "../services/ocr-api";
+import { ocrRequest, OcrHttpError } from "../services/ocr-api";
+import {
+  ocrFailure,
+  OcrInterruptedError,
+  OcrTimeoutError,
+} from "../services/ocr-errors";
 import { readOcrDocument, disposeOcrEngine } from "../services/ocr-browser";
 import {
   acknowledgeOcrPriorities,
@@ -25,6 +30,7 @@ function isOcrJob(value: unknown): value is OcrJob {
     Number.isFinite(Date.parse(job.expiresAt))
   );
 }
+const inboxHidden = () => document.visibilityState === "hidden";
 
 export function useOcrQueue() {
   const [message, setMessage] = useState("Buscando respaldos pendientes…");
@@ -37,7 +43,7 @@ export function useOcrQueue() {
     const wake = () => {
       if (document.visibilityState === "hidden") {
         active?.abort(
-          new Error(
+          new OcrInterruptedError(
             "Lectura pausada al ocultar la bandeja; se retomará automáticamente.",
           ),
         );
@@ -64,14 +70,15 @@ export function useOcrQueue() {
           setMessage("No se pudo iniciar la lectura. Se reintentará.");
       } finally {
         running = false;
-        if (!lifetime.signal.aborted)
-          timer = setTimeout(run, retryMs);
+        if (!lifetime.signal.aborted) timer = setTimeout(run, retryMs);
       }
     };
     const processNext = async () => {
       let job: OcrJob | null = null;
       let heartbeat: ReturnType<typeof setInterval> | undefined;
       let deadline: ReturnType<typeof setTimeout> | undefined;
+      let stage: OcrFailure["stage"] = "document";
+      let reported = false;
       try {
         if (document.visibilityState === "hidden" || lifetime.signal.aborted)
           return;
@@ -92,6 +99,10 @@ export function useOcrQueue() {
           selected === -1 ? priorities : priorities.slice(0, selected + 1),
         );
         if (lifetime.signal.aborted) return;
+        if (job && inboxHidden())
+          throw new OcrInterruptedError(
+            "La bandeja se ocultó mientras se reservaba el trabajo.",
+          );
         retryMs = 15000;
         if (!job) {
           setMessage(
@@ -111,13 +122,18 @@ export function useOcrQueue() {
             { token: reserved.token },
             processing.signal,
           )
-            .catch(() => processing.abort(new Error("Se perdió la reserva.")))
+            .catch((error: unknown) =>
+              processing.abort(ocrFailure(error, "renew")),
+            )
             .finally(() => {
               renewing = false;
             });
         }, 25000);
         deadline = setTimeout(
-          () => processing.abort(new Error("Se agotó el tiempo de lectura.")),
+          () =>
+            processing.abort(
+              new OcrTimeoutError("Se agotó el tiempo de lectura."),
+            ),
           150000,
         );
         const blob = await withOcrDeadline(
@@ -131,19 +147,20 @@ export function useOcrQueue() {
                 signal,
               },
             );
-            if (!response.ok)
-              throw new Error("No se pudo descargar el respaldo reservado.");
+            if (!response.ok) throw new OcrHttpError(response.status);
             return response.blob();
           },
           processing.signal,
           30000,
         );
+        stage = "engine";
         const reading = await readOcrDocument(
           blob,
           processing.signal,
           setMessage,
         );
         processing.signal.throwIfAborted();
+        stage = "complete";
         await ocrRequest(
           `ocr/${job.id}/complete`,
           { token: job.token, reading },
@@ -156,29 +173,39 @@ export function useOcrQueue() {
         window.dispatchEvent(new Event("umsspira:ocr-updated"));
       } catch (error) {
         clearInterval(heartbeat);
+        const interrupted =
+          lifetime.signal.aborted || error instanceof OcrInterruptedError;
+        const failure = ocrFailure(error, stage);
         active?.abort();
         if (!lifetime.signal.aborted) {
           // A bad document must not pause every other pending request for minutes.
           retryMs = job ? 1000 : Math.min(Math.max(retryMs * 2, 15000), 120000);
           setMessage(
-            error instanceof Error
-              ? error.message
-              : "Lectura no disponible. Continúa con revisión manual.",
+            interrupted
+              ? "Lectura pausada; se retomará al volver a la bandeja."
+              : job
+                ? failure.message
+                : error instanceof Error
+                  ? error.message
+                  : failure.message,
           );
-          if (job) {
-            await ocrRequest(
-              `ocr/${job.id}/fail`,
-              { token: job.token },
-              lifetime.signal,
-            ).catch(() => undefined);
-            window.dispatchEvent(new Event("umsspira:ocr-updated"));
-          }
+        }
+        if (job) {
+          reported = true;
+          await ocrRequest(
+            `ocr/${job.id}/${interrupted ? "release" : "fail"}`,
+            {
+              token: job.token,
+              ...(!interrupted ? { failure: failure.failure } : {}),
+            },
+          ).catch(() => undefined);
+          window.dispatchEvent(new Event("umsspira:ocr-updated"));
         }
       } finally {
         clearInterval(heartbeat);
         clearTimeout(deadline);
-        if (job && lifetime.signal.aborted)
-          await ocrRequest(`ocr/${job.id}/fail`, { token: job.token }).catch(
+        if (job && lifetime.signal.aborted && !reported)
+          await ocrRequest(`ocr/${job.id}/release`, { token: job.token }).catch(
             () => undefined,
           );
         active = undefined;

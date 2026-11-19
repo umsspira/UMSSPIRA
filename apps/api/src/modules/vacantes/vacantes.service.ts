@@ -1,9 +1,21 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
+import { BusinessRuleError } from '../../shared/errors/business-rule-error';
 
 // HU-04: códigos de etapa. El front traduce a etiquetas ("En revisión", etc.).
 export const ETAPAS_POSTULACION = ['postulado', 'en_revision', 'preseleccionado', 'entrevista', 'descartado'] as const;
 export type EtapaPostulacion = (typeof ETAPAS_POSTULACION)[number];
+
+const ESTADOS_VACANTE_DISPONIBLE = ['PUBLICADO', 'PUBLICADA', 'ACTIVA', 'ACTIVO', 'ACTIVE', 'PUBLISHED'];
+
+function vacanteDisponible(estado: string | null): boolean {
+  return ESTADOS_VACANTE_DISPONIBLE.includes(estado?.trim().toUpperCase() ?? '');
+}
 
 export interface UpdateVacanteData {
   titulo?: string;
@@ -16,6 +28,102 @@ export interface UpdateVacanteData {
 @Injectable()
 export class VacantesService {
   constructor(private prisma: PrismaService) {}
+
+  async estadoPostulacion(idVacante: string, idUsuario: string) {
+    const titulado = await this.prisma.titulado.findFirst({
+      where: { id_usuario: idUsuario },
+      select: { id: true },
+    });
+    if (!titulado) {
+      throw new ForbiddenException('Solo un titulado puede postularse');
+    }
+
+    const postulacion = await this.prisma.postulacion.findFirst({
+      where: { id_usuario: idUsuario, id_vacante: idVacante },
+      select: { id: true },
+    });
+    return { postulada: Boolean(postulacion) };
+  }
+
+  async postular(idVacante: string, idUsuario: string) {
+    const titulado = await this.prisma.titulado.findFirst({
+      where: { id_usuario: idUsuario },
+      select: {
+        id: true,
+        formacion_academica_registros: { select: { id: true }, take: 1 },
+        experiencia_laboral_registros: { select: { id: true }, take: 1 },
+        certificacion_registros: { select: { id: true }, take: 1 },
+        proyecto_registros: { select: { id: true }, take: 1 },
+        perfil_area_registros: {
+          where: { descripcion_profesional: { not: null } },
+          select: { id: true, descripcion_profesional: true },
+          take: 1,
+        },
+      },
+    });
+    if (!titulado) {
+      throw new ForbiddenException('Solo un titulado puede postularse');
+    }
+
+    const previous = await this.prisma.postulacion.findFirst({
+      where: { id_usuario: idUsuario, id_vacante: idVacante },
+      select: { id: true },
+    });
+    if (previous) {
+      return { postulada: true, yaExistia: true };
+    }
+
+    const perfilCompleto =
+      titulado.formacion_academica_registros.length > 0 &&
+      titulado.experiencia_laboral_registros.length > 0 &&
+      titulado.certificacion_registros.length > 0 &&
+      titulado.proyecto_registros.length > 0 &&
+      Boolean(titulado.perfil_area_registros[0]?.descripcion_profesional?.trim());
+    if (!perfilCompleto) {
+      throw new BusinessRuleError(
+        'conflict',
+        'PROFILE_INCOMPLETE',
+        'Completa tu perfil para postularte',
+      );
+    }
+
+    const vacante = await this.prisma.vacante.findUnique({
+      where: { id: idVacante },
+      select: { id: true, estado: true, fecha_cierre: true },
+    });
+    const estado = String(vacante?.estado ?? '').trim().toUpperCase();
+    const disponible = ['PUBLICADA', 'PUBLICADO', 'ACTIVA', 'ACTIVO'].includes(estado)
+      && (!vacante?.fecha_cierre || vacante.fecha_cierre.getTime() > Date.now());
+    if (!vacante || !disponible) {
+      throw new BusinessRuleError(
+        'conflict',
+        'JOB_POSTING_UNAVAILABLE',
+        'Esta vacante ya no está disponible',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Bloqueo por par Titulado/Vacante: dos solicitudes simultáneas solo pueden crear una fila.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${idUsuario}), hashtext(${idVacante}))`;
+      const existing = await tx.postulacion.findFirst({
+        where: { id_usuario: idUsuario, id_vacante: idVacante },
+        select: { id: true },
+      });
+      if (existing) {
+        return { postulada: true, yaExistia: true };
+      }
+
+      await tx.postulacion.create({
+        data: {
+          id_usuario: idUsuario,
+          id_vacante: idVacante,
+          estado: 'postulado',
+          created_at: new Date(),
+        },
+      });
+      return { postulada: true, yaExistia: false };
+    });
+  }
 
   async obtenerMisVacantes(idUsuario: string) {
     const empresa = await this.prisma.empresa.findFirst({
@@ -40,6 +148,79 @@ export class VacantesService {
     return this.prisma.vacante.findFirst({
       where: { id: idVacante, id_empresa: empresa.id }
     });
+  }
+
+  async listarMisPostulaciones(idUsuario: string) {
+    const filas = await this.prisma.postulacion.findMany({
+      where: { id_usuario: idUsuario },
+      orderBy: [{ created_at: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }],
+      select: {
+        id: true,
+        created_at: true,
+        porcentaje_match: true,
+        vacante: {
+          select: {
+            id: true,
+            titulo: true,
+            estado: true,
+            empresa: { select: { razon_social: true } },
+          },
+        },
+      },
+    });
+
+    return filas.map((fila) => {
+      const porcentaje = fila.porcentaje_match === null ? null : Number(fila.porcentaje_match);
+      return {
+        id: fila.id,
+        vacancyId: fila.vacante?.id ?? null,
+        vacancyTitle: fila.vacante?.titulo ?? null,
+        companyName: fila.vacante?.empresa?.razon_social ?? null,
+        appliedAt: fila.created_at?.toISOString() ?? null,
+        matchPercentage:
+          porcentaje !== null && Number.isFinite(porcentaje) && porcentaje >= 0 && porcentaje <= 100
+            ? porcentaje
+            : null,
+        isVacancyAvailable: vacanteDisponible(fila.vacante?.estado ?? null),
+      };
+    });
+  }
+
+  async obtenerOfertaParaTitulado(idVacante: string, idUsuario: string) {
+    const vacante = await this.prisma.vacante.findFirst({
+      where: {
+        id: idVacante,
+        OR: [
+          { estado: { in: ESTADOS_VACANTE_DISPONIBLE } },
+          { postulacion_registros: { some: { id_usuario: idUsuario } } },
+        ],
+      },
+      select: {
+        id: true,
+        titulo: true,
+        descripcion_tecnica: true,
+        modalidad: true,
+        nivel_experiencia: true,
+        estado: true,
+        created_at: true,
+        empresa: { select: { razon_social: true } },
+      },
+    });
+
+    if (!vacante) {
+      throw new NotFoundException('Vacante no encontrada');
+    }
+
+    return {
+      id: vacante.id,
+      title: vacante.titulo,
+      companyName: vacante.empresa?.razon_social ?? null,
+      description: vacante.descripcion_tecnica,
+      modality: vacante.modalidad,
+      experienceLevel: vacante.nivel_experiencia,
+      publishedAt: vacante.created_at?.toISOString() ?? null,
+      isAvailable: vacanteDisponible(vacante.estado),
+    };
   }
 
   async cerrarVacante(idVacante: string) {

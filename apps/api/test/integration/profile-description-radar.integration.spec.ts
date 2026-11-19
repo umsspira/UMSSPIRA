@@ -42,6 +42,7 @@ describe('Radar y descripción vigente de perfil_area', () => {
     textReader = new PrismaProfileTextReaderAdapter(prisma as unknown as PrismaService);
     radarRepository = new PrismaRadarRepository(prisma as unknown as PrismaService);
     extractor = new StubKeywordExtractor();
+    // El caso de uso recibe además los pesos por área desde la base (refactor 0a51cf5f)
     recalculate = new RecalculateRadarUseCase(
       extractor,
       radarRepository,

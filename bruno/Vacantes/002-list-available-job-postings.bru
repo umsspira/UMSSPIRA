@@ -1,0 +1,24 @@
+meta {
+  name: Listar vacantes disponibles
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/job-postings
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Lista las vacantes que siguen publicadas y no han vencido según fecha_cierre.
+  Responde { "data": [] } si no hay vacantes disponibles.
+}

@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
-import type { OcrAnalysis, OcrJob } from '@umsspira/shared-types';
+import type { OcrAnalysis, OcrJob, OcrFailure } from '@umsspira/shared-types';
 import { scopedApplication } from '../../infrastructure/repositories/prisma-applications.repository';
 
 export type JobRow = {
@@ -31,6 +31,7 @@ const stale = () =>
 
 @Injectable()
 export class OcrService {
+  private readonly logger = new Logger(OcrService.name);
   constructor(private readonly prisma: PrismaService) {}
 
   async claim(actor: ActorContext, applicationIds: string[] = []): Promise<OcrJob | null> {
@@ -140,14 +141,74 @@ export class OcrService {
     });
   }
 
-  fail(actor: ActorContext, id: string, token: string) {
-    return this.withLease(actor, id, token, async (tx) => {
+  async fail(actor: ActorContext, id: string, token: string, failure?: OcrFailure) {
+    const stages = {
+      document: 'descargar el respaldo',
+      engine: 'cargar el motor OCR',
+      read: 'leer el documento',
+      complete: 'guardar el resultado',
+      renew: 'renovar la reserva',
+    };
+    const message = failure
+      ? `No se pudo ${stages[failure.stage]} [${failure.code}${failure.status ? ` HTTP ${failure.status}` : ''}]. Se permite continuar con revisión manual.`
+      : 'No se pudo leer el respaldo. Se permite continuar con revisión manual.';
+    const result = await this.withLease(actor, id, token, async (tx) => {
       await tx.$executeRaw`UPDATE ocr_trabajo SET estado=CASE WHEN intentos>=3 THEN 'FALLIDO' ELSE 'PENDIENTE' END,
-        error='No se pudo leer el respaldo. Se permite continuar con revisión manual.',
+        error=${message},
         finalizado_en=CASE WHEN intentos>=3 THEN now() ELSE NULL END,reserva_token=NULL,
         reserva_hasta=CASE WHEN intentos>=3 THEN NULL ELSE clock_timestamp()+interval '30 seconds' END WHERE id=${id}::uuid`;
       return { saved: true };
     });
+    this.logger.warn(JSON.stringify({ event: 'ocr_failed', jobId: id, ...failure }));
+    return result;
+  }
+
+  release(actor: ActorContext, id: string, token: string) {
+    return this.withLease(actor, id, token, async (tx) => {
+      // A deliberate pause is not a failed document. A crashed browser still expires normally.
+      await tx.$executeRaw`UPDATE ocr_trabajo SET estado='PENDIENTE', intentos=GREATEST(intentos-1,0),
+        error=NULL, finalizado_en=NULL, reserva_token=NULL, reservado_por=NULL,
+        reserva_hasta=NULL WHERE id=${id}::uuid`;
+      return { saved: true };
+    });
+  }
+
+  retry(actor: ActorContext, id: string) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const [identity] = await tx.$queryRaw<{ id_solicitud: string }[]>`
+        SELECT id_solicitud FROM ocr_trabajo WHERE id=${id}::uuid`;
+        if (!identity) {
+          throw stale();
+        }
+        // Same lock order as claim/complete and re-submission: application, then job.
+        await tx.$queryRaw`SELECT id FROM solicitud WHERE id=${identity.id_solicitud}::uuid FOR UPDATE`;
+        const application = await tx.solicitud.findFirst({
+          where: scopedApplication(actor, identity.id_solicitud),
+        });
+        if (!application || !['PENDIENTE', 'PENDING'].includes(application.estado ?? '')) {
+          throw stale();
+        }
+        const [job] = await tx.$queryRaw<JobRow[]>`
+        SELECT * FROM ocr_trabajo WHERE id=${id}::uuid
+          AND revision=${application.version_vigente}
+          AND id_documento=${application.id_documento_respaldo}::uuid
+          AND (estado='FALLIDO' OR (estado='EN_CURSO' AND intentos>=3 AND reserva_hasta<=clock_timestamp()))
+          AND NOT EXISTS (SELECT 1 FROM ocr_resultado WHERE id_trabajo=${id}::uuid)
+        FOR UPDATE`;
+        if (!job) {
+          throw new BusinessRuleError(
+            'conflict',
+            'OCR_RETRY_NOT_ALLOWED',
+            'El análisis ya cambió de estado. Vuelve a consultar el expediente.',
+          );
+        }
+        await tx.$executeRaw`UPDATE ocr_trabajo SET estado='PENDIENTE',intentos=0,error=NULL,
+        finalizado_en=NULL,reserva_token=NULL,reservado_por=NULL,reserva_hasta=NULL WHERE id=${id}::uuid`;
+        return { saved: true };
+      },
+      { timeout: 15000 },
+    );
   }
 
   async statuses(actor: ActorContext, ids: string[]) {
@@ -158,7 +219,9 @@ export class OcrService {
       { applicationId: string; status: OcrAnalysis['status']; revision: number }[]
     >(Prisma.sql`
       SELECT s.id AS "applicationId",
-        CASE WHEN j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()
+        CASE WHEN COALESCE(s.estado,'') NOT IN ('PENDIENTE','PENDING') AND j.estado IN ('PENDIENTE','EN_CURSO')
+          THEN 'DESCARTADO'
+          WHEN j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()
           THEN CASE WHEN j.intentos>=3 THEN 'FALLIDO' ELSE 'PENDIENTE' END
           ELSE j.estado END AS status,j.revision FROM solicitud s
       JOIN detalle_solicitud d ON d.id=s.id_detalle_solicitud

@@ -16,6 +16,8 @@ export type TimelineItem = {
   issuer?: string;
   year?: string;
   grade?: string;
+  // HU-18: el respaldo es un PDF o una foto; el visor lo abre según el tipo
+  documentType?: 'pdf' | 'image';
 };
 
 export type TimelineSection = {

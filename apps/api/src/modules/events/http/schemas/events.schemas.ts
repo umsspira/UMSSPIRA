@@ -3,6 +3,9 @@ import type { CreateEventInput, EventInput } from '../../application/contracts/e
 
 export const eventIdSchema = z.uuid();
 export const registrationIdSchema = z.uuid();
+export const recordAttendanceSchema = z.strictObject({
+  qrToken: z.string().min(1).max(255).regex(/^\S+$/u, 'El token QR no admite espacios'),
+});
 export const COVER_PATH = '/api/v1/events/covers/';
 const coverReferenceSchema = z
   .string()

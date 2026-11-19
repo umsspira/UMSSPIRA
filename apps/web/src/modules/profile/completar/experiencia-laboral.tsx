@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Briefcase } from 'lucide-react';
 import { MensajeError, claseCampo } from '@/modules/profile/validation/mensaje-error';
-import { FECHA_MINIMA_EXPERIENCIA, validarRangoFechas } from '@/modules/profile/validation/reglas-perfil';
+import {
+  FECHA_MINIMA_EXPERIENCIA,
+  MENSAJE_MAXIMO_TRABAJOS_ACTUALES,
+  hasMaxCurrentJobs,
+  validarRangoFechas,
+} from '@/modules/profile/validation/reglas-perfil';
 import { ApiError } from '@/shared/services/api-client';
 
 export type Experiencia = {
@@ -18,6 +23,14 @@ type FormularioExperienciaProps = {
   onAgregar: (experiencia: Experiencia) => void | Promise<void>;
   // Avisa cuántos errores hay a la vista, para el contador del encabezado de la sección (HU-02, AC 6)
   onErroresChange?: (errores: number) => void;
+  // Texto del botón de enviar; en Agregar registros es «Guardar en borrador» (HU-13)
+  textoBoton?: string;
+  // Datos con los que arranca el formulario, por ejemplo al editar un borrador (HU-13)
+  valoresIniciales?: Experiencia;
+  // Avisa lo que hay escrito en cada cambio, para subirlo como borrador incompleto (HU-14)
+  onDatosChange?: (datos: Experiencia) => void;
+  // «Cancelar»: limpia el formulario y avisa para cerrar la sección (HU-21, CA-06)
+  onCancelar?: () => void;
 };
 
 type Datos = {
@@ -41,9 +54,24 @@ function mostrarFecha(fecha: string) {
   return `${mes}/${anio}`;
 }
 
-export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange }: FormularioExperienciaProps) {
-  const [datos, setDatos] = useState<Datos>(VACIO);
-  const [trabajoActual, setTrabajoActual] = useState(false);
+export function FormularioExperiencia({
+  experiencias,
+  onAgregar,
+  onErroresChange,
+  textoBoton = 'Agregar experiencia',
+  valoresIniciales,
+  onDatosChange,
+  onCancelar,
+}: FormularioExperienciaProps) {
+  const [datos, setDatos] = useState<Datos>(
+    valoresIniciales ? { ...valoresIniciales, fechaFin: valoresIniciales.fechaFin ?? '' } : VACIO,
+  );
+  // Sin fecha fin = trabajo actual; un borrador incompleto puede traer la fecha fin vacía ('') sin serlo (HU-14)
+  const [trabajoActual, setTrabajoActual] = useState(Boolean(valoresIniciales && valoresIniciales.fechaFin === undefined));
+  useEffect(
+    () => onDatosChange?.({ ...datos, fechaFin: trabajoActual ? undefined : datos.fechaFin }),
+    [datos, trabajoActual, onDatosChange],
+  );
   // Error de la fecha fin (anterior a la fecha inicio); una vez mostrado se recalcula mientras se corrige
   const [errorFechaFin, setErrorFechaFin] = useState<string>();
   // Mensaje del backend al guardar, tal como lo envía; se quita al cambiar cualquier campo
@@ -54,6 +82,9 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
   const [guardando, setGuardando] = useState(false);
   const completo = CAMPOS.every((campo) => (campo.nombre === 'fechaFin' && trabajoActual) || datos[campo.nombre].trim() !== '',
   );
+
+  // HU-21 CA-09: con 2 trabajos actuales ya guardados no se puede marcar un tercero
+  const casillaActualBloqueada = hasMaxCurrentJobs(experiencias.filter((experiencia) => !experiencia.fechaFin).length);
 
   const ordenadas = [...experiencias].sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio));
 
@@ -79,6 +110,14 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
     } finally {
       setGuardando(false);
     }
+  }
+
+  function cancelar() {
+    setDatos(VACIO);
+    setTrabajoActual(false);
+    setErrorFechaFin(undefined);
+    setErrorGuardar(undefined);
+    onCancelar?.();
   }
 
   function cambiar(campo: keyof Datos, valor: string) {
@@ -151,20 +190,32 @@ export function FormularioExperiencia({ experiencias, onAgregar, onErroresChange
               setErrorFechaFin(undefined);
               setErrorGuardar(undefined);
             }}
-            className="h-4 w-4 accent-[#A35139]"
+            disabled={casillaActualBloqueada}
+            aria-describedby={casillaActualBloqueada ? 'aviso-trabajos-actuales' : undefined}
+            className="h-4 w-4 accent-[#A35139] disabled:cursor-not-allowed disabled:opacity-50"
           />
           Actualmente trabajo aquí
         </label>
+      {casillaActualBloqueada && (
+        <p id="aviso-trabajos-actuales" className="-mt-2 text-xs text-[#A35139]">
+          {MENSAJE_MAXIMO_TRABAJOS_ACTUALES}
+        </p>
+      )}
 
       <MensajeError id="error-experiencia-guardar" mensaje={errorGuardar} />
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+          {onCancelar && (
+            <button type="button" onClick={cancelar} disabled={guardando} className="inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-medium text-[#2C3B4D] hover:bg-[#EEE9DF] disabled:cursor-not-allowed disabled:opacity-50">
+              Cancelar
+            </button>
+          )}
           <button
             type="submit"
             disabled={!completo || guardando}
             className="h-11 rounded-lg bg-[#FFB162] px-6 text-sm font-semibold text-[#1B2632] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Agregar experiencia
+            {textoBoton}
           </button>
         </div>
       </form>

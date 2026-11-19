@@ -7,7 +7,7 @@ import ProfileSummary from '@/modules/profile/ver/profile-summary';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
 }));
 
 // Prueba punta a punta de la HU-06 (T6.7): pantallas reales, estado compartido y servicio real;
@@ -22,6 +22,9 @@ const PERFIL = {
   },
   certificaciones: {
     registros: [{ ...base, id: 'c-1', nombre: 'AWS', entidadEmisora: 'Amazon', grado: 'Profesional', anioEmision: 2022, respaldo: { tieneRespaldo: false } }],
+  },
+  proyectos: {
+    registros: [{ ...base, id: 'p-1', nombre: 'Portafolio', enlace: 'https://mi-sitio.dev', descripcion: 'Mis trabajos', tecnologias: null }],
   },
   descripcionProfesional: '',
 };
@@ -74,16 +77,17 @@ describe('HU-06 de punta a punta: descripción profesional y completitud (T6.7)'
     clearAccessToken();
   });
 
-  it('sin descripción el perfil está al 75%, el acceso directo lleva a la sección y al guardar llega al 100%', async () => {
+  it('sin descripción el perfil está al 80%, el acceso directo lleva a la sección y al guardar llega al 100%', async () => {
     renderPerfil();
 
     // 1) El resumen carga el perfil real y marca la descripción como faltante
-    expect(await within(await screen.findByRole('region', { name: 'Completitud del perfil' })).findByText('75%')).toBeInTheDocument();
+    expect(await within(await screen.findByRole('region', { name: 'Completitud del perfil' })).findByText('80%')).toBeInTheDocument();
     expect(within(indicador()).getByRole('link', { name: 'Completar Descripción' })).toHaveAttribute(
       'href',
       '/profile/completar?seccion=descripcion-profesional&returnTo=%2Fprofile',
     );
-    expect(screen.getByText('3 de 4 secciones completas')).toBeInTheDocument();
+    // El texto de Completar perfil es un span; el resumen repite el conteo en su tarjeta (T21.5)
+    expect(screen.getByText('4 de 5 secciones completas', { selector: 'span' })).toBeInTheDocument();
 
     // 2) La sección del acceso directo llega abierta; se escribe y se guarda
     const cuadro = screen.getByRole('textbox', { name: 'Descripción profesional' });
@@ -101,14 +105,15 @@ describe('HU-06 de punta a punta: descripción profesional y completitud (T6.7)'
     expect(screen.getByText('Ingeniero de sistemas con foco en datos', { selector: 'p' })).toBeInTheDocument();
     expect(within(indicador()).getByText('100%')).toBeInTheDocument();
     expect(within(indicador()).getByText('Tu perfil está completo')).toBeInTheDocument();
-    expect(screen.getByText('4 de 4 secciones completas')).toBeInTheDocument();
+    expect(screen.getByText('5 de 5 secciones completas', { selector: 'span' })).toBeInTheDocument();
+    expect(within(indicador()).getByText('5 de 5 secciones completas')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', '/profile');
   });
 
-  it('si el guardado falla se ve el error, el texto se conserva y el perfil sigue al 75%', async () => {
+  it('si el guardado falla se ve el error, el texto se conserva y el perfil sigue al 80%', async () => {
     falloAlGuardar = true;
     renderPerfil();
-    await within(await screen.findByRole('region', { name: 'Completitud del perfil' })).findByText('75%');
+    await within(await screen.findByRole('region', { name: 'Completitud del perfil' })).findByText('80%');
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Descripción profesional' }), { target: { value: 'Texto importante' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
@@ -116,7 +121,7 @@ describe('HU-06 de punta a punta: descripción profesional y completitud (T6.7)'
     expect(await screen.findByText('No se pudo guardar la descripción')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Descripción profesional' })).toHaveValue('Texto importante');
     expect(screen.queryByText('Descripción guardada')).not.toBeInTheDocument();
-    expect(within(indicador()).getByText('75%')).toBeInTheDocument();
+    expect(within(indicador()).getByText('80%')).toBeInTheDocument();
   });
 
   it('una descripción ya guardada aparece en el cuadro y en el resumen, con el perfil al 100%', async () => {
