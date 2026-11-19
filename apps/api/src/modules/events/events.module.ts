@@ -34,6 +34,10 @@ import { ValidateAttendancePassService } from './application/validate-attendance
 import { CertificateTemplateController } from './http/controllers/certificate-template.controller';
 import { certificateTemplatesProviders } from './infrastructure/providers/certificate-templates.providers';
 
+import { GenerateCertificatesController } from './http/controllers/generate-certificates.controller';
+import { GenerateCertificatesService } from './application/generate-certificates.service';
+// 👉 ESTA ES LA LÍNEA QUE FALTABA:
+import { PrismaCertificatesRepository } from './infrastructure/repositories/prisma-certificates.repository';
 
 @Module({
   imports: [PrismaModule, AuthModule, NotificationsModule],
@@ -62,6 +66,7 @@ import { certificateTemplatesProviders } from './infrastructure/providers/certif
     ValidateAttendancePassController,
     EventPassesController,
     CancelPublishedEventController,
+    GenerateCertificatesController, 
   ],
   providers: [
     ScheduledEventPublicationWorker,
@@ -71,6 +76,8 @@ import { certificateTemplatesProviders } from './infrastructure/providers/certif
     GenerateEventPassService,
     ListUserPassesService,
     ValidateAttendancePassService,
+    GenerateCertificatesService, 
+    PrismaCertificatesRepository, // 👈 Y HABÍA QUE REGISTRARLO AQUÍ
   ],
 })
 export class EventsModule {}
