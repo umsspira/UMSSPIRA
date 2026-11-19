@@ -36,7 +36,9 @@ export class OcrResultsService {
     }
     const rows = await this.prisma.$queryRaw<(JobRow & { resultado: OcrResult | null })[]>`
       SELECT j.*,r.resultado,
-        CASE WHEN j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()
+        CASE WHEN COALESCE(${application.estado},'') NOT IN ('PENDIENTE','PENDING') AND j.estado IN ('PENDIENTE','EN_CURSO')
+          THEN 'DESCARTADO'
+          WHEN j.estado='EN_CURSO' AND j.reserva_hasta <= clock_timestamp()
           THEN CASE WHEN j.intentos>=3 THEN 'FALLIDO' ELSE 'PENDIENTE' END
           ELSE j.estado END AS estado
       FROM ocr_trabajo j LEFT JOIN ocr_resultado r ON r.id_trabajo=j.id
@@ -48,9 +50,10 @@ export class OcrResultsService {
       current: row.revision === application.version_vigente,
       createdAt: row.creado_en.toISOString(),
       completedAt: row.finalizado_en?.toISOString() ?? null,
-      error: row.estado === 'FALLIDO'
-        ? row.error ?? 'Se agotaron los reintentos. Continúa con revisión manual.'
-        : row.error,
+      error:
+        row.estado === 'FALLIDO'
+          ? (row.error ?? 'Se agotaron los reintentos. Continúa con revisión manual.')
+          : row.error,
       result: row.resultado,
     }));
   }
