@@ -84,7 +84,7 @@ export default function MyPassesPage() {
       <div className="events-app min-h-screen p-4 md:p-8">
         <div className="max-w-4xl mx-auto space-y-8">
           <h1 className="font-bold text-[32px] mb-8">
-            Mis Credenciales
+            Mis códigos QR
           </h1>
 
           {/* HU09: acceso directo a los QR guardados en este dispositivo */}
@@ -141,6 +141,7 @@ export default function MyPassesPage() {
                             {offline.eventDetails.location}
                           </span>
                         </span>
+                        <span className="shrink-0 text-sm font-semibold text-emerald-700">{isSelected ? 'Ocultar QR' : 'Ver QR'}</span>
                         <QrCode
                           className="h-5 w-5 shrink-0 text-emerald-600"
                           aria-hidden="true"
