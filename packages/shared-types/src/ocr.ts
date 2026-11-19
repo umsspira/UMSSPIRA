@@ -4,6 +4,11 @@ export type OcrLine = {
   page: number;
   box?: number[][];
 };
+export type OcrFailure = {
+  stage: "document" | "engine" | "read" | "complete" | "renew";
+  code: "HTTP_ERROR" | "NETWORK_ERROR" | "TIMEOUT" | "PROCESSING_ERROR";
+  status?: number;
+};
 export type OcrReading = {
   lines: OcrLine[];
   pagesRead: number;

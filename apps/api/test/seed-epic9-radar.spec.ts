@@ -13,16 +13,13 @@ import {
 describe('Seed de radar para Ingeniería de Sistemas', () => {
   it('prepara cohortes grandes y pequeñas, con un área realmente ausente en la cohorte 2025', () => {
     const graduatesById = new Map(systemsRadarGraduates.map((graduate) => [graduate.id, graduate]));
-    const cohortCounts = systemsRadarGraduates.reduce(
-      (counts, graduate) => {
-        const cohort = graduate.anio_egreso;
-        if (cohort !== null && cohort !== undefined) {
-          counts.set(cohort, (counts.get(cohort) ?? 0) + 1);
-        }
-        return counts;
-      },
-      new Map<number, number>(),
-    );
+    const cohortCounts = systemsRadarGraduates.reduce((counts, graduate) => {
+      const cohort = graduate.anio_egreso;
+      if (cohort !== null && cohort !== undefined) {
+        counts.set(cohort, (counts.get(cohort) ?? 0) + 1);
+      }
+      return counts;
+    }, new Map<number, number>());
     expect([...cohortCounts]).toEqual([
       [2021, 8],
       [2022, 8],
@@ -45,7 +42,9 @@ describe('Seed de radar para Ingeniería de Sistemas', () => {
       systemsRadarGraduates.length,
     );
     expect(
-      systemsRadarGraduates.filter(({ id }) => !demoGraduates.some((graduate) => graduate.id === id)),
+      systemsRadarGraduates.filter(
+        ({ id }) => !demoGraduates.some((graduate) => graduate.id === id),
+      ),
     ).toHaveLength(3);
 
     const cohort2025CalculationIds = new Set(
@@ -69,6 +68,13 @@ describe('Seed de radar para Ingeniería de Sistemas', () => {
 
   it('persiste titulados y cálculos con identificadores estables y omite duplicados al repetir la semilla', async () => {
     const database = {
+      $executeRaw: jest.fn().mockResolvedValue(0),
+      $transaction: async (operation: (tx: unknown) => Promise<unknown>) => operation(database),
+      carrera: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ id: DEMO_CAREER_ID, nombre: 'Ingeniería de Sistemas' }]),
+      },
       titulado: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
       reporte: { createMany: jest.fn() },
       encuesta: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },

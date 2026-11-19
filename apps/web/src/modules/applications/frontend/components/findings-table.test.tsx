@@ -35,7 +35,7 @@ describe("FindingsTable", () => {
     expect(screen.getByText("Carrera")).toBeInTheDocument();
     expect(screen.getByText("Coincide")).toBeInTheDocument();
     expect(screen.getByText("2024")).toBeInTheDocument();
-    expect(screen.getByText("No legible")).toBeInTheDocument();
+    expect(screen.getByText("Sin dato comprobable")).toBeInTheDocument();
     expect(screen.getByText("No se pudo comprobar")).toBeInTheDocument();
   });
 

@@ -93,7 +93,7 @@ export const config = { matcher: [
   '/applications/:path*', '/reports/:path*', '/company-registry', '/company-registry/:path*', '/surveys/:path*', '/me/:path*', '/afinidad', '/afinidad/:path*',
   '/empresa/postulantes', '/empresa/postulantes/:path*', '/postulantes', '/postulantes/:path*',
   // Áreas que exigen sesión (el portal institucional /portal/institucional sigue público).
-  '/portal', '/portal/empleos', '/portal/mentorias', '/portal/comunidad', '/portal/beneficios',
+  '/portal', '/portal/empleos', '/portal/empleos/:path*', '/portal/mentorias', '/portal/comunidad', '/portal/beneficios',
   '/portal/eventos', '/portal/eventos/:path*', '/portal/mensajes',
-  '/mentorship', '/mentorship/:path*', '/job-postings',
+  '/mentorship', '/mentorship/:path*', '/job-postings', '/job-postings/:path*', '/my-applications/:path*',
 ] };

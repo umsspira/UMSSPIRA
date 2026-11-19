@@ -61,7 +61,7 @@ export function FindingsTable({
                   {finding.declared || "Sin dato"}
                 </td>
                 <td className="p-2 break-words">
-                  {finding.read || "No legible"}
+                  {finding.read || "Sin dato comprobable"}
                 </td>
                 <td
                   className={`p-2 ${finding.status === "POSIBLE_DIFERENCIA" ? "text-[#A35139]" : ""}`}
