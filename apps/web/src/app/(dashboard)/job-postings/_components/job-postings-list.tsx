@@ -9,7 +9,7 @@ import { Spinner } from '@/shared/components/spinner';
 import { listAvailableJobPostings } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinityWithSkills, loadTituladoSkills, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
 import { jobPostingDetailRoute } from '@/shared/routes/job-postings';
-import { descriptionWithoutRequirements, extractTechnicalRequirements } from '@/shared/utils/job-posting-requirements';
+import { descriptionWithoutRequirements, mergeTechnicalRequirements } from '@/shared/utils/job-posting-requirements';
 
 type ListState =
   | { status: 'loading' }
@@ -61,10 +61,10 @@ function shortDescription(value: string | null): string {
 }
 
 function requirementsFor(posting: AvailableJobPosting): TechnicalRequirement[] {
-  return extractTechnicalRequirements(posting.descripcionTecnica).map((nombre, index) => ({
-    id: `${posting.id}-requirement-${index + 1}`,
-    nombre,
-  }));
+  return mergeTechnicalRequirements(
+    posting.descripcionTecnica,
+    posting.requisitos,
+  );
 }
 
 function affinityBadge(result: VacancyAffinityResult | undefined) {
@@ -77,8 +77,10 @@ function affinityBadge(result: VacancyAffinityResult | undefined) {
         : 'border-amber-300 bg-amber-50 text-amber-800';
     return { text: `${result.percentage}% Afinidad`, className: color };
   }
-  if (result.status === 'insufficient-requirements') return { text: 'Sin requisitos', className: 'border-slate-200 bg-white text-slate-500' };
-  return { text: 'Completa tu perfil', className: 'border-orange-200 bg-orange-50 text-orange-800' };
+  return {
+    text: 'Sin calcular',
+    className: 'border-slate-200 bg-white text-slate-500',
+  };
 }
 
 export function JobPostingsList() {
@@ -146,7 +148,19 @@ export function JobPostingsList() {
         const rightScore = rightResult?.status === 'ready' ? rightResult.percentage : -1;
         if (leftScore !== rightScore) return rightScore - leftScore;
       }
-      return new Date(right.fechaPublicacion ?? 0).getTime() - new Date(left.fechaPublicacion ?? 0).getTime();
+
+      const publicationTime = (value: string | null): number => {
+        const timestamp = value ? Date.parse(value) : 0;
+        return Number.isFinite(timestamp) ? timestamp : 0;
+      };
+
+      const dateDifference =
+        publicationTime(right.fechaPublicacion) -
+        publicationTime(left.fechaPublicacion);
+
+      if (dateDifference !== 0) return dateDifference;
+
+      return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
     });
   }, [postings, query, modality, sortByAffinity, affinityState]);
 
@@ -169,6 +183,14 @@ export function JobPostingsList() {
           <p className="mt-1 max-w-4xl text-sm leading-5 text-slate-600">
             Explora oportunidades laborales adaptadas a tu perfil académico y profesional con cálculo automático de afinidad.
           </p>
+                    <button
+            type="button"
+            disabled={state.status === 'loading'}
+            onClick={() => setRetryCount((count) => count + 1)}
+            className="mt-3 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Actualizar vacantes
+          </button>
         </header>
 
         {state.status === 'loading' && (
@@ -212,7 +234,7 @@ export function JobPostingsList() {
                 <label className="flex min-h-10 items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 text-xs font-semibold text-orange-950">
                   <span aria-hidden="true">✦</span>
                   <span className="sr-only">Ordenar vacantes</span>
-                  <select aria-label="Ordenar vacantes" value={sortByAffinity ? 'affinity' : 'recent'} onChange={(event) => setSortByAffinity(event.target.value === 'affinity')} className="w-full bg-transparent outline-none">
+                  <select aria-label="Ordenar vacantes" disabled={postings.length === 0} value={sortByAffinity ? 'affinity' : 'recent'} onChange={(event) => setSortByAffinity(event.target.value === 'affinity')} className="w-full bg-transparent outline-none">
                     <option value="affinity">Ordenar: mayor afinidad</option>
                     <option value="recent">Ordenar: más recientes</option>
                   </select>
@@ -291,7 +313,7 @@ export function JobPostingsList() {
                           <td className="break-words px-3 py-4 text-slate-700">{posting.empresa ?? 'Empresa no disponible'}</td>
                           <td className="border-x border-orange-100 bg-orange-50/30 px-2 py-4">
                             {affinityState.status === 'error' ? (
-                              <span className="inline-flex whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">No disponible</span>
+                              <span className="inline-flex whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">Sin calcular</span>
                             ) : (
                               (() => {
                                 const badge = affinityBadge(affinityState.status === 'loaded' ? affinityState.results[posting.id] : undefined);
