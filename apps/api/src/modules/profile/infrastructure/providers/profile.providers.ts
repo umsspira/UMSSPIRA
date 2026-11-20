@@ -28,6 +28,8 @@ import {
   ReadProfilePhotoUseCase,
   SaveProfilePhotoUseCase,
 } from '../../application/use-cases/profile-photo.use-case';
+import { UploadCvUseCase } from '../../application/use-cases/upload-cv.use-case';
+import { ReadCvUseCase } from '../../application/use-cases/read-cv.use-case';
 
 export const profileProviders: Provider[] = [
   PrismaProfileRepository,
@@ -122,5 +124,15 @@ export const profileProviders: Provider[] = [
     provide: ReadProfilePhotoUseCase,
     inject: [PROFILE_REPOSITORY],
     useFactory: (repository: ProfileRepository) => new ReadProfilePhotoUseCase(repository),
+  },
+  {
+    provide: UploadCvUseCase,
+    inject: [PROFILE_REPOSITORY],
+    useFactory: (repository: ProfileRepository) => new UploadCvUseCase(repository),
+  },
+  {
+    provide: ReadCvUseCase,
+    inject: [PROFILE_REPOSITORY],
+    useFactory: (repository: ProfileRepository) => new ReadCvUseCase(repository),
   },
 ];

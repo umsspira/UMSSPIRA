@@ -99,5 +99,11 @@ export function presentProfile(profile: ProfileSnapshot) {
     proyectos: section(profile.projects),
     // El resumen y el indicador de completitud del perfil la leen junto con las 3 secciones
     descripcionProfesional: profile.description.text,
+    cv: {
+      tieneArchivo: profile.cv?.hasFile ?? false,
+      nombre: profile.cv?.name ?? null,
+      tamanio: profile.cv?.size ?? null,
+      fechaSubida: profile.cv?.uploadedAt?.toISOString() ?? null,
+    },
   };
 }
