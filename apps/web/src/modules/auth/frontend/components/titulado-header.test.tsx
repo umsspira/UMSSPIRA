@@ -57,11 +57,11 @@ describe("TituladoHeader", () => {
     expect(screen.queryByTestId("profile-photo-badge")).not.toBeInTheDocument();
   });
 
-  it("con foto guardada la muestra en el encabezado", () => {
+  it("con foto guardada no muestra un avatar de foto en el encabezado", () => {
     useProfilePhotoStore.setState({ photoUrl: "blob:foto", status: "ready" });
     render(<TituladoHeader />);
 
-    expect(screen.getByTestId("profile-photo-badge").querySelector("img")).toHaveAttribute("src", "blob:foto");
+    expect(screen.queryByTestId("profile-photo-badge")).not.toBeInTheDocument();
   });
 
   it("marca Mentorías con subrayado naranja dentro del módulo", () => {

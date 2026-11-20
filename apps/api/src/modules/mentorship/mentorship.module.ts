@@ -30,6 +30,8 @@ import { ListReceivedMentorshipRequestsController } from './http/controllers/lis
 import { GetReceivedMentorshipRequestController } from './http/controllers/get-received-mentorship-request.controller';
 import { AcceptMentorshipRequestController } from './http/controllers/accept-mentorship-request.controller';
 import { RejectMentorshipRequestController } from './http/controllers/reject-mentorship-request.controller';
+import { ListMyMentorshipRequestsController } from './http/controllers/list-my-mentorship-requests.controller';
+import { CancelMyMentorshipRequestController } from './http/controllers/cancel-my-mentorship-request.controller';
 import { GetMentorSlotsController } from './http/controllers/get-mentor-slots.controller';
 import { GetMentorOnboardingController } from './http/controllers/get-mentor-onboarding.controller';
 import { SaveMentorOnboardingAreasController } from './http/controllers/save-mentor-onboarding-areas.controller';
@@ -72,6 +74,8 @@ import { DeleteCustomInterestController } from './http/controllers/delete-custom
     GetReceivedMentorshipRequestController,
     AcceptMentorshipRequestController,
     RejectMentorshipRequestController,
+    ListMyMentorshipRequestsController,
+    CancelMyMentorshipRequestController,
     GetMentorSlotsController,
     GetMentorOnboardingController,
     SaveMentorOnboardingAreasController,
