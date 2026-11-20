@@ -1,4 +1,3 @@
-// apps/web/src/app/portal/page.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -15,7 +14,6 @@ import {
   MapPin,
   Clock3,
   QrCode,
-  Settings,
   WifiOff,
   Wifi,
   AlertTriangle,
@@ -24,7 +22,10 @@ import {
 } from 'lucide-react';
 
 import umssBg from '@/shared/assets/images/14sept.webp';
-import { getEventCatalog } from '@/shared/services/events-service';
+import { HomeStatusCards } from '@/features/home/home-status-cards';
+import { homeSectionsAdapter } from '@/features/home/home-sections-adapter';
+import { SectionUnavailable } from '@/shared/components/section-boundary';
+import { useSectionLoader } from '@/shared/hooks/use-section-loader';
 import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
 import type { EventItem } from '@umsspira/shared-types';
 
@@ -115,11 +116,20 @@ const normalize = (text: string) =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
+const NO_EVENTS: EventItem[] = [];
+
 export default function Home() {
   const [query, setQuery] = useState('');
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-  const [eventsError, setEventsError] = useState(false);
+
+  // HU18: la sección de eventos se carga aislada, con límite de 8 s y «Reintentar».
+  const eventsSection = useSectionLoader('home-events', (signal) =>
+    homeSectionsAdapter.loadEvents(signal),
+  );
+  const events = eventsSection.state.status === 'ready' ? eventsSection.state.data : NO_EVENTS;
+  const isLoadingEvents = eventsSection.state.status === 'loading';
+  const eventsError = eventsSection.state.status === 'unavailable';
+  const eventsTimedOut =
+    eventsSection.state.status === 'unavailable' && eventsSection.state.timedOut;
 
   const [isOnline, setIsOnline] = useState(true);
   const [showReconnectedToast, setShowReconnectedToast] = useState(false);
@@ -159,28 +169,6 @@ export default function Home() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  useEffect(() => {
-    let isActive = true;
-
-    void getEventCatalog()
-      .then((catalog) => {
-        if (isActive) {
-          setEvents(catalog);
-          setEventsError(false);
-        }
-      })
-      .catch(() => {
-        if (isActive) setEventsError(true);
-      })
-      .finally(() => {
-        if (isActive) setIsLoadingEvents(false);
-      });
-
-    return () => {
-      isActive = false;
     };
   }, []);
 
@@ -306,6 +294,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* HU18: cada tarjeta es una sección aislada; si una falla, las demás siguen funcionando */}
+      <HomeStatusCards />
+
       {shouldShowStatusCard && (
         <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
           {isOnline ? (
@@ -384,9 +375,11 @@ export default function Home() {
         {isLoadingEvents ? (
           <p role="status" className="text-sm text-slate-500">Cargando eventos publicados…</p>
         ) : eventsError ? (
-          <p role="alert" className="text-sm text-red-700">
-            No se pudieron cargar los eventos. Intenta nuevamente desde el catálogo.
-          </p>
+          <SectionUnavailable
+            title="Próximos eventos"
+            timedOut={eventsTimedOut}
+            onRetry={eventsSection.retry}
+          />
         ) : filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {filteredEvents.slice(0, 3).map((event) => (
@@ -428,22 +421,6 @@ export default function Home() {
           </p>
         )}
       </section>
-
-      <Link
-        href="/portal/configuracion"
-        aria-label="Configuración de la PWA"
-        title="Configuración de la PWA"
-        data-testid="portal-config-button"
-        className="group fixed bottom-4 right-4 z-50 flex h-11 items-center overflow-hidden rounded-full bg-[#1B2632]/60 px-3 text-white shadow-md backdrop-blur-sm transition-all duration-200 hover:bg-[#1B2632] hover:shadow-lg focus-visible:bg-[#1B2632] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 sm:bottom-6 sm:right-6"
-      >
-        <Settings className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <span
-          aria-hidden="true"
-          className="max-w-0 overflow-hidden whitespace-nowrap text-sm font-medium opacity-0 transition-all duration-200 group-hover:ml-2 group-hover:max-w-[8rem] group-hover:opacity-100 group-focus-visible:ml-2 group-focus-visible:max-w-[8rem] group-focus-visible:opacity-100"
-        >
-          Configuración
-        </span>
-      </Link>
 
       {showReconnectedToast && (
         <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
