@@ -165,8 +165,8 @@ export function OcrPanel({
         )}
         {current?.status === "DESCARTADO" && (
           <p className="my-3 text-sm">
-            Este análisis ya no se ejecutará porque la solicitud fue resuelta o el
-            respaldo dejó de estar vigente.
+            Este análisis ya no se ejecutará porque la solicitud fue resuelta o
+            el respaldo dejó de estar vigente.
           </p>
         )}
         {current?.status === "FALLIDO" && (
@@ -192,84 +192,99 @@ export function OcrPanel({
                 <summary className="cursor-pointer underline">
                   Detalle del fallo
                 </summary>
-              <p className="mt-1">{current.error}</p>
-            </details>
-          )}
-          {canRetry && (
-            <button
-              type="button"
-              disabled={retrying || Boolean(error)}
-              onClick={() => void retry()}
-              className="mt-3 rounded border border-[#C9C1B1] px-3 py-2 font-semibold disabled:opacity-50"
-            >
-              {retrying ? "Preparando nuevo intento…" : "Reintentar análisis"}
-            </button>
-          )}
-          {retryError && (
-            <p role="alert" className="mt-2 text-[#A35139]">
-              {retryError}
-            </p>
-          )}
-        </div>
-      )}
-      {current?.result && (
-        <>
-          <p className="font-semibold text-[#1B2632]">
-            {suggestions[current.result.suggestion]}
-          </p>
-          {current.result.suggestion === "REVISION_MANUAL" && (
-            <p className="my-2 text-sm">
-              La lectura terminó. Revisa el respaldo para comprobar los datos
-              que no se pudieron verificar automáticamente.
-            </p>
-          )}
-          <p className="my-2 text-sm">{current.result.reason}</p>
-          <p className="mb-3 text-xs">
-            Versión {current.revision} ·{" "}
-            {current.completedAt &&
-              new Date(current.completedAt).toLocaleString("es-BO", {
-                timeZone: "America/La_Paz",
-              })}{" "}
-            · {current.result.reading.pagesRead}/
-            {current.result.reading.totalPages} páginas
-          </p>
-          {current.result.reading.pagesRead <
-            current.result.reading.totalPages && (
-            <p role="alert" className="mb-2 text-xs text-[#A35139]">
-              Lectura incompleta. Puedes continuar con la revisión manual.
-            </p>
-          )}
-          <FindingsTable
-            findings={current.result.findings}
-            selectedField={selectedField}
-            onSelect={setSelectedField}
-          />
-          <EvidenceViewer
-            finding={
-              current.result.findings.find((f) => f.field === selectedField) ??
-              null
-            }
-            documentUrl={documentUrl}
-          />
-        </>
-      )}
-      {analyses?.some((item) => !item.current) && (
-        <details className="mt-3 text-xs">
-          <summary className="cursor-pointer">Análisis anteriores</summary>
-          {analyses
-            .filter((item) => !item.current)
-            .map((item) => (
-              <p key={item.id} className="mt-2">
-                Antecedente · versión {item.revision}:{" "}
-                {item.result
-                  ? suggestions[item.result.suggestion]
-                  : states[item.status]}{" "}
-                {item.completedAt &&
-                  `· ${new Date(item.completedAt).toLocaleString("es-BO", { timeZone: "America/La_Paz" })}`}
+                <p className="mt-1">{current.error}</p>
+              </details>
+            )}
+            {canRetry && (
+              <button
+                type="button"
+                disabled={retrying || Boolean(error)}
+                onClick={() => void retry()}
+                className="mt-3 rounded border border-[#C9C1B1] px-3 py-2 font-semibold disabled:opacity-50"
+              >
+                {retrying ? "Preparando nuevo intento…" : "Reintentar análisis"}
+              </button>
+            )}
+            {retryError && (
+              <p role="alert" className="mt-2 text-[#A35139]">
+                {retryError}
               </p>
-            ))}
-        </details>
-      )}
+            )}
+          </div>
+        )}
+        {current?.result && (
+          <>
+            <div className={styles.result}>
+              <p>{suggestions[current.result.suggestion]}</p>
+              {current.status === "COMPLETADO" && (
+                <OcrCompatibility
+                  findings={current.result.findings}
+                  partial={
+                    current.result.reading.partial ||
+                    current.result.reading.pagesRead !==
+                      current.result.reading.totalPages
+                  }
+                />
+              )}
+              <details className={styles.reason}>
+                <summary>Motivo de la sugerencia</summary>
+                <p>{current.result.reason}</p>
+              </details>
+            </div>
+            <p className={styles.metadata}>
+              Versión {current.revision} ·{" "}
+              {current.completedAt &&
+                new Date(current.completedAt).toLocaleString("es-BO", {
+                  timeZone: "America/La_Paz",
+                })}{" "}
+              · {current.result.reading.pagesRead}/
+              {current.result.reading.totalPages} páginas
+            </p>
+            {current.result.reading.pagesRead <
+              current.result.reading.totalPages && (
+              <p role="alert" className="mb-2 text-xs text-[#A35139]">
+                Lectura incompleta. Puedes continuar con la revisión manual.
+              </p>
+            )}
+            <FindingsTable
+              findings={current.result.findings}
+              selectedField={selectedField}
+              onSelect={setSelectedField}
+            />
+            {selectedField && (
+              <EvidenceViewer
+                finding={
+                  current.result.findings.find(
+                    (f) => f.field === selectedField,
+                  ) ?? null
+                }
+                documentUrl={documentUrl}
+              />
+            )}
+            {!selectedField && (
+              <p className="mt-3 text-xs text-[#64707B]">
+                Selecciona un campo para consultar su evidencia.
+              </p>
+            )}
+          </>
+        )}
+        {analyses?.some((item) => !item.current) && (
+          <details className="mt-3 text-xs">
+            <summary className="cursor-pointer">Análisis anteriores</summary>
+            {analyses
+              .filter((item) => !item.current)
+              .map((item) => (
+                <p key={item.id} className="mt-2">
+                  Antecedente · versión {item.revision}:{" "}
+                  {item.result
+                    ? suggestions[item.result.suggestion]
+                    : states[item.status]}{" "}
+                  {item.completedAt &&
+                    `· ${new Date(item.completedAt).toLocaleString("es-BO", { timeZone: "America/La_Paz" })}`}
+                </p>
+              ))}
+          </details>
+        )}
       </div>
     </details>
   );
