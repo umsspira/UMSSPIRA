@@ -45,3 +45,71 @@ endpoint de T10.5; persistir porcentaje/fecha corresponde a T10.4.
 HU-11 puede sustituir la política de comparación. La base no equipara Java con
 JavaScript; frente al cálculo web anterior algunos porcentajes pueden bajar.
 Ese cambio debe explicarse al PO y al equipo de HU-11 antes de conectar las pantallas.
+
+## Endpoint de afinidad por lote — T10.5
+
+`POST /api/v1/affinity/batch` valida el request con Zod (1–50 UUIDs, únicos) y responde HTTP 200 con `{ data: [...] }` en el orden de entrada. El endpoint es de solo lectura: no persiste cálculos ni modifica porcentajes/fechas; esas escrituras permanecen en T10.4.
+
+- **`mode: vacancies`**: requiere rol `titulado` y `perfil:self:read`. Se usa exclusivamente el usuario de la sesión. Vacantes deben estar publicadas y no vencidas; una vacante no visible dentro del lote invalida el lote con 403.
+- **`mode: applicants`**: requiere rol `empresa` y `empresas:self:read`. La vacante debe ser propiedad del actor o de una empresa con membresía activa del actor; todas las postulaciones enviadas deben pertenecer a esa vacante. Un recurso fuera de alcance devuelve 403 al lote completo antes del matching.
+- Fallos técnicos no relacionados con el diccionario se aíslan por elemento/perfil y devuelven `result: null`, `error: { code, message, retryable }`. La caída del diccionario se propaga a la respuesta global 503. Como el batch no escribe, nunca deja persistencia parcial.
+- Vacante sin requisitos técnicos devuelve `no-requirements`, con percentage/calculatedAt null. Perfil incompleto se distingue de un perfil completo con `ready` y 0 %.
+
+Los requests y negativos para ambos modos se encuentran en `bruno/Afinidad`.
+
+### Ejemplos de request y response
+
+Titulado:
+```json
+{
+  "mode": "vacancies",
+  "vacancyIds": ["00000000-0000-4000-8000-000000000001"]
+}
+```
+
+Empresa:
+```json
+{
+  "mode": "applicants",
+  "vacancyId": "00000000-0000-4000-8000-000000000001",
+  "applicationIds": ["00000000-0000-4000-8000-000000000002"]
+}
+```
+
+Resultado exitoso (el modo empresa agrega `applicationId`):
+```json
+{
+  "data": [
+    {
+      "vacancyId": "00000000-0000-4000-8000-000000000001",
+      "applicationId": "00000000-0000-4000-8000-000000000002",
+      "result": {
+        "status": "ready",
+        "percentage": 75,
+        "calculatedAt": "2026-11-20T12:00:00.000Z",
+        "comparison": []
+      },
+      "error": null
+    }
+  ]
+}
+```
+
+Fallo individual (el elemento mantiene su identidad y el resto del batch puede devolver resultados):
+```json
+{
+  "data": [
+    {
+      "vacancyId": "00000000-0000-4000-8000-000000000001",
+      "result": null,
+      "error": {
+        "code": "AFFINITY_CALCULATION_FAILED",
+        "message": "No se pudo calcular la afinidad de este recurso. Inténtalo nuevamente.",
+        "retryable": true
+      }
+    }
+  ]
+}
+```
+
+Request inválido responde 400, falta autenticación 401, rol/permiso o recurso fuera de alcance 403 y diccionario NLP no disponible 503. Los errores globales no llevan `data` parcial.
