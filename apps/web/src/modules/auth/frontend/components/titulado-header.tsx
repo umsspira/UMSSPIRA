@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { ProfilePhotoBadge } from "@/shared/components/profile-photo-avatar";
-
 import { LogoutButton } from "./logout-button";
 
 // Encabezado del área personal: sin ningún menú administrativo (CA-05.3 y CA-05.5).
@@ -55,7 +53,6 @@ export function TituladoHeader() {
           <Link href="/profile" className="text-sm font-medium text-white/90 hover:text-white">
             Mi perfil profesional
           </Link>
-          <ProfilePhotoBadge />
           <LogoutButton />
         </nav>
       </div>
