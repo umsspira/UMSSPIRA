@@ -6,6 +6,9 @@ import { pollOcr } from "../services/ocr-polling";
 import { prioritizeOcr } from "../services/ocr-control";
 import { FindingsTable } from "./findings-table";
 import { EvidenceViewer } from "./evidence-viewer";
+import { FileSearch, Info, ChevronDown } from "lucide-react";
+import styles from "./ocr-review.module.css";
+import { OcrCompatibility } from "./ocr-compatibility";
 const states = {
   PENDIENTE: "Pendiente",
   EN_CURSO: "En curso",
@@ -99,11 +102,16 @@ export function OcrPanel({
     }
   };
   return (
-    <details className="rounded-lg border border-[#C9C1B1] bg-white p-4" open>
-      <summary className="cursor-pointer text-sm font-bold text-[#1B2632]">
-        Análisis automático del respaldo (OCR)
+    <details className={styles.panel} open>
+      <summary className={styles.heading}>
+        <span className={styles.icon}>
+          <FileSearch size={24} aria-hidden="true" />
+        </span>
+        <span className={styles.title}>
+          Análisis automático del respaldo (OCR)
+        </span>
         <span
-          className="ml-2 inline-block rounded bg-[#EEE9DF] px-2 py-1 text-xs"
+          className={`${styles.status} ${current?.result?.findings.some((finding) => finding.status !== "COINCIDE") ? styles.attention : ""}`}
           role="status"
         >
           {current
@@ -114,71 +122,76 @@ export function OcrPanel({
                 ? "Consultando análisis…"
                 : "Sin análisis vigente"}
         </span>
+        <ChevronDown size={18} aria-hidden="true" className={styles.chevron} />
       </summary>
-      <p className="my-3 text-xs text-[#2C3B4D]">
-        El análisis ayuda a la revisión. La decisión corresponde al
-        administrador y no se confirma automáticamente.
-      </p>
-      {error && (
-        <div role="alert" className="my-3 text-sm text-[#A35139]">
-          <p>{error}</p>
-          <p>
-            {current
-              ? "Se conserva el último estado consultado."
-              : "Todavía no se pudo comprobar el estado del OCR."}
-          </p>
-          <button
-            type="button"
-            className="mt-2 underline font-semibold"
-            onClick={() =>
-              window.dispatchEvent(new Event("umsspira:ocr-updated"))
-            }
-          >
-            Volver a consultar
-          </button>
-        </div>
-      )}
-      {current?.status === "PENDIENTE" && (
-        <p className="my-3 text-sm">
-          El análisis está en espera. Mantén la bandeja abierta y visible;
-          empezará automáticamente cuando tenga turno.
+      <div className={styles.content}>
+        <p className={styles.notice}>
+          <Info size={16} aria-hidden="true" />
+          <span>
+            El OCR ayuda a comparar los datos.{" "}
+            <strong>El dictamen corresponde al administrador.</strong>
+          </span>
         </p>
-      )}
-      {current?.status === "EN_CURSO" && (
-        <p className="my-3 text-sm">
-          El respaldo se está procesando en esta u otra sesión administradora.
-          El resultado aparecerá aquí al terminar.
-        </p>
-      )}
-      {current?.status === "DESCARTADO" && (
-        <p className="my-3 text-sm">
-          Este análisis ya no se ejecutará porque la solicitud fue resuelta o el
-          respaldo dejó de estar vigente.
-        </p>
-      )}
-      {current?.status === "FALLIDO" && (
-        <div className="my-3 text-sm">
-          <p className="font-semibold text-[#A35139]">
-            El procesamiento no terminó y no se guardó un resultado OCR.
-          </p>
-          {current.completedAt && (
-            <p className="mt-1 text-xs">
-              Último fallo:{" "}
-              {new Date(current.completedAt).toLocaleString("es-BO", {
-                timeZone: "America/La_Paz",
-              })}
-              .
+        {error && (
+          <div role="alert" className="my-3 text-sm text-[#A35139]">
+            <p>{error}</p>
+            <p>
+              {current
+                ? "Se conserva el último estado consultado."
+                : "Todavía no se pudo comprobar el estado del OCR."}
             </p>
-          )}
-          <p className="mt-2">
-            Puedes revisar el respaldo manualmente
-            {canRetry ? " o volver a intentar el análisis." : "."}
+            <button
+              type="button"
+              className="mt-2 underline font-semibold"
+              onClick={() =>
+                window.dispatchEvent(new Event("umsspira:ocr-updated"))
+              }
+            >
+              Volver a consultar
+            </button>
+          </div>
+        )}
+        {current?.status === "PENDIENTE" && (
+          <p className="my-3 text-sm">
+            El análisis está en espera. Mantén la bandeja abierta y visible;
+            empezará automáticamente cuando tenga turno.
           </p>
-          {current.error && (
-            <details className="mt-2">
-              <summary className="cursor-pointer underline">
-                Detalle del fallo
-              </summary>
+        )}
+        {current?.status === "EN_CURSO" && (
+          <p className="my-3 text-sm">
+            El respaldo se está procesando en esta u otra sesión administradora.
+            El resultado aparecerá aquí al terminar.
+          </p>
+        )}
+        {current?.status === "DESCARTADO" && (
+          <p className="my-3 text-sm">
+            Este análisis ya no se ejecutará porque la solicitud fue resuelta o el
+            respaldo dejó de estar vigente.
+          </p>
+        )}
+        {current?.status === "FALLIDO" && (
+          <div className="my-3 text-sm">
+            <p className="font-semibold text-[#A35139]">
+              El procesamiento no terminó y no se guardó un resultado OCR.
+            </p>
+            {current.completedAt && (
+              <p className="mt-1 text-xs">
+                Último fallo:{" "}
+                {new Date(current.completedAt).toLocaleString("es-BO", {
+                  timeZone: "America/La_Paz",
+                })}
+                .
+              </p>
+            )}
+            <p className="mt-2">
+              Puedes revisar el respaldo manualmente
+              {canRetry ? " o volver a intentar el análisis." : "."}
+            </p>
+            {current.error && (
+              <details className="mt-2">
+                <summary className="cursor-pointer underline">
+                  Detalle del fallo
+                </summary>
               <p className="mt-1">{current.error}</p>
             </details>
           )}
@@ -257,6 +270,7 @@ export function OcrPanel({
             ))}
         </details>
       )}
+      </div>
     </details>
   );
 }
