@@ -9,12 +9,14 @@ Este directorio contiene muestras sinteticas controladas para calibrar y verific
 | `clara-01.jpg` | Documento sintetico nitido con tipografia y sello vectorial | 1600x2200 | Ninguno (Sin avisos) |
 | `clara-02.jpg` | Documento nitido con ligera mayor luminancia | 1600x2200 | Ninguno (Sin avisos) |
 | `clara-03.jpg` | Documento nitido con ligero ruido de fondo | 1600x2200 | Ninguno (Sin avisos) |
+| `clara-04.jpg` | Documento nitido centrado con amplios margenes blancos (>70%) | 1600x2200 | Ninguno (Sin avisos) |
 | `pequena-01.jpg` | Documento nitido escalado por debajo de limites | 800x1100 | `LOW_RESOLUTION` |
 | `pequena-02.jpg` | Documento nitido en baja resolucion extrema | 600x800 | `LOW_RESOLUTION` |
 | `pequena-03.jpg` | Documento nitido cerca del limite inferior | 950x1300 | `LOW_RESOLUTION` |
 | `borrosa-01.jpg` | Desenfoque gaussiano suave (radio 5) | 1600x2200 | `BLURRY` |
 | `borrosa-02.jpg` | Desenfoque gaussiano medio (radio 8) | 1600x2200 | `BLURRY` |
 | `borrosa-03.jpg` | Desenfoque gaussiano intenso (radio 12) | 1600x2200 | `BLURRY` |
+| `borrosa-04.jpg` | Folleto con titulo superior grande nitido y cuerpo de parrafos desenfocado | 1600x2200 | `BLURRY` |
 | `oscura-01.jpg` | Iluminacion muy reducida (luma media < 90) | 1600x2200 | `TOO_DARK` |
 | `oscura-02.jpg` | Iluminacion deficiente extrema | 1600x2200 | `TOO_DARK` |
 | `oscura-03.jpg` | Iluminacion atenuada cercana al umbral | 1600x2200 | `TOO_DARK` |
