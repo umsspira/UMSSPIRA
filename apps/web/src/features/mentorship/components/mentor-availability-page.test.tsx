@@ -84,25 +84,25 @@ it('reemplaza «Próximamente» por el horario semanal vacío y lo despliega', a
   expect(toggle).toHaveAttribute('aria-expanded', 'false');
   fireEvent.click(toggle);
   expect(screen.getByRole('button', { name: 'Ocultar horarios' })).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.queryByLabelText('Día')).not.toBeInTheDocument();
-  expect(screen.getAllByRole('switch')).toHaveLength(7);
-  expect(screen.getByRole('switch', { name: 'Disponibilidad del lunes' })).not.toBeChecked();
-  expect(screen.getByLabelText('Desde')).toBeInTheDocument();
-  expect(screen.getByLabelText('Hasta')).toBeInTheDocument();
+  const switches = screen.getAllByRole('switch');
+  expect(switches).toHaveLength(7);
+  expect(switches.map(day => day.getAttribute('aria-checked'))).toEqual(Array(7).fill('false'));
+  expect(screen.getByRole('switch', { name: 'Domingo' })).toBeInTheDocument();
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   expect(saveButton()).toBeEnabled();
 });
 
 it('agrega una franja, la guarda con PUT y muestra «Horarios guardados»', async () => {
   render(<MentorAvailabilityPage />);
   fireEvent.click(await screen.findByRole('button', { name: 'Configurar horarios' }));
-  fireEvent.click(screen.getByRole('switch', { name: 'Disponibilidad del lunes' }));
+  fireEvent.click(screen.getByRole('switch', { name: 'Lunes' }));
 
   expect(screen.getByText('1 día con horarios: Lun')).toBeInTheDocument();
   expect(within(screen.getByRole('list', { name: 'Horarios del lunes' })).getByText('09:00–10:00')).toBeInTheDocument();
   expect(screen.getByText('Tienes cambios sin guardar.')).toBeInTheDocument();
 
-  fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '11:00' } });
-  fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '12:00' } });
+  fireEvent.change(screen.getByLabelText('Desde (lunes)'), { target: { value: '11:00' } });
+  fireEvent.change(screen.getByLabelText('Hasta (lunes)'), { target: { value: '12:00' } });
   fireEvent.click(screen.getByRole('button', { name: 'Agregar horario al lunes' }));
   fireEvent.click(saveButton());
   expect(saveButton()).toBeDisabled();
@@ -122,14 +122,15 @@ it('muestra el error en línea y no agrega una franja solapada o de menos de 1 h
   // Con horarios guardados la tarjeta empieza desplegada.
   await screen.findByRole('button', { name: 'Ocultar horarios' });
 
-  fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '09:30' } });
-  fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '11:00' } });
+  expect(screen.getByRole('switch', { name: 'Lunes' })).toHaveAttribute('aria-checked', 'true');
+  fireEvent.change(screen.getByLabelText('Desde (lunes)'), { target: { value: '09:30' } });
+  fireEvent.change(screen.getByLabelText('Hasta (lunes)'), { target: { value: '11:00' } });
   fireEvent.click(screen.getByRole('button', { name: 'Agregar horario al lunes' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Se solapa con 09:00–10:00.');
-  expect(screen.getByLabelText('Desde')).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByLabelText('Desde (lunes)')).toHaveAttribute('aria-invalid', 'true');
 
-  fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '14:00' } });
-  fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '14:30' } });
+  fireEvent.change(screen.getByLabelText('Desde (lunes)'), { target: { value: '14:00' } });
+  fireEvent.change(screen.getByLabelText('Hasta (lunes)'), { target: { value: '14:30' } });
   fireEvent.click(screen.getByRole('button', { name: 'Agregar horario al lunes' }));
   expect(screen.getByRole('alert')).toHaveTextContent('La franja debe durar al menos 1 hora.');
   expect(saveButton()).toBeEnabled();
@@ -150,7 +151,7 @@ it('desde el checklist (HU 6.13) despliega los horarios y enfoca el día si hay 
   window.location.hash = '#first-incomplete';
   try {
     render(<MentorAvailabilityPage />);
-    const day = await screen.findByRole('switch', { name: 'Disponibilidad del lunes' });
+    const day = await screen.findByRole('switch', { name: 'Lunes' });
     expect(screen.getByRole('button', { name: 'Ocultar horarios' })).toHaveAttribute('aria-expanded', 'true');
     await waitFor(() => expect(day).toHaveFocus());
   } finally {
