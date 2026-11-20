@@ -1,0 +1,114 @@
+.panel {
+  border: 1px solid #e4ded2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 3px 12px #1b263208;
+}
+.compatibility {
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid #e5ded3;
+  border-radius: 12px;
+  background: #fbf9f5;
+}
+.compatibilityHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  color: #1b2632;
+}
+.compatibilityHeading h4 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.compatibilityHeading strong {
+  font-size: 22px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+.compatibilityTrack {
+  height: 7px;
+  margin: 11px 0 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #e8e3d9;
+}
+.compatibilityTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #ffb162;
+}
+.compatibility p {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #64707b;
+  line-height: 1.5;
+}
+.compatibility .compatibilityHint {
+  font-size: 10px;
+  color: #85858a;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px;
+  cursor: pointer;
+  list-style: none;
+}
+.heading::-webkit-details-marker {
+  display: none;
+}
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 44px;
+  border-radius: 11px;
+  background: #eee9df;
+  color: #1b2632;
+}
+.title {
+  flex: 1;
+  min-width: 150px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #1b2632;
+}
+.status {
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #eee9df;
+  color: #2c3b4d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.attention {
+  background: #fff0e1;
+  color: #9a4b20;
+}
+.chevron {
+  flex-shrink: 0;
+  color: #79766f;
+  transition: transform 0.15s;
+}
+.panel[open] > .heading .chevron {
+  transform: rotate(180deg);
+}
+.heading:focus-visible {
+  outline: 2px solid #a35139;
+  outline-offset: 3px;
+  border-radius: 16px;
+}
+.content {
+  padding: 0 20px 20px;
+}
