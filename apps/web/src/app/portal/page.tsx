@@ -1,3 +1,4 @@
+// apps/web/src/app/portal/page.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -247,7 +248,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* Banner principal */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
         <div className="absolute inset-0 z-0 overflow-hidden">
           <Image
