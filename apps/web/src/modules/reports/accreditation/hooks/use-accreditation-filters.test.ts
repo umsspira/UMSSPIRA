@@ -1,6 +1,7 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
 import {
-  FILTERS_STORAGE_KEY,
+  filtersStorageKey,
   buildFiltersQuery,
   readFiltersFromParams,
   useAccreditationFilters,
@@ -15,10 +16,23 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockQuery),
 }));
 
+jest.mock('@/modules/auth/frontend/services/auth.service', () => ({
+  getCurrentUser: jest.fn(),
+}));
+
+const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>;
+const ADMIN_A = 'admin-a';
+const ADMIN_B = 'admin-b';
+
+function loggedAs(id: string) {
+  mockGetCurrentUser.mockResolvedValue({ id } as Awaited<ReturnType<typeof getCurrentUser>>);
+}
+
 beforeEach(() => {
   mockReplace.mockClear();
   mockQuery = '';
   window.sessionStorage.clear();
+  loggedAs(ADMIN_A);
 });
 
 describe('lectura de filtros desde la URL', () => {
@@ -60,6 +74,11 @@ describe('escritura de filtros en la URL', () => {
 });
 
 describe('useAccreditationFilters', () => {
+  // Estas pruebas solo revisan la URL: el usuario no llega a cargarse.
+  beforeEach(() => {
+    mockGetCurrentUser.mockReturnValue(new Promise(() => {}));
+  });
+
   test('al elegir una cohorte actualiza la URL sin recargar ni desplazar', () => {
     const { result } = renderHook(() => useAccreditationFilters());
     act(() => result.current.setCohort('2023'));
@@ -98,27 +117,53 @@ describe('useAccreditationFilters', () => {
 });
 
 describe('filtros al navegar entre secciones', () => {
-  test('al volver al tablero sin filtros en la URL, recupera los últimos de la sesión', () => {
-    window.sessionStorage.setItem(FILTERS_STORAGE_KEY, 'cohorte=2021&semestre=2-2025');
+  test('al volver al tablero sin filtros en la URL, recupera los últimos del mismo usuario', async () => {
+    window.sessionStorage.setItem(filtersStorageKey(ADMIN_A), 'cohorte=2021&semestre=2-2025');
     renderHook(() => useAccreditationFilters());
-    expect(mockReplace).toHaveBeenCalledWith(
-      '/reports/acreditacion?cohorte=2021&semestre=2-2025',
-      { scroll: false },
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith(
+        '/reports/acreditacion?cohorte=2021&semestre=2-2025',
+        { scroll: false },
+      ),
     );
   });
 
-  test('si la URL ya trae filtros, no los cambia por los guardados', () => {
-    window.sessionStorage.setItem(FILTERS_STORAGE_KEY, 'cohorte=2021');
-    mockQuery = 'cohorte=2023';
+  test('otro usuario en la misma pestaña no recupera los filtros guardados', async () => {
+    window.sessionStorage.setItem(filtersStorageKey(ADMIN_A), 'cohorte=2021&semestre=2-2025');
+    loggedAs(ADMIN_B);
     renderHook(() => useAccreditationFilters());
+    await waitFor(() => expect(mockGetCurrentUser).toHaveBeenCalled());
+    await act(async () => {});
     expect(mockReplace).not.toHaveBeenCalled();
-    expect(window.sessionStorage.getItem(FILTERS_STORAGE_KEY)).toBe('cohorte=2023');
+    expect(window.sessionStorage.getItem(filtersStorageKey(ADMIN_A))).toBe(
+      'cohorte=2021&semestre=2-2025',
+    );
   });
 
-  test('sin filtros elegidos no queda nada guardado', () => {
-    window.sessionStorage.setItem(FILTERS_STORAGE_KEY, 'cohorte=abc');
+  test('si la URL ya trae filtros, no los cambia por los guardados y guarda los de la URL', async () => {
+    window.sessionStorage.setItem(filtersStorageKey(ADMIN_A), 'cohorte=2021');
+    mockQuery = 'cohorte=2023';
     renderHook(() => useAccreditationFilters());
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(filtersStorageKey(ADMIN_A))).toBe('cohorte=2023'),
+    );
     expect(mockReplace).not.toHaveBeenCalled();
-    expect(window.sessionStorage.getItem(FILTERS_STORAGE_KEY)).toBeNull();
+  });
+
+  test('sin filtros elegidos no queda nada guardado', async () => {
+    window.sessionStorage.setItem(filtersStorageKey(ADMIN_A), 'cohorte=abc');
+    renderHook(() => useAccreditationFilters());
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(filtersStorageKey(ADMIN_A))).toBeNull(),
+    );
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  test('sin usuario identificado no guarda ni recupera filtros', async () => {
+    mockGetCurrentUser.mockRejectedValue(new Error('sin sesión'));
+    mockQuery = 'cohorte=2023';
+    renderHook(() => useAccreditationFilters());
+    await act(async () => {});
+    expect(window.sessionStorage.length).toBe(0);
   });
 });
