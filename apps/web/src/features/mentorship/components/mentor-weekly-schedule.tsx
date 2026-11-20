@@ -6,7 +6,6 @@ import {
   addSlot,
   configuredDays,
   dayName,
-  dayOptionLabel,
   removeSlot,
   slotRange,
   slotsOf,
@@ -21,17 +20,23 @@ interface MentorWeeklyScheduleProps {
   schedule: ScheduleSlot[];
   onChange: (schedule: ScheduleSlot[]) => void;
   disabled?: boolean;
+  expandedByDefault?: boolean;
   /** HU 6.13: el checklist del perfil enlaza aquí cuando faltan horarios. */
   firstIncomplete?: boolean;
 }
 
 /** HU 6.18: horarios semanales del mentor, con la estructura del prototipo de Figma. */
-export function MentorWeeklySchedule({ schedule, onChange, disabled = false, firstIncomplete = false }: MentorWeeklyScheduleProps) {
+export function MentorWeeklySchedule({
+  schedule,
+  onChange,
+  disabled = false,
+  expandedByDefault = false,
+  firstIncomplete = false,
+}: MentorWeeklyScheduleProps) {
   const id = useId();
   const [expanded, setExpanded] = useState(
-    schedule.length > 0 || (firstIncomplete && window.location.hash === '#first-incomplete'),
+    schedule.length > 0 || expandedByDefault || (firstIncomplete && window.location.hash === '#first-incomplete'),
   );
-  const [weekday, setWeekday] = useState(1);
   const [start, setStart] = useState('09:00');
   const [end, setEnd] = useState('10:00');
   const [error, setError] = useState<SlotError | null>(null);
@@ -39,7 +44,7 @@ export function MentorWeeklySchedule({ schedule, onChange, disabled = false, fir
   const panelId = `${id}-panel`;
   const errorId = `${id}-error`;
 
-  function add() {
+  function add(weekday: number) {
     const slot = { weekday, start, end };
     const problem = validateNewSlot(schedule, slot);
     setError(problem);
@@ -50,6 +55,16 @@ export function MentorWeeklySchedule({ schedule, onChange, disabled = false, fir
   function remove(slot: ScheduleSlot) {
     setError(null);
     onChange(removeSlot(schedule, slot));
+  }
+
+  function toggleDay(weekday: number) {
+    setError(null);
+    const active = days.some(day => day.weekday === weekday);
+    onChange(
+      active
+        ? schedule.filter(slot => slot.weekday !== weekday)
+        : addSlot(schedule, { weekday, start: '09:00', end: '10:00' }),
+    );
   }
 
   const describedBy = (field: 'start' | 'end') => (error?.field === field ? errorId : undefined);
@@ -76,12 +91,6 @@ export function MentorWeeklySchedule({ schedule, onChange, disabled = false, fir
     {expanded && <div id={panelId} className="mentor-schedule-panel">
       <div className="mentor-schedule-form">
         <label className="mentor-schedule-field">
-          <span>Día</span>
-          <select id={firstIncomplete ? 'first-incomplete' : undefined} value={weekday} onChange={event => { setWeekday(Number(event.target.value)); setError(null); }} disabled={disabled}>
-            {WEEKDAYS.map(day => <option key={day.weekday} value={day.weekday}>{dayOptionLabel(schedule, day.weekday)}</option>)}
-          </select>
-        </label>
-        <label className="mentor-schedule-field">
           <span>Desde</span>
           <input
             type="time"
@@ -105,33 +114,56 @@ export function MentorWeeklySchedule({ schedule, onChange, disabled = false, fir
             aria-describedby={describedBy('end')}
           />
         </label>
-        <button type="button" className="mentor-button mentor-button-secondary mentor-schedule-add" onClick={add} disabled={disabled}>
-          <PlusIcon aria-hidden="true" className="icon" /> Agregar horario
-        </button>
       </div>
       {error && <p id={errorId} className="mentor-schedule-error" role="alert">{error.message}</p>}
-      <p className="mentor-schedule-hint">Hora de Bolivia. Cada sesión de mentoría dura 1 hora.</p>
+      <p className="mentor-schedule-hint">Activa los días disponibles y agrega una o más franjas. Hora de Bolivia; cada sesión dura 1 hora.</p>
 
       <div className="mentor-schedule-list">
-        <h3>Tus horarios</h3>
-        {days.length ? <ul>
-          {days.map(day => <li key={day.weekday} className="mentor-schedule-day">
-            <strong>{day.name}</strong>
-            <ul className="mentor-schedule-chips" aria-label={`Horarios del ${day.name.toLowerCase()}`}>
-              {slotsOf(schedule, day.weekday).map(slot => <li key={slot.start} className="mentor-schedule-chip">
-                {slotRange(slot)}
+        <h3>Días de la semana</h3>
+        <ul className="mentor-schedule-days">
+          {WEEKDAYS.map(day => {
+            const active = days.some(configured => configured.weekday === day.weekday);
+            return <li key={day.weekday} className={`mentor-schedule-day${active ? ' is-active' : ''}`}>
+              <label>
+                <input
+                  id={firstIncomplete && !days.length && day.weekday === 1 ? 'first-incomplete' : undefined}
+                  type="checkbox"
+                  role="switch"
+                  checked={active}
+                  onChange={() => toggleDay(day.weekday)}
+                  disabled={disabled}
+                  aria-label={`Disponibilidad del ${day.name.toLowerCase()}`}
+                />
+                <strong>{day.name}</strong>
+                <span>{active ? 'Activo' : 'Inactivo'}</span>
+              </label>
+              {active && <div className="mentor-schedule-day-content">
+                <ul className="mentor-schedule-chips" aria-label={`Horarios del ${day.name.toLowerCase()}`}>
+                  {slotsOf(schedule, day.weekday).map(slot => <li key={slot.start} className="mentor-schedule-chip">
+                    {slotRange(slot)}
+                    <button
+                      type="button"
+                      aria-label={`Quitar ${slotRange(slot)} del ${dayName(slot.weekday).toLowerCase()}`}
+                      onClick={() => remove(slot)}
+                      disabled={disabled}
+                    >
+                      <XIcon aria-hidden="true" />
+                    </button>
+                  </li>)}
+                </ul>
                 <button
                   type="button"
-                  aria-label={`Quitar ${slotRange(slot)} del ${dayName(slot.weekday).toLowerCase()}`}
-                  onClick={() => remove(slot)}
+                  className="mentor-button mentor-button-secondary mentor-schedule-add"
+                  onClick={() => add(day.weekday)}
                   disabled={disabled}
+                  aria-label={`Agregar horario al ${day.name.toLowerCase()}`}
                 >
-                  <XIcon aria-hidden="true" />
+                  <PlusIcon aria-hidden="true" className="icon" /> Agregar horario
                 </button>
-              </li>)}
-            </ul>
-          </li>)}
-        </ul> : <p className="mentor-schedule-empty">Aún no agregaste horarios. Elige un día y una franja para empezar.</p>}
+              </div>}
+            </li>;
+          })}
+        </ul>
       </div>
     </div>}
   </section>;

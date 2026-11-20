@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MentorAvailabilityPage } from './mentor-availability-page';
 import { getMentorAvailability, updateMentorAvailability } from '../services/mentor-availability-api';
 import { getMentorSchedule, saveMentorSchedule } from '../services/mentor-schedule-api';
+import { getMentorOnboarding, type MentorOnboardingState } from '../services/mentor-onboarding-api';
+import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 
 jest.mock('../services/mentor-availability-api', () => ({
   ...jest.requireActual('../services/mentor-availability-api'),
@@ -13,6 +15,14 @@ jest.mock('../services/mentor-schedule-api', () => ({
   ...jest.requireActual('../services/mentor-schedule-api'),
   getMentorSchedule: jest.fn(),
   saveMentorSchedule: jest.fn(),
+}));
+jest.mock('../services/mentor-onboarding-api', () => ({
+  ...jest.requireActual('../services/mentor-onboarding-api'),
+  getMentorOnboarding: jest.fn(),
+}));
+jest.mock('../services/mentor-profile-info-api', () => ({
+  ...jest.requireActual('../services/mentor-profile-info-api'),
+  getMentorProfileInformation: jest.fn(),
 }));
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -27,12 +37,37 @@ const getAvailability = jest.mocked(getMentorAvailability);
 const updateAvailability = jest.mocked(updateMentorAvailability);
 const getSchedule = jest.mocked(getMentorSchedule);
 const saveSchedule = jest.mocked(saveMentorSchedule);
+const getOnboarding = jest.mocked(getMentorOnboarding);
+const getProfileInformation = jest.mocked(getMentorProfileInformation);
 const monday = { weekday: 1, start: '09:00', end: '10:00' };
+
+function onboardingState(): MentorOnboardingState {
+  return {
+    isComplete: false,
+    currentStep: 2,
+    totalSteps: 3,
+    completedSteps: [1],
+    steps: [
+      { step: 1, key: 'areas', label: 'Áreas técnicas', completed: true },
+      { step: 2, key: 'interests', label: 'Intereses', completed: false },
+      { step: 3, key: 'availability', label: 'Disponibilidad', completed: false },
+    ],
+    areas: { catalog: [], selectedIds: ['area-1'], intereses: [] },
+    interests: { selectedIds: [], catalog: [] },
+    availability: { availabilityStatus: null, schedules: [] },
+  };
+}
 
 beforeEach(() => {
   jest.resetAllMocks();
   getAvailability.mockResolvedValue({ availabilityStatus: 'DISPONIBLE', fecha_actualizacion: '2026-11-01' });
   getSchedule.mockResolvedValue({ schedule: [], fecha_actualizacion: null });
+  getOnboarding.mockResolvedValue(onboardingState());
+  getProfileInformation.mockResolvedValue({
+    nombre: 'Mentor',
+    exists: false,
+    profile: null,
+  });
   updateAvailability.mockImplementation(async status => ({ availabilityStatus: status, fecha_actualizacion: '2026-01-01' }));
   saveSchedule.mockImplementation(async schedule => ({ schedule, fecha_actualizacion: '2026-11-14' }));
 });
@@ -49,7 +84,9 @@ it('reemplaza «Próximamente» por el horario semanal vacío y lo despliega', a
   expect(toggle).toHaveAttribute('aria-expanded', 'false');
   fireEvent.click(toggle);
   expect(screen.getByRole('button', { name: 'Ocultar horarios' })).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.getByLabelText('Día')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Día')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('switch')).toHaveLength(7);
+  expect(screen.getByRole('switch', { name: 'Disponibilidad del lunes' })).not.toBeChecked();
   expect(screen.getByLabelText('Desde')).toBeInTheDocument();
   expect(screen.getByLabelText('Hasta')).toBeInTheDocument();
   expect(saveButton()).toBeEnabled();
@@ -58,17 +95,24 @@ it('reemplaza «Próximamente» por el horario semanal vacío y lo despliega', a
 it('agrega una franja, la guarda con PUT y muestra «Horarios guardados»', async () => {
   render(<MentorAvailabilityPage />);
   fireEvent.click(await screen.findByRole('button', { name: 'Configurar horarios' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Agregar horario' }));
+  fireEvent.click(screen.getByRole('switch', { name: 'Disponibilidad del lunes' }));
 
   expect(screen.getByText('1 día con horarios: Lun')).toBeInTheDocument();
-  expect(screen.getByRole('option', { name: 'Lunes (1)' })).toBeInTheDocument();
   expect(within(screen.getByRole('list', { name: 'Horarios del lunes' })).getByText('09:00–10:00')).toBeInTheDocument();
   expect(screen.getByText('Tienes cambios sin guardar.')).toBeInTheDocument();
 
+  fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '11:00' } });
+  fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '12:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Agregar horario al lunes' }));
   fireEvent.click(saveButton());
   expect(saveButton()).toBeDisabled();
-  await waitFor(() => expect(saveSchedule).toHaveBeenCalledWith([monday]));
+  await waitFor(() => expect(saveSchedule).toHaveBeenCalledWith([
+    monday,
+    { weekday: 1, start: '11:00', end: '12:00' },
+  ]));
   expect(await screen.findByText('Horarios guardados', {}, { timeout: 3000 })).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText('2 de 4 pasos completados')).toBeInTheDocument());
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
   expect(updateAvailability).not.toHaveBeenCalled();
 });
 
@@ -80,13 +124,13 @@ it('muestra el error en línea y no agrega una franja solapada o de menos de 1 h
 
   fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '09:30' } });
   fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '11:00' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Agregar horario' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Agregar horario al lunes' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Se solapa con 09:00–10:00.');
   expect(screen.getByLabelText('Desde')).toHaveAttribute('aria-invalid', 'true');
 
   fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '14:00' } });
   fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '14:30' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Agregar horario' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Agregar horario al lunes' }));
   expect(screen.getByRole('alert')).toHaveTextContent('La franja debe durar al menos 1 hora.');
   expect(saveButton()).toBeEnabled();
 });
@@ -106,7 +150,7 @@ it('desde el checklist (HU 6.13) despliega los horarios y enfoca el día si hay 
   window.location.hash = '#first-incomplete';
   try {
     render(<MentorAvailabilityPage />);
-    const day = await screen.findByLabelText('Día');
+    const day = await screen.findByRole('switch', { name: 'Disponibilidad del lunes' });
     expect(screen.getByRole('button', { name: 'Ocultar horarios' })).toHaveAttribute('aria-expanded', 'true');
     await waitFor(() => expect(day).toHaveFocus());
   } finally {
@@ -125,14 +169,16 @@ it('un cambio solo de estado sigue usando el PATCH de disponibilidad', async () 
   expect(saveSchedule).not.toHaveBeenCalled();
 });
 
-it('muestra el paso 3 y permite navegar a los pasos anteriores', async () => {
+it('muestra el avance real y permite navegar a las secciones pendientes', async () => {
   render(<MentorAvailabilityPage />);
-  await screen.findByText('Mentor disponible');
+  await screen.findByText('1 de 4 pasos completados');
 
   expect(screen.getByRole('heading', { name: 'Completa tu perfil de mentor' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Ir al paso 1: Áreas técnicas' })).toHaveAttribute('href', '/mentorship/profile/areas');
-  expect(screen.getByRole('link', { name: 'Ir al paso 2: Intereses de mentoría' })).toHaveAttribute('href', '/mentorship/profile/interests');
-  expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toHaveTextContent('3 de 3 pasos completados');
+  expect(screen.getByRole('link', { name: /Ir al paso 1: Áreas técnicas/ })).toHaveAttribute('href', '/mentorship/profile/areas#first-incomplete');
+  expect(screen.getByRole('link', { name: /Ir al paso 2: Intereses de mentoría/ })).toHaveAttribute('href', '/mentorship/profile/interests#first-incomplete');
+  expect(screen.getByRole('link', { name: /Ir al paso 4: Información del perfil/ })).toHaveAttribute('href', '/mentorship/profile/information?edit=1#first-incomplete');
+  expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toHaveTextContent('25%');
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25');
 });
 
 it('guarda la disponibilidad y finaliza en mi perfil de mentor', async () => {
@@ -163,10 +209,10 @@ it('pide confirmación al salir por un paso con cambios sin guardar', async () =
 
   fireEvent.click(screen.getAllByRole('button', { name: 'Elegir' })[0]);
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Sí, pausar disponibilidad' }));
-  fireEvent.click(screen.getByRole('link', { name: 'Ir al paso 1: Áreas técnicas' }));
+  fireEvent.click(screen.getByRole('link', { name: /Ir al paso 1: Áreas técnicas/ }));
 
   expect(router.push).not.toHaveBeenCalled();
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
 
-  expect(router.push).toHaveBeenCalledWith('/mentorship/profile/areas');
+  expect(router.push).toHaveBeenCalledWith('/mentorship/profile/areas#first-incomplete');
 });
