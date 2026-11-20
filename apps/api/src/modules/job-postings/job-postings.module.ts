@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
 import { jobPostingsProviders } from './infrastructure/providers/job-postings.providers';
+import { JobPostingAffinityBatchController } from './http/controllers/job-posting-affinity-batch.controller';
 import { CreateJobPostingController } from './http/controllers/create-job-posting.controller';
 import { ListAvailableJobPostingsController } from './http/controllers/list-available-job-postings.controller';
 import { GetAvailableJobPostingController } from './http/controllers/get-available-job-posting.controller';
@@ -12,6 +13,7 @@ import { JOB_POSTING_AFFINITY_DATA } from './application/ports/job-posting-affin
 @Module({
   imports: [PrismaModule, NlpModule],
   controllers: [
+    JobPostingAffinityBatchController,
     CreateJobPostingController,
     ListAvailableJobPostingsController,
     GetAvailableJobPostingController,
