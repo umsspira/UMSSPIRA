@@ -14,6 +14,7 @@ import {
   Bookmark,
   MapPin,
   Clock3,
+  QrCode,
   Settings,
   WifiOff,
   Wifi,
@@ -228,7 +229,7 @@ export default function Home() {
             aria-hidden="true"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFB162] text-[#1B2632]"
           >
-            <Calendar className="h-5 w-5" />
+            <QrCode className="h-5 w-5" />
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-bold">Mis códigos QR</span>
