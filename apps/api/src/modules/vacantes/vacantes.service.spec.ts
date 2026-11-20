@@ -141,6 +141,31 @@ describe('VacantesService · postulantes (HU-01)', () => {
       servicio.obtenerPostulante(ID_VACANTE, ID_POSTULACION, ID_USUARIO),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('responde 404 al descargar el CV desde una vacante de otra empresa (CA-12)', async () => {
+    const { servicio, prisma } = crearServicio({ vacantesVisibles: 0 });
+
+    await expect(
+      servicio.descargarCvPostulante(ID_VACANTE, ID_POSTULACION, ID_USUARIO),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.postulacion.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('responde 404 al descargar si el postulante no tiene CV', async () => {
+    const { servicio } = crearServicio({
+      detalle: fila({
+        usuario: {
+          nombre: 'Ana Rojas',
+          correo: 'ana.rojas.demo@umsspira.local',
+          titulado: { nombre: 'Ana', apellido: 'Rojas', curriculum_vitae: null },
+        },
+      }),
+    });
+
+    await expect(
+      servicio.descargarCvPostulante(ID_VACANTE, ID_POSTULACION, ID_USUARIO),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
 });
 
 describe('VacantesService · mis postulaciones (HU-006)', () => {

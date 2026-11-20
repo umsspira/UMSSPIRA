@@ -70,4 +70,10 @@ export interface ProfileSnapshot {
   certifications: CertificationRecord[];
   projects: ProjectRecord[];
   description: ProfessionalDescription;
+  cv?: {
+    hasFile: boolean;
+    name: string | null;
+    size: number | null;
+    uploadedAt: Date | null;
+  };
 }

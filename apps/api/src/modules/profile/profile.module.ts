@@ -17,6 +17,7 @@ import { GetProfessionalDescriptionController } from './http/controllers/get-pro
 import { SaveProfessionalDescriptionController } from './http/controllers/save-professional-description.controller';
 import { CreateProjectController } from './http/controllers/create-project.controller';
 import { ProfilePhotoController } from './http/controllers/profile-photo.controller';
+import { CvController } from './http/controllers/cv.controller';
 
 @Module({
   imports: [PrismaModule],
@@ -31,6 +32,7 @@ import { ProfilePhotoController } from './http/controllers/profile-photo.control
     SaveProfessionalDescriptionController,
     // «foto» también va antes de :section/:id
     ProfilePhotoController,
+    CvController,
     GetProfileRecordController,
     UpdateProfileRecordController,
     DeleteProfileRecordController,

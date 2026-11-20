@@ -341,7 +341,11 @@ export class VacantesService {
           select: {
             nombre: true,
             apellido: true,
-            curriculum_vitae: { select: { id: true } },
+            // T16.2: la lista no lee los bytes; solo conserva CV con contenido.
+            curriculum_vitae: {
+              where: { contenido: { not: null } },
+              select: { id: true },
+            },
           },
         },
       },
@@ -400,5 +404,36 @@ export class VacantesService {
       throw new NotFoundException('Postulante no encontrado');
     }
     return VacantesService.toPostulante(fila);
+  }
+
+  // T16.4 consume este archivo; la empresa se valida antes de leer el contenido binario.
+  async descargarCvPostulante(idVacante: string, idPostulacion: string, idUsuario: string) {
+    await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
+    const fila = await this.prisma.postulacion.findFirst({
+      where: { id: idPostulacion, id_vacante: idVacante },
+      select: {
+        usuario: {
+          select: {
+            titulado: {
+              select: {
+                curriculum_vitae: {
+                  select: { nombre: true, contenido: true, size_bytes: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const file = fila?.usuario?.titulado?.curriculum_vitae;
+    if (!file?.contenido || !file.size_bytes) {
+      throw new NotFoundException('El postulante aún no subió su CV');
+    }
+    return {
+      name: file.nombre ?? 'cv.pdf',
+      mime: 'application/pdf',
+      bytes: file.contenido,
+      size: file.size_bytes,
+    };
   }
 }
