@@ -84,6 +84,8 @@ export interface ApplicationHistoryEvent {
   actor: {
     type: string;
     id: string | null;
+    name?: string | null;
+    email?: string | null;
   };
   occurredAt: string;
 }

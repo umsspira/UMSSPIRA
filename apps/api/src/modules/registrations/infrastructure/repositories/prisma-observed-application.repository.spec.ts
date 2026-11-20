@@ -79,6 +79,7 @@ describe('PrismaObservedApplicationRepository', () => {
         update: jest.fn().mockResolvedValue({ id: 'doc-1' }),
         create: jest.fn().mockResolvedValue({ id: 'new-doc-1' }),
       },
+      historialEvento: { create: jest.fn().mockResolvedValue({ id: 'history-1' }) },
       tokenSubsanacion: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
@@ -624,6 +625,14 @@ describe('PrismaObservedApplicationRepository', () => {
       expect(response.version).toBe(2);
 
       // Se reutiliza el numero de version actual.
+      expect(tx.historialEvento.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          id_solicitud: applicationId,
+          version: 2,
+          accion: 'REENVIO',
+          tipo_actor: 'TITULADO',
+        }),
+      });
       expect(tx.solicitudVersion.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -723,6 +732,7 @@ describe('PrismaObservedApplicationRepository', () => {
         const response = await repository.submitCorrection(applicationId, { expectedVersion: 2 });
         expect(response.estado).toBe(estado);
         expect(tx.solicitud.update).not.toHaveBeenCalled();
+        expect(tx.historialEvento.create).not.toHaveBeenCalled();
       }
     });
 
