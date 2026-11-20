@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { NavbarLinks } from './navbar-links';
 import { navigationFor } from './navigation';
 
-const items = navigationFor('titulado').find(section => section.id === 'mentorship')!.items;
+const items = navigationFor('titulado', true).find(section => section.id === 'mentorship')!.items;
 const renderLinks = (currentPath: string) => render(
   <NavbarLinks items={items} currentPath={currentPath} resolveHref={href => href} onNavigate={() => {}} />,
 );

@@ -7,10 +7,10 @@ import {
   OBSERVATION_CATEGORIES,
   useReview,
 } from "../hooks/use-review";
+import { ReasonsSelector } from "./reasons-selector";
 import {
   btnAccent,
   btnSecondary,
-  
   FieldError,
   FieldHint,
   FieldLabel,
@@ -36,9 +36,8 @@ export function ObserveDialog({
   onClose,
   onSuccess,
 }: Props) {
-  const [category, setCategory] = useState("");
+  const [reasons, setReasons] = useState<string[]>([]);
   const [note, setNote] = useState("");
-  
   const [attempted, setAttempted] = useState(false);
 
   const { submitReview, isLoading, error } = useReview({
@@ -49,30 +48,28 @@ export function ObserveDialog({
   if (!open) return null;
 
   const length = note.trim().length;
-  const categoryInvalid = category === "";
+  const reasonsInvalid = reasons.length === 0;
   const noteInvalid = length < MIN_NOTE_LENGTH;
 
-  const showCategoryError = attempted && categoryInvalid;
+  const showReasonsError = attempted && reasonsInvalid;
   const showNoteError = attempted && noteInvalid;
 
   function handleClose() {
-    setCategory("");
+    setReasons([]);
     setNote("");
-    
     setAttempted(false);
     onClose();
   }
 
   async function handleConfirm() {
     setAttempted(true);
-    // CA-04.6: bloquea el envío si falta la categoría o la nota es corta
-    if (categoryInvalid || noteInvalid) return;
+    // CA-16.1: bloquea el envío si falta algún motivo o la explicación es corta
+    if (reasonsInvalid || noteInvalid) return;
 
     const ok = await submitReview({
       decision: "OBSERVADA",
-      category,
+      motivos: reasons,
       note: note.trim(),
-      
     });
     if (ok) handleClose();
   }
@@ -90,36 +87,20 @@ export function ObserveDialog({
         el sistema UMSSPIRA.
       </InfoBox>
 
-      {/* Categoría */}
-      <div>
-        <FieldLabel htmlFor="observe-category" required>
-          Categoría de la observación
-        </FieldLabel>
-        <select
-          id="observe-category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          disabled={isLoading}
-          aria-invalid={showCategoryError}
-          className={fieldClass(showCategoryError)}
-        >
-          <option value="">Seleccione un ámbito de observación...</option>
-          {OBSERVATION_CATEGORIES.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-        {showCategoryError && (
-          <FieldError>Este campo es obligatorio.</FieldError>
-        )}
-      </div>
+      {/* Motivos */}
+      <ReasonsSelector
+        options={OBSERVATION_CATEGORIES}
+        selected={reasons}
+        onChange={setReasons}
+        disabled={isLoading}
+        error={showReasonsError ? "Selecciona al menos un motivo de observación." : undefined}
+      />
 
-      {/* Nota */}
+      {/* Explicación */}
       <div>
         <div className="flex items-center justify-between">
           <FieldLabel htmlFor="observe-note" required>
-            Nota de observación
+            Qué debe corregir el Titulado
           </FieldLabel>
           <span className="mb-1.5 text-[11px] font-medium text-[#2C3B4D]">
             {note.length} / {MAX_NOTE_LENGTH}
@@ -140,15 +121,14 @@ export function ObserveDialog({
           <FieldError>
             {length === 0
               ? "Este campo es obligatorio."
-              : `La nota debe tener al menos ${MIN_NOTE_LENGTH} caracteres.`}
+              : `La explicación debe tener al menos ${MIN_NOTE_LENGTH} caracteres.`}
           </FieldError>
         ) : (
           <FieldHint>Mínimo {MIN_NOTE_LENGTH} caracteres requeridos.</FieldHint>
         )}
       </div>
 
-      {/* Notificación */}
-            {/* Aviso de notificación automática (CA-09.1 / CA-10.1) */}
+      {/* Aviso de notificación automática (CA-09.1 / CA-10.1) */}
       <p className="rounded-md bg-[#F0F4F8] p-3 text-[12px] leading-relaxed text-[#2C3B4D]">
         ℹ Al confirmar la observación, el sistema notificará automáticamente al titulado por correo electrónico con las observaciones detalladas y su enlace seguro de subsanación.
       </p>

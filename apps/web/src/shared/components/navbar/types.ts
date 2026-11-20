@@ -21,6 +21,8 @@ export interface NavbarLink {
   guestOnly?: boolean;
   /** No se muestra en el menú, pero sigue sirviendo para saber qué sección está activa. */
   hidden?: boolean;
+  /** Se muestra únicamente cuando el usuario titulado tiene participación activa como mentor. */
+  mentorOnly?: boolean;
 }
 
 export interface NavbarSection {

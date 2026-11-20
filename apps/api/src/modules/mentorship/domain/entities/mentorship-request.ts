@@ -24,6 +24,7 @@ export interface MentorshipRequest {
   status: MentorshipRequestStatus;
   createdAt: Date | null;
   respondedAt: Date | null;
+  updatedAt: Date | null;
 }
 
 export interface MentorshipRequestPage {
@@ -32,4 +33,18 @@ export interface MentorshipRequestPage {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+/** Solicitud creada por el propio titulado, con los datos públicos del mentor. */
+export interface MyMentorshipRequest extends MentorshipRequest {
+  mentorName: string | null;
+  mentorPosition: string | null;
+  mentorCompany: string | null;
+}
+
+export type MentorshipRequestCounts = Record<'TODAS' | MentorshipRequestStatus, number>;
+
+export interface MyMentorshipRequestPage extends MentorshipRequestPage {
+  items: MyMentorshipRequest[];
+  counts: MentorshipRequestCounts;
 }

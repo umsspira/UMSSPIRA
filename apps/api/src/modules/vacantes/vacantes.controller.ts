@@ -1,7 +1,16 @@
-import { Controller, Get, Patch, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe, Post } from '@nestjs/common';
 import { CurrentActor } from '../../shared/http/auth/decorators/current-actor.decorator';
+import { RequirePermissions } from '../../shared/http/auth/decorators/require-permissions.decorator';
+import { Roles } from '../../shared/http/auth/decorators/roles.decorator';
+import { ZodValidationPipe } from '../../shared/http/pipes/zod-validation.pipe';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
-import { VacantesService, UpdateVacanteData } from './vacantes.service';
+import { VacantesService } from './vacantes.service';
+import {
+  vacancyIdSchema,
+  updateVacanteSchema,
+  type VacancyId,
+  type UpdateVacanteBody,
+} from './vacantes.schemas';
 
 @Controller('vacantes')
 export class VacantesController {
@@ -10,6 +19,67 @@ export class VacantesController {
   @Get('mis-vacantes')
   async listar(@CurrentActor() actor: ActorContext) {
     return this.vacantesService.obtenerMisVacantes(actor.id);
+  }
+
+  @Get('mis-postulaciones')
+  @Roles('titulado')
+  async listarMisPostulaciones(@CurrentActor() actor: ActorContext) {
+    return { data: await this.vacantesService.listarMisPostulaciones(actor.id) };
+  }
+
+  @Get(':id/oferta')
+  @Roles('titulado')
+  async obtenerOferta(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return { data: await this.vacantesService.obtenerOfertaParaTitulado(id, actor.id) };
+  }
+
+  @Get(':id/postulaciones/mia')
+  async estadoPostulacion(
+    @Param('id', new ZodValidationPipe(vacancyIdSchema)) idVacante: VacancyId,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return { data: await this.vacantesService.estadoPostulacion(idVacante, actor.id) };
+  }
+
+  @Post(':id/postulaciones')
+  async postular(
+    @Param('id', new ZodValidationPipe(vacancyIdSchema)) idVacante: VacancyId,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return { data: await this.vacantesService.postular(idVacante, actor.id) };
+  }
+
+  @Get(':idVacante/postulantes')
+  @RequirePermissions('empresas:self:read')
+  async listarPostulantes(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.listarPostulantes(idVacante, actor.id);
+  }
+
+  @Get(':idVacante/postulantes/:idPostulacion')
+  @RequirePermissions('empresas:self:read')
+  async obtenerPostulante(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @Param('idPostulacion', ParseUUIDPipe) idPostulacion: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.obtenerPostulante(idVacante, idPostulacion, actor.id);
+  }
+  // HU-04: la empresa cambia la etapa de un postulante de SUS vacantes.
+  @Patch(':idVacante/postulantes/:idPostulacion/etapa')
+  @RequirePermissions('empresas:self:write')
+  async cambiarEtapa(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @Param('idPostulacion', ParseUUIDPipe) idPostulacion: string,
+    @Body() body: { etapa?: string },
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.cambiarEtapaPostulante(idVacante, idPostulacion, actor.id, body?.etapa);
   }
 
   @Get(':id')
@@ -23,9 +93,10 @@ export class VacantesController {
   }
 
   @Patch(':id')
+  @RequirePermissions('empresas:self:write')
   async actualizar(
-    @Param('id') id: string,
-    @Body() body: UpdateVacanteData,
+    @Param('id', new ZodValidationPipe(vacancyIdSchema)) id: VacancyId,
+    @Body(new ZodValidationPipe(updateVacanteSchema)) body: UpdateVacanteBody,
     @CurrentActor() actor: ActorContext
   ) {
     return this.vacantesService.actualizarVacante(id, actor.id, body);

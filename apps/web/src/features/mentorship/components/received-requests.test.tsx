@@ -6,7 +6,7 @@ import { getReceivedRequest, listReceivedRequests, ReceivedRequestsError, respon
 
 const mockReplace = jest.fn();
 const mockRouter = { replace: mockReplace };
-jest.mock('next/navigation', () => ({ useRouter: () => mockRouter, useSearchParams: () => new URLSearchParams() }));
+jest.mock('next/navigation', () => ({ useRouter: () => mockRouter }));
 jest.mock('../services/mentorship-api', () => ({ getMentorProfile: jest.fn() }));
 jest.mock('../services/received-requests-api', () => ({
   getReceivedRequest: jest.fn(),
@@ -17,39 +17,75 @@ jest.mock('../services/received-requests-api', () => ({
   },
 }));
 
-const request = (estado: 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO' | 'CANCELADO' = 'PENDIENTE') => ({
-  id: 'request-1', id_mentor: 'mentor-1', solicitante: { id: 'user-1', nombre: 'Juan Pérez' },
+const request = (
+  estado: 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO' | 'CANCELADO' = 'PENDIENTE',
+  id = 'request-1',
+  nombre = 'Juan Pérez',
+  fechaCreacion = '2026-10-20',
+) => ({
+  id, id_mentor: 'mentor-1', solicitante: { id: 'user-1', nombre },
   fecha: '2026-10-27', hora_inicio: '15:00', hora_fin: '16:00', mensaje: 'Necesito orientación para mi proyecto.',
-  estado, fecha_creacion: '2026-10-20', fecha_respuesta: estado === 'PENDIENTE' ? null : '2026-10-21',
+  estado, fecha_creacion: fechaCreacion, fecha_respuesta: estado === 'PENDIENTE' ? null : '2026-10-21',
 });
 
 beforeEach(() => {
   jest.clearAllMocks();
   (getMentorProfile as jest.Mock).mockResolvedValue({ isActive: true });
-  (listReceivedRequests as jest.Mock).mockImplementation(async (status: string) => {
+  (listReceivedRequests as jest.Mock).mockImplementation(async (status: string, page = 1) => {
     const item = status === 'PENDIENTE' ? request() : null;
-    return { items: item ? [item] : [], page: 1, pageSize: 20, total: item ? 1 : 0, totalPages: 1 };
+    return { items: item && page === 1 ? [item] : [], page, pageSize: 5, total: item ? 1 : 0, totalPages: 1 };
   });
   (getReceivedRequest as jest.Mock).mockResolvedValue(request());
   (respondToReceivedRequest as jest.Mock).mockResolvedValue(request('ACEPTADO'));
 });
 
-it('muestra la bandeja pendiente con solicitante, fecha de envío y motivo', async () => {
+it('muestra la bandeja en una tabla compacta con solicitante, fecha y motivo', async () => {
   render(<ReceivedRequests />);
   expect(await screen.findByText('Juan Pérez')).toBeInTheDocument();
-  expect(screen.getByText(/Enviada: 2026-10-20/)).toBeInTheDocument();
+  expect(screen.getByText('20/10/2026')).toBeInTheDocument();
   expect(screen.getByText('Necesito orientación para mi proyecto.')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Cargar datos de prueba' })).not.toBeInTheDocument();
   expect(screen.queryByText(/Modo de prueba/)).not.toBeInTheDocument();
-  expect(listReceivedRequests).toHaveBeenCalledWith('PENDIENTE', 1, expect.anything());
+  expect(screen.getByRole('table')).toBeInTheDocument();
+  expect(listReceivedRequests).toHaveBeenCalledWith('PENDIENTE', 1, expect.anything(), 5);
 });
 
 it('filtra por aceptadas desde el servicio', async () => {
   render(<ReceivedRequests />);
   await screen.findByText('Juan Pérez');
   fireEvent.click(screen.getByRole('tab', { name: /Aceptadas/ }));
-  await waitFor(() => expect(listReceivedRequests).toHaveBeenCalledWith('ACEPTADO', 1, expect.anything()));
+  await waitFor(() => expect(listReceivedRequests).toHaveBeenCalledWith('ACEPTADO', 1, expect.anything(), 5));
   expect(await screen.findByText('No tienes solicitudes de mentoría')).toBeInTheDocument();
+});
+
+it('muestra como máximo cinco solicitudes por página y permite avanzar a la página 2', async () => {
+  const pending = Array.from({ length: 6 }, (_, index) =>
+    request('PENDIENTE', `pending-${index + 1}`, `Solicitante ${index + 1}`, `2026-10-${String(20 - index).padStart(2, '0')}`),
+  );
+  const accepted = Array.from({ length: 3 }, (_, index) =>
+    request('ACEPTADO', `accepted-${index + 1}`, `Aceptado ${index + 1}`, `2026-10-${String(10 - index).padStart(2, '0')}`),
+  );
+  (listReceivedRequests as jest.Mock).mockImplementation(async (status: string, page = 1) => {
+    const records = status === 'PENDIENTE' ? pending : status === 'ACEPTADO' ? accepted : [];
+    return {
+      items: records.slice((page - 1) * 5, page * 5),
+      page,
+      pageSize: 5,
+      total: records.length,
+      totalPages: Math.max(1, Math.ceil(records.length / 5)),
+    };
+  });
+  render(<ReceivedRequests />);
+
+  const table = await screen.findByRole('table');
+  await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(6));
+  expect(screen.getByText('Mostrando 1–5 de 9 · Más recientes primero')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Página 2' }));
+
+  expect(await screen.findByText('Aceptado 1')).toBeInTheDocument();
+  expect(screen.queryByText('Solicitante 1')).not.toBeInTheDocument();
+  await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(5));
+  expect(listReceivedRequests).toHaveBeenCalledWith('PENDIENTE', 2, expect.anything(), 5);
 });
 
 it('consulta el detalle completo y muestra estado, fecha, área y mensaje', async () => {
@@ -92,15 +128,19 @@ it('acepta tras confirmar y muestra el estado nuevo y la fecha de respuesta', as
   expect(respondToReceivedRequest).toHaveBeenCalledWith('request-1', 'accept');
   fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
   expect(await screen.findByText('Aceptada')).toBeInTheDocument();
-  expect(screen.getByText(/Respondida: 2026-10-21/)).toBeInTheDocument();
+  expect(screen.getByText('20/10/2026')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument();
 });
 
 it('rechaza tras confirmar y muestra el mensaje exacto', async () => {
-  (respondToReceivedRequest as jest.Mock).mockResolvedValue(request('RECHAZADO'));
+  let responseStatus = 'PENDIENTE';
+  (respondToReceivedRequest as jest.Mock).mockImplementation(async () => {
+    responseStatus = 'RECHAZADO';
+    return request('RECHAZADO');
+  });
   (listReceivedRequests as jest.Mock).mockImplementation(async (status: string) => {
-    const item = status === 'RECHAZADO' ? request('RECHAZADO') : status === 'PENDIENTE' ? request() : null;
-    return { items: item ? [item] : [], page: 1, pageSize: 20, total: item ? 1 : 0, totalPages: 1 };
+    const item = status === responseStatus ? request(responseStatus as 'PENDIENTE' | 'RECHAZADO') : null;
+    return { items: item ? [item] : [], page: 1, pageSize: 5, total: item ? 1 : 0, totalPages: 1 };
   });
   render(<ReceivedRequests />);
   await screen.findByText('Juan Pérez');
@@ -112,10 +152,16 @@ it('rechaza tras confirmar y muestra el mensaje exacto', async () => {
 
 it('muestra conflicto y actualiza estado cuando la respuesta perdió la carrera', async () => {
   (respondToReceivedRequest as jest.Mock).mockRejectedValue(new ReceivedRequestsError('conflict', 409, 'SOLICITUD_NO_PENDIENTE'));
-  (getReceivedRequest as jest.Mock).mockResolvedValue(request('RECHAZADO'));
+  let showRejected = false;
+  (getReceivedRequest as jest.Mock).mockImplementation(async () => {
+    showRejected = true;
+    return request('RECHAZADO');
+  });
   (listReceivedRequests as jest.Mock).mockImplementation(async (status: string) => {
-    const item = status === 'PENDIENTE' ? request() : status === 'RECHAZADO' ? request('RECHAZADO') : null;
-    return { items: item ? [item] : [], page: 1, pageSize: 20, total: item ? 1 : 0, totalPages: 1 };
+    const item = status === 'PENDIENTE' && !showRejected
+      ? request()
+      : status === 'RECHAZADO' && showRejected ? request('RECHAZADO') : null;
+    return { items: item ? [item] : [], page: 1, pageSize: 5, total: item ? 1 : 0, totalPages: 1 };
   });
   render(<ReceivedRequests />);
   await screen.findByText('Juan Pérez');
@@ -137,9 +183,54 @@ it('mantiene pendiente y permite reintentar después de un error del servidor', 
   expect(screen.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
 });
 
+it('muestra el motivo devuelto por la API cuando no puede aceptar la solicitud', async () => {
+  (respondToReceivedRequest as jest.Mock).mockRejectedValueOnce(
+    new ReceivedRequestsError('Se requiere una participación activa como mentor', 403),
+  );
+  render(<ReceivedRequests />);
+  await screen.findByText('Juan Pérez');
+  fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar' }));
+  expect(await within(screen.getByRole('dialog')).findByText('Se requiere una participación activa como mentor')).toBeInTheDocument();
+  expect(screen.getByText('Pendiente')).toBeInTheDocument();
+});
+
 it('redirige a un usuario que no participa activamente como mentor', async () => {
   (getMentorProfile as jest.Mock).mockResolvedValue({ isActive: false });
   render(<ReceivedRequests />);
   await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/mentorship'));
   expect(listReceivedRequests).not.toHaveBeenCalled();
+});
+
+it('muestra una solicitud cancelada sin acciones de aceptar o rechazar', async () => {
+  const canceled = { ...request('CANCELADO'), fecha_actualizacion: '2026-10-22' };
+  (listReceivedRequests as jest.Mock).mockImplementation(async (status: string) => {
+    const item = status === 'CANCELADO' ? canceled : null;
+    return { items: item ? [item] : [], page: 1, pageSize: 20, total: item ? 1 : 0, totalPages: 1 };
+  });
+  (getReceivedRequest as jest.Mock).mockResolvedValue(canceled);
+
+  render(<ReceivedRequests />);
+  fireEvent.click(await screen.findByRole('tab', { name: /Canceladas/ }));
+
+  expect(await screen.findByText('Cancelada')).toBeInTheDocument();
+  expect(screen.getByText(/Cancelada: 22\/10\/2026/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Aceptar' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Ver detalles' }));
+
+  expect(
+    await screen.findByText('Cancelada por el solicitante el 22/10/2026'),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Aceptar' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument();
+});
+
+it('no muestra la vista falsa de solicitudes enviadas', async () => {
+  render(<ReceivedRequests />);
+  await screen.findByText('Juan Pérez');
+  expect(screen.queryByRole('heading', { name: 'Mis solicitudes de mentoría' })).not.toBeInTheDocument();
+  expect(screen.queryByText(/sent-/)).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Solicitudes de mentoría recibidas' })).toBeInTheDocument();
 });

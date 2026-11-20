@@ -87,6 +87,7 @@ export interface EventParticipantItem {
   status: EventRegistrationStatus;
   registeredAt: string;
   passStatus: EventParticipantPassStatus;
+  attendedAt: string | null;
 }
 
 export interface EventOccupationSummary {

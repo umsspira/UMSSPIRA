@@ -1,0 +1,23 @@
+meta {
+  name: Cancelar mi solicitud
+  type: http
+  seq: 22
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/mentorship/my-requests/{{myRequestId}}/cancel
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Cancela una solicitud propia en estado PENDIENTE. El mentor verá el estado CANCELADO.
+  Una solicitud ajena responde 404 SOLICITUD_NO_ENCONTRADA; una solicitud ya procesada
+  responde 409 SOLICITUD_NO_PENDIENTE.
+
+  Permiso: mentores:self:write. Rol: titulado.
+}

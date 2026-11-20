@@ -119,3 +119,34 @@ describe('FormularioExperiencia · error al guardar en la API', () => {
     expect(onAgregar).not.toHaveBeenCalled();
   });
 });
+describe('FormularioExperiencia · máximo 2 trabajos actuales (HU-21, CA-09)', () => {
+  const dosActuales = [
+    { empresa: 'Jalasoft', cargo: 'Dev', fechaInicio: '2022-01-01' },
+    { empresa: 'Digital Harbor', cargo: 'QA', fechaInicio: '2023-01-01' },
+  ];
+
+  it('con 2 trabajos actuales desactiva la casilla y muestra «Ya tienes dos trabajos actuales»', () => {
+    render(<FormularioExperiencia experiencias={dosActuales} onAgregar={jest.fn()} />);
+
+    const casilla = screen.getByLabelText('Actualmente trabajo aquí');
+    expect(casilla).toBeDisabled();
+    expect(screen.getByText('Ya tienes dos trabajos actuales')).toHaveAttribute('id', casilla.getAttribute('aria-describedby'));
+  });
+
+  it('con 1 trabajo actual la casilla sigue activa y sin mensaje', () => {
+    render(<FormularioExperiencia experiencias={[dosActuales[0]]} onAgregar={jest.fn()} />);
+
+    expect(screen.getByLabelText('Actualmente trabajo aquí')).toBeEnabled();
+    expect(screen.queryByText('Ya tienes dos trabajos actuales')).not.toBeInTheDocument();
+  });
+
+  it('con 2 trabajos actuales sí agrega una experiencia con fecha fin', async () => {
+    const onAgregar = jest.fn().mockResolvedValue(undefined);
+    const { container } = render(<FormularioExperiencia experiencias={dosActuales} onAgregar={onAgregar} />);
+    llenarFormulario(container, '2020-01-01', '2021-01-01');
+
+    agregar();
+
+    await waitFor(() => expect(onAgregar).toHaveBeenCalledTimes(1));
+  });
+});

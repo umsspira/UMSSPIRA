@@ -6,7 +6,7 @@ Desde la raíz del repositorio:
 pnpm --filter api db:seed:demo
 ```
 
-`demo.ts` carga catálogos, cuentas y todos los archivos `epic-N.ts`. No hay que ejecutar un comando por equipo. Usa las conexiones de `apps/api/.env` y exige `APP_ENV=epic`, `dev` o `test`; no consulta la rama de Git. Las migraciones deben estar aplicadas y el cliente Prisma generado antes de cargar datos.
+`demo.ts` carga catálogos, cuentas, todos los archivos `epic-N.ts` y los datos QA de la segunda carrera. No hay que ejecutar un comando por equipo. Usa las conexiones de `apps/api/.env` y exige `APP_ENV=epic`, `dev` o `test`; no consulta la rama de Git. Las migraciones deben estar aplicadas y el cliente Prisma generado antes de cargar datos.
 
 ## Qué queda disponible
 
@@ -31,7 +31,9 @@ Este comando exige `APP_ENV=epic`, `dev` o `test` y la cuenta administradora de 
 | Épica 6      | El titulado participa como mentor activo, con especialidad, interés y disponibilidad                                          |
 | Épica 7      | Un evento publicado, un borrador del administrador y una inscripción del titulado                                             |
 | Épica 8      | Reutiliza la identidad y catálogos compartidos; los dispositivos push los registra cada navegador                             |
-| Épica 9      | Encuesta en borrador; indicadores y listados con las solicitudes y el mentor ya cargados                                      |
+| Épica 9      | Encuesta publicada; indicadores y listados con las solicitudes y el mentor ya cargados                                      |
+
+La etapa de QA agrega un administrador exclusivo de Ingeniería Informática, 20 titulados y 20 respuestas, además de cálculos de radar para sus cohortes.
 
 Son datos ficticios. No se generan sesiones, renovaciones, códigos de activación, correos pendientes ni suscripciones push. Los respaldos de certificación se cargan mediante el endpoint correspondiente: la certificación inicial está `sin_respaldo`. No se insertan aprobaciones sin evidencia ni archivos de reporte inexistentes.
 
@@ -48,6 +50,7 @@ La seed de la épica 9 agrega 39 perfiles de titulado ficticios sin cuentas de a
 | `empresa@umss.edu.bo`  | `empresa1234`  | empresa       |
 
 El mentor utiliza la cuenta de titulado; no es un rol de acceso independiente. Las solicitudes pendiente, observada y rechazada tienen contactos ficticios `example.com` y no crean cuentas adicionales.
+La cuenta QA de Informática usa `admin.informatica@umss.edu.bo` con contraseña `admininformatica1234`.
 
 ## Dónde añadir los datos
 
@@ -67,6 +70,8 @@ El mentor utiliza la cuenta de titulado; no es un rol de acceso independiente. L
 | `epic-7.ts`        | Eventos e inscripciones                                                               |
 | `epic-8.ts`        | Registro opcional de dispositivos para un flujo real de pruebas                       |
 | `epic-9.ts`        | Reportes, encuestas y respuestas laborales con titulados ficticios para pruebas       |
+
+Los datos QA de la segunda carrera se crean desde `qa-second-career.ts`.
 
 Cada equipo puede ampliar los arreglos tipados de su archivo. Los catálogos que consumen varios módulos se mantienen en `catalogs.ts`, para no duplicarlos en cada épica. Se conservan los UUID de las tres cuentas y las cinco áreas que ya existían.
 
@@ -93,7 +98,7 @@ Cada tabla se inserta con `skipDuplicates` o con `upsert` sin actualizaciones: r
 
 ## Relaciones y orden
 
-Primero se crean catálogos, roles, permisos, cuentas y perfiles. Después se ejecutan las épicas en este orden: **1, 2, 6, 3, 4, 5, 7, 8, 9**. Las áreas compartidas ya existen desde la base; sus padres se crean antes que sus hijas.
+Primero se crean catálogos, roles, permisos, cuentas y perfiles. Después se ejecutan las épicas en este orden: **1, 2, 6, 3, 4, 5, 7, 8, 9**, y al final los datos QA de la segunda carrera. Las áreas compartidas ya existen desde la base; sus padres se crean antes que sus hijas.
 
 Dentro de cada archivo se crean primero las tablas referenciadas y después sus dependientes. Si se incorpora otra tabla, añadir su arreglo tipado y su inserción al archivo de la épica, respetando ese orden. No crear de nuevo una cuenta o un área compartida desde otra épica: usar su UUID.
 

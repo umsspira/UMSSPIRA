@@ -127,19 +127,21 @@
 | `/mentorship/directory` | Directorio / explorar mentores | middleware |
 | `/mentorship/mentors/[mentorId]` | Perfil público de un mentor | middleware |
 | `/mentorship/request/[mentorId]` | Enviar solicitud a un mentor | middleware |
-| `/mentorship/requests` | Mis solicitudes (enviadas) | middleware |
-| `/mentorship/requests/received` | Solicitudes recibidas (`?view=sent` = enviadas) | middleware |
+| `/mentorship/requests` | Mis solicitudes (historial del titulado) | middleware |
+| `/mentorship/requests/received` | Solicitudes recibidas por el mentor | middleware |
 | `/mentorship/profile` | Mi perfil de mentor | middleware |
 | `/mentorship/profile/information` | Información de mi perfil de mentor | middleware |
 | `/mentorship/profile/areas` | Áreas técnicas | middleware |
 | `/mentorship/profile/interests` | Intereses de mentoría | middleware |
 | `/mentorship/profile/availability` | Disponibilidad | middleware |
 
-### 3.5 Bolsa de trabajo y empresas (11)
+### 3.5 Bolsa de trabajo y empresas (13)
 
 | Ruta | Pantalla | Protección |
 | --- | --- | --- |
 | `/job-postings` | Ofertas laborales actuales | middleware |
+| `/my-applications` | Mis postulaciones del titulado | middleware + rol `titulado` |
+| `/my-applications/oferta/[id]` | Detalle de una oferta postulada | middleware + rol `titulado` |
 | `/companies` | Perfil de mi empresa | AuthGuard (layout) |
 | `/empresa/vacantes/publicar` | Publicar una vacante | AuthGuard (layout) |
 | `/empresa/mis-vacantes` | Mis vacantes | AuthGuard (layout) |
@@ -243,12 +245,14 @@ Todos los grupos viven bajo `/api/v1` salvo `/` y `/health`.
 | POST | `/api/v1/companies/invitations/:invitationId/resend` | permiso `empresas:invite` → administrador |
 | GET | `/api/v1/companies/registry` | permiso `empresas:invite` → administrador |
 
-### 4.5 Ofertas laborales — `job-postings`, `vacantes` (6)
+### 4.5 Ofertas laborales — `job-postings`, `vacantes` (8)
 
 | Verbo | Ruta | Acceso |
 | --- | --- | --- |
 | POST | `/api/v1/job-postings` | permiso `vacantes:create` → empresa |
 | GET | `/api/v1/vacantes/mis-vacantes` | sesión requerida |
+| GET | `/api/v1/vacantes/mis-postulaciones` | rol `titulado`; solo postulaciones del usuario autenticado (HU-006) |
+| GET | `/api/v1/vacantes/:id/oferta` | rol `titulado`; oferta publicada o vacante a la que se postuló |
 | GET | `/api/v1/vacantes/:id` | sesión requerida |
 | PATCH | `/api/v1/vacantes/:id` | sesión requerida |
 | PATCH | `/api/v1/vacantes/:id/cerrar` | sesión requerida |
@@ -342,7 +346,7 @@ Accesibles sin sesión: el acceso se valida con **token de sesión de registro**
 
 > **Nota:** los dos últimos viven en el namespace `registrations` (controlador `event-passes.controller.ts`) pero pertenecen funcionalmente a eventos: generan y listan los **pases QR**.
 
-### 4.10 Mentorías — `mentorship`, `mentorship/requests` (25)
+### 4.10 Mentorías — `mentorship`, `mentorship/requests` (27)
 
 **Directorio y detalle**
 
@@ -388,6 +392,8 @@ Accesibles sin sesión: el acceso se valida con **token de sesión de registro**
 | POST | `/api/v1/mentorship/requests` | permiso `mentores:self:write` → titulado |
 | PATCH | `/api/v1/mentorship/requests/:id/accept` | sesión requerida |
 | PATCH | `/api/v1/mentorship/requests/:id/reject` | sesión requerida |
+| GET | `/api/v1/mentorship/my-requests` | permiso `mentores:self:write` → titulado |
+| PATCH | `/api/v1/mentorship/my-requests/:id/cancel` | permiso `mentores:self:write` → titulado |
 
 ### 4.11 Reportería — `reports` (6)
 

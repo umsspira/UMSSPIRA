@@ -254,3 +254,93 @@ Aunque el `.env` exista y tenga las variables, NestJS no las lee.
 ```powershell
 $content = [System.IO.File]::ReadAllText("apps/api/.env")
 [System.IO.File]::WriteAllText("$PWD\apps\api\.env", $content, (New-Object System.Text.UTF8Encoding $false))
+```
+
+---
+
+## Épica 5 — Estudios de Vacantes: instrucciones de trabajo para agentes
+
+Esta sección es obligatoria para los agentes de los 8 grupos (épicas 1–4 y 6–9) que trabajan en Épica 5. Su objetivo: que todos los agentes trabajen igual, sin bloquearse y sin pisarse. Plazo: 2 días. El detalle completo de cada HU (historia, contexto y qué hay que hacer) está en el documento externo `epic5-hus-pendientes.md`.
+
+### 1. Reglas obligatorias para cualquier agente
+
+1. Antes de tocar código, leer `AGENTS.md` (raíz del repo) y `apps/api/src/modules/README.md` (convención backend; es vinculante). Si este documento contradice al repo, gana el repo.
+2. Trabajar SOLO en las HUs asignadas a tu grupo (tabla del punto 3). No modificar archivos de otras HUs salvo que la HU lo pida explícitamente.
+3. Rama por HU según el [flujo de ramas](#flujo-de-ramas): `feat/GX-HUYY-nombreCorto` (ej. `feat/G1-HU10-matching`). Commits según las [convenciones de commits](#convenciones-de-commits), en español.
+4. Convenciones de código (no negociables):
+   - Validación con Zod 4 y `ZodValidationPipe`. Nunca class-validator ni DTOs de clases.
+   - Respuestas `{ "data": ... }`, errores `{ "error": { "code", "message" } }` con mensajes en español y códigos `SCREAMING_SNAKE`, usando la jerarquía compartida `AppError`.
+   - `domain/` y `application/` no importan Nest, Express, Prisma ni `process.env`.
+   - Tipos usados por `api` y `web` van en `packages/shared-types`, exportados desde `src/index.ts`. Nunca duplicar interfaces entre apps.
+   - Migraciones: siempre una nueva. Nunca editar una migración ya aplicada.
+   - Permiso nuevo = agregar el string a `src/modules/user/domain/policies/access.policy.ts` y sembrarlo en un rol. Sin eso, no funciona.
+   - Datos de propiedad/empresa: verificar en el caso de uso Y re-filtrar en el repositorio. Nunca confiar en un id de la URL como prueba de propiedad.
+5. Antes de entregar: `pnpm lint` → `pnpm test` → `pnpm build`, en ese orden. Los tests no tocan ninguna BD real (`APP_ENV=test`).
+6. Toda operación HTTP nueva exige: doc en `apps/api/docs/endpoints/epic5/`, un request por endpoint en `bruno/Vacantes/`, README del módulo actualizado.
+7. Nada de mocks en código de producción. Los flags (`NEXT_PUBLIC_USE_MOCK` y similares) quedan solo para desarrollo o demo explícita, en `false` por defecto.
+8. No tocar los `.env` ajenos, no commitear secretos, no desplegar sin confirmar.
+9. Al terminar una HU: actualizar la tabla de estado del punto 6 de este documento.
+
+### 2. Contrato congelado (para no bloquearse)
+
+Lo publican epic1 (HU-10) y epic6 (HU-09) en las primeras 2 horas. Todos programan contra estas firmas, aunque la implementación interna aún no exista.
+
+- Tipos en `packages/shared-types`:
+  - `JobPostingAffinityResult`: `{ status, percentage, calculatedAt, comparison[] }`
+  - `comparison[]`: `{ requirement, matchedSkill, result }` con `result: 'exact' | 'similar' | 'not-found'`
+- Tabla `postulacion`: se mantiene `porcentaje_match` y se agrega `fecha_match` (migración nueva).
+- Endpoints:
+  - `POST /api/v1/job-postings/:id/requisitos` (HU-09) — escritura de requisitos técnicos.
+  - `POST /api/v1/affinity/batch` (HU-10) — afinidad de N vacantes o postulantes en una sola llamada.
+  - `GET /api/v1/vacantes/:idVacante/postulantes` — ahora incluye `comparison[]` y `skills` reales (HU-15).
+
+### 3. Reparto de HUs (5 puntos por grupo)
+
+| Grupo | HUs | Puntos |
+|---|---|---|
+| epic1 | HU-10 · Servicio de matching en backend | 5 |
+| epic2 | HU-11 · Similitud avanzada del motor | 5 |
+| epic3 | HU-17 · Suite de pruebas | 5 |
+| epic4 | HU-15 · Comparación real postulante-vacante | 5 |
+| epic6 | HU-09 (3) + HU-13 (2) · Requisitos estructurados + Editar vacante validada | 5 |
+| epic7 | HU-12 (3) + HU-18 (2) · Recálculo automático + Rendimiento y accesibilidad | 5 |
+| epic8 | HU-14 (3) + HU-19 (2) · Ciclo de vida y permisos + Datos y ambiente de demo | 5 |
+| epic9 | HU-16 (3) + HU-20 (2) · Privacidad y CV + Documentación y demo | 5 |
+
+### 4. Cronograma de 2 días (para que nada se bloquee)
+
+- **Día 1 mañana:** los 8 grupos arrancan a la vez. epic1 y epic6 publican el contrato en 2 horas. Lo que no depende de nadie avanza desde el minuto 1: E2E de postulación (epic3), fix de seguridad y estados (epic8), privacidad y CV (epic9), responsive y accesibilidad (epic7), quitar mocks y UI con datos reales (epic4), requisitos por diccionario y pesos (epic2).
+- **Día 1 tarde:** integración contra el motor de epic1. Al cierre, `porcentaje_match` se calcula y se guarda. epic8 aplica las migraciones a producción hoy (HU-19).
+- **Día 2 mañana:** cierre de código al mediodía (solo fixes después). CI en verde.
+- **Día 2 tarde:** ensayo de la demo punta a punta y demo al PO.
+
+Plan de recorte si falta tiempo, en este orden:
+
+1. HU-11 baja a "requisitos por diccionario + pesos exacta/parcial" (sin TF-IDF ni stemming).
+2. HU-18 relaja el objetivo de 3 segundos; móvil y accesibilidad básica son irrenunciables.
+3. HU-17 recorta huecos web; NO se recortan los E2E de postulación ni el fix de seguridad.
+4. Irrenunciables para la demo: HU-09, HU-10, HU-15 y HU-19.
+
+### 5. Puntos de control (obligatorios)
+
+1. **Hora 2:** contratos publicados (epic1 y epic6). Si no, avisar al resto.
+2. **Cierre de día 1:** integración en verde en la rama de integración.
+3. **Mediodía de día 2:** congelamiento de código.
+4. **Tarde de día 2:** demo ensayada con datos reales, sin mocks.
+
+### 6. Estado de las HUs (actualizar al terminar)
+
+| HU | Grupo | Estado | Rama | Notas |
+|---|---|---|---|---|
+| HU-09 | epic6 | Pendiente | | |
+| HU-10 | epic1 | Pendiente | | |
+| HU-11 | epic2 | Pendiente | | |
+| HU-12 | epic7 | Pendiente | | |
+| HU-13 | epic6 | En revisión | feat/epic6-HU13-editar-vacante-validada | Falta el recálculo de afinidad al guardar (depende de HU-10/HU-12) |
+| HU-14 | epic8 | Pendiente | | |
+| HU-15 | epic4 | Pendiente | | |
+| HU-16 | epic9 | Pendiente | | |
+| HU-17 | epic3 | Pendiente | | |
+| HU-18 | epic7 | Pendiente | | |
+| HU-19 | epic8 | Pendiente | | |
+| HU-20 | epic9 | Pendiente | | |

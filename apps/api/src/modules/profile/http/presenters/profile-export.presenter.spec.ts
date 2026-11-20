@@ -6,6 +6,7 @@ const profile: ProfileSnapshot = {
   education: [],
   experience: [],
   certifications: [],
+  projects: [],
   description: { text: '', updatedAt: null },
 };
 
@@ -58,6 +59,7 @@ const fullProfile: ProfileSnapshot = {
       backup: null,
     },
   ],
+  projects: [],
   description: { text: '', updatedAt: null },
 };
 

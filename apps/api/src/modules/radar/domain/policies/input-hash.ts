@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { ALGORITHM_VERSION } from './affinity-config';
+import { ALGORITHM_VERSION, DICTIONARY_VERSION } from './affinity-config';
 
 /**
  * Normaliza los textos del perfil para el hash de entrada.
@@ -15,11 +15,21 @@ export function normalizeTextsForHash(texts: readonly string[]): string {
 
 /**
  * Hash SHA-256 de la entrada del cálculo. El prefijo con la versión del algoritmo
- * invalida los hashes anteriores cuando cambia el diccionario o las constantes.
- * No modificar esta fórmula sin reportarlo: todos los hashes guardados quedarían obsoletos.
+ * y la versión del diccionario invalida los hashes anteriores cuando cambia el
+ * diccionario o las constantes, dejando los cálculos vigentes como pendientes.
  */
-export function calculateInputHash(texts: readonly string[]): string {
+export function calculateInputHash(
+  texts: readonly string[],
+  dictionaryVersion: string = DICTIONARY_VERSION,
+): string {
+  const normalizedDictionaryVersion = dictionaryVersion.trim();
+  const versionPrefix =
+    normalizedDictionaryVersion.length === 0 ||
+    ALGORITHM_VERSION.endsWith(`/${normalizedDictionaryVersion}`)
+      ? ALGORITHM_VERSION
+      : `${ALGORITHM_VERSION}|${normalizedDictionaryVersion}`;
+
   return createHash('sha256')
-    .update(`${ALGORITHM_VERSION}|${normalizeTextsForHash(texts)}`)
+    .update(`${versionPrefix}|${normalizeTextsForHash(texts)}`)
     .digest('hex');
 }

@@ -213,7 +213,6 @@ el cierre de estos bloqueos.
 
 ## Fuera de alcance
 
-El adaptador web `apps/web/src/shared/services/affinity-service.ts` descarta `weighting` y
-`topKeywords`, y `graduate-affinity-view.tsx` no pasa `topKeywords` a la inspección. Ese
-defecto impide mostrar el aporte de las keywords en el panel de HU-8. Requiere autorización de
-los code owners de `apps/web/src/shared/` y no se modifica en esta rama.
+Nota de actualización: El adaptador web consume correctamente los datos, y el frontend ahora 
+muestra explícitamente el weighting (puntos y peso), la frecuencia y el porcentaje de las 
+topKeywords en el panel de inspección del radar, de acuerdo con el diseño de la HU-8.

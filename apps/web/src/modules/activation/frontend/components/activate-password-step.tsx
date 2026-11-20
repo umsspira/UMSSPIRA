@@ -114,7 +114,7 @@ export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
             Activación Completada
           </span>
 
-          <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
+          <h2 className="mt-3 font-sans text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
             Cuenta activada exitosamente
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-abyssal-blue/75">
@@ -156,7 +156,7 @@ export const ActivatePasswordStep: React.FC<ActivatePasswordStepProps> = ({
       </div>
 
       <div className="mt-5">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
+        <h1 className="font-sans text-2xl font-bold tracking-tight text-abyssal-blue sm:text-4xl">
           Crea tu nueva contraseña
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-abyssal-blue/75">

@@ -145,3 +145,55 @@ describe('BackupViewerModal', () => {
     expect(screen.getByRole('dialog')).toHaveClass('max-h-[calc(100dvh-2rem)]');
   });
 });
+
+describe('BackupViewerModal · respaldo PDF (HU-18)', () => {
+  beforeEach(() => {
+    obtenerEnlaceMock.mockReset();
+    obtenerEnlaceMock.mockResolvedValue({ url: ENLACE, expiraEn: '2026-10-23T23:05:00.000Z' });
+  });
+
+  function abrirPdf(onClose = jest.fn()) {
+    render(
+      <BackupViewerModal certificationId="cert-1" certificationName="Título" backupType="pdf" onClose={onClose} />,
+    );
+    return onClose;
+  }
+
+  it('abre el PDF en el visor y no como foto', async () => {
+    abrirPdf();
+
+    const visor = await screen.findByTitle('Respaldo de Título');
+    expect(visor.tagName).toBe('IFRAME');
+    expect(visor).toHaveAttribute('src', ENLACE);
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('mantiene «Cargando respaldo…» hasta que el PDF termina de cargar', async () => {
+    abrirPdf();
+    const visor = await screen.findByTitle('Respaldo de Título');
+    expect(screen.getByText('Cargando respaldo…')).toBeInTheDocument();
+
+    fireEvent.load(visor);
+
+    expect(screen.queryByText('Cargando respaldo…')).not.toBeInTheDocument();
+  });
+
+  it('ofrece «Descargar» con el enlace de descarga del PDF', async () => {
+    abrirPdf();
+    await screen.findByTitle('Respaldo de Título');
+
+    expect(screen.getByRole('link', { name: 'Descargar' })).toHaveAttribute('href', `${ENLACE}&descargar=1`);
+  });
+
+  it('se cierra con «Cerrar», con Esc y con clic fuera', async () => {
+    const onClose = abrirPdf();
+    await screen.findByTitle('Respaldo de Título');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('dialog').parentElement as HTMLElement);
+
+    expect(onClose).toHaveBeenCalledTimes(3);
+  });
+});
+

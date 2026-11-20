@@ -1,0 +1,42 @@
+meta {
+  name: 006 auth/me administrador (observado)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{administradorToken}}
+}
+
+tests {
+  test("Status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Nunca responde 404", function() {
+    expect(res.status).to.not.equal(404);
+  });
+
+  test("Rol administrador", function() {
+    expect(res.body.data.role).to.equal("administrador");
+  });
+
+  test("Incluye nlp:extract y carece de los permisos de radar", function() {
+    const permisos = res.body.data.permissions;
+    expect(permisos).to.include("nlp:extract");
+    expect(permisos).to.not.include("radar:self:read");
+    expect(permisos).to.not.include("radar:self:write");
+  });
+}
+
+docs {
+  Ningun criterio de T9.3 define el resultado esperado del administrador.
+  Esta comprobacion registra el comportamiento observado en codigo y queda
+  [POR CONFIRMAR con PO/BE]. Requiere ejecutar antes 003-login-administrador.
+}

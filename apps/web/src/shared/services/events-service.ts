@@ -13,6 +13,11 @@ import { apiClient } from './api-client';
 import { authenticatedFetch } from './auth-session';
 import { readApiError } from './api-contract';
 
+import {
+  readEventCatalogOffline,
+  saveEventCatalogOffline,
+} from './events-offline-cache';
+
 const MAX_EVENT_COVER_SIZE = 5 * 1024 * 1024;
 const OPTIMIZE_COVER_FROM_BYTES = 768 * 1024;
 const MAX_OPTIMIZED_COVER_SIZE = 1536 * 1024;
@@ -83,9 +88,58 @@ export async function removeEventCover(imageUrl: string): Promise<void> {
   if (!response.ok) throw new Error('No se pudo limpiar la portada temporal.');
 }
 
+
+
 export async function getEventCatalog(): Promise<EventItem[]> {
-  return (await apiClient<{ data: EventItem[] }>('/api/v1/events/catalog')).data;
+  // Si el navegador informa que no hay conexión,
+  // intentar recuperar directamente los eventos guardados.
+  if (
+    typeof navigator !== 'undefined' &&
+    !navigator.onLine
+  ) {
+    const cached = await readEventCatalogOffline().catch(() => null);
+
+    if (cached) {
+      return cached.events;
+    }
+
+    throw new Error('No hay eventos guardados para consultar sin conexión.');
+  }
+
+  try {
+    const response = await apiClient<{ data: EventItem[] }>(
+      '/api/v1/events/catalog',
+    );
+
+    // Guardar únicamente los eventos del catálogo público.
+    // Un error de IndexedDB no debe impedir mostrar eventos online.
+    await saveEventCatalogOffline(response.data).catch((error) => {
+      console.warn('No se pudo guardar el catálogo offline:', error);
+    });
+
+    return response.data;
+  } catch (error) {
+    // Si falla la red, recuperar el último catálogo guardado.
+    // No sustituir errores HTTP de autenticación o permisos
+    // por datos almacenados.
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.onLine
+    ) {
+      throw error;
+    }
+
+    const cached = await readEventCatalogOffline().catch(() => null);
+
+    if (cached) {
+      return cached.events;
+    }
+
+    throw error;
+  }
 }
+
+
 
 export async function getPublishedEvent(eventId: string): Promise<EventItem> {
   return (await apiClient<{ data: EventItem }>(
@@ -283,4 +337,42 @@ function requireUserId(
   }
 
   return userId;
+}
+
+
+export interface ScheduledEventItem extends EventItem {
+  scheduledAt?: string | null;
+  schedulingStatus?: 'PENDIENTE' | 'FALLIDA' | 'EJECUTADA' | null;
+}
+
+export async function scheduleDraftEvent(
+  eventId: string,
+  scheduledAt: string,
+  userId?: string,
+): Promise<ScheduledEventItem> {
+  requireUserId(userId, 'programar la publicación');
+
+  return (await apiClient<{ data: ScheduledEventItem }>(
+    `/api/v1/events/drafts/${encodeURIComponent(eventId)}/schedule`,
+    {
+      method: 'PATCH',
+      authenticated: true,
+      body: { scheduledAt },
+    },
+  )).data;
+}
+
+export async function cancelDraftSchedule(
+  eventId: string,
+  userId?: string,
+): Promise<ScheduledEventItem> {
+  requireUserId(userId, 'cancelar la programación');
+
+  return (await apiClient<{ data: ScheduledEventItem }>(
+    `/api/v1/events/drafts/${encodeURIComponent(eventId)}/schedule/cancel`,
+    {
+      method: 'PATCH',
+      authenticated: true,
+    },
+  )).data;
 }
