@@ -31,6 +31,7 @@ describe('VacantesController · rutas de postulación (HU-03/HU-06)', () => {
     postular: jest.fn().mockResolvedValue({ postulada: true, yaExistia: false }),
     listarPostulantes: jest.fn().mockResolvedValue([]),
     obtenerPostulante: jest.fn(),
+    cambiarEtapaPostulante: jest.fn().mockResolvedValue({ id: '44800000-0000-4000-8000-000000000001', estado: 'entrevista' }),
     actualizarVacante: jest.fn(),
     cerrarVacante: jest.fn(),
     eliminarVacante: jest.fn(),
@@ -109,5 +110,42 @@ describe('VacantesController · rutas de postulación (HU-03/HU-06)', () => {
     expect(
       Reflect.getMetadata(REQUIRED_ROLES, VacantesController.prototype.obtenerOferta),
     ).toEqual(['titulado']);
+  });
+
+  it('expone PATCH para cambiar la etapa de un postulante (HU-04)', async () => {
+    const ID_POSTULACION = '44800000-0000-4000-8000-000000000001';
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}/postulantes/${ID_POSTULACION}/etapa`)
+      .send({ etapa: 'entrevista' })
+      .expect(200, {
+        id: ID_POSTULACION,
+        estado: 'entrevista',
+      });
+
+    expect(service.cambiarEtapaPostulante).toHaveBeenCalledWith(
+      ID_VACANTE,
+      ID_POSTULACION,
+      actor.id,
+      'entrevista',
+    );
+  });
+
+  it('rechaza un UUID inválido al cambiar la etapa (HU-04)', async () => {
+    await request(app.getHttpServer())
+      .patch('/api/v1/vacantes/no-es-uuid/postulantes/44800000-0000-4000-8000-000000000001/etapa')
+      .send({ etapa: 'entrevista' })
+      .expect(400);
+
+    expect(service.cambiarEtapaPostulante).not.toHaveBeenCalled();
+  });
+
+  it('rechaza un UUID de postulación inválido (HU-04)', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}/postulantes/no-es-uuid/etapa`)
+      .send({ etapa: 'entrevista' })
+      .expect(400);
+
+    expect(service.cambiarEtapaPostulante).not.toHaveBeenCalled();
   });
 });

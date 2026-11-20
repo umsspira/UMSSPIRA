@@ -1,4 +1,8 @@
-import { NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { VacantesService } from './vacantes.service';
 
 // HU-01: postulantes reales de una vacante de la empresa.
@@ -260,5 +264,112 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
     await expect(servicio.obtenerOfertaParaTitulado(ID_VACANTE, ID_USUARIO)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+// HU-04: pruebas del cambio de etapa del postulante.
+describe('VacantesService · cambio de etapa (HU-04)', () => {
+  const ID_VACANTE = '44500000-0000-4000-8000-000000000001';
+  const ID_POSTULACION = '44800000-0000-4000-8000-000000000001';
+  const ID_USUARIO = '20000000-0000-4000-8000-000000000003';
+  const ID_EMPRESA = '30000000-0000-4000-8000-000000000001';
+
+  function crearServicio(opciones: {
+    postulacion?: unknown;
+    empresaAccesible?: number;
+  } = {}) {
+    const prisma = {
+      postulacion: {
+        findFirst: jest.fn().mockResolvedValue(
+          opciones.postulacion === undefined
+            ? { id: ID_POSTULACION, vacante: { id_empresa: ID_EMPRESA } }
+            : opciones.postulacion
+        ),
+        update: jest.fn().mockResolvedValue({
+          id: ID_POSTULACION,
+          estado: 'entrevista',
+        }),
+      },
+      empresa: {
+        count: jest.fn().mockResolvedValue(
+          opciones.empresaAccesible ?? 1
+        ),
+      },
+    };
+
+    return {
+      servicio: new VacantesService(prisma as never),
+      prisma,
+    };
+  }
+
+  it('actualiza correctamente la etapa de una postulación', async () => {
+    const { servicio, prisma } = crearServicio();
+
+    await expect(
+      servicio.cambiarEtapaPostulante(
+        ID_VACANTE,
+        ID_POSTULACION,
+        ID_USUARIO,
+        'entrevista'
+      )
+    ).resolves.toEqual({
+      id: ID_POSTULACION,
+      estado: 'entrevista',
+    });
+
+    expect(prisma.postulacion.update).toHaveBeenCalledWith({
+      where: { id: ID_POSTULACION },
+      data: { estado: 'entrevista' },
+      select: { id: true, estado: true },
+    });
+  });
+
+  it('rechaza una etapa inválida', async () => {
+    const { servicio, prisma } = crearServicio();
+
+    await expect(
+      servicio.cambiarEtapaPostulante(
+        ID_VACANTE,
+        ID_POSTULACION,
+        ID_USUARIO,
+        'etapa_inventada'
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.postulacion.update).not.toHaveBeenCalled();
+  });
+
+  it('rechaza una postulación inexistente', async () => {
+    const { servicio, prisma } = crearServicio({
+      postulacion: null,
+    });
+
+    await expect(
+      servicio.cambiarEtapaPostulante(
+        ID_VACANTE,
+        ID_POSTULACION,
+        ID_USUARIO,
+        'entrevista'
+      )
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.postulacion.update).not.toHaveBeenCalled();
+  });
+
+  it('impide cambiar la etapa a usuarios sin acceso a la empresa', async () => {
+    const { servicio, prisma } = crearServicio({
+      empresaAccesible: 0,
+    });
+
+    await expect(
+      servicio.cambiarEtapaPostulante(
+        ID_VACANTE,
+        ID_POSTULACION,
+        ID_USUARIO,
+        'entrevista'
+      )
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.postulacion.update).not.toHaveBeenCalled();
   });
 });
