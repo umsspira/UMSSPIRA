@@ -47,14 +47,17 @@ describe('HU10: política base de afinidad laboral', () => {
     });
   });
 
-  it.each([[], [' ', '\t']])('sin requisitos %j no inventa 0 %% ni fecha', (requirements) => {
-    expect(calculateJobPostingAffinity(requirements, ['Java'], date)).toEqual({
-      status: 'no-requirements',
-      percentage: null,
-      calculatedAt: null,
-      comparison: [],
-    });
-  });
+  it.each([{ requirements: [] }, { requirements: [' ', '\t'] }])(
+    'sin requisitos $requirements no inventa porcentaje ni fecha',
+    ({ requirements }) => {
+      expect(calculateJobPostingAffinity(requirements, ['Java'], date)).toEqual({
+        status: 'no-requirements',
+        percentage: null,
+        calculatedAt: null,
+        comparison: [],
+      });
+    },
+  );
 
   it('no confunde Java con JavaScript, SQL con NoSQL ni C con C++', () => {
     expect(
