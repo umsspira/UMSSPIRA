@@ -10,10 +10,7 @@ import { Spinner } from '@/shared/components/spinner';
 import { ApplyToVacancyButton } from '@/shared/components/apply-to-vacancy-button';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinity, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
-import {
-  descriptionWithoutRequirements,
-  mergeTechnicalRequirements,
-} from '@/shared/utils/job-posting-requirements';
+import { descriptionWithoutRequirements } from '@/shared/utils/job-posting-requirements';
 
 type DetailState =
   | { status: 'loading' }
@@ -63,9 +60,7 @@ export function JobPostingDetail({
 
   const loadedPosting = state.status === 'loaded' ? state.posting : null;
   const technicalRequirements = useMemo(
-    () => loadedPosting
-      ? mergeTechnicalRequirements(loadedPosting.descripcionTecnica, loadedPosting.requisitos)
-      : [],
+    () => loadedPosting?.requisitos ?? [],
     [loadedPosting],
   );
 
@@ -264,8 +259,8 @@ export function JobPostingDetail({
                 {affinityState.status === 'profile-incomplete' && (
                   <div className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] p-5 text-center">
                     <p className="font-semibold text-slate-800">Completa tu perfil para conocer tu afinidad</p>
-                    <Link href="/profile" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
-                      Completar perfil
+                    <Link href="/mentorship/onboarding" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
+                      Configurar perfil de mentorÃ­a
                     </Link>
                   </div>
                 )}
@@ -330,6 +325,14 @@ export function JobPostingDetail({
                   <div>
                     <dt className="text-sm text-slate-500">Experiencia</dt>
                     <dd className="mt-1 font-semibold">{posting.nivelExperiencia ?? 'No especificada'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-slate-500">Ãrea laboral</dt>
+                    <dd className="mt-1 font-semibold">{posting.areaLaboral ?? 'No especificada'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-slate-500">UbicaciÃ³n</dt>
+                    <dd className="mt-1 font-semibold">{posting.ubicacion ?? 'No especificada'}</dd>
                   </div>
                   <div>
                     <dt className="text-sm text-slate-500">Publicación</dt>

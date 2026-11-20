@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, FolderOpen, AlertCircle, CheckCircle2, 
+import {
+  ArrowLeft, FolderOpen, AlertCircle, CheckCircle2,
   Lightbulb, Save, X
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
@@ -20,12 +20,14 @@ export default function EditarVacantePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorCarga, setErrorCarga] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  
+
   const [titulo, setTitulo] = useState('');
   const [modalidad, setModalidad] = useState('Híbrido');
   const [nivel, setNivel] = useState('Junior');
   const [descripcion, setDescripcion] = useState('');
   const [estado, setEstado] = useState('ACTIVA');
+  const [requisitosTecnicos, setRequisitosTecnicos] = useState<string[]>([]);
+  const [requisitoDraft, setRequisitoDraft] = useState('');
 
   useEffect(() => {
     const fetchVacante = async () => {
@@ -44,7 +46,7 @@ export default function EditarVacantePage() {
           const encontrada = await response.json();
           if (encontrada) {
             setTitulo(encontrada.titulo);
-            
+
             const mod = String(encontrada.modalidad).toUpperCase().trim();
             if (mod === 'REMOTO') setModalidad('Remoto');
             else if (mod === 'HIBRIDO' || mod === 'HÍBRIDO') setModalidad('Híbrido');
@@ -56,7 +58,8 @@ export default function EditarVacantePage() {
             else setNivel('Senior');
 
             setDescripcion(encontrada.descripcion_tecnica || '');
-            
+            setRequisitosTecnicos(Array.isArray(encontrada.requisito_tecnico_registros) ? encontrada.requisito_tecnico_registros.map((item: { nombre: string }) => item.nombre) : []);
+
             if (['PUBLICADO', 'PUBLICADA', 'ACTIVA'].includes(String(encontrada.estado).toUpperCase())) setEstado('ACTIVA');
             else setEstado(encontrada.estado);
           }
@@ -85,11 +88,12 @@ export default function EditarVacantePage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          titulo, 
-          modalidad: modalidadApi, 
-          nivel_experiencia: nivel, 
-          descripcion_tecnica: descripcion 
+        body: JSON.stringify({
+          titulo,
+          modalidad: modalidadApi,
+          nivel_experiencia: nivel,
+          descripcion_tecnica: descripcion,
+          requisitosTecnicos
         })
       });
 
@@ -97,7 +101,7 @@ export default function EditarVacantePage() {
         const errorBody = await response.json().catch(() => null);
         throw new Error(errorBody?.error?.message ?? 'Error al guardar en el servidor');
       }
-      
+
       alert("Cambios guardados con éxito en la base de datos");
       router.push('/empresa/mis-vacantes');
     } catch (error) {
@@ -114,7 +118,7 @@ export default function EditarVacantePage() {
   return (
     <div className="p-4 md:p-8 overflow-x-hidden" style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        
+
         <Link href="/empresa/mis-vacantes" className="min-h-11 md:min-h-0" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#4b5563', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
           <ArrowLeft size={16} /> Volver a Mis vacantes
         </Link>
@@ -133,7 +137,7 @@ export default function EditarVacantePage() {
               </p>
             </div>
           </div>
-          
+
           <span style={{ backgroundColor: estado === 'ACTIVA' ? '#dcfce7' : '#f3f4f6', color: estado === 'ACTIVA' ? '#15803d' : '#374151', padding: '0.4rem 0.8rem', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: estado === 'ACTIVA' ? '#22c55e' : '#6b7280' }}></div>
             {estado}
@@ -141,25 +145,25 @@ export default function EditarVacantePage() {
         </div>
 
         <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[2fr_1fr] md:gap-8">
-          
+
           <div className="min-w-0 p-5 md:p-10" style={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid var(--oatmeal)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              
+
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#111827', marginBottom: '0.5rem' }}>Título <span style={{ color: '#dc2626' }}>*</span></label>
-                  <input 
-                    type="text" 
-                    value={titulo} 
-                    readOnly 
-                    style={{ width: '100%', height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#f9fafb', color: '#6b7280', fontSize: '0.875rem', outline: 'none', cursor: 'not-allowed' }} 
+                  <input
+                    type="text"
+                    value={titulo}
+                    readOnly
+                    style={{ width: '100%', height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#f9fafb', color: '#6b7280', fontSize: '0.875rem', outline: 'none', cursor: 'not-allowed' }}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#111827', marginBottom: '0.5rem' }}>Modalidad <span style={{ color: '#dc2626' }}>*</span></label>
-                  <select 
-                    value={modalidad} 
+                  <select
+                    value={modalidad}
                     onChange={(e) => setModalidad(e.target.value)}
                     style={{ width: '100%', height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#111827', fontSize: '0.875rem', outline: 'none', cursor: 'pointer', fontWeight: 500 }}
                   >
@@ -173,8 +177,8 @@ export default function EditarVacantePage() {
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#111827', marginBottom: '0.5rem' }}>Nivel de experiencia <span style={{ color: '#dc2626' }}>*</span></label>
-                  <select 
-                    value={nivel} 
+                  <select
+                    value={nivel}
                     onChange={(e) => setNivel(e.target.value)}
                     style={{ width: '100%', height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#111827', fontSize: '0.875rem', outline: 'none', cursor: 'pointer', fontWeight: 500 }}
                   >
@@ -187,7 +191,7 @@ export default function EditarVacantePage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#111827', marginBottom: '0.5rem' }}>Descripción técnica <span style={{ color: '#dc2626' }}>*</span></label>
-                <textarea 
+                <textarea
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                   rows={6}
@@ -196,15 +200,21 @@ export default function EditarVacantePage() {
                 <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>Incluye tecnologías, herramientas y conocimientos necesarios.</p>
               </div>
 
+              <div>
+                <label htmlFor="req-edit" style={{ display: 'block', fontSize: '0.85rem', fontWeight: '800', color: '#111827', marginBottom: '0.5rem' }}>Requisitos técnicos</label>
+                <input id="req-edit" value={requisitoDraft} maxLength={200} onChange={(event) => setRequisitoDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); const name = requisitoDraft.trim().replace(/\s+/g, ' '); const key = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); if (name && requisitosTecnicos.length < 30 && !requisitosTecnicos.some((item) => item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === key)) setRequisitosTecnicos((items) => [...items, name]); if (name) setRequisitoDraft(''); } }} placeholder="Escribe un requisito y presiona Enter" style={{ width: '100%', height: '3rem', padding: '0 1rem', borderRadius: '0.5rem', border: '1px solid var(--oatmeal)' }} />
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.4rem' }}>{requisitosTecnicos.length} de 30 requisitos</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{requisitosTecnicos.map((name) => <button key={name} type="button" onClick={() => setRequisitosTecnicos((items) => items.filter((item) => item !== name))} style={{ border: '1px solid var(--oatmeal)', borderRadius: '999px', padding: '0.3rem 0.7rem' }}>{name} ×</button>)}</div>
+              </div>
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4" style={{ marginTop: '1rem', borderTop: '1px solid var(--oatmeal)', paddingTop: '1.5rem' }}>
-                <button 
+                <button
                   onClick={() => router.push('/empresa/mis-vacantes')}
                   className="min-h-11 w-full justify-center sm:w-auto md:min-h-0"
                   style={{ padding: '0.6rem 1.5rem', border: '1px solid var(--oatmeal)', backgroundColor: '#fff', color: '#374151', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                 >
                   <X size={16} /> Cancelar
                 </button>
-                <button 
+                <button
                   onClick={handleGuardar}
                   disabled={isSaving}
                   className="min-h-11 w-full justify-center sm:w-auto md:min-h-0"

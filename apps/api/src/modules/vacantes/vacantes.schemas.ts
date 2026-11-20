@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { technicalRequirementNamesSchema } from '../job-postings/http/schemas/job-postings.schemas';
 
 export const vacancyIdSchema = z.uuid();
 export type VacancyId = z.output<typeof vacancyIdSchema>;
@@ -15,6 +16,7 @@ export const updateVacanteSchema = z
     nivel_experiencia: z.string().trim().min(1).max(100).optional(),
     descripcion_tecnica: z.string().trim().min(50).max(20000).optional(),
     estado: z.string().trim().min(1).max(20).optional(),
+    requisitosTecnicos: technicalRequirementNamesSchema.optional(),
   })
   .strict()
   .refine(
