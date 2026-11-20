@@ -1,15 +1,25 @@
-import { Applicant, ApplicantStatus, EXPERIENCE_LEVELS, ExperienceLevel } from "../types/applicant";
+import {
+  Applicant,
+  ApplicantStatus,
+  Certification,
+  Education,
+  EXPERIENCE_LEVELS,
+  ExperienceLevel,
+  WorkExperience,
+} from "../types/applicant";
 import { apiClient, ApiClientError } from "./api-client";
+import { authenticatedFetch } from "./auth-session";
 
 /* ============================================================
    CONFIGURACIÓN
    HU-01 (Sprint 3): los postulantes vienen de la API real de Épica 4
        GET /api/v1/vacantes/:idVacante/postulantes
-   Para usarla, en apps/web/.env.local pon:
-       NEXT_PUBLIC_USE_MOCK=false
-   Sin esa variable se siguen usando los datos de prueba de abajo.
+   Épica 5 (regla 7 del README): los datos de prueba quedan apagados
+   por defecto. Solo para desarrollo o una demo explícita, en
+   apps/web/.env.local pon:
+       NEXT_PUBLIC_USE_MOCK=true
    ============================================================ */
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 // Solo para probar con datos de prueba:
 //   "ok" | "empty" (CA-07) | "error" (CA-08 / CA-09)
@@ -41,9 +51,15 @@ interface RawApplicant {
   /** Etiqueta ya traducida (solo en los datos de prueba antiguos). */
   status?: Applicant["status"];
   appliedAt?: string | null;
+  /** HU-16: la API indica si el titulado subió su CV. */
+  hasCv?: boolean | null;
   cvUrl?: string | null;
   matchPercentage?: number | null;
   skills?: Applicant["skills"];
+  /** HU-16 (CA-07, T16.1): registros del perfil profesional. */
+  workExperience?: unknown;
+  education?: unknown;
+  certifications?: unknown;
 }
 
 /** HU-04: códigos de etapa del backend → etiqueta que muestra la interfaz. */
@@ -66,6 +82,60 @@ function toExperienceLevel(value: unknown): ExperienceLevel | null {
     : null;
 }
 
+/* HU-16 (CA-07): se aceptan solo los registros bien formados que envía la API. */
+type RawRecord = Record<string, unknown>;
+
+function toRecords(value: unknown): RawRecord[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    : [];
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function optionalText(value: unknown): string | null {
+  return text(value) || null;
+}
+
+function optionalYear(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function toWorkExperience(value: unknown): WorkExperience[] {
+  return toRecords(value)
+    .map((r) => ({
+      position: text(r.position),
+      company: text(r.company),
+      startDate: optionalText(r.startDate),
+      endDate: optionalText(r.endDate),
+    }))
+    .filter((r) => r.position || r.company);
+}
+
+function toEducation(value: unknown): Education[] {
+  return toRecords(value)
+    .map((r) => ({
+      title: text(r.title),
+      institution: text(r.institution),
+      graduationYear: optionalYear(r.graduationYear),
+      level: optionalText(r.level),
+    }))
+    .filter((r) => r.title || r.institution);
+}
+
+function toCertifications(value: unknown): Certification[] {
+  return toRecords(value)
+    .map((r) => ({
+      name: text(r.name),
+      issuer: text(r.issuer),
+      level: optionalText(r.level),
+      year: optionalYear(r.year),
+    }))
+    .filter((r) => r.name);
+}
+
 function normalizeApplicant(raw: RawApplicant): Applicant {
   return {
     id: String(raw.id),
@@ -77,12 +147,16 @@ function normalizeApplicant(raw: RawApplicant): Applicant {
     status: toStatus(raw),
     appliedAt: raw.appliedAt ?? null,
     cvUrl: raw.cvUrl ?? null,
+    hasCv: raw.hasCv === true,
     // Ejemplo si la API usara otros nombres: raw.porcentaje_match
     matchPercentage:
       typeof raw.matchPercentage === "number" && Number.isFinite(raw.matchPercentage)
         ? raw.matchPercentage
         : null,
     skills: Array.isArray(raw.skills) ? raw.skills : null,
+    workExperience: toWorkExperience(raw.workExperience),
+    education: toEducation(raw.education),
+    certifications: toCertifications(raw.certifications),
   };
 }
 
@@ -299,4 +373,56 @@ export async function getApplicantById(
     if (error instanceof ApiClientError && error.status === 404) return null;
     throw error;
   }
+}
+
+/* ============================================================
+   HU-16 · DESCARGA DEL CV (T16.4)
+   GET /api/v1/vacantes/:idVacante/postulantes/:idPostulacion/cv (T16.2)
+   Se pide con la sesión del reclutador (no es un enlace público).
+   ============================================================ */
+export const CV_DOWNLOAD_ERROR_MESSAGE = "No se pudo descargar el CV. Intente nuevamente";
+
+export class CvDownloadError extends Error {
+  constructor(message = CV_DOWNLOAD_ERROR_MESSAGE) {
+    super(message);
+    this.name = "CvDownloadError";
+  }
+}
+
+/** Nombre del archivo descargado: «CV - <nombre del postulante>.pdf» (CA-09). */
+export function buildCvFileName(applicantName: string): string {
+  const clean = applicantName.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+  return `CV - ${clean || "postulante"}.pdf`;
+}
+
+/** Pide el CV del postulante y lo descarga en el navegador. */
+export async function downloadApplicantCv(
+  vacancyId: string,
+  applicationId: string,
+  applicantName: string
+): Promise<void> {
+  const path = `/api/v1/vacantes/${encodeURIComponent(vacancyId)}/postulantes/${encodeURIComponent(applicationId)}/cv`;
+
+  let response: Response;
+  try {
+    response = await authenticatedFetch(path, { method: "GET" });
+  } catch {
+    throw new CvDownloadError();
+  }
+  if (!response.ok) throw new CvDownloadError();
+
+  const blob = await response.blob().catch(() => null);
+  if (!blob || blob.size === 0) throw new CvDownloadError();
+
+  const url = URL.createObjectURL(
+    blob.type ? blob : new Blob([blob], { type: "application/pdf" })
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = buildCvFileName(applicantName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Se libera más tarde: algunos navegadores cancelan la descarga si se libera en el acto.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

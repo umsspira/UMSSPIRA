@@ -179,7 +179,7 @@ export default function ApplicantMatchPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Columna Izquierda: Desglose del Candidato */}
           <div className="lg:col-span-2 space-y-4">
-            <MatchBreakdownView applicant={applicant} onBack={goBackToList} />
+            <MatchBreakdownView applicant={applicant} vacancyId={vacancyId} onBack={goBackToList} />
           </div>
 
           {/* Columna Derecha: Etapas de Selección */}
