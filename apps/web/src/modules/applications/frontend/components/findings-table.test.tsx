@@ -2,7 +2,7 @@ import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { FindingsTable, type OcrFinding } from "./findings-table";
 
-const findings = [
+const findings: OcrFinding[] = [
   {
     field: "career",
     label: "Carrera",
@@ -10,7 +10,7 @@ const findings = [
     read: "Ingeniería de Sistemas",
     status: "COINCIDE",
     reason: "Los datos coinciden.",
-    evidence: { page: 1, text: "Carrera: Ingeniería de Sistemas" },
+    evidence: { page: 1, text: "Carrera: Ingeniería de Sistemas", confidence: 0.99 },
   },
   {
     field: "graduationYear",
@@ -21,7 +21,7 @@ const findings = [
     reason: "No se pudo leer el dato.",
     evidence: null,
   },
-] as unknown as OcrFinding[];
+];
 
 describe("FindingsTable", () => {
   it("muestra el dato declarado, el leído y el resultado de cada hallazgo", () => {
@@ -35,11 +35,11 @@ describe("FindingsTable", () => {
     expect(screen.getByText("Carrera")).toBeInTheDocument();
     expect(screen.getByText("Coincide")).toBeInTheDocument();
     expect(screen.getByText("2024")).toBeInTheDocument();
-    expect(screen.getByText("Sin dato comprobable")).toBeInTheDocument();
-    expect(screen.getByText("No se pudo comprobar")).toBeInTheDocument();
+    expect(screen.getByText("No legible")).toBeInTheDocument();
+    expect(screen.getByText("No comprobable")).toBeInTheDocument();
   });
 
-  it("indica si el hallazgo tiene evidencia", () => {
+  it("mantiene etiquetas breves sin repetir motivos ni evidencia en cada fila", () => {
     render(
       <FindingsTable
         findings={findings}
@@ -47,8 +47,9 @@ describe("FindingsTable", () => {
         onSelect={jest.fn()}
       />,
     );
-    expect(screen.getByText("Evidencia · pág. 1")).toBeInTheDocument();
-    expect(screen.getByText("Sin evidencia")).toBeInTheDocument();
+    expect(screen.queryByText("Los datos coinciden.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Evidencia · pág. 1")).not.toBeInTheDocument();
+    expect(screen.getByText('Coincide')).toHaveAttribute('title', 'Los datos coinciden.');
   });
 
   it("avisa qué campo se selecciona", () => {

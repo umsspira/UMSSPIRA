@@ -82,11 +82,20 @@ it("distinguishes a completed reading with insufficient data from a processing f
   expect(
     screen.getByText("Lectura completada: requiere revisión manual"),
   ).toBeInTheDocument();
-  expect(screen.getByText("Sin dato comprobable")).toBeInTheDocument();
+  expect(screen.getByText("No legible")).toBeInTheDocument();
   expect(screen.queryByText("Falló el procesamiento")).not.toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "Reintentar análisis" }),
   ).not.toBeInTheDocument();
+});
+
+it('conserva el motivo completo en el detalle del campo, sin saturar la tabla', async () => {
+  request.mockResolvedValue([completed] as never);
+  render(<OcrPanel applicationId="application" documentUrl="/document" />);
+  await tick();
+  expect(screen.queryByText(/El documento no contiene el dato/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'CI', exact: true }));
+  expect(screen.getByText(/El documento no contiene el dato/)).toBeVisible();
 });
 
 it("shows the date of an old failure and requeues it only when requested", async () => {
