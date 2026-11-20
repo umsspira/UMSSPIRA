@@ -24,6 +24,7 @@ const db = {
 
 describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
   let app: INestApplication;
+  let actorId: string;
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [VacantesController], providers: [VacantesService, { provide: PrismaService, useValue: db }],
@@ -31,7 +32,7 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
     app = module.createNestApplication();
     app.setGlobalPrefix('api/v1');
     app.useGlobalGuards({ canActivate(context: ExecutionContext) {
-      context.switchToHttp().getRequest().auth = { actor: { id: 'usuario-prueba' } };
+      context.switchToHttp().getRequest().auth = { actor: { id: actorId } };
       return true;
     } });
     app.useGlobalFilters(new ErrorHandlerFilter());
@@ -40,6 +41,7 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
   afterAll(() => app.close());
   beforeEach(() => {
     jest.resetAllMocks();
+    actorId = 'usuario-prueba';
     db.titulado.findFirst.mockResolvedValue(profile);
     db.vacante.findUnique.mockResolvedValue({ estado: 'PUBLICADA' });
   });
@@ -74,6 +76,29 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
     await request(app.getHttpServer()).get('/api/v1/vacantes/mis-postulaciones').expect(200, { data: [] });
     expect(applications.findFirst.mock.calls[0][0].where).toEqual({ id_usuario: 'usuario-prueba', id_vacante: vacancy });
     expect(applications.findMany.mock.calls[0][0].where).toEqual({ id_usuario: 'usuario-prueba' });
+  });
+
+  it('CA-04 cada titulado ve exclusivamente su postulación en ambas rutas', async () => {
+    const rows = [
+      { id: application, id_usuario: 'titulado-a', id_vacante: vacancy },
+      { id: '44800000-0000-4000-8000-000000000002', id_usuario: 'titulado-b', id_vacante: '44500000-0000-4000-8000-000000000002' },
+    ];
+    type Row = (typeof rows)[number];
+    function selectRows(where: Partial<Row> = {}) {
+      return rows.filter(row => Object.entries(where).every(([key, value]) => row[key as keyof Row] === value));
+    }
+    applications.findMany.mockImplementation(({ where }) => selectRows(where));
+    applications.findFirst.mockImplementation(({ where }) => selectRows(where)[0] ?? null);
+
+    for (const own of rows) {
+      actorId = own.id_usuario;
+      const list = await request(app.getHttpServer()).get('/api/v1/vacantes/mis-postulaciones').expect(200);
+      expect(list.body.data.map((item: { id: string }) => item.id)).toEqual([own.id]);
+      for (const candidate of rows) {
+        await request(app.getHttpServer()).get(`/api/v1/vacantes/${candidate.id_vacante}/postulaciones/mia`)
+          .expect(200, { data: { postulada: candidate.id === own.id } });
+      }
+    }
   });
 
   it('CA-05 devuelve exclusivamente los campos públicos de la oferta', async () => {

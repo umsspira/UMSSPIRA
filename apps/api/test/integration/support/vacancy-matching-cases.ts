@@ -1,4 +1,4 @@
-/** Casos sintéticos para el contrato de HU-10. El umbral lo acuerdan QA y PO. */
+/** Casos sintéticos para el contrato de HU-10. */
 export const vacancyMatchingCases = [
   { id: 'exacta', profileSkills: ['SQL', 'Python'], requiredSkills: ['SQL', 'Python'] },
   { id: 'parcial', profileSkills: ['SQL'], requiredSkills: ['SQL', 'Python'] },
@@ -21,4 +21,9 @@ export function matchingAccuracy(percentages: Record<CaseId, number>): number {
     percentages.exacta > percentages['sin-coincidencia'],
   ];
   return comparisons.filter(Boolean).length / comparisons.length;
+}
+
+/** CA-08 exige las tres comparaciones estrictas. */
+export function passesMatchingRegression(percentages: Record<CaseId, number>): boolean {
+  return matchingAccuracy(percentages) === 1;
 }
