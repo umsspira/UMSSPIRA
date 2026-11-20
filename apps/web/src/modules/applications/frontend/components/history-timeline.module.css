@@ -222,3 +222,37 @@
   color: #85858a;
   font-size: 10px;
 }
+.footnote {
+  margin-top: 18px;
+  color: #85858a;
+  font-size: 10px;
+}
+@media (max-width: 600px) {
+  .heading {
+    padding: 15px;
+  }
+  .heading h3 {
+    min-width: 140px;
+    font-size: 14px;
+  }
+  .count {
+    font-size: 9px;
+  }
+  .content {
+    padding: 16px 12px;
+  }
+  .overview {
+    grid-template-columns: 1fr;
+  }
+  .event {
+    padding-left: 30px;
+  }
+  .card {
+    padding: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

@@ -1,9 +1,13 @@
+import { UserRound } from "lucide-react";
+import styles from "./history-timeline.module.css";
 import type { ApplicationHistoryEvent } from "../services/applications-board.service";
 
 function actionLabel(event: ApplicationHistoryEvent) {
   switch (event.action) {
     case "ENVIO":
       return event.version > 1 ? "Reenvío" : "Envío inicial";
+    case "REENVIO":
+      return "Reenvío";
     case "OCR_ANALISIS":
       return "Sugerencia del OCR";
     case "DICTAMEN":
@@ -26,59 +30,118 @@ function actorLabel(actorType: string) {
   }
 }
 
+export function historyEventTone(event: ApplicationHistoryEvent) {
+  if (event.action === "DICTAMEN") {
+    const normalize = (value: string) =>
+      value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase()
+        .trim();
+    const title = normalize(event.title);
+    const description = normalize(event.description ?? "");
+    // Reconocer títulos o prefijos estructurados, no palabras dentro de una nota libre.
+    const decision =
+      description.match(
+        /^(?:DECISION ADMINISTRATIVA|DECISION|DICTAMEN)\s*:\s*(APROBADA|APROBADO|RECHAZADA|RECHAZADO|OBSERVADA|OBSERVADO)\b/,
+      )?.[1] ??
+      title.match(/^SOLICITUD (APROBADA|RECHAZADA|OBSERVADA)\.?$/)?.[1];
+    if (decision?.startsWith("APROBAD")) return "approved";
+    if (decision?.startsWith("RECHAZAD")) return "rejected";
+    if (decision?.startsWith("OBSERVAD")) return "observed";
+    return "review";
+  }
+  if (event.action === "OCR_ANALISIS") return "ocr";
+  if (
+    event.action === "REENVIO" ||
+    (event.action === "ENVIO" && event.version > 1)
+  )
+    return "resent";
+  return "received";
+}
+
 export function HistoryTimeline({
   events,
   loading = false,
+  showHeading = true,
 }: {
   events: ApplicationHistoryEvent[];
   loading?: boolean;
+  showHeading?: boolean;
 }) {
-  if (events.length === 0) {
+  if (loading)
     return (
-      <p className="rounded-lg border border-[#C9C1B1] bg-white p-4 text-sm text-[#2C3B4D]">
-        {loading
-          ? "Cargando la línea de tiempo…"
-          : "Aún no hay acciones registradas en el historial de este expediente."}
+      <p role="status" className="p-3 text-sm text-[#64707B]">
+        Cargando la línea de tiempo…
       </p>
     );
-  }
+  if (!events.length)
+    return (
+      <p className="rounded-lg bg-white p-4 text-sm text-[#64707B]">
+        Aún no hay acciones registradas en el historial de este expediente.
+      </p>
+    );
 
   return (
-    <section aria-labelledby="history-timeline-title">
-      <h3 id="history-timeline-title" className="mb-3 text-sm font-bold text-[#1B2632]">
-        Línea de tiempo
-      </h3>
-      <ol aria-label="Acciones del expediente" className="space-y-3">
-        {events.map((event) => (
-          <li
-            key={event.id}
-            className="grid gap-2 rounded-lg border border-[#C9C1B1] bg-white p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
-          >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded bg-[#EEE9DF] px-2 py-1 text-xs font-semibold text-[#1B2632]">
-                  {actionLabel(event)}
-                </span>
-                <span className="text-xs text-[#2C3B4D]">
-                  Versión {event.version} · {actorLabel(event.actor.type)}
-                </span>
-              </div>
-              {event.description && (
-                <p className="mt-2 break-words text-sm text-[#2C3B4D]">
-                  {event.description}
-                </p>
-              )}
-            </div>
-            <time
-              className="text-xs text-[#2C3B4D] sm:text-right"
-              dateTime={event.occurredAt}
-            >
-              {new Date(event.occurredAt).toLocaleString("es-BO", {
-                timeZone: "America/La_Paz",
-              })}
-            </time>
-          </li>
-        ))}
+    <section aria-label="Movimientos del expediente">
+      {showHeading && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-semibold text-[#1B2632]">
+            Historial del expediente
+          </h3>
+          <span className={styles.count}>
+            {events.length} movimientos registrados
+          </span>
+        </div>
+      )}
+      <p className={styles.zone}>Más recientes primero · Hora de Bolivia</p>
+      <ol aria-label="Acciones del expediente" className={styles.timeline}>
+        {[...events]
+          .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
+          .map((event) => (
+            <li key={event.id} className={styles.event}>
+              <span
+                aria-hidden="true"
+                className={styles.dot}
+                data-tone={historyEventTone(event)}
+              />
+              <article className={styles.card}>
+                <div className={styles.eventHeading}>
+                  <h4>{event.title}</h4>
+                  <time dateTime={event.occurredAt}>
+                    {new Date(event.occurredAt).toLocaleString("es-BO", {
+                      timeZone: "America/La_Paz",
+                    })}
+                  </time>
+                </div>
+                {event.description && (
+                  <p className={styles.description}>{event.description}</p>
+                )}
+                <div className={styles.meta}>
+                  <span className={styles.category}>{actionLabel(event)}</span>
+                  <span>
+                    Versión {event.version} · {actorLabel(event.actor.type)}
+                  </span>
+                </div>
+                {event.actor.type === "ADMINISTRADOR" && (
+                  <div className={styles.author}>
+                    <UserRound size={14} aria-hidden="true" />
+                    <p>
+                      <strong>Dictamen emitido por: </strong>
+                      {event.actor.name ||
+                        event.actor.email ||
+                        (event.actor.id
+                          ? `ID ${event.actor.id}`
+                          : "Autor no identificado en el registro")}
+                      {event.actor.name && event.actor.email && (
+                        <span>{event.actor.email}</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </article>
+            </li>
+          ))}
       </ol>
     </section>
   );
