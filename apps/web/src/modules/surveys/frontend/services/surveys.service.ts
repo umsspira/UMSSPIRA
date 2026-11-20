@@ -8,6 +8,7 @@ import { apiFetch, ApiError } from '@/shared/services/api-client';
 export const SURVEY_SUBMISSION_PATH = '/api/v1/surveys';
 export const SURVEY_SUBMISSION_STATUS_PATH = `${SURVEY_SUBMISSION_PATH}/status`;
 export const SURVEY_MY_RESPONSE_PATH = `${SURVEY_SUBMISSION_PATH}/me`;
+export const SURVEY_EDIT_PATH = SURVEY_MY_RESPONSE_PATH;
 
 export interface SurveyPersistedAnswer {
   condicion_laboral: boolean;
@@ -17,6 +18,8 @@ export interface SurveyPersistedAnswer {
   modalidad: string | null;
   salario_mensual: string | null;
   tiempo_insercion: string | null;
+  /** HU-006 CA-07: true cuando ya se usó la única edición (lo devuelve la T6.1). */
+  edicion_usada?: boolean;
 }
 
 export const SURVEY_SENT_MESSAGE = 'Encuesta enviada correctamente';
@@ -108,8 +111,11 @@ export function buildSurveySubmissionBody(input: SurveySubmitInput): Record<stri
  * según el CA-04. Cualquier otro error se propaga al hook para mostrar el
  * mensaje de CA-05 sin borrar los datos del formulario.
  */
-export async function submitSurvey(input: SurveySubmitInput): Promise<void> {
+export async function submitSurvey(
+  input: SurveySubmitInput,
+): Promise<void> {
   const body = buildSurveySubmissionBody(input);
+
   try {
     await apiFetch<unknown>(SURVEY_SUBMISSION_PATH, {
       method: 'POST',
@@ -117,7 +123,22 @@ export async function submitSurvey(input: SurveySubmitInput): Promise<void> {
       body: JSON.stringify(body),
     });
   } catch (error) {
-    if (error instanceof ApiError && error.status === 409) return;
+    if (error instanceof ApiError && error.status === 409) {
+      return;
+    }
+
     throw error;
   }
+}
+
+export async function updateMySurveyResponse(
+  input: SurveySubmitInput,
+): Promise<void> {
+  const body = buildSurveySubmissionBody(input);
+
+  await apiFetch<unknown>(SURVEY_EDIT_PATH, {
+    method: 'PATCH',
+    cache: 'no-store',
+    body: JSON.stringify(body),
+  });
 }
