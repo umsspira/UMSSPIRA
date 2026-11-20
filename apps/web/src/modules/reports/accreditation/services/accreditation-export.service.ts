@@ -28,6 +28,7 @@ export const EXPORT_MESSAGES = {
   generating: 'Generando…',
   noData: 'No hay información para exportar en este periodo',
   failure: 'No se pudo generar el archivo. Intente nuevamente',
+  downloaded: 'El archivo se descargó correctamente',
 } as const;
 
 /** Error de exportación con el motivo que se muestra al Administrador. */
