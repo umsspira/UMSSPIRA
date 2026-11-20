@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import {
+  FILTERS_STORAGE_KEY,
   buildFiltersQuery,
   readFiltersFromParams,
   useAccreditationFilters,
@@ -17,6 +18,7 @@ jest.mock('next/navigation', () => ({
 beforeEach(() => {
   mockReplace.mockClear();
   mockQuery = '';
+  window.sessionStorage.clear();
 });
 
 describe('lectura de filtros desde la URL', () => {
@@ -92,5 +94,31 @@ describe('useAccreditationFilters', () => {
     const { result } = renderHook(() => useAccreditationFilters());
     expect(result.current.isSemesterActive).toBe(true);
     expect(result.current.filters).toEqual({ cohort: '', semester: '2/2026' });
+  });
+});
+
+describe('filtros al navegar entre secciones', () => {
+  test('al volver al tablero sin filtros en la URL, recupera los últimos de la sesión', () => {
+    window.sessionStorage.setItem(FILTERS_STORAGE_KEY, 'cohorte=2021&semestre=2-2025');
+    renderHook(() => useAccreditationFilters());
+    expect(mockReplace).toHaveBeenCalledWith(
+      '/reports/acreditacion?cohorte=2021&semestre=2-2025',
+      { scroll: false },
+    );
+  });
+
+  test('si la URL ya trae filtros, no los cambia por los guardados', () => {
+    window.sessionStorage.setItem(FILTERS_STORAGE_KEY, 'cohorte=2021');
+    mockQuery = 'cohorte=2023';
+    renderHook(() => useAccreditationFilters());
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(FILTERS_STORAGE_KEY)).toBe('cohorte=2023');
+  });
+
+  test('sin filtros elegidos no queda nada guardado', () => {
+    window.sessionStorage.setItem(FILTERS_STORAGE_KEY, 'cohorte=abc');
+    renderHook(() => useAccreditationFilters());
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(FILTERS_STORAGE_KEY)).toBeNull();
   });
 });

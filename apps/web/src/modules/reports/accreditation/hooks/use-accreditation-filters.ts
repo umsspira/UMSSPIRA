@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 /** Valor de «Todas» / «Todos» en los filtros: sin filtro aplicado. */
@@ -68,10 +68,35 @@ export function hasActiveFilters(filters: AccreditationFilters): boolean {
   return filters.cohort !== ALL || filters.semester !== ALL;
 }
 
+/** Clave donde se guardan los últimos filtros mientras dura la sesión del navegador. */
+export const FILTERS_STORAGE_KEY = 'umsspira:accreditation-filters';
+
+function readSavedQuery(): string {
+  try {
+    return window.sessionStorage.getItem(FILTERS_STORAGE_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function saveQuery(query: string): void {
+  try {
+    if (query) {
+      window.sessionStorage.setItem(FILTERS_STORAGE_KEY, query);
+    } else {
+      window.sessionStorage.removeItem(FILTERS_STORAGE_KEY);
+    }
+  } catch {
+    // Sin almacenamiento (modo privado): los filtros siguen funcionando con la URL.
+  }
+}
+
 /**
  * Filtros «Cohorte» y «Semestre» del tablero de acreditación (HU-003).
  * El estado vive en la URL, así se conserva al recargar la página (CA-06)
  * y «Limpiar filtros» vuelve a «Todas» y «Todos» (CA-07).
+ * Además se guardan en la sesión del navegador, así no se pierden al ir a otra
+ * sección del portal y volver al tablero.
  */
 export function useAccreditationFilters() {
   const router = useRouter();
@@ -93,6 +118,19 @@ export function useAccreditationFilters() {
     },
     [currentQuery, pathname, router],
   );
+
+  // Al volver al tablero sin filtros en la URL, se recuperan los últimos de la sesión.
+  useEffect(() => {
+    if (hasActiveFilters(filters)) return;
+    const saved = readFiltersFromParams(new URLSearchParams(readSavedQuery()));
+    if (hasActiveFilters(saved)) replaceFilters(saved);
+    // Solo al entrar al tablero.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    saveQuery(buildFiltersQuery('', filters));
+  }, [filters]);
 
   const setCohort = useCallback(
     (cohort: string) => replaceFilters({ ...filters, cohort }),
