@@ -3,13 +3,13 @@ import { apiClient, ApiClientError } from "./api-client";
 
 /* ============================================================
    CONFIGURACIÓN
-   HU-01 (Sprint 3): los postulantes vienen de la API real de Épica 4
+   Los postulantes vienen de la API real de Épica 4
        GET /api/v1/vacantes/:idVacante/postulantes
-   Para usarla, en apps/web/.env.local pon:
-       NEXT_PUBLIC_USE_MOCK=false
-   Sin esa variable se siguen usando los datos de prueba de abajo.
+   Los datos de prueba de abajo solo se usan en desarrollo o en una
+   demo explícita, poniendo en apps/web/.env.local:
+       NEXT_PUBLIC_USE_MOCK=true
    ============================================================ */
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 // Solo para probar con datos de prueba:
 //   "ok" | "empty" (CA-07) | "error" (CA-08 / CA-09)
@@ -51,9 +51,20 @@ const STAGE_LABELS: Record<string, ApplicantStatus> = {
   postulado: "Postulado",
   en_revision: "En revisión",
   preseleccionado: "Preseleccionado",
-  entrevista: "Entrevistado",
+  entrevista: "Entrevista",
   descartado: "Descartado",
 };
+
+/** HU-04: etiqueta de la interfaz → código que espera el backend. */
+export const STAGE_CODES: Record<ApplicantStatus, string> = {
+  Postulado: "postulado",
+  "En revisión": "en_revision",
+  Preseleccionado: "preseleccionado",
+  Entrevista: "entrevista",
+  Descartado: "descartado",
+};
+
+export const STAGE_UPDATE_ERROR_MESSAGE = "No se pudo guardar la etapa. Intenta de nuevo.";
 
 function toStatus(raw: RawApplicant): ApplicantStatus {
   if (raw.stage && STAGE_LABELS[raw.stage]) return STAGE_LABELS[raw.stage];
@@ -298,5 +309,33 @@ export async function getApplicantById(
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) return null;
     throw error;
+  }
+}
+
+/**
+ * HU-04: cambia la etapa de un postulante.
+ * Usa apiClient para enviar la sesión (Bearer) igual que el resto de la app;
+ * un fetch directo con cookie sin X-CSRF-Token responde 403.
+ */
+export async function updateApplicantStage(
+  vacancyId: string,
+  applicantId: string,
+  status: ApplicantStatus
+): Promise<void> {
+  if (USE_MOCK) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return;
+  }
+
+  try {
+    await apiClient(
+      `/api/v1/vacantes/${encodeURIComponent(vacancyId)}/postulantes/${encodeURIComponent(applicantId)}/etapa`,
+      { method: "PATCH", authenticated: true, body: { etapa: STAGE_CODES[status] } }
+    );
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status < 500 && error.message) {
+      throw new Error(error.message);
+    }
+    throw new Error(STAGE_UPDATE_ERROR_MESSAGE);
   }
 }

@@ -2,7 +2,7 @@ export const APPLICANT_STATUSES = [
   "Postulado",
   "En revisión",
   "Preseleccionado",
-  "Entrevistado",
+  "Entrevista",
   "Descartado",
 ] as const;
 

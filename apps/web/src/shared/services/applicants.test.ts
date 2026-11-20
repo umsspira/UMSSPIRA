@@ -54,7 +54,7 @@ describe('servicio de postulantes con la API real (HU-01)', () => {
     const lista = await service.getApplicantsByVacancy(VACANTE);
 
     expect(lista[0]).toMatchObject({ status: 'En revisión', location: null, experienceLevel: null, matchPercentage: 92 });
-    expect(lista[1]).toMatchObject({ status: 'Entrevistado', matchPercentage: null });
+    expect(lista[1]).toMatchObject({ status: 'Entrevista', matchPercentage: null });
   });
 
   it('muestra el error del motor si la API falla o la vacante no es accesible (CA-09)', async () => {
@@ -87,5 +87,50 @@ describe('servicio de postulantes con la API real (HU-01)', () => {
       `/api/v1/vacantes/${VACANTE}/postulantes/${raw.id}`,
       { method: 'GET', authenticated: true },
     );
+  });
+
+  it('guarda la etapa con apiClient (sesión y CSRF) y el código del backend (HU-04)', async () => {
+    apiClientMock.mockResolvedValueOnce({ id: raw.id, estado: 'entrevista' });
+
+    await service.updateApplicantStage(VACANTE, raw.id, 'Entrevista');
+
+    expect(apiClientMock).toHaveBeenCalledWith(
+      `/api/v1/vacantes/${VACANTE}/postulantes/${raw.id}/etapa`,
+      { method: 'PATCH', authenticated: true, body: { etapa: 'entrevista' } },
+    );
+  });
+
+  it('muestra el mensaje de la API si rechaza la etapa y uno genérico si falla el servidor', async () => {
+    apiClientMock.mockRejectedValueOnce(new ApiClientError('La vacante no pertenece a tu empresa', 403));
+    await expect(service.updateApplicantStage(VACANTE, raw.id, 'Descartado')).rejects.toThrow(
+      'La vacante no pertenece a tu empresa',
+    );
+
+    apiClientMock.mockRejectedValueOnce(new ApiClientError('interno', 500));
+    await expect(service.updateApplicantStage(VACANTE, raw.id, 'Descartado')).rejects.toThrow(
+      service.STAGE_UPDATE_ERROR_MESSAGE,
+    );
+  });
+});
+
+describe('modo de datos de prueba (deuda 3 de Épica 5)', () => {
+  it('usa la API real si NEXT_PUBLIC_USE_MOCK no está definida', async () => {
+    const previous = process.env.NEXT_PUBLIC_USE_MOCK;
+    delete process.env.NEXT_PUBLIC_USE_MOCK;
+    try {
+      await jest.isolateModulesAsync(async () => {
+        const { apiClient: isolatedClient } = require('./api-client') as typeof import('./api-client');
+        const isolated = require('./applicants') as typeof import('./applicants');
+        (isolatedClient as unknown as jest.Mock).mockReset();
+        (isolatedClient as unknown as jest.Mock).mockResolvedValueOnce([raw]);
+
+        const lista = await isolated.getApplicantsByVacancy(VACANTE);
+
+        expect(isolatedClient).toHaveBeenCalledTimes(1);
+        expect(lista[0].name).toBe('Ana Rojas');
+      });
+    } finally {
+      process.env.NEXT_PUBLIC_USE_MOCK = previous;
+    }
   });
 });
