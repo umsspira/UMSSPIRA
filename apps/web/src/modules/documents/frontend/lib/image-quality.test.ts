@@ -125,6 +125,40 @@ describe("evaluateImageQuality", () => {
     expect(codes).toContain("LOW_RESOLUTION");
   });
 
+  describe("evaluacion de resolucion y formato", () => {
+    it("no avisa de baja resolucion para un documento horizontal claro de 1408x768", () => {
+      const clear = buildTextLikeImage(400, 300);
+      const metrics = computeImageQualityMetrics(clear, 1408, 768);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).not.toContain("LOW_RESOLUTION");
+    });
+
+    it("no avisa de baja resolucion para un documento vertical A4 de 1000x1400", () => {
+      const clear = buildTextLikeImage(400, 300);
+      const metrics = computeImageQualityMetrics(clear, 1000, 1400);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).not.toContain("LOW_RESOLUTION");
+    });
+
+    it("avisa de baja resolucion para una imagen horizontal con lado corto de 550 px", () => {
+      const clear = buildTextLikeImage(400, 300);
+      const metrics = computeImageQualityMetrics(clear, 1500, 550);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).toContain("LOW_RESOLUTION");
+    });
+
+    it("evalua correctamente las fronteras de minPixels", () => {
+      const clear = buildTextLikeImage(400, 300);
+      // 1000 x 800 = 800,000 px exactos (igual a minPixels, short=800>=600, long=1000>=800)
+      const exactBoundary = computeImageQualityMetrics(clear, 1000, 800);
+      expect(evaluateImageQuality(exactBoundary).map((w) => w.code)).not.toContain("LOW_RESOLUTION");
+
+      // 1000 x 799 = 799,000 px (estrictamente por debajo de minPixels)
+      const belowBoundary = computeImageQualityMetrics(clear, 1000, 799);
+      expect(evaluateImageQuality(belowBoundary).map((w) => w.code)).toContain("LOW_RESOLUTION");
+    });
+  });
+
   it("avisa de imagen borrosa", () => {
     const blurred = blur(buildTextLikeImage(400, 300), 8);
     const metrics = computeImageQualityMetrics(blurred, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);

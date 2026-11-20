@@ -46,6 +46,8 @@ export interface ImageQualityConfig {
   analysisMaxSide: number;
   /** Tiempo maximo del analisis antes de declararlo fallido. */
   analysisTimeoutMs: number;
+  /** Cantidad minima de pixeles totales (ancho x alto). */
+  minPixels: number;
   /** Resolucion minima de la imagen original, en pixeles. */
   minShortSide: number;
   minLongSide: number;

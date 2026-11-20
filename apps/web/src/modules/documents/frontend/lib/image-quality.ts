@@ -150,7 +150,12 @@ export function evaluateImageQuality(
 
   const shortSide = Math.min(metrics.originalWidth, metrics.originalHeight);
   const longSide = Math.max(metrics.originalWidth, metrics.originalHeight);
-  if (shortSide < config.minShortSide || longSide < config.minLongSide) {
+  const totalPixels = metrics.originalWidth * metrics.originalHeight;
+  if (
+    totalPixels < config.minPixels ||
+    shortSide < config.minShortSide ||
+    longSide < config.minLongSide
+  ) {
     warnings.push({
       code: "LOW_RESOLUTION",
       message: "La imagen es pequeña y podría no leerse bien.",
