@@ -22,6 +22,8 @@ interface MentorWeeklyScheduleProps {
   disabled?: boolean;
   /** HU 6.13: el checklist del perfil enlaza aquí cuando faltan horarios. */
   firstIncomplete?: boolean;
+  /** El asistente de onboarding muestra el panel abierto para guiar al mentor. */
+  expandedByDefault?: boolean;
 }
 
 type Draft = Pick<ScheduleSlot, 'start' | 'end'>;
@@ -30,10 +32,10 @@ type Draft = Pick<ScheduleSlot, 'start' | 'end'>;
  * HU 6.18: horarios semanales del mentor. Cada día de lunes a domingo tiene un
  * interruptor (CA-FE-02, BUG-010): activo = el día tiene al menos una franja.
  */
-export function MentorWeeklySchedule({ schedule, onChange, disabled = false, firstIncomplete = false }: MentorWeeklyScheduleProps) {
+export function MentorWeeklySchedule({ schedule, onChange, disabled = false, firstIncomplete = false, expandedByDefault = false }: MentorWeeklyScheduleProps) {
   const id = useId();
   const [expanded, setExpanded] = useState(
-    schedule.length > 0 || (firstIncomplete && window.location.hash === '#first-incomplete'),
+    schedule.length > 0 || expandedByDefault || (firstIncomplete && window.location.hash === '#first-incomplete'),
   );
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [errors, setErrors] = useState<Record<number, SlotError | null>>({});

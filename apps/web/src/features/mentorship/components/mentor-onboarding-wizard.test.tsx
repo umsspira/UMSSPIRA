@@ -262,7 +262,7 @@ it('CAF-11: al guardar el último paso muestra el resumen y el mensaje de perfil
   await screen.findByRole('heading', { level: 3, name: 'Disponibilidad' });
 
   fireEvent.click(screen.getByRole('radio', { name: /Disponible/ }));
-  fireEvent.click(screen.getByRole('switch', { name: 'Disponibilidad del martes' }));
+  fireEvent.click(screen.getByRole('switch', { name: 'Martes' }));
   fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
 
   expect(await screen.findByRole('heading', { name: 'Tu perfil de mentor está completo' })).toBeInTheDocument();
