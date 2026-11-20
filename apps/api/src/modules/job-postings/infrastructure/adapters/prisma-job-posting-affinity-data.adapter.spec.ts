@@ -5,7 +5,7 @@ import { PrismaJobPostingAffinityDataAdapter } from './prisma-job-posting-affini
 describe('HU10: lectura agrupada de datos de afinidad', () => {
   const database = {
     titulado: { findMany: jest.fn() },
-    vacante: { findMany: jest.fn() },
+    vacante: { findMany: jest.fn(), findFirst: jest.fn() },
   };
   let adapter: PrismaJobPostingAffinityDataAdapter;
 
@@ -128,4 +128,41 @@ describe('HU10: lectura agrupada de datos de afinidad', () => {
     database.vacante.findMany.mockRejectedValue(error);
     await expect(adapter.readRequirements(['v1'])).rejects.toBe(error);
   });
+
+  it('solo batch graduates lee vacantes publicadas y no vencidas', async () => {
+    database.vacante.findMany.mockResolvedValue([
+      { id: 'v1', requisito_tecnico_registros: [{ nombre: 'Java' }] },
+    ]);
+    await expect(adapter.readPublicVacancies(['v1'], new Date('2026-11-20T12:00:00Z'))).resolves.toEqual([
+      { vacancyId: 'v1', requirements: ['Java'] },
+    ]);
+    expect(database.vacante.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: { in: ['v1'] }, estado: { in: ['PUBLICADO', 'PUBLICADA'] },
+        OR: [{ fecha_cierre: null }, { fecha_cierre: { gt: new Date('2026-11-20T12:00:00Z') } }],
+      }),
+    }));
+  });
+
+  it('modo empresa verifica propiedad o membresía activa y filtra postulaciones por vacante', async () => {
+    database.vacante.findFirst.mockResolvedValue({
+      id: 'v1', requisito_tecnico_registros: [{ nombre: 'Java' }],
+      postulacion_registros: [{ id: 'application-1', id_usuario: 'candidate-1' }],
+    });
+    await expect(adapter.readCompanyVacancyApplications('v1', 'company-user', ['application-1'])).resolves.toEqual({
+      vacancy: { vacancyId: 'v1', requirements: ['Java'] },
+      applications: [{ applicationId: 'application-1', userId: 'candidate-1' }],
+    });
+    expect(database.vacante.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'v1', empresa: { OR: [
+        { id_usuario: 'company-user' },
+        { empresa_usuario_registros: { some: { id_usuario: 'company-user', estado: 'activo' } } },
+      ] } } }));
+  });
+
+  it('empresa no autorizada no recibe postulaciones', async () => {
+    database.vacante.findFirst.mockResolvedValue(null);
+    await expect(adapter.readCompanyVacancyApplications('v1', 'outsider', ['application-1'])).resolves.toBeNull();
+  });
+
 });

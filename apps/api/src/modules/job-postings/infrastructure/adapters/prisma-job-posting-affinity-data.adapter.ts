@@ -5,9 +5,13 @@ import type {
   JobPostingAffinityProfile,
   JobPostingAffinityRequirements,
 } from '../../application/ports/job-posting-affinity-data.port';
+import type { JobPostingAffinityBatchDataPort } from '../../application/ports/job-posting-affinity-batch-data.port';
+import { PUBLISHED_JOB_POSTING_STATUSES } from '../../domain/policies/job-posting-availability.policy';
 
 @Injectable()
-export class PrismaJobPostingAffinityDataAdapter implements JobPostingAffinityDataPort {
+export class PrismaJobPostingAffinityDataAdapter
+  implements JobPostingAffinityDataPort, JobPostingAffinityBatchDataPort
+{
   constructor(private readonly prisma: PrismaService) {}
 
   async readProfiles(userIds: readonly string[]): Promise<JobPostingAffinityProfile[]> {
@@ -81,4 +85,71 @@ export class PrismaJobPostingAffinityDataAdapter implements JobPostingAffinityDa
       requirements: vacancy.requisito_tecnico_registros.map((item) => item.nombre),
     }));
   }
+
+  async readPublicVacancies(
+    vacancyIds: readonly string[],
+    now: Date,
+  ): Promise<JobPostingAffinityRequirements[]> {
+    if (!vacancyIds.length) return [];
+    const records = await this.prisma.vacante.findMany({
+      where: {
+        id: { in: [...vacancyIds] },
+        estado: { in: [...PUBLISHED_JOB_POSTING_STATUSES] },
+        OR: [{ fecha_cierre: null }, { fecha_cierre: { gt: now } }],
+      },
+      select: {
+        id: true,
+        requisito_tecnico_registros: {
+          orderBy: [{ nombre_normalizado: 'asc' }, { id: 'asc' }],
+          select: { nombre: true },
+        },
+      },
+    });
+    return records.map((record) => ({
+      vacancyId: record.id,
+      requirements: record.requisito_tecnico_registros.map((item) => item.nombre),
+    }));
+  }
+
+
+  async readCompanyVacancyApplications(
+    vacancyId: string,
+    actorUserId: string,
+    applicationIds: readonly string[],
+  ) {
+    const record = await this.prisma.vacante.findFirst({
+      where: {
+        id: vacancyId,
+        empresa: {
+          OR: [
+            { id_usuario: actorUserId },
+            { empresa_usuario_registros: { some: { id_usuario: actorUserId, estado: 'activo' } } },
+          ],
+        },
+      },
+      select: {
+        id: true,
+        requisito_tecnico_registros: {
+          orderBy: [{ nombre_normalizado: 'asc' }, { id: 'asc' }],
+          select: { nombre: true },
+        },
+        postulacion_registros: {
+          where: { id: { in: [...applicationIds] } },
+          select: { id: true, id_usuario: true },
+        },
+      },
+    });
+    if (!record) return null;
+    return {
+      vacancy: {
+        vacancyId: record.id,
+        requirements: record.requisito_tecnico_registros.map((item) => item.nombre),
+      },
+      applications: record.postulacion_registros.map((application) => ({
+        applicationId: application.id,
+        userId: application.id_usuario,
+      })),
+    };
+  }
+
 }
