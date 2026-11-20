@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CirclePauseIcon } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { useMentorParticipation } from '../hooks/use-mentor-participation';
+import { useMentorPublicationProgress } from '../hooks/use-mentor-publication-progress';
 import { ActivePanel } from './active-panel';
 import { InactivePanel } from './inactive-panel';
 import { SecondaryButton } from './mentor-button';
@@ -12,6 +13,7 @@ import { MentorProfileCompleteness } from './mentor-profile-completeness';
 
 export function MentorProfile() {
   const { profile, loading, saving, error, changeParticipation, retry } = useMentorParticipation();
+  const publication = useMentorPublicationProgress(profile?.isActive === true);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const completeness = profile && !loading ? <MentorProfileCompleteness /> : null;
 
@@ -22,7 +24,11 @@ export function MentorProfile() {
       {!profile && !loading && <SecondaryButton onClick={retry}>Reintentar</SecondaryButton>}
     </div>}
     {profile?.isActive ? (
-      <ActivePanel requirements={profile.requirements} onDeactivate={() => setConfirmDeactivate(true)} />
+      <ActivePanel
+        requirements={profile.requirements}
+        publication={publication}
+        onDeactivate={() => setConfirmDeactivate(true)}
+      />
     ) : (
       <InactivePanel requirements={profile?.requirements ?? null} activating={saving} onActivate={() => { void changeParticipation(true); }} completeness={completeness} />
     )}

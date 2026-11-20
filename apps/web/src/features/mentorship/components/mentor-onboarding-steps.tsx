@@ -1,22 +1,13 @@
 'use client';
 
-import { CalendarDaysIcon, CheckIcon, LockKeyholeIcon } from 'lucide-react';
+import { CalendarDaysIcon, CheckIcon } from 'lucide-react';
 import type {
   OnboardingArea,
   OnboardingAvailabilityStatus,
   OnboardingInterestGroup,
   OnboardingSchedule,
 } from '../services/mentor-onboarding-api';
-
-const WEEKDAYS = [
-  { value: 1, label: 'Lunes' },
-  { value: 2, label: 'Martes' },
-  { value: 3, label: 'Miércoles' },
-  { value: 4, label: 'Jueves' },
-  { value: 5, label: 'Viernes' },
-  { value: 6, label: 'Sábado' },
-  { value: 7, label: 'Domingo' },
-] as const;
+import { MentorWeeklySchedule } from './mentor-weekly-schedule';
 
 const STATUS_OPTIONS: { value: OnboardingAvailabilityStatus; title: string; description: string }[] = [
   {
@@ -201,29 +192,6 @@ export function OnboardingAvailabilityStep({
   onStatusChange,
   onSchedulesChange,
 }: AvailabilityStepProps) {
-  const scheduleFor = (weekday: number) => schedules.find((schedule) => schedule.weekday === weekday);
-
-  const toggleDay = (weekday: number) => {
-    if (disabled) return;
-    const current = scheduleFor(weekday);
-    onSchedulesChange(
-      current
-        ? schedules.filter((schedule) => schedule.weekday !== weekday)
-        : [...schedules, { weekday, start: '18:00', end: '20:00' }].sort(
-            (a, b) => a.weekday - b.weekday,
-          ),
-    );
-  };
-
-  const updateTime = (weekday: number, field: 'start' | 'end', value: string) => {
-    if (disabled) return;
-    onSchedulesChange(
-      schedules.map((schedule) =>
-        schedule.weekday === weekday ? { ...schedule, [field]: value } : schedule,
-      ),
-    );
-  };
-
   return (
     <section className="onboarding-step-panel" aria-labelledby="onboarding-availability-title">
       <div className="onboarding-step-heading">
@@ -257,53 +225,15 @@ export function OnboardingAvailabilityStep({
         <ErrorMessage messages={errors.availabilityStatus} />
       </fieldset>
 
-      <fieldset className="onboarding-fieldset" disabled={disabled}>
-        <legend>Días y horarios</legend>
-        <div className="onboarding-schedule-list">
-          {WEEKDAYS.map(({ value, label }) => {
-            const schedule = scheduleFor(value);
-            return (
-              <div key={value} className={`onboarding-schedule-day${schedule ? ' is-active' : ''}`}>
-                <label className="onboarding-schedule-toggle">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(schedule)}
-                    onChange={() => toggleDay(value)}
-                  />
-                  <strong>{label}</strong>
-                </label>
-                {schedule ? (
-                  <div className="onboarding-schedule-times">
-                    <label>
-                      Desde
-                      <input
-                        type="time"
-                        aria-label={`Hora de inicio del ${label.toLowerCase()}`}
-                        value={schedule.start}
-                        onChange={(event) => updateTime(value, 'start', event.target.value)}
-                      />
-                    </label>
-                    <label>
-                      Hasta
-                      <input
-                        type="time"
-                        aria-label={`Hora de fin del ${label.toLowerCase()}`}
-                        value={schedule.end}
-                        onChange={(event) => updateTime(value, 'end', event.target.value)}
-                      />
-                    </label>
-                  </div>
-                ) : (
-                  <span className="onboarding-schedule-empty">
-                    <LockKeyholeIcon size={14} aria-hidden="true" /> Sin horario
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+      <div className="onboarding-schedule-list">
+        <MentorWeeklySchedule
+          schedule={schedules}
+          onChange={onSchedulesChange}
+          disabled={disabled}
+          expandedByDefault
+        />
         <ErrorMessage messages={errors.schedules} />
-      </fieldset>
+      </div>
     </section>
   );
 }
