@@ -96,7 +96,25 @@ export function summarizeSchedule(schedule: readonly ScheduleSlot[]): string {
   return `${days.length} ${days.length === 1 ? 'día' : 'días'} con horarios: ${days.map(day => day.short).join(', ')}`;
 }
 
-export function dayOptionLabel(schedule: readonly ScheduleSlot[], weekday: number): string {
-  const count = slotsOf(schedule, weekday).length;
-  return count ? `${dayName(weekday)} (${count})` : dayName(weekday);
+/** Quita todas las franjas de un día: el interruptor del día queda inactivo (BUG-010). */
+export function removeDay(schedule: readonly ScheduleSlot[], weekday: number): ScheduleSlot[] {
+  return schedule.filter(slot => slot.weekday !== weekday);
+}
+
+const DEFAULT_SLOT = { start: '09:00', end: '10:00' };
+
+const toTime = (total: number) =>
+  `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+
+/**
+ * Franja que se propone al activar un día o al agregar otra: 09:00–10:00 si está libre,
+ * si no, la hora siguiente a la última franja del día.
+ */
+export function suggestSlot(schedule: readonly ScheduleSlot[], weekday: number): ScheduleSlot {
+  const sameDay = slotsOf(schedule, weekday);
+  const free = validateNewSlot(schedule, { weekday, ...DEFAULT_SLOT }) === null;
+  if (!sameDay.length || free) return { weekday, ...DEFAULT_SLOT };
+  const start = Math.max(...sameDay.map(slot => minutes(slot.end)));
+  if (start + SESSION_MINUTES > 24 * 60 - SCHEDULE_STEP_MINUTES) return { weekday, ...DEFAULT_SLOT };
+  return { weekday, start: toTime(start), end: toTime(start + SESSION_MINUTES) };
 }
