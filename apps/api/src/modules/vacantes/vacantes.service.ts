@@ -132,10 +132,16 @@ export class VacantesService {
 
     if (!empresa) {return [];}
 
-    return this.prisma.vacante.findMany({
+    // HU-03: la tarjeta móvil muestra la cantidad de postulantes de cada vacante.
+    const vacantes = await this.prisma.vacante.findMany({
       where: { id_empresa: empresa.id },
-      orderBy: { created_at: 'desc' }
+      orderBy: { created_at: 'desc' },
+      include: { _count: { select: { postulacion_registros: true } } },
     });
+    return vacantes.map(({ _count, ...vacante }) => ({
+      ...vacante,
+      total_postulantes: _count.postulacion_registros,
+    }));
   }
 
   async obtenerVacantePorId(idVacante: string, idUsuario: string) {
