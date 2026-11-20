@@ -113,12 +113,6 @@ export function RequestsTable({
                   <td className="px-4 py-3 text-xs font-bold text-abyssal-blue">
                     <Link
                       href={detailHref}
-                      onClick={(e) => {
-                        if (onSelect) {
-                          e.preventDefault();
-                          onSelect(item.id);
-                        }
-                      }}
                       className="hover:underline focus:underline focus:outline-none"
                       aria-label={`Ver expediente ${item.code}`}
                     >

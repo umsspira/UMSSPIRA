@@ -36,6 +36,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 const mockRouter = {
+  push: jest.fn(),
   replace: (url: string) => {
     window.history.replaceState({}, '', url);
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -69,52 +70,6 @@ const boardPage = {
   ],
   total: 1, page: 1, pageSize: 15,
 };
-
-function mockPendingApplicationDetail() {
-  const { fetchApplicationDetail, fetchDocumentUrl } = jest.requireMock(
-    '@/modules/applications/frontend/services/applications-board.service',
-  ) as {
-    fetchApplicationDetail: jest.Mock;
-    fetchDocumentUrl: jest.Mock;
-  };
-
-  fetchApplicationDetail.mockResolvedValue({
-    ok: true,
-    data: {
-      id: 's-1',
-      code: 'EGR-2025-ABCDEF',
-      fullName: 'Alejandro Rojas',
-      email: 'a@x.com',
-      ci: '6849201',
-      issuedIn: '',
-      sisCode: '201804921',
-      career: 'Ingeniería de Sistemas',
-      careerId: 'c-1',
-      status: 'PENDIENTE',
-      submittedAt: new Date().toISOString(),
-      firstName: 'Alejandro',
-      lastName: 'Rojas',
-      phone: '',
-      graduationYear: 2020,
-      documentName: 'titulo.pdf',
-      documentPath: 'solicitudes/x/y.pdf',
-      documentFormat: 'PDF',
-      reviewSummary: {
-        observations: 0, maxObservations: 2,
-        rejections: 0, maxRejections: 5,
-        latestObservation: null, canObserve: true,
-      },
-    },
-  });
-
-  fetchDocumentUrl.mockResolvedValue({
-    ok: true,
-    data: {
-      url: 'https://firmada.local/d.pdf',
-      expiresIn: 300,
-    },
-  });
-}
 
 describe('ApplicationsPage', () => {
   beforeEach(() => {
@@ -363,171 +318,32 @@ describe('ApplicationsPage', () => {
     expect(await screen.findByRole('link', { name: 'Ir al inicio de sesión' })).toBeInTheDocument();
   });
 
-  it('abre el expediente al seleccionar una fila (CA-04.3)', async () => {
+  it('abre el expediente en su propia ruta al seleccionar la fila', async () => {
     mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
-    const { fetchApplicationDetail, fetchDocumentUrl } = jest.requireMock(
-      '@/modules/applications/frontend/services/applications-board.service',
-    ) as { fetchApplicationDetail: jest.Mock; fetchDocumentUrl: jest.Mock };
-    fetchApplicationDetail.mockResolvedValue({
-      ok: true,
-      data: {
-        id: 's-1', code: 'EGR-2025-ABCDEF', fullName: 'Alejandro Rojas', email: 'a@x.com',
-        ci: '6849201', issuedIn: '', sisCode: '201804921', career: 'Ingeniería de Sistemas',
-        careerId: 'c-1', status: 'PENDIENTE', submittedAt: new Date().toISOString(),
-        firstName: 'Alejandro', lastName: 'Rojas', phone: '', graduationYear: 2020,
-        documentName: 'titulo.pdf', documentPath: 'solicitudes/x/y.pdf', documentFormat: 'PDF',
-      },
-    });
-    fetchDocumentUrl.mockResolvedValue({ ok: true, data: { url: 'https://firmada.local/d.pdf', expiresIn: 300 } });
     render(<ApplicationsPage />);
-
     fireEvent.click(await screen.findByText('Alejandro Rojas'));
-
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: 'Abrir documento en otra pestaña' })).toHaveAttribute(
-      'href',
-      'https://firmada.local/d.pdf',
-    );
+    expect(mockRouter.push).toHaveBeenCalledWith('/applications/s-1');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
-    it('mantiene abierto el expediente y muestra un error si la revisión falla', async () => {
-    mockedFetchBoard.mockResolvedValue({
-      ok: true,
-      data: boardPage,
-    });
 
-    mockPendingApplicationDetail();
-
-    mockedAuthenticatedFetch.mockImplementation(
-      async (url: string) => {
-        if (url === '/api/v1/applications/s-1/review') {
-          return {
-            ok: false,
-            status: 500,
-            json: async () => null,
-          };
-        }
-
-        if (url === '/api/v1/applications/s-1/ocr') {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({ data: [] }),
-          };
-        }
-
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ data: null }),
-        };
-      },
-    );
-
+  it('conserva filtros, búsqueda, período y página al ir al dictamen', async () => {
+    const query = 'page=2&size=25&q=Alejandro&career=Sistemas&status=PENDIENTE&period=last30';
+    window.history.replaceState({}, '', `/applications?${query}`);
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: { ...boardPage, total: 100, page: 2, pageSize: 25 } });
     render(<ApplicationsPage />);
-
     fireEvent.click(await screen.findByText('Alejandro Rojas'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Aprobar' }));
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Confirmar Aprobación' }),
-    );
-
-    expect(
-      await screen.findByText(
-        'No se pudo registrar el dictamen. Intenta de nuevo.',
-      ),
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole('button', { name: 'Confirmar Aprobación' }),
-    ).toBeInTheDocument();
-
-    expect(mockedFetchBoard).toHaveBeenCalledTimes(1);
-    expect(mockedFetchMetrics).toHaveBeenCalledTimes(1);
+    expect(mockRouter.push).toHaveBeenCalledWith(`/applications/s-1?${query}`);
   });
-        it('envía correctamente el dictamen de observación', async () => {
-    mockedFetchBoard.mockResolvedValue({
-      ok: true,
-      data: boardPage,
-    });
 
-    mockPendingApplicationDetail();
+  it('incluye en la navegación la búsqueda escrita antes del debounce', async () => {
+    mockedFetchBoard.mockResolvedValue({ ok: true, data: boardPage });
     render(<ApplicationsPage />);
-
-    fireEvent.click(await screen.findByText('Alejandro Rojas'));
-    const observeButton = await screen.findByRole('button', { name: 'Observar' });
-    expect(observeButton).toBeEnabled();
-    fireEvent.click(observeButton);
-
-    fireEvent.click(screen.getByLabelText('Documento ilegible o borroso'));
-    fireEvent.click(screen.getByLabelText('Datos declarados no coinciden con el respaldo'));
-
-    fireEvent.change(screen.getByLabelText(/Qué debe corregir el Titulado/), {
-      target: { value: 'El documento presentado no se puede leer.' },
-    });
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Confirmar Observación' }),
-    );
-
-    await waitFor(() => {
-      expect(mockedAuthenticatedFetch).toHaveBeenCalledWith(
-        '/api/v1/applications/s-1/review',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            decision: 'OBSERVADA',
-            motivos: ['documento_ilegible', 'datos_no_coinciden'],
-            note: 'El documento presentado no se puede leer.',
-          }),
-        }),
-      );
-    });
+    await screen.findByText('Alejandro Rojas');
+    fireEvent.change(screen.getByRole('textbox', { name: /buscar/i }), { target: { value: 'Alejandro' } });
+    fireEvent.click(screen.getByText('Alejandro Rojas'));
+    expect(mockRouter.push).toHaveBeenCalledWith('/applications/s-1?q=Alejandro');
   });
-    it('envía correctamente el dictamen de rechazo', async () => {
-    mockedFetchBoard.mockResolvedValue({
-      ok: true,
-      data: boardPage,
-    });
 
-    mockPendingApplicationDetail();
-    render(<ApplicationsPage />);
-
-    fireEvent.click(await screen.findByText('Alejandro Rojas'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Rechazar' }));
-
-    fireEvent.change(
-      screen.getByLabelText(/Causal de rechazo definitivo/),
-      {
-        target: { value: 'Trámite duplicado' },
-      },
-    );
-
-    fireEvent.change(screen.getByLabelText(/Justificación del rechazo/), {
-      target: { value: 'La solicitud corresponde a un trámite duplicado.' },
-    });
-
-    fireEvent.click(
-      screen.getByLabelText(/Confirmo que he cotejado los antecedentes/),
-    );
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Confirmar Rechazo' }),
-    );
-
-    await waitFor(() => {
-      expect(mockedAuthenticatedFetch).toHaveBeenCalledWith(
-        '/api/v1/applications/s-1/review',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            decision: 'RECHAZADA',
-            category: 'Trámite duplicado',
-            note: 'La solicitud corresponde a un trámite duplicado.',
-          }),
-        }),
-      );
-    });
-  });
   it('limpia todos los filtros y no permite que una búsqueda atrasada los restaure (BUG-06)', async () => {
     window.history.replaceState(
       {},

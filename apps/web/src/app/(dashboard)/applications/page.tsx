@@ -5,7 +5,6 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/shared/components/button';
-import { ApplicationDrawer } from '@/modules/applications/frontend/components/application-drawer';
 import {
   fetchApplicationsBoard,
   fetchApplicationsMetrics,
@@ -54,7 +53,6 @@ function ApplicationsBoardView() {
   const [isLoading, setIsLoading] = useState(true);
   const [needsLogin, setNeedsLogin] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const requestId = useRef(0);
 
   const updateQuery = useCallback(
@@ -274,22 +272,18 @@ function ApplicationsBoardView() {
             onPageSizeChange={(pageSize) =>
               updateQuery(changePageSize(queryRef.current, pageSize))
             }
-            onSelect={setSelectedId}
+            onSelect={(id) => {
+              const params = toApplicationsParams({
+                ...queryRef.current,
+                search: searchInput.trim(),
+              }).toString();
+              router.push(`/applications/${id}${params ? `?${params}` : ''}`);
+            }}
           />
         )
       )}
 
       <p role="status" className="my-3 rounded-lg border border-[#C9C1B1] bg-white p-3 text-sm text-[#2C3B4D]">{ocrMessage}</p>
-      <ApplicationDrawer
-        open={selectedId !== null}
-        applicationId={selectedId}
-        onClose={() => setSelectedId(null)}
-        onReviewed={() => {
-          setSelectedId(null);
-          void loadBoard(queryRef.current);
-          void loadMetrics();
-        }}
-      />
     </main>
   );
 }
