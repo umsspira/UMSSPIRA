@@ -1,4 +1,3 @@
-
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
 import { ApplicationHistoryService } from './application-history.service';
 
@@ -15,6 +14,9 @@ describe('ApplicationHistoryService', () => {
   } as unknown as ActorContext;
 
   const prisma = {
+    dictamen: { findMany: jest.fn() },
+    solicitudVersion: { findMany: jest.fn() },
+    usuario: { findMany: jest.fn() },
     solicitud: {
       findFirst: jest.fn(),
     },
@@ -32,6 +34,9 @@ describe('ApplicationHistoryService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.dictamen.findMany.mockResolvedValue([]);
+    prisma.solicitudVersion.findMany.mockResolvedValue([]);
+    prisma.usuario.findMany.mockResolvedValue([]);
 
     service = new ApplicationHistoryService(
       prisma as never,
@@ -43,9 +48,7 @@ describe('ApplicationHistoryService', () => {
   it('no devuelve datos de otra carrera', async () => {
     prisma.solicitud.findFirst.mockResolvedValue(null);
 
-    await expect(
-      service.execute(actor, 'application-1'),
-    ).rejects.toMatchObject({
+    await expect(service.execute(actor, 'application-1')).rejects.toMatchObject({
       code: 'APPLICATION_NOT_FOUND',
     });
 
@@ -63,11 +66,99 @@ describe('ApplicationHistoryService', () => {
       select: {
         id: true,
         version_vigente: true,
+        fecha_creacion: true,
       },
     });
 
     expect(ocrResults.analyses).not.toHaveBeenCalled();
     expect(historyEvents.getHistory).not.toHaveBeenCalled();
+    expect(prisma.usuario.findMany).not.toHaveBeenCalled();
+    expect(prisma.dictamen.findMany).not.toHaveBeenCalled();
+    expect(prisma.solicitudVersion.findMany).not.toHaveBeenCalled();
+  });
+
+  it('recupera recepción, OCR, versiones y dictámenes aunque historial_evento esté vacío', async () => {
+    prisma.solicitud.findFirst.mockResolvedValue({
+      id: 'application-1',
+      version_vigente: 2,
+      fecha_creacion: new Date('2026-11-14T10:00:00Z'),
+    });
+    historyEvents.getHistory.mockResolvedValue([]);
+    ocrResults.analyses.mockResolvedValue([
+      {
+        id: 'ocr-1',
+        revision: 1,
+        status: 'COMPLETADO',
+        current: false,
+        createdAt: '2026-11-14T10:00:00Z',
+        completedAt: '2026-11-14T10:02:00Z',
+        result: { suggestion: 'OBSERVAR' },
+        error: null,
+      },
+    ]);
+    prisma.dictamen.findMany.mockResolvedValue([
+      {
+        id: 'review-1',
+        version_dictaminada: 1,
+        decision: 'OBSERVADA',
+        revisor_id: 'admin-1',
+        fecha_creacion: new Date('2026-11-14T11:00:00Z'),
+        justificacion: 'Respaldo ilegible',
+      },
+    ]);
+    prisma.solicitudVersion.findMany.mockResolvedValue([
+      {
+        id: 'version-2',
+        numero_version: 2,
+        created_at: new Date('2026-11-15T10:00:00Z'),
+      },
+    ]);
+    prisma.usuario.findMany.mockResolvedValue([
+      {
+        usuario_id: 'admin-1',
+        nombre: 'Revisora',
+        correo: 'admin@example.test',
+      },
+    ]);
+    const result = await service.execute(actor, 'application-1');
+    expect(result.eventCount).toBe(4);
+    expect(result.events.map((event) => event.action)).toEqual([
+      'VERSION_REGISTRADA',
+      'DICTAMEN',
+      'OCR_ANALISIS',
+      'ENVIO',
+    ]);
+    expect(result.events[1]).toMatchObject({
+      title: 'Solicitud observada',
+      description: expect.stringContaining('Respaldo ilegible'),
+      actor: { name: 'Revisora' },
+      occurredAt: '2026-11-14T11:00:00.000Z',
+    });
+    expect(result.events[3].occurredAt).toBe('2026-11-14T10:00:00.000Z');
+    for (const query of [prisma.dictamen.findMany, prisma.solicitudVersion.findMany]) {
+      expect(query).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id_solicitud: 'application-1' } }),
+      );
+    }
+  });
+
+  it('muestra la recepción como primer movimiento de una solicitud nueva sin OCR', async () => {
+    prisma.solicitud.findFirst.mockResolvedValue({
+      id: 'application-1',
+      version_vigente: 1,
+      fecha_creacion: new Date('2026-11-14T10:00:00Z'),
+    });
+    historyEvents.getHistory.mockResolvedValue([]);
+    ocrResults.analyses.mockResolvedValue([]);
+    const result = await service.execute(actor, 'application-1');
+    expect(result.events).toEqual([
+      expect.objectContaining({
+        action: 'ENVIO',
+        title: 'Solicitud enviada por primera vez',
+        version: 1,
+        occurredAt: '2026-11-14T10:00:00.000Z',
+      }),
+    ]);
   });
 
   it('conserva el OCR anterior durante un nuevo analisis', async () => {
@@ -114,10 +205,7 @@ describe('ApplicationHistoryService', () => {
 
     historyEvents.getHistory.mockResolvedValue([]);
 
-    const result = await service.execute(
-      actor,
-      'application-1',
-    );
+    const result = await service.execute(actor, 'application-1');
 
     expect(result.ocr.latestAnalysis?.version).toBe(2);
     expect(result.ocr.latestAnalysis?.status).toBe('PENDIENTE');
@@ -159,17 +247,11 @@ describe('ApplicationHistoryService', () => {
       },
     ]);
 
-    const result = await service.execute(
-      actor,
-      'application-1',
-    );
+    const result = await service.execute(actor, 'application-1');
 
     expect(result.eventCount).toBe(2);
 
-    expect(result.events.map((event) => event.action)).toEqual([
-      'REENVIO',
-      'ENVIO',
-    ]);
+    expect(result.events.map((event) => event.action)).toEqual(['REENVIO', 'ENVIO']);
 
     expect(result.events[0]).toMatchObject({
       version: 2,
@@ -191,6 +273,9 @@ describe('ApplicationHistoryService', () => {
     });
 
     ocrResults.analyses.mockResolvedValue([]);
+    prisma.usuario.findMany.mockResolvedValue([
+      { usuario_id: 'admin-1', nombre: 'Administradora de Sistemas', correo: 'admin@example.test' },
+    ]);
 
     historyEvents.getHistory.mockResolvedValue([
       {
@@ -213,10 +298,7 @@ describe('ApplicationHistoryService', () => {
       },
     ]);
 
-    const result = await service.execute(
-      actor,
-      'application-1',
-    );
+    const result = await service.execute(actor, 'application-1');
 
     expect(result.events).toHaveLength(2);
 
@@ -224,6 +306,8 @@ describe('ApplicationHistoryService', () => {
       action: 'DICTAMEN',
       actor: {
         type: 'ADMINISTRADOR',
+        name: 'Administradora de Sistemas',
+        email: 'admin@example.test',
       },
     });
 
@@ -232,6 +316,10 @@ describe('ApplicationHistoryService', () => {
       actor: {
         type: 'SISTEMA',
       },
+    });
+    expect(prisma.usuario.findMany).toHaveBeenCalledWith({
+      where: { usuario_id: { in: ['admin-1'] } },
+      select: { usuario_id: true, nombre: true, correo: true },
     });
   });
 });
