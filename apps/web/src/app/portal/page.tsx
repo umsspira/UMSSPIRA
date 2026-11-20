@@ -14,7 +14,7 @@ import {
   Bookmark,
   MapPin,
   Clock3,
-  QrCode,
+  Settings,
   WifiOff,
   Wifi,
   AlertTriangle,
@@ -23,10 +23,7 @@ import {
 } from 'lucide-react';
 
 import umssBg from '@/shared/assets/images/14sept.webp';
-import { HomeStatusCards } from '@/features/home/home-status-cards';
-import { homeSectionsAdapter } from '@/features/home/home-sections-adapter';
-import { SectionUnavailable } from '@/shared/components/section-boundary';
-import { useSectionLoader } from '@/shared/hooks/use-section-loader';
+import { getEventCatalog } from '@/shared/services/events-service';
 import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
 import type { EventItem } from '@umsspira/shared-types';
 
@@ -109,7 +106,6 @@ const quickLinks = [
   { href: '/portal/empleos', title: 'Bolsa de trabajo', text: 'Encuentra nuevas oportunidades laborales.', Icon: Briefcase, iconStyle: 'bg-blue-50 text-blue-600' },
   { href: '/portal/beneficios', title: 'Beneficios', text: 'Accede a descuentos y convenios exclusivos.', Icon: Star, iconStyle: 'bg-amber-50 text-amber-600' },
   { href: '/portal/comunidad', title: 'Comunidad', text: 'Conecta con otros egresados.', Icon: Users, iconStyle: 'bg-slate-100 text-slate-700' },
-
 ];
 
 const normalize = (text: string) =>
@@ -118,20 +114,11 @@ const normalize = (text: string) =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
-const NO_EVENTS: EventItem[] = [];
-
 export default function Home() {
   const [query, setQuery] = useState('');
-
-  // HU18: la sección de eventos se carga aislada, con límite de 8 s y «Reintentar».
-  const eventsSection = useSectionLoader('home-events', (signal) =>
-    homeSectionsAdapter.loadEvents(signal),
-  );
-  const events = eventsSection.state.status === 'ready' ? eventsSection.state.data : NO_EVENTS;
-  const isLoadingEvents = eventsSection.state.status === 'loading';
-  const eventsError = eventsSection.state.status === 'unavailable';
-  const eventsTimedOut =
-    eventsSection.state.status === 'unavailable' && eventsSection.state.timedOut;
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [eventsError, setEventsError] = useState(false);
 
   const [isOnline, setIsOnline] = useState(true);
   const [showReconnectedToast, setShowReconnectedToast] = useState(false);
@@ -174,6 +161,28 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    let isActive = true;
+
+    void getEventCatalog()
+      .then((catalog) => {
+        if (isActive) {
+          setEvents(catalog);
+          setEventsError(false);
+        }
+      })
+      .catch(() => {
+        if (isActive) setEventsError(true);
+      })
+      .finally(() => {
+        if (isActive) setIsLoadingEvents(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const filteredQuickLinks = useMemo(() => {
     const q = normalize(query.trim());
     if (!q) return quickLinks;
@@ -195,7 +204,7 @@ export default function Home() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 w-full space-y-8 font-sans text-slate-900">
-      
+
       {!isOnline && (
         <div className="bg-[#B44735] text-white p-4 rounded-xl flex items-center gap-3 shadow-md animate-in slide-in-from-top-2 fade-in duration-300">
           <AlertTriangle className="w-5 h-5 shrink-0" />
@@ -219,7 +228,7 @@ export default function Home() {
             aria-hidden="true"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFB162] text-[#1B2632]"
           >
-            <QrCode className="h-5 w-5" />
+            <Calendar className="h-5 w-5" />
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-bold">Mis códigos QR</span>
@@ -250,7 +259,6 @@ export default function Home() {
       </section>
 
       {/* Banner principal */}
-      {/* Añadimos relative al section para posicionar la etiqueta */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
         <div className="absolute inset-0 z-0 overflow-hidden">
           <Image
@@ -264,7 +272,6 @@ export default function Home() {
           <div className="absolute inset-0 bg-[#0F172A]/60"></div>
         </div>
 
-        {/* 👇 ETIQUETA MOVIDA A LA ESQUINA SUPERIOR DERECHA 👇 */}
         <div className={`absolute top-6 right-6 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${
           isOnline ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
         }`}>
@@ -298,23 +305,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* HU18: cada tarjeta es una sección aislada; si una falla, las demás siguen funcionando */}
-      <HomeStatusCards />
-
-      {/* 👇 TARJETA DE ESTADO AGRANDADA 👇 */}
       {shouldShowStatusCard && (
         <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
           {isOnline ? (
             <>
-              {/* Icono más grande */}
               <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6 text-green-600">
                 <Wifi className="w-12 h-12" />
               </div>
-              {/* Textos más grandes */}
               <h2 className="text-3xl font-bold text-slate-900 mb-3">Conectado a Internet</h2>
               <p className="text-slate-500 text-base">Todas las funcionalidades están disponibles.</p>
-              
-              {/* Cuadro azul más ancho y grande */}
+
               <div className="mt-10 w-full max-w-3xl bg-blue-50/50 border border-blue-100 rounded-xl p-5 flex items-start gap-4 text-left">
                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
                   <Info className="w-4 h-4" />
@@ -383,11 +383,9 @@ export default function Home() {
         {isLoadingEvents ? (
           <p role="status" className="text-sm text-slate-500">Cargando eventos publicados…</p>
         ) : eventsError ? (
-          <SectionUnavailable
-            title="Próximos eventos"
-            timedOut={eventsTimedOut}
-            onRetry={eventsSection.retry}
-          />
+          <p role="alert" className="text-sm text-red-700">
+            No se pudieron cargar los eventos. Intenta nuevamente desde el catálogo.
+          </p>
         ) : filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {filteredEvents.slice(0, 3).map((event) => (
@@ -429,6 +427,22 @@ export default function Home() {
           </p>
         )}
       </section>
+
+      <Link
+        href="/portal/configuracion"
+        aria-label="Configuración de la PWA"
+        title="Configuración de la PWA"
+        data-testid="portal-config-button"
+        className="group fixed bottom-4 right-4 z-50 flex h-11 items-center overflow-hidden rounded-full bg-[#1B2632]/60 px-3 text-white shadow-md backdrop-blur-sm transition-all duration-200 hover:bg-[#1B2632] hover:shadow-lg focus-visible:bg-[#1B2632] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 sm:bottom-6 sm:right-6"
+      >
+        <Settings className="h-5 w-5 shrink-0" aria-hidden="true" />
+        <span
+          aria-hidden="true"
+          className="max-w-0 overflow-hidden whitespace-nowrap text-sm font-medium opacity-0 transition-all duration-200 group-hover:ml-2 group-hover:max-w-[8rem] group-hover:opacity-100 group-focus-visible:ml-2 group-focus-visible:max-w-[8rem] group-focus-visible:opacity-100"
+        >
+          Configuración
+        </span>
+      </Link>
 
       {showReconnectedToast && (
         <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
