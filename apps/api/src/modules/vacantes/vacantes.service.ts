@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../shared/errors/business-rule-error';
+import { normalizeTechnicalRequirementName } from '../job-postings/domain/policies/normalize-technical-requirement-name';
 
 // HU-04: códigos de etapa. El front traduce a etiquetas ("En revisión", etc.).
 export const ETAPAS_POSTULACION = ['postulado', 'en_revision', 'preseleccionado', 'entrevista', 'descartado'] as const;
@@ -23,6 +24,7 @@ export interface UpdateVacanteData {
   nivel_experiencia?: string;
   descripcion_tecnica?: string;
   estado?: string; // <-- NUEVO: para poder pausar
+  requisitosTecnicos?: string[];
 }
 
 @Injectable()
@@ -146,7 +148,8 @@ export class VacantesService {
     if (!empresa) {throw new Error('Empresa no encontrada');}
 
     return this.prisma.vacante.findFirst({
-      where: { id: idVacante, id_empresa: empresa.id }
+      where: { id: idVacante, id_empresa: empresa.id },
+      include: { requisito_tecnico_registros: { select: { nombre: true }, orderBy: { nombre: 'asc' } } },
     });
   }
 
@@ -247,10 +250,24 @@ export class VacantesService {
       // Bloqueo por vacante: dos envíos simultáneos (doble clic o reenvío)
       // se serializan y el resultado es el mismo que con un solo envío.
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idVacante}))`;
-      const actualizada = await tx.vacante.update({
-        where: { id: idVacante },
-        data: cambios,
-      });
+      const actualizada = Object.keys(cambios).length
+        ? await tx.vacante.update({ where: { id: idVacante }, data: cambios })
+        : await tx.vacante.findUniqueOrThrow({ where: { id: idVacante } });
+      if (data.requisitosTecnicos !== undefined) {
+        const owned = await tx.vacante.findFirst({
+          where: { id: idVacante, empresa: { OR: [
+            { id_usuario: idUsuario },
+            { empresa_usuario_registros: { some: { id_usuario: idUsuario, estado: 'activo' } } },
+          ] } },
+          select: { id: true },
+        });
+        if (!owned) {throw new NotFoundException('Vacante no encontrada');}
+        await tx.vacanteRequisitoTecnico.deleteMany({ where: { id_vacante: idVacante } });
+        if (data.requisitosTecnicos.length) {await tx.vacanteRequisitoTecnico.createMany({
+          data: data.requisitosTecnicos.map((nombre) => ({ id_vacante: idVacante, nombre, nombre_normalizado: normalizeTechnicalRequirementName(nombre) })),
+          skipDuplicates: true,
+        });}
+      }
       // TODO(HU-12): disparar aquí el recálculo de afinidad de las postulaciones
       // cuando exista el servicio de matching (HU-10/HU-12, epic7).
       return actualizada;

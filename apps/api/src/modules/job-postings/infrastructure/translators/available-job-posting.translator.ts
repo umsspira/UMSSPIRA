@@ -26,6 +26,8 @@ export const availableJobPostingListSelect = {
   empresa: {
     select: {
       razon_social: true,
+      sector_empresa_registros: { orderBy: { id: 'asc' }, take: 1, select: { nombre: true } },
+      direccion_empresa_registros: { orderBy: { id: 'asc' }, take: 1, select: { departamento: true } },
     },
   },
 } satisfies Prisma.VacanteSelect;
@@ -54,6 +56,8 @@ export function toJobPostingListCandidate(record: JobPostingListRecord): JobPost
     closingDate: record.fecha_cierre,
     publicationDate: record.fecha_publicacion,
     companyName: record.empresa?.razon_social ?? null,
+    areaName: record.empresa?.sector_empresa_registros[0]?.nombre ?? null,
+    locationName: record.empresa?.direccion_empresa_registros[0]?.departamento ?? null,
     technicalDescription: record.descripcion_tecnica,
     modality: record.modalidad,
     requirements: record.requisito_tecnico_registros.map((requirement) => ({
