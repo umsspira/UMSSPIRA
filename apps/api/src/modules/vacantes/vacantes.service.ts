@@ -104,7 +104,7 @@ export class VacantesService {
 
     return this.prisma.$transaction(async (tx) => {
       // Bloqueo por par Titulado/Vacante: dos solicitudes simultáneas solo pueden crear una fila.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idUsuario}), hashtext(${idVacante}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${idUsuario}), hashtext(${idVacante}))`;
       const existing = await tx.postulacion.findFirst({
         where: { id_usuario: idUsuario, id_vacante: idVacante },
         select: { id: true },
