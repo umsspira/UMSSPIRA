@@ -1,6 +1,8 @@
 import { ExecutionContext, INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { JOB_POSTING_AFFINITY_DATA } from '../src/modules/job-postings/application/ports/job-posting-affinity-data.port';
+import { CalculateJobPostingAffinity } from '../src/modules/job-postings/application/use-cases/calculate-job-posting-affinity.use-case';
 import { VacantesController } from '../src/modules/vacantes/vacantes.controller';
 import { VacantesService } from '../src/modules/vacantes/vacantes.service';
 import { ErrorHandlerFilter } from '../src/shared/http/filters/error-handler.filter';
@@ -15,7 +17,10 @@ const profile = {
   perfil_area_registros: [{ descripcion_profesional: 'Analista' }],
 };
 const applications = { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), update: jest.fn() };
-const transaction = { postulacion: applications, $queryRaw: jest.fn() };
+const transaction = { postulacion: applications, $queryRaw: jest.fn(), $executeRaw: jest.fn() };
+// Dobles del servicio de afinidad de HU-10: el e2e comprueba el contrato HTTP, no el motor.
+const affinityData = { readProfiles: jest.fn(), readRequirements: jest.fn() };
+const calculateAffinity = { execute: jest.fn() };
 const db = {
   postulacion: applications, titulado: { findFirst: jest.fn() },
   vacante: { findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn() }, empresa: { count: jest.fn() },
@@ -27,7 +32,13 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
   let actorId: string;
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      controllers: [VacantesController], providers: [VacantesService, { provide: PrismaService, useValue: db }],
+      controllers: [VacantesController],
+      providers: [
+        VacantesService,
+        { provide: PrismaService, useValue: db },
+        { provide: CalculateJobPostingAffinity, useValue: calculateAffinity },
+        { provide: JOB_POSTING_AFFINITY_DATA, useValue: affinityData },
+      ],
     }).compile();
     app = module.createNestApplication();
     app.setGlobalPrefix('api/v1');
@@ -44,6 +55,9 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
     actorId = 'usuario-prueba';
     db.titulado.findFirst.mockResolvedValue(profile);
     db.vacante.findUnique.mockResolvedValue({ estado: 'PUBLICADA' });
+    affinityData.readProfiles.mockResolvedValue([{ userId: 'usuario-prueba' }]);
+    affinityData.readRequirements.mockResolvedValue([]);
+    calculateAffinity.execute.mockResolvedValue([]);
   });
 
   it('CA-01 crea una sola fila al repetir la postulación', async () => {
@@ -56,6 +70,26 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
         .expect(201, { data: { postulada: true, yaExistia } });
     }
     expect(rows).toHaveLength(1);
+  });
+
+  it('CA-01 guarda juntos el porcentaje y la fecha de afinidad calculados al postular', async () => {
+    const calculatedAt = '2026-11-20T12:00:00.000Z';
+    applications.findFirst.mockResolvedValue(null);
+    calculateAffinity.execute.mockResolvedValue([
+      { vacancyId: vacancy, result: { status: 'ready', percentage: 50, calculatedAt, comparison: [] } },
+    ]);
+    await request(app.getHttpServer()).post(`${route}/postulaciones`).expect(201);
+    expect(applications.create.mock.calls[0][0].data).toMatchObject({
+      porcentaje_match: 50,
+      fecha_match: new Date(calculatedAt),
+    });
+  });
+
+  it('CA-01 guarda la postulación sin porcentaje ni fecha cuando el motor falla', async () => {
+    applications.findFirst.mockResolvedValue(null);
+    calculateAffinity.execute.mockRejectedValue(new Error('motor no disponible'));
+    await request(app.getHttpServer()).post(`${route}/postulaciones`).expect(201);
+    expect(applications.create.mock.calls[0][0].data).toMatchObject({ porcentaje_match: null, fecha_match: null });
   });
 
   it.each([
