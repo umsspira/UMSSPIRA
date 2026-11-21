@@ -1,7 +1,8 @@
-import { CanActivate, ExecutionContext, INestApplication } from '@nestjs/common';
+import { CanActivate, ExecutionContext, INestApplication, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { REQUIRED_ROLES } from '../../shared/http/auth/decorators/roles.decorator';
+import { REQUIRED_PERMISSIONS } from '../../shared/http/auth/decorators/require-permissions.decorator';
 import { ErrorHandlerFilter } from '../../shared/http/filters/error-handler.filter';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
 import { VacantesController } from './vacantes.controller';
@@ -147,5 +148,57 @@ describe('VacantesController · rutas de postulación (HU-03/HU-06)', () => {
       .expect(400);
 
     expect(service.cambiarEtapaPostulante).not.toHaveBeenCalled();
+  });
+
+  it('expone PATCH /vacantes/:id y actualiza con los datos validados (HU-13)', async () => {
+    const body = {
+      titulo: 'Nueva',
+      modalidad: 'HIBRIDO',
+      nivel_experiencia: 'Junior',
+      descripcion_tecnica: 'x'.repeat(60),
+    };
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}`)
+      .send(body)
+      .expect(200);
+
+    expect(service.actualizarVacante).toHaveBeenCalledWith(ID_VACANTE, actor.id, body);
+  });
+
+  it('rechaza con 400 VALIDATION_ERROR un body fuera del schema (HU-13)', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}`)
+      .send({ titulo: '', modalidad: 'Híbrido' })
+      .expect(400);
+
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(service.actualizarVacante).not.toHaveBeenCalled();
+  });
+
+  it('rechaza campos adicionales en la edición (HU-13)', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}`)
+      .send({ titulo: 'Nueva', id_empresa: 'otra' })
+      .expect(400);
+
+    expect(service.actualizarVacante).not.toHaveBeenCalled();
+  });
+
+  it('propaga el 404 del scoping de empresa como error de la API (HU-13)', async () => {
+    service.actualizarVacante.mockRejectedValueOnce(new NotFoundException('Vacante no encontrada'));
+
+    const res = await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}`)
+      .send({ estado: 'PAUSADA' })
+      .expect(404);
+
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('exige permiso empresas:self:write para editar la vacante (HU-13)', () => {
+    expect(
+      Reflect.getMetadata(REQUIRED_PERMISSIONS, VacantesController.prototype.actualizar),
+    ).toEqual(['empresas:self:write']);
   });
 });

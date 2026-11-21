@@ -12,14 +12,18 @@ describe('PrismaJobPostingRepository read operations', () => {
         fecha_publicacion: new Date('2026-11-16T10:00:00.000Z'),
         descripcion_tecnica: 'Descripción breve',
         modalidad: 'REMOTO',
-                requisito_tecnico_registros: [
+        requisito_tecnico_registros: [
           {
             id: 'requirement-1',
             nombre: 'Python',
             nombre_normalizado: 'python',
           },
         ],
-        empresa: { razon_social: 'Empresa' },
+        empresa: {
+          razon_social: 'Empresa',
+          sector_empresa_registros: [{ nombre: 'Tecnología' }],
+          direccion_empresa_registros: [{ departamento: 'Cochabamba' }],
+        },
       },
     ]);
     const prisma = {
@@ -36,8 +40,10 @@ describe('PrismaJobPostingRepository read operations', () => {
         id: 'vacancy-1',
         title: 'Desarrollador',
         companyName: 'Empresa',
+        areaName: 'Tecnología',
+        locationName: 'Cochabamba',
         status: 'PUBLICADO',
-                requirements: [
+        requirements: [
           {
             id: 'requirement-1',
             name: 'Python',
@@ -64,7 +70,11 @@ describe('PrismaJobPostingRepository read operations', () => {
       estado: 'PUBLICADO',
       fecha_cierre: null,
       fecha_publicacion: new Date('2026-11-16T10:00:00.000Z'),
-      empresa: { razon_social: 'Empresa' },
+      empresa: {
+        razon_social: 'Empresa',
+        sector_empresa_registros: [{ nombre: 'Tecnología' }],
+        direccion_empresa_registros: [{ departamento: 'Cochabamba' }],
+      },
       descripcion_tecnica: 'Descripción',
       modalidad: 'REMOTO',
       nivel_experiencia: 'JUNIOR',
@@ -87,6 +97,8 @@ describe('PrismaJobPostingRepository read operations', () => {
 
     await expect(repository.findById('vacancy-1')).resolves.toMatchObject({
       id: 'vacancy-1',
+      areaName: 'Tecnología',
+      locationName: 'Cochabamba',
       requirements: [{ id: 'requirement-1', name: 'Python' }],
     });
     expect(findUnique).toHaveBeenCalledWith(

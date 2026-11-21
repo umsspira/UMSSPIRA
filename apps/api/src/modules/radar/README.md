@@ -65,6 +65,24 @@ Lista las certificaciones del perfil del titulado que respaldan el área solicit
 - Evalúa el título y emisor de cada certificación con `KeywordExtractorPort` y los pesos del área elegida.
 - Devuelve únicamente aquellas certificaciones que aporten puntaje $> 0$ en dicha área técnica.
 
+### 4. `GET /api/v1/radar/unmapped-keywords` (HU-15 / T15.1)
+Consulta agregada de términos no reconocidos en el diccionario NLP para revisión controlada de candidatos.
+- **Mecanismo autorizado**: Exige autenticación Bearer JWT y el permiso `reportes:read` (asignado exclusivamente al rol `administrador` en `access.policy.ts`). Los roles `titulado` y `empresa` reciben `403`; peticiones sin token reciben `401`.
+- **Anonimato garantizado (CA-HU15-01)**: Agrupa `public.palabra_clave_no_mapeada` por `termino` devolviendo únicamente `term`, `totalFrequency` (`SUM(frecuencia)`), `graduatesCount` (`COUNT(DISTINCT id_titulado)`) y `lastDetectedAt` (`MAX(fecha_deteccion)`), junto con `dictionaryVersion`, sin exponer `id_titulado` ni identidades.
+- **No inflación en recálculos (CA-HU15-05)**: La restricción única `(id_titulado, termino)` reemplaza la frecuencia del titulado en cada recálculo (`ON CONFLICT DO UPDATE`), evitando que recálculos repetidos inflen la frecuencia agregada.
+
+Consulta SQL equivalente para verificación directa por QA y DevOps:
+
+```sql
+SELECT
+  termino AS term,
+  SUM(frecuencia)::int AS "totalFrequency",
+  COUNT(DISTINCT id_titulado)::int AS "graduatesCount",
+  MAX(fecha_deteccion) AS "lastDetectedAt"
+FROM public.palabra_clave_no_mapeada
+GROUP BY termino
+ORDER BY SUM(frecuencia) DESC, COUNT(DISTINCT id_titulado) DESC, termino ASC;
+
 ### Seguridad y Permisos
 - Requiere autenticación Bearer JWT.
 - Exige los permisos `radar:self:read` para consultas y `radar:self:write` para recálculo (asignados al rol `titulado`).

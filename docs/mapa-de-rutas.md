@@ -123,12 +123,12 @@
 
 | Ruta | Pantalla | Protección |
 | --- | --- | --- |
-| `/mentorship` | Red de mentorías (inicio) | middleware |
+| `/mentorship` | Explorar mentores (inicio del módulo) | middleware |
 | `/mentorship/directory` | Directorio / explorar mentores | middleware |
 | `/mentorship/mentors/[mentorId]` | Perfil público de un mentor | middleware |
 | `/mentorship/request/[mentorId]` | Enviar solicitud a un mentor | middleware |
-| `/mentorship/requests` | Bandeja de solicitudes | middleware |
-| `/mentorship/requests/received` | Solicitudes recibidas (`?view=sent` = enviadas) | middleware |
+| `/mentorship/requests` | Mis solicitudes (historial del titulado) | middleware |
+| `/mentorship/requests/received` | Solicitudes recibidas por el mentor | middleware |
 | `/mentorship/profile` | Mi perfil de mentor | middleware |
 | `/mentorship/profile/information` | Información de mi perfil de mentor | middleware |
 | `/mentorship/profile/areas` | Áreas técnicas | middleware |
@@ -346,7 +346,7 @@ Accesibles sin sesión: el acceso se valida con **token de sesión de registro**
 
 > **Nota:** los dos últimos viven en el namespace `registrations` (controlador `event-passes.controller.ts`) pero pertenecen funcionalmente a eventos: generan y listan los **pases QR**.
 
-### 4.10 Mentorías — `mentorship`, `mentorship/requests` (25)
+### 4.10 Mentorías — `mentorship`, `mentorship/requests` (27)
 
 **Directorio y detalle**
 
@@ -392,6 +392,8 @@ Accesibles sin sesión: el acceso se valida con **token de sesión de registro**
 | POST | `/api/v1/mentorship/requests` | permiso `mentores:self:write` → titulado |
 | PATCH | `/api/v1/mentorship/requests/:id/accept` | sesión requerida |
 | PATCH | `/api/v1/mentorship/requests/:id/reject` | sesión requerida |
+| GET | `/api/v1/mentorship/my-requests` | permiso `mentores:self:write` → titulado |
+| PATCH | `/api/v1/mentorship/my-requests/:id/cancel` | permiso `mentores:self:write` → titulado |
 
 ### 4.11 Reportería — `reports` (6)
 

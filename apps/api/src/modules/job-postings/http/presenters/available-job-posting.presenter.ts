@@ -19,6 +19,8 @@ export function presentAvailableJobPosting(posting: JobPostingListCandidate) {
     id: posting.id,
     titulo: posting.title,
     empresa: posting.companyName,
+    areaLaboral: posting.areaName,
+    ubicacion: posting.locationName,
     descripcionTecnica: posting.technicalDescription,
     modalidad: posting.modality,
     fechaPublicacion: posting.publicationDate?.toISOString() ?? null,

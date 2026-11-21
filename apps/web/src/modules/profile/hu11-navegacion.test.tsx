@@ -46,7 +46,7 @@ describe('Navegación entre pantallas del perfil (HU-11)', () => {
       </ProfileStoreProvider>,
     );
 
-    expect(screen.getByRole('link', { name: 'Volver a Mi perfil' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Volver' })).toBeInTheDocument();
     expectQuickLinks();
   });
 
