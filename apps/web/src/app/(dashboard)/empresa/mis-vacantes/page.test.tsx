@@ -31,10 +31,11 @@ describe('Mis vacantes · enlace Ayuda (T20.2)', () => {
     expect(screen.getByRole('link', { name: 'Publicar vacante' })).toHaveAttribute('href', '/empresa/vacantes/publicar');
     const search = screen.getByPlaceholderText('Buscar por título...');
     fireEvent.change(search, { target: { value: 'Desarrollador' } });
-    expect(screen.getByText('Desarrollador')).toBeVisible();
+    // La vacante puede aparecer en la tabla y en su tarjeta móvil: basta con que esté visible.
+    expect(screen.getAllByText('Desarrollador')[0]).toBeVisible();
     expect(screen.queryByText('Analista')).not.toBeInTheDocument();
 
-    expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Editar' }).length).toBeGreaterThan(0);
     expect(global.fetch).toHaveBeenCalledWith('/api/v1/vacantes/mis-vacantes', expect.objectContaining({ method: 'GET' }));
   });
 });

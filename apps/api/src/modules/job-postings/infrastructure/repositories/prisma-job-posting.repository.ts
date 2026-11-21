@@ -11,6 +11,7 @@ import {
   toJobPostingDetailCandidate,
   toJobPostingListCandidate,
 } from '../translators/available-job-posting.translator';
+import { normalizeTechnicalRequirementName } from '../../domain/policies/normalize-technical-requirement-name';
 
 @Injectable()
 export class PrismaJobPostingRepository implements JobPostingRepository {
@@ -18,8 +19,8 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
 
   async create(ownerId: string, input: CreateJobPostingInput, now: Date) {
     try {
-      const record = await this.prisma.vacante.create({
-        data: {
+      const record = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.vacante.create({ data: {
           empresa: { connect: { id: input.empresaId, id_usuario: ownerId } },
           titulo: input.titulo,
           modalidad: input.modalidad,
@@ -29,6 +30,12 @@ export class PrismaJobPostingRepository implements JobPostingRepository {
           created_at: now,
         },
         select: jobPostingSelect,
+      });
+        if (input.requisitosTecnicos?.length) {await tx.vacanteRequisitoTecnico.createMany({
+          data: input.requisitosTecnicos.map((nombre) => ({ id_vacante: created.id, nombre, nombre_normalizado: normalizeTechnicalRequirementName(nombre) })),
+          skipDuplicates: true,
+        });}
+        return created;
       });
       return toJobPosting(record);
     } catch (error) {

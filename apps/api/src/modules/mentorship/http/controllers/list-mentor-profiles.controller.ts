@@ -2,6 +2,7 @@ import { All, Controller, HttpException, Query, Req } from '@nestjs/common';
 import { ListMentorProfilesUseCase } from '../../application/use-cases/list-mentor-profiles.use-case';
 import { presentDirectory, presentDirectoryCatalog } from '../presenters/mentor.presenter';
 import { ZodValidationPipe } from '../../../../shared/http/pipes/zod-validation.pipe';
+import { Roles } from '../../../../shared/http/auth/decorators/roles.decorator';
 import {
   mentorDirectoryQuerySchema,
   type MentorDirectoryQueryInput,
@@ -11,6 +12,7 @@ import {
 export class ListMentorProfilesController {
   constructor(private readonly useCase: ListMentorProfilesUseCase) {}
   @All('profiles')
+  @Roles('titulado')
   async handle(
     @Req() request: { method: string },
     @Query(new ZodValidationPipe(mentorDirectoryQuerySchema)) query: MentorDirectoryQueryInput,

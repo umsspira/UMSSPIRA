@@ -47,6 +47,7 @@ function row(overrides: Record<string, unknown> = {}) {
         },
       },
     ],
+    mentor_interes_personalizado_registros: [],
     espacio_disponible_mentor_registros: [
       { dia_semana: 2, horario_inicio: time('18:00'), horario_fin: time('20:00') },
       { dia_semana: 9, horario_inicio: time('08:00'), horario_fin: time('09:00') },
@@ -60,15 +61,18 @@ function row(overrides: Record<string, unknown> = {}) {
 describe('PrismaMentorRepository.detail', () => {
   const findFirst = jest.fn();
   const findMany = jest.fn();
+  const queryRaw = jest.fn();
   const repository = new PrismaMentorRepository({
     mentor: { findFirst },
     mentoriaSolicitud: { findMany },
+    $queryRaw: queryRaw,
   } as unknown as PrismaService);
   const detail = () => repository.detail('mentor-1', '2026-10-23', '2026-10-29');
 
   beforeEach(() => {
     findFirst.mockReset();
     findMany.mockReset().mockResolvedValue([]);
+    queryRaw.mockReset().mockResolvedValue([{ published: true }]);
   });
 
   it('consulta solo perfiles activos de titulados con cuenta activa', async () => {
@@ -102,6 +106,42 @@ describe('PrismaMentorRepository.detail', () => {
     expect(profile?.mentor.experience).toBeNull();
   });
 
+  it('incluye intereses personalizados solo para áreas técnicas seleccionadas', async () => {
+    findFirst.mockResolvedValue(row({
+      mentor_interes_personalizado_registros: [
+        {
+          id: 'interes-personalizado',
+          id_area: backend.id,
+          nombre: 'Arquitectura de APIs',
+          area: { id: backend.id, nombre: backend.nombre },
+        },
+        {
+          id: 'interes-area-no-seleccionada',
+          id_area: 'area-no-seleccionada',
+          nombre: 'DevOps',
+          area: { id: 'area-no-seleccionada', nombre: 'Otra área' },
+        },
+      ],
+    }));
+
+    const profile = await detail();
+
+    expect(profile?.interests).toEqual([
+      {
+        id: 'interes-personalizado',
+        name: 'Arquitectura de APIs',
+        area: { id: backend.id, name: backend.nombre },
+        esPersonalizado: true,
+      },
+      {
+        id: 'interes-nest',
+        name: 'NestJS',
+        area: { id: backend.id, name: backend.nombre },
+        esPersonalizado: false,
+      },
+    ]);
+  });
+
   it('trae las solicitudes pendientes o aceptadas del rango para ocupar horarios', async () => {
     findFirst.mockResolvedValue(row());
     findMany.mockResolvedValue([
@@ -124,19 +164,17 @@ describe('PrismaMentorRepository.detail', () => {
     expect(result?.bookings).toEqual([{ date: '2026-10-27', start: '18:00', end: '19:00' }]);
   });
 
-  it('muestra un mentor en pausa sin permitir solicitudes', async () => {
+  it('oculta un mentor en pausa porque ya no cumple las condiciones de publicación', async () => {
+    queryRaw.mockResolvedValue([{ published: false }]);
     findFirst.mockResolvedValue(
       row({ disponibilidad_mentor_registros: [{ estado: 'EN_PAUSA', fecha_actualizacion: null }] }),
     );
-    await expect(detail()).resolves.toMatchObject({
-      availability: 'EN_PAUSA',
-      canRequest: false,
-      bookings: [],
-    });
+    await expect(detail()).resolves.toBeNull();
     expect(findMany).not.toHaveBeenCalled();
   });
 
   it('oculta el perfil de un mentor no disponible', async () => {
+    queryRaw.mockResolvedValue([{ published: false }]);
     findFirst.mockResolvedValue(
       row({ disponibilidad_mentor_registros: [{ estado: 'NO_DISPONIBLE', fecha_actualizacion: null }] }),
     );
