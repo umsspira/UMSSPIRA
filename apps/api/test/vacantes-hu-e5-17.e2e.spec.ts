@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { VacantesController } from '../src/modules/vacantes/vacantes.controller';
 import { VacantesService } from '../src/modules/vacantes/vacantes.service';
+import { JOB_POSTING_AFFINITY_DATA } from '../src/modules/job-postings/application/ports/job-posting-affinity-data.port';
+import { CalculateJobPostingAffinity } from '../src/modules/job-postings/application/use-cases/calculate-job-posting-affinity.use-case';
 import { ErrorHandlerFilter } from '../src/shared/http/filters/error-handler.filter';
 import { PrismaService } from '../src/shared/infrastructure/database/prisma.service';
 
@@ -15,7 +17,10 @@ const profile = {
   perfil_area_registros: [{ descripcion_profesional: 'Analista' }],
 };
 const applications = { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), update: jest.fn() };
-const transaction = { postulacion: applications, $queryRaw: jest.fn() };
+const transaction = { postulacion: applications, $queryRaw: jest.fn(), $executeRaw: jest.fn() };
+// HU-10: VacantesService calcula la afinidad inicial al postular; aquí no hay perfil que calcular
+const affinityData = { readProfiles: jest.fn(), readRequirements: jest.fn() };
+const calculateAffinity = { execute: jest.fn() };
 const db = {
   postulacion: applications, titulado: { findFirst: jest.fn() },
   vacante: { findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn() }, empresa: { count: jest.fn() },
@@ -27,7 +32,13 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
   let actorId: string;
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      controllers: [VacantesController], providers: [VacantesService, { provide: PrismaService, useValue: db }],
+      controllers: [VacantesController],
+      providers: [
+        VacantesService,
+        { provide: PrismaService, useValue: db },
+        { provide: CalculateJobPostingAffinity, useValue: calculateAffinity },
+        { provide: JOB_POSTING_AFFINITY_DATA, useValue: affinityData },
+      ],
     }).compile();
     app = module.createNestApplication();
     app.setGlobalPrefix('api/v1');
