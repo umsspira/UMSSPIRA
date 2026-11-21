@@ -1,7 +1,7 @@
 // apps/web/src/app/portal/mensajes/page.tsx
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MessageSquare, Plus, RefreshCw } from "lucide-react";
 import { authenticatedFetch } from "@/shared/services/auth-session";
@@ -17,6 +17,10 @@ import { MessagesOfflineGuard } from "@/features/chat/components/MessagesOffline
 import { formatChatTime, getInitials } from "@/features/chat/utils/format";
 
 type Tab = "inbox" | "requests" | "declined";
+type ReadingPosition = {
+  messageId: string;
+  offset: number;
+};
 
 function Messages() {
   const params = useSearchParams();
@@ -31,6 +35,7 @@ function Messages() {
   const [tab, setTab] = useState<Tab>("inbox");
   const [connected, setConnected] = useState(false);
   const [notice, setNotice] = useState("");
+  const readingPositions = useRef<Record<string, ReadingPosition>>({});
 
   const selected =
     conversations.find((item) => item.id === selectedId) ??
@@ -326,6 +331,10 @@ function Messages() {
               key={selected.id}
               conversation={selected}
               actorId={actorId}
+              onSaveReadingPosition={(position) => {
+                readingPositions.current[selected.id] = position;
+              }}
+              savedReadingPosition={readingPositions.current[selected.id] ?? null}
               onBack={() => {
                 setSelectedId(null);
                 window.history.replaceState(null, "", "/portal/mensajes");

@@ -126,3 +126,199 @@ it("permite enviar un adjunto sin texto después de aceptar", async () => {
     ),
   );
 });
+
+it("muestra la cantidad de mensajes nuevos mientras se lee el historial", async () => {
+  const initialMessage = {
+    id: "m1",
+    conversationId: "c1",
+    senderId: "recipient",
+    clientId: null,
+    content: "Mensaje inicial",
+    sentAt: "2026-11-01T12:00:00Z",
+    editedAt: null,
+    deletedAt: null,
+  };
+
+  const newMessage = {
+    ...initialMessage,
+    id: "m2",
+    content: "Mensaje nuevo",
+    sentAt: "2026-11-01T12:05:00Z",
+  };
+
+  jest
+    .mocked(getConversationMessagesPage)
+    .mockResolvedValueOnce({
+      items: [initialMessage],
+      nextCursor: null,
+    })
+    .mockResolvedValueOnce({
+      items: [initialMessage, newMessage],
+      nextCursor: null,
+    });
+
+  render(
+    <ConversationPanel
+      conversation={{ ...conversation, status: "ACEPTADO" }}
+      actorId="sender"
+      onBack={jest.fn()}
+      onChange={jest.fn()}
+    />,
+  );
+
+  await screen.findByText("Mensaje inicial");
+
+  const history = screen.getByRole("log");
+
+  Object.defineProperty(history, "scrollHeight", {
+    configurable: true,
+    value: 500,
+  });
+  Object.defineProperty(history, "clientHeight", {
+    configurable: true,
+    value: 200,
+  });
+
+  history.scrollTop = 0;
+  fireEvent.scroll(history);
+
+  fireEvent.focus(window);
+
+  expect(
+    await screen.findByRole("button", {
+      name: /Nuevo mensaje \(1\)/,
+    }),
+  ).toBeInTheDocument();
+});
+
+it("conserva la posición al cargar mensajes anteriores", async () => {
+  const message = {
+    id: "m2",
+    conversationId: "c1",
+    senderId: "recipient",
+    clientId: null,
+    content: "Mensaje reciente",
+    sentAt: "2026-11-02T12:00:00Z",
+    editedAt: null,
+    deletedAt: null,
+  };
+
+  const olderMessage = {
+    ...message,
+    id: "m1",
+    content: "Mensaje antiguo",
+    sentAt: "2026-11-01T12:00:00Z",
+  };
+
+  jest
+    .mocked(getConversationMessagesPage)
+    .mockResolvedValueOnce({
+      items: [message],
+      nextCursor: "cursor-anterior",
+    })
+    .mockResolvedValueOnce({
+      items: [olderMessage],
+      nextCursor: null,
+    });
+
+  render(
+    <ConversationPanel
+      conversation={{ ...conversation, status: "ACEPTADO" }}
+      actorId="sender"
+      onBack={jest.fn()}
+      onChange={jest.fn()}
+    />,
+  );
+
+  await screen.findByText("Mensaje reciente");
+
+  const history = screen.getByRole("log", {
+    name: "Historial de mensajes",
+  });
+
+  Object.defineProperty(history, "scrollHeight", {
+    configurable: true,
+    value: 500,
+  });
+  Object.defineProperty(history, "clientHeight", {
+    configurable: true,
+    value: 200,
+  });
+
+  history.scrollTop = 100;
+  fireEvent.scroll(history);
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Cargar mensajes anteriores",
+    }),
+  );
+
+  await screen.findByText("Mensaje antiguo");
+
+  expect(history.scrollTop).toBe(100);
+});
+
+it("mantiene el desplazamiento al final cuando llega un mensaje nuevo", async () => {
+  const initialMessage = {
+    id: "m1",
+    conversationId: "c1",
+    senderId: "recipient",
+    clientId: null,
+    content: "Mensaje inicial",
+    sentAt: "2026-11-01T12:00:00Z",
+    editedAt: null,
+    deletedAt: null,
+  };
+
+  const newMessage = {
+    ...initialMessage,
+    id: "m2",
+    content: "Mensaje recibido",
+    sentAt: "2026-11-01T12:05:00Z",
+  };
+
+  jest
+    .mocked(getConversationMessagesPage)
+    .mockResolvedValueOnce({
+      items: [initialMessage],
+      nextCursor: null,
+    })
+    .mockResolvedValueOnce({
+      items: [initialMessage, newMessage],
+      nextCursor: null,
+    });
+
+  render(
+    <ConversationPanel
+      conversation={{ ...conversation, status: "ACEPTADO" }}
+      actorId="sender"
+      onBack={jest.fn()}
+      onChange={jest.fn()}
+    />,
+  );
+
+  await screen.findByText("Mensaje inicial");
+
+  const history = screen.getByRole("log");
+
+  Object.defineProperty(history, "scrollHeight", {
+    configurable: true,
+    value: 500,
+  });
+  Object.defineProperty(history, "clientHeight", {
+    configurable: true,
+    value: 200,
+  });
+
+  history.scrollTop = 300;
+  fireEvent.scroll(history);
+
+  fireEvent.focus(window);
+
+  await screen.findByText("Mensaje recibido");
+
+  await waitFor(() => {
+    expect(history.scrollTop).toBe(500);
+  });
+});
