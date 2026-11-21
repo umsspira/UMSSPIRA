@@ -39,6 +39,17 @@ export interface RadarCalculationSnapshot {
   }>;
 }
 
+/**
+ * Resumen agregado y anónimo de un término no reconocido en el diccionario (HU-15 / T15.1).
+ * No expone identidades de titulados.
+ */
+export interface AggregatedUnmappedKeyword {
+  term: string;
+  totalFrequency: number;
+  graduatesCount: number;
+  lastDetectedAt: Date | null;
+}
+
 // Token de inyección de dependencias para el contenedor de NestJS
 export const RADAR_REPOSITORY_PORT = Symbol('RADAR_REPOSITORY_PORT');
 
@@ -67,6 +78,12 @@ export interface RadarRepositoryPort {
    * Obtiene los términos no mapeados vigentes del titulado para exponerlos en la respuesta.
    */
   getUnmappedKeywords(tituladoId: string): Promise<string[]>;
+
+  /**
+   * Consulta agregada de términos no reconocidos con frecuencia total y cantidad de titulados,
+   * sin exponer identidades (HU-15 / T15.1).
+   */
+  getAggregatedUnmappedKeywords?(): Promise<AggregatedUnmappedKeyword[]>;
 
   /**
    * Ejecuta una rutina dentro de un bloqueo asesor a nivel de transacción (pg_advisory_xact_lock).
