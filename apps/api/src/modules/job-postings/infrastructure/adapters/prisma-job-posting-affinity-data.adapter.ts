@@ -90,7 +90,7 @@ export class PrismaJobPostingAffinityDataAdapter
     vacancyIds: readonly string[],
     now: Date,
   ): Promise<JobPostingAffinityRequirements[]> {
-    if (!vacancyIds.length) return [];
+    if (!vacancyIds.length) {return [];}
     const records = await this.prisma.vacante.findMany({
       where: {
         id: { in: [...vacancyIds] },
@@ -139,7 +139,7 @@ export class PrismaJobPostingAffinityDataAdapter
         },
       },
     });
-    if (!record) return null;
+    if (!record) {return null;}
     return {
       vacancy: {
         vacancyId: record.id,
