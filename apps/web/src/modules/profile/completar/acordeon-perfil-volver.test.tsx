@@ -21,11 +21,11 @@ function renderAcordeon(returnTo?: string) {
 }
 
 describe('Completar perfil · botón Volver (HU-11)', () => {
-  it('sin pantalla de origen vuelve a Mi perfil', () => {
+  it('sin pantalla de origen no enlaza a /profile, que con el perfil vacío reenvía aquí (Observación 1)', () => {
     renderAcordeon();
 
-    const back = screen.getByRole('link', { name: 'Volver a Mi perfil' });
-    expect(back).toHaveAttribute('href', '/profile');
+    const back = screen.getByRole('button', { name: 'Volver' });
+    expect(back).not.toHaveAttribute('href');
     expect(back).toHaveClass('min-h-[44px]');
   });
 
