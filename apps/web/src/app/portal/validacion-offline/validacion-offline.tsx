@@ -9,20 +9,33 @@ import { RESULTADOS_NAVEGADORES, type EstadoNavegador } from './resultados';
 
 /** Rutas de Mis QR que el Service Worker guarda para verse sin conexión (public/sw.js). */
 const RUTAS_QR = ['/events/catalog/passes', '/mis-pases'];
+const RUTA_EVENTOS = '/portal/eventos';
+const RUTA_CONFIGURACION = '/portal/configuracion';
 
-interface Comprobaciones {
+export interface Comprobaciones {
   guardados: number;
   sinConexion: boolean;
   swControla: boolean;
   swRegistrado: boolean;
   manifest: boolean;
   rutaQrGuardada: boolean;
+  rutaEventosGuardada: boolean;
+  rutaConfiguracionGuardada: boolean;
 }
 
-const INICIAL: Comprobaciones = { guardados: 0, sinConexion: false, swControla: false, swRegistrado: false, manifest: false, rutaQrGuardada: false };
+export const INICIAL: Comprobaciones = {
+  guardados: 0,
+  sinConexion: false,
+  swControla: false,
+  swRegistrado: false,
+  manifest: false,
+  rutaQrGuardada: false,
+  rutaEventosGuardada: false,
+  rutaConfiguracionGuardada: false,
+};
 
 /** Todo se comprueba en este dispositivo, sin red: funciona también en Modo Avión. */
-async function comprobar(): Promise<Comprobaciones> {
+export async function comprobar(): Promise<Comprobaciones> {
   const resultado: Comprobaciones = { ...INICIAL, sinConexion: !navigator.onLine };
 
   try {
@@ -45,6 +58,8 @@ async function comprobar(): Promise<Comprobaciones> {
     if (typeof caches !== 'undefined') {
       const encontradas = await Promise.all(RUTAS_QR.map(ruta => caches.match(ruta)));
       resultado.rutaQrGuardada = encontradas.some(Boolean);
+      resultado.rutaEventosGuardada = Boolean(await caches.match(RUTA_EVENTOS));
+      resultado.rutaConfiguracionGuardada = Boolean(await caches.match(RUTA_CONFIGURACION));
     }
   } catch { /* Cache Storage no disponible */ }
 
@@ -65,7 +80,8 @@ function EstadoTexto({ estado }: { estado: 'aprobado' | 'pendiente' | 'falla' })
   return <span className="shrink-0 text-sm font-semibold text-amber-700">Pendiente</span>;
 }
 
-export default function ValidacionOffline() {
+/** Estado real de lo guardado en este dispositivo; se vuelve a comprobar al cambiar la conexión. */
+export function useComprobaciones() {
   const [c, setC] = useState<Comprobaciones>(INICIAL);
 
   const actualizar = useCallback(() => { comprobar().then(setC).catch(() => undefined); }, []);
@@ -80,6 +96,11 @@ export default function ValidacionOffline() {
     };
   }, [actualizar]);
 
+  return { c, actualizar };
+}
+
+/** Las dos tarjetas del mockup HU08: se usan en /portal/validacion-offline y dentro de Configuración. */
+export function TarjetasValidacion({ c }: { c: Comprobaciones }) {
   const pasos = [
     {
       titulo: '1. Iniciar sesión y guardar el QR',
@@ -112,6 +133,45 @@ export default function ValidacionOffline() {
   ];
 
   return (
+    <div className="grid gap-5 md:grid-cols-2">
+      <section aria-labelledby="hu8-flujo" data-testid="hu8-flujo" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <h2 id="hu8-flujo" className="font-serif text-2xl font-bold text-[#1B2632]">Flujo en Modo Avión</h2>
+        <ol className="mt-4 divide-y divide-slate-100">
+          {pasos.map((paso, indice) => (
+            <li key={paso.titulo} data-testid={`hu8-paso-${indice + 1}`} data-estado={paso.ok ? 'ok' : 'pendiente'} className="flex items-center gap-3 py-3.5">
+              <Marca ok={paso.ok} numero={indice + 1} />
+              <div className="min-w-0">
+                <p className="font-semibold text-[#1B2632]">{paso.titulo}</p>
+                <p className="text-sm text-slate-500">
+                  {paso.detalle}
+                  {paso.enlace && <> · <Link href={paso.enlace} prefetch={false} className="font-semibold text-[#B44735] underline">Abrir Mis QR</Link></>}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section aria-labelledby="hu8-auditoria" data-testid="hu8-auditoria" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <h2 id="hu8-auditoria" className="font-serif text-2xl font-bold text-[#1B2632]">Auditoría y navegadores</h2>
+        <ul className="mt-4 divide-y divide-slate-100">
+          {auditoria.map(fila => (
+            <li key={fila.etiqueta} data-estado={fila.estado} className="flex items-center justify-between gap-3 py-3.5 text-[#1B2632]">
+              <span>{fila.etiqueta}</span>
+              <EstadoTexto estado={fila.estado} />
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-slate-500">Las filas de Lighthouse se comprueban en este dispositivo; la auditoría oficial y los navegadores se registran siguiendo el guion de la demostración.</p>
+      </section>
+    </div>
+  );
+}
+
+export default function ValidacionOffline() {
+  const { c } = useComprobaciones();
+
+  return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
       <section className="relative overflow-hidden rounded-3xl bg-[#1B2632] px-6 py-8 text-white md:px-12 md:py-10">
         <Image src="/images/institucional/inicio-egresados.jpg" alt="" fill priority sizes="(min-width: 1152px) 1152px, 100vw" className="object-cover opacity-40" />
@@ -123,37 +183,8 @@ export default function ValidacionOffline() {
         </div>
       </section>
 
-      <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <section aria-labelledby="hu8-flujo" data-testid="hu8-flujo" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-          <h2 id="hu8-flujo" className="font-serif text-2xl font-bold text-[#1B2632]">Flujo en Modo Avión</h2>
-          <ol className="mt-4 divide-y divide-slate-100">
-            {pasos.map((paso, indice) => (
-              <li key={paso.titulo} data-testid={`hu8-paso-${indice + 1}`} data-estado={paso.ok ? 'ok' : 'pendiente'} className="flex items-center gap-3 py-3.5">
-                <Marca ok={paso.ok} numero={indice + 1} />
-                <div className="min-w-0">
-                  <p className="font-semibold text-[#1B2632]">{paso.titulo}</p>
-                  <p className="text-sm text-slate-500">
-                    {paso.detalle}
-                    {paso.enlace && <> · <Link href={paso.enlace} prefetch={false} className="font-semibold text-[#B44735] underline">Abrir Mis QR</Link></>}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section aria-labelledby="hu8-auditoria" data-testid="hu8-auditoria" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-          <h2 id="hu8-auditoria" className="font-serif text-2xl font-bold text-[#1B2632]">Auditoría y navegadores</h2>
-          <ul className="mt-4 divide-y divide-slate-100">
-            {auditoria.map(fila => (
-              <li key={fila.etiqueta} data-estado={fila.estado} className="flex items-center justify-between gap-3 py-3.5 text-[#1B2632]">
-                <span>{fila.etiqueta}</span>
-                <EstadoTexto estado={fila.estado} />
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-xs text-slate-500">Las filas de Lighthouse se comprueban en este dispositivo; la auditoría oficial y los navegadores se registran siguiendo el guion de la demostración.</p>
-        </section>
+      <div className="mt-5">
+        <TarjetasValidacion c={c} />
       </div>
     </div>
   );
