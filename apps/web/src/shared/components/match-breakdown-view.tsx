@@ -347,7 +347,7 @@ export function MatchBreakdownView({
         Ver CV del postulante
       </a>
     ) : (
-      "CV no disponible por el momento."
+      "El postulante aún no subió su CV"
     )}
   </div>
 )}
