@@ -343,7 +343,7 @@ export class VacantesService {
     return this.cambiarEstado(idVacante, idUsuario, JOB_POSTING_STATUS.CLOSED);
   }
 
-async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacanteData) {
+  async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacanteData) {
     // HU-13: el dueño y los miembros activos de la empresa pueden editar;
     // cualquier otro recibe 404 sin filtrar si la vacante existe.
     await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
@@ -436,7 +436,6 @@ async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacant
       return actualizada;
     });
   }
-
 
   async eliminarVacante(idVacante: string, idUsuario: string) {
     const vacante = await this.obtenerVacanteDeMiEmpresa(idVacante, idUsuario);
@@ -656,9 +655,6 @@ async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacant
     return VacantesService.toPostulante(fila);
   }
 
-}
-
-
   // T16.4 consume este archivo; la empresa se valida antes de leer el contenido binario.
   async descargarCvPostulante(idVacante: string, idPostulacion: string, idUsuario: string) {
     await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
@@ -690,4 +686,3 @@ async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacant
     };
   }
 }
-
