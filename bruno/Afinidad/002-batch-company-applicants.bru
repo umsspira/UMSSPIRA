@@ -1,0 +1,38 @@
+meta {
+  name: Batch modo empresa postulantes
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/affinity/batch
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "mode": "applicants",
+    "vacancyId": "{{vacancyId}}",
+    "applicationIds": ["{{applicationId}}", "{{applicationId2}}"]
+  }
+}
+
+tests {
+  test("Respuesta HTTP 200 para postulaciones autorizadas", () {
+    expect(res.status).to.equal(200);
+    expect(res.body.data).to.be.an("array");
+  });
+}
+
+docs {
+  Requiere token Empresa con empresas:self:read. La empresa debe ser propietaria de la vacante o tener membresía activa. Todas las postulaciones deben corresponder a esa vacante.
+}

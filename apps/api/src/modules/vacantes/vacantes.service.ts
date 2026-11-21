@@ -1,11 +1,19 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../shared/errors/business-rule-error';
+import { normalizeTechnicalRequirementName } from '../job-postings/domain/policies/normalize-technical-requirement-name';
+import { CalculateJobPostingAffinity } from '../job-postings/application/use-cases/calculate-job-posting-affinity.use-case';
+import {
+  JOB_POSTING_AFFINITY_DATA,
+  type JobPostingAffinityDataPort,
+} from '../job-postings/application/ports/job-posting-affinity-data.port';
 
 // HU-04: códigos de etapa. El front traduce a etiquetas ("En revisión", etc.).
 export const ETAPAS_POSTULACION = ['postulado', 'en_revision', 'preseleccionado', 'entrevista', 'descartado'] as const;
@@ -23,11 +31,20 @@ export interface UpdateVacanteData {
   nivel_experiencia?: string;
   descripcion_tecnica?: string;
   estado?: string; // <-- NUEVO: para poder pausar
+  requisitosTecnicos?: string[];
 }
 
 @Injectable()
 export class VacantesService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(VacantesService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CalculateJobPostingAffinity)
+    private readonly calculateAffinity: CalculateJobPostingAffinity,
+    @Inject(JOB_POSTING_AFFINITY_DATA)
+    private readonly affinityData: JobPostingAffinityDataPort,
+  ) {}
 
   async estadoPostulacion(idVacante: string, idUsuario: string) {
     const titulado = await this.prisma.titulado.findFirst({
@@ -102,9 +119,12 @@ export class VacantesService {
       );
     }
 
+    // NLP y lecturas del perfil ocurren antes de abrir la transacción de postulación.
+    const affinity = await this.calculateInitialAffinity(idVacante, idUsuario);
+
     return this.prisma.$transaction(async (tx) => {
       // Bloqueo por par Titulado/Vacante: dos solicitudes simultáneas solo pueden crear una fila.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idUsuario}), hashtext(${idVacante}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${idUsuario}), hashtext(${idVacante}))`;
       const existing = await tx.postulacion.findFirst({
         where: { id_usuario: idUsuario, id_vacante: idVacante },
         select: { id: true },
@@ -119,10 +139,35 @@ export class VacantesService {
           id_vacante: idVacante,
           estado: 'postulado',
           created_at: new Date(),
+          porcentaje_match: affinity?.percentage ?? null,
+          fecha_match: affinity?.calculatedAt ? new Date(affinity.calculatedAt) : null,
         },
       });
       return { postulada: true, yaExistia: false };
     });
+  }
+
+  private async calculateInitialAffinity(idVacante: string, idUsuario: string) {
+    try {
+      const [profiles, vacancies] = await Promise.all([
+        this.affinityData.readProfiles([idUsuario]),
+        this.affinityData.readRequirements([idVacante]),
+      ]);
+      const [calculation] = await this.calculateAffinity.execute({
+        profile: profiles.find((profile) => profile.userId === idUsuario) ?? null,
+        vacancies,
+      });
+      if (calculation?.result.status !== 'ready') {
+        return null;
+      }
+      return {
+        percentage: calculation.result.percentage,
+        calculatedAt: calculation.result.calculatedAt,
+      };
+    } catch {
+      this.logger.warn('No se pudo calcular la afinidad al postular; se guardará sin resultado.');
+      return null;
+    }
   }
 
   async obtenerMisVacantes(idUsuario: string) {
@@ -146,7 +191,8 @@ export class VacantesService {
     if (!empresa) {throw new Error('Empresa no encontrada');}
 
     return this.prisma.vacante.findFirst({
-      where: { id: idVacante, id_empresa: empresa.id }
+      where: { id: idVacante, id_empresa: empresa.id },
+      include: { requisito_tecnico_registros: { select: { nombre: true }, orderBy: { nombre: 'asc' } } },
     });
   }
 
@@ -158,6 +204,7 @@ export class VacantesService {
         id: true,
         created_at: true,
         porcentaje_match: true,
+        fecha_match: true,
         vacante: {
           select: {
             id: true,
@@ -171,6 +218,8 @@ export class VacantesService {
 
     return filas.map((fila) => {
       const porcentaje = fila.porcentaje_match === null ? null : Number(fila.porcentaje_match);
+      const porcentajeValido =
+        porcentaje !== null && Number.isInteger(porcentaje) && porcentaje >= 0 && porcentaje <= 100;
       return {
         id: fila.id,
         vacancyId: fila.vacante?.id ?? null,
@@ -178,9 +227,8 @@ export class VacantesService {
         companyName: fila.vacante?.empresa?.razon_social ?? null,
         appliedAt: fila.created_at?.toISOString() ?? null,
         matchPercentage:
-          porcentaje !== null && Number.isFinite(porcentaje) && porcentaje >= 0 && porcentaje <= 100
-            ? porcentaje
-            : null,
+          porcentajeValido ? porcentaje : null,
+        matchCalculatedAt: porcentajeValido ? fila.fecha_match?.toISOString() ?? null : null,
         isVacancyAvailable: vacanteDisponible(fila.vacante?.estado ?? null),
       };
     });
@@ -231,27 +279,43 @@ export class VacantesService {
   }
 
   async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacanteData) {
-    const empresa = await this.prisma.empresa.findFirst({
-      where: { id_usuario: idUsuario }
-    });
+    // HU-13: el dueño y los miembros activos de la empresa pueden editar;
+    // cualquier otro recibe 404 sin filtrar si la vacante existe.
+    await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
 
-    if (!empresa) {throw new Error('Empresa no encontrada');}
+    // Solo se escriben los campos enviados; el resto queda intacto.
+    const cambios: Record<string, string> = {};
+    if (data.titulo !== undefined) {cambios['titulo'] = data.titulo;}
+    if (data.modalidad !== undefined) {cambios['modalidad'] = data.modalidad;}
+    if (data.nivel_experiencia !== undefined) {cambios['nivel_experiencia'] = data.nivel_experiencia;}
+    if (data.descripcion_tecnica !== undefined) {cambios['descripcion_tecnica'] = data.descripcion_tecnica;}
+    if (data.estado !== undefined) {cambios['estado'] = data.estado;}
 
-    const vacante = await this.prisma.vacante.findFirst({
-      where: { id: idVacante, id_empresa: empresa.id }
-    });
-
-    if (!vacante) {throw new Error('Vacante no encontrada o sin permiso');}
-
-    return this.prisma.vacante.update({
-      where: { id: idVacante },
-      data: {
-        titulo: data.titulo,
-        modalidad: data.modalidad,
-        nivel_experiencia: data.nivel_experiencia,
-        descripcion_tecnica: data.descripcion_tecnica,
-        estado: data.estado, // <-- NUEVO
+    return this.prisma.$transaction(async (tx) => {
+      // Bloqueo por vacante: dos envíos simultáneos (doble clic o reenvío)
+      // se serializan y el resultado es el mismo que con un solo envío.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idVacante}))`;
+      const actualizada = Object.keys(cambios).length
+        ? await tx.vacante.update({ where: { id: idVacante }, data: cambios })
+        : await tx.vacante.findUniqueOrThrow({ where: { id: idVacante } });
+      if (data.requisitosTecnicos !== undefined) {
+        const owned = await tx.vacante.findFirst({
+          where: { id: idVacante, empresa: { OR: [
+            { id_usuario: idUsuario },
+            { empresa_usuario_registros: { some: { id_usuario: idUsuario, estado: 'activo' } } },
+          ] } },
+          select: { id: true },
+        });
+        if (!owned) {throw new NotFoundException('Vacante no encontrada');}
+        await tx.vacanteRequisitoTecnico.deleteMany({ where: { id_vacante: idVacante } });
+        if (data.requisitosTecnicos.length) {await tx.vacanteRequisitoTecnico.createMany({
+          data: data.requisitosTecnicos.map((nombre) => ({ id_vacante: idVacante, nombre, nombre_normalizado: normalizeTechnicalRequirementName(nombre) })),
+          skipDuplicates: true,
+        });}
       }
+      // TODO(HU-12): disparar aquí el recálculo de afinidad de las postulaciones
+      // cuando exista el servicio de matching (HU-10/HU-12, epic7).
+      return actualizada;
     });
   }
 
@@ -332,6 +396,7 @@ export class VacantesService {
     id: true,
     estado: true,
     porcentaje_match: true,
+    fecha_match: true,
     created_at: true,
     usuario: {
       select: {
@@ -352,6 +417,7 @@ export class VacantesService {
     id: string;
     estado: string | null;
     porcentaje_match: unknown;
+    fecha_match: Date | null;
     created_at: Date | null;
     usuario: {
       nombre: string | null;
@@ -364,6 +430,7 @@ export class VacantesService {
     const match = p.porcentaje_match === null || p.porcentaje_match === undefined
       ? null
       : Number(p.porcentaje_match);
+    const matchValido = match !== null && Number.isInteger(match) && match >= 0 && match <= 100;
     return {
       id: p.id,
       name: nombreCompleto || p.usuario?.nombre || 'Sin nombre',
@@ -375,7 +442,8 @@ export class VacantesService {
       hasCv: Boolean(titulado?.curriculum_vitae),
       cvUrl: null,
       // El porcentaje viene del motor (Épica 3/5); aquí NUNCA se calcula (CA-02, CA-10).
-      matchPercentage: match !== null && Number.isFinite(match) ? match : null,
+      matchPercentage: matchValido ? match : null,
+      matchCalculatedAt: matchValido ? p.fecha_match?.toISOString() ?? null : null,
       skills: null,
     };
   }
