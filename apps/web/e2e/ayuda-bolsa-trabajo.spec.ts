@@ -26,7 +26,8 @@ for (const width of [390, 768, 1280]) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
 
       if (label === 'Cómo funciona la afinidad') {
-        await expect(panel.getByRole('heading', { name: 'Contenido de afinidad pendiente' })).toBeVisible();
+        await expect(panel.getByText('Afinidad = requisitos cumplidos ÷ total de requisitos')).toBeVisible();
+        await expect(panel.getByRole('heading', { name: 'Ejemplos' })).toBeVisible();
         continue;
       }
 

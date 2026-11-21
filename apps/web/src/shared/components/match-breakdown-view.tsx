@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { ApplicantStageTimeline } from "./applicant-stage-timeline";
+import {
+  ComoSeCalculaModal,
+  type DetalleRequisitoAfinidad,
+} from "@/modules/ayuda/como-se-calcula-modal";
 import { Applicant, Certification, Education, WorkExperience } from "../types/applicant";
 import { downloadApplicantCv } from "../services/applicants";
 import {
@@ -107,13 +111,17 @@ export function MatchBreakdownView({
   applicant,
   vacancyId,
   onBack,
+  comparison,
 }: {
   applicant: Applicant;
   /** Vacante del detalle: se usa para descargar el CV con la sesión del reclutador (HU-16). */
   vacancyId?: string;
   onBack?: () => void;
+  /** Desglose recibido del motor HU-10; no se infiere desde las barras de habilidades. */
+  comparison?: readonly DetalleRequisitoAfinidad[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("coincidencia");
+  const [mostrarCalculo, setMostrarCalculo] = useState(false);
   const [downloadingCv, setDownloadingCv] = useState(false);
   const [cvError, setCvError] = useState<string | null>(null);
 
@@ -234,9 +242,27 @@ export function MatchBreakdownView({
               {formatMatch(applicant.matchPercentage)}
             </span>
             <p className="text-[11px] text-gray-500 font-medium">Coincidencia técnica</p>
+            {matchAvailable && (
+              <button
+                type="button"
+                onClick={() => setMostrarCalculo(true)}
+                className="mt-1 min-h-10 text-left text-xs font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500"
+              >
+                ¿Cómo se calcula?
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {matchAvailable && (
+        <ComoSeCalculaModal
+          open={mostrarCalculo}
+          onClose={() => setMostrarCalculo(false)}
+          percentage={applicant.matchPercentage as number}
+          comparison={comparison ?? []}
+        />
+      )}
 
       {/* Pestañas */}
       <div className="flex border-b border-[#EEE9DF]" role="tablist">
