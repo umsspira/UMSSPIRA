@@ -9,7 +9,7 @@ import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
 import { ApplyToVacancyButton } from '@/shared/components/apply-to-vacancy-button';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
-import { calculateVacancyAffinity, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
+import { calculateVacancyAffinity, type JobPostingAffinityResult } from '@/shared/services/job-posting-affinity';
 import { descriptionWithoutRequirements } from '@/shared/utils/job-posting-requirements';
 
 type DetailState =
@@ -18,7 +18,10 @@ type DetailState =
   | { status: 'not-found' }
   | { status: 'error' };
 
-type AffinityState = { status: 'loading' } | { status: 'error' } | VacancyAffinityResult;
+type AffinityState =
+  | { status: 'loading' }
+  | { status: 'error'; message?: string; retryable?: boolean }
+  | JobPostingAffinityResult;
 
 export function JobPostingDetail({
   id,
@@ -69,14 +72,19 @@ export function JobPostingDetail({
     let active = true;
     setAffinityState({ status: 'loading' });
     setShowComparison(false);
-    calculateVacancyAffinity(technicalRequirements).then(
+    calculateVacancyAffinity(id).then(
       (result) => active && setAffinityState(result),
-      () => active && setAffinityState({ status: 'error' }),
+      (error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'No se pudo calcular la afinidad';
+        const retryable = (error as Record<string, unknown>)?.status === 503 || (error as Record<string, unknown>)?.retryable !== false;
+        setAffinityState({ status: 'error', message, retryable });
+      },
     );
     return () => {
       active = false;
     };
-  }, [id, loadedPosting, technicalRequirements, affinityRetryCount]);
+  }, [id, loadedPosting, affinityRetryCount]);
 
   if (state.status === 'loading') {
     return (
@@ -259,12 +267,12 @@ export function JobPostingDetail({
                 {affinityState.status === 'profile-incomplete' && (
                   <div className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] p-5 text-center">
                     <p className="font-semibold text-slate-800">Completa tu perfil para conocer tu afinidad</p>
-                    <Link href="/mentorship/onboarding" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
-                      Configurar perfil de mentorÃ­a
+                    <Link href="/profile/completar" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
+                      Completar perfil profesional
                     </Link>
                   </div>
                 )}
-                {affinityState.status === 'insufficient-requirements' && (
+                {(affinityState.status === 'no-requirements' || (affinityState as { status: string }).status === 'insufficient-requirements') && (
                   <div role="status" className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] px-4 py-6 text-center">
                     <p className="font-semibold text-slate-800">Afinidad no calculada</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">La oferta no contiene requisitos técnicos identificables para comparar.</p>

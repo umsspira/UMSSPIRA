@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { DocumentDropzone } from "@/modules/documents/frontend/components/document-dropzone";
+import { useImageQuality } from "@/modules/documents/frontend/hooks/use-image-quality";
+import { QualityWarning } from "@/modules/documents/frontend/components/quality-warning";
 import {
   EXPEDITION_DEPARTMENTS,
   EXPEDITION_LABELS,
@@ -96,6 +98,24 @@ export function ObservedEditForm({
   const c = useObservedCorrection(initial);
   const [careers, setCareers] = useState<Career[]>([]);
   const [loadingCareers, setLoadingCareers] = useState(true);
+  const {
+  result: qualityResult,
+  analyze: analyzeQuality,
+  reset: resetQuality,
+} = useImageQuality();
+
+useEffect(() => {
+  if (!c.file) {
+    resetQuality();
+    return;
+  }
+
+  void analyzeQuality(c.file);
+
+  return () => {
+    resetQuality();
+  };
+}, [c.file, analyzeQuality, resetQuality]);
 
   useEffect(() => {
     let active = true;
@@ -265,6 +285,11 @@ export function ObservedEditForm({
             error={c.errors.file ?? null}
             onErrorChange={c.setFileError}
           />
+          {c.file && (
+          <div className="mt-3">
+          <QualityWarning result={qualityResult} />
+          </div>
+          )}
         </div>
       </Card>
 

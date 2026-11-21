@@ -7,7 +7,7 @@ import { buildResolutionMail } from '../notifications/resolution-mail';
 import type { ApplicationsRepository } from '../ports/applications-repository.port';
 import type { RegistrationSecurity } from '../ports/registration-security.port';
 import type { CorrectionTokenService } from '../services/correction-token.service';
-
+import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 export interface CorrectionLinkIssuer {
   issueLink(applicationId: string): Promise<string>;
   revoke?(applicationId: string): Promise<void>;
@@ -27,6 +27,7 @@ export class ReviewApplicationUseCase {
 
   async execute(actor: ActorContext, id: string, input: ReviewInput) {
     const detail = await this.repository.find(actor, id);
+    this.assertCurrentView(detail, input);
     const code = input.decision === 'APROBADA' ? this.security.code() : null;
     const correctionUrl = await this.issueCorrectionLink(id, input);
     const remainingAttempts =
@@ -74,13 +75,34 @@ export class ReviewApplicationUseCase {
         { type: mail.type, to: detail.email, subject: mail.subject },
       );
     } catch (error) {
-      if (input.decision === 'OBSERVADA' && correctionUrl && this.tokenService?.revoke) {
+      // Quien pierde una carrera no revoca: su revocación anularía el enlace del ganador.
+      const lostRace =
+        error instanceof BusinessRuleError &&
+        ['APPLICATION_ALREADY_REVIEWED', 'VERSION_CONFLICT'].includes(error.code);
+      if (input.decision === 'OBSERVADA' && correctionUrl && this.tokenService?.revoke && !lostRace) {
         await this.tokenService.revoke(id).catch(() => undefined);
       }
       throw error;
     }
   }
-
+    // Falla antes de emitir enlaces o armar correos si la vista quedó desactualizada (CA-14.7).
+  // El repositorio repite esta comprobación bajo bloqueo, que es la que decide.
+  private assertCurrentView(detail: { status: string; version: number }, input: ReviewInput): void {
+    if (detail.status !== 'PENDIENTE') {
+      throw new BusinessRuleError(
+        'conflict',
+        'APPLICATION_ALREADY_REVIEWED',
+        'Esta solicitud ya fue revisada',
+      );
+    }
+    if (input.expectedVersion !== undefined && input.expectedVersion !== detail.version) {
+      throw new BusinessRuleError(
+        'conflict',
+        'VERSION_CONFLICT',
+        'La solicitud cambió; actualiza el expediente antes de confirmar',
+      );
+    }
+  }
   // La tabla dictamen_motivo no guarda el orden de selección. El correo y la pantalla de
   // corrección usan el orden del catálogo para mostrar exactamente lo mismo.
   private async observationReasons(input: ReviewInput): Promise<string[]> {

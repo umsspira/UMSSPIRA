@@ -3,7 +3,8 @@
 import { useRef, type ChangeEvent } from 'react';
 import { BadgeCheck, FileText, ImageIcon, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/components/button';
-import { ACCEPTED_DOCUMENT_TYPES, formatFileSize, type PreviewKind } from '../validation/document-file';
+import { ACCEPTED_DOCUMENT_TYPES, type PreviewKind } from '../validation/document-file';
+import { formatFileSize } from '../lib/format-file-size';
 
 export interface DocumentPreviewProps {
   file: File;

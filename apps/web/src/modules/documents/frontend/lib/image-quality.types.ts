@@ -23,6 +23,10 @@ export interface ImageQualityMetrics {
   glareRatio: number;
   /** Nitidez: varianza del laplaciano en los bloques con mas detalle. */
   sharpness: number;
+  /** Mediana de la varianza del laplaciano en los bloques con contenido. */
+  sharpnessMedian: number;
+  /** Cantidad de bloques con contenido (varianza >= sharpnessActiveTileMin). */
+  activeTileCount: number;
 }
 export type ImageQualityStatus =
   | "idle"
@@ -46,6 +50,8 @@ export interface ImageQualityConfig {
   analysisMaxSide: number;
   /** Tiempo maximo del analisis antes de declararlo fallido. */
   analysisTimeoutMs: number;
+  /** Cantidad minima de pixeles totales (ancho x alto). */
+  minPixels: number;
   /** Resolucion minima de la imagen original, en pixeles. */
   minShortSide: number;
   minLongSide: number;
@@ -55,6 +61,12 @@ export interface ImageQualityConfig {
   sharpnessTopFraction: number;
   /** Por debajo de este valor la imagen se considera borrosa. */
   blurThreshold: number;
+  /** Varianza minima del laplaciano para considerar que un bloque tiene contenido. */
+  sharpnessActiveTileMin: number;
+  /** Cantidad minima de bloques con contenido requerida para aplicar el umbral de mediana. */
+  minActiveTiles: number;
+  /** Por debajo de esta mediana de bloques activos la imagen se considera borrosa. */
+  blurMedianThreshold: number;
   /** Margen que se ignora al medir la luz (fraccion por lado). */
   lumaMarginFraction: number;
   /** Por debajo de esta luminosidad media la imagen esta oscura. */

@@ -11,7 +11,8 @@ describe('VacantesService · postulantes (HU-01)', () => {
     return {
       id: ID_POSTULACION,
       estado: 'preseleccionado',
-      porcentaje_match: '92.50',
+      porcentaje_match: 92,
+      fecha_match: new Date('2026-11-01T12:00:00.000Z'),
       created_at: new Date('2026-11-02T00:00:00.000Z'),
       usuario: {
         nombre: 'Ana Rojas',
@@ -33,7 +34,7 @@ describe('VacantesService · postulantes (HU-01)', () => {
         findFirst: jest.fn().mockResolvedValue(opts.detalle === undefined ? fila() : opts.detalle),
       },
     };
-    return { servicio: new VacantesService(prisma as never), prisma };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never), prisma };
   }
 
   it('devuelve los postulantes con la forma que espera el front', async () => {
@@ -50,7 +51,8 @@ describe('VacantesService · postulantes (HU-01)', () => {
         appliedAt: '2026-11-02T00:00:00.000Z',
         hasCv: false,
         cvUrl: null,
-        matchPercentage: 92.5,
+        matchPercentage: 92,
+        matchCalculatedAt: '2026-11-01T12:00:00.000Z',
         skills: null,
       },
     ]);
@@ -153,7 +155,7 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
       postulacion: { findMany: jest.fn().mockResolvedValue(filas) },
       vacante: { findFirst: jest.fn() },
     };
-    return { servicio: new VacantesService(prisma as never), prisma };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never), prisma };
   }
 
   it('filtra por usuario, ordena de más reciente a más antigua y no inventa la afinidad', async () => {
@@ -163,6 +165,7 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
         id: ID_POSTULACION,
         created_at: appliedAt,
         porcentaje_match: null,
+        fecha_match: null,
         vacante: {
           id: ID_VACANTE,
           titulo: 'Desarrollador',
@@ -180,6 +183,7 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
         companyName: 'Empresa Demo',
         appliedAt: appliedAt.toISOString(),
         matchPercentage: null,
+        matchCalculatedAt: null,
         isVacancyAvailable: false,
       },
     ]);
@@ -196,7 +200,7 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
       {
         id: ID_POSTULACION,
         created_at: null,
-        porcentaje_match: '130',
+        porcentaje_match: 130,
         vacante: null,
       },
     ]);
@@ -281,7 +285,7 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
       },
       $transaction: jest.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     };
-    return { servicio: new VacantesService(prisma as never), prisma, tx };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never), prisma, tx };
   }
 
   it('permite editar al dueño y a los miembros activos de la empresa', async () => {

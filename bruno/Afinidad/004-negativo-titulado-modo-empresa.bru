@@ -1,0 +1,37 @@
+meta {
+  name: Negativo - Titulado intenta modo empresa
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/affinity/batch
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "mode": "applicants",
+    "vacancyId": "{{vacancyId}}",
+    "applicationIds": ["{{applicationId}}"]
+  }
+}
+
+tests {
+  test("Titulado debe recibir 403", () {
+    expect(res.status).to.equal(403);
+  });
+}
+
+docs {
+  Ejecutar con accessToken de titulado. Caso negativo de autorización por modo.
+}
