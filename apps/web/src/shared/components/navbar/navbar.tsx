@@ -62,7 +62,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
   }, [currentRole, mentorStatusRetry]);
 
   // HU15: una sola lista (Inicio + secciones) alimenta la barra de escritorio y el menú móvil.
-  const primary = primaryNavigation(currentRole as any, session ? '/portal' : '/portal/institucional');
+  const primary = primaryNavigation(currentRole as any, session ? '/portal' : '/portal/institucional', activeMentor);
   const sections = primary.filter(item => item.id !== 'home');
 
   const accountLinks = visibleLinks(NAVBAR_ACCOUNT_LINKS, currentRole as any);
