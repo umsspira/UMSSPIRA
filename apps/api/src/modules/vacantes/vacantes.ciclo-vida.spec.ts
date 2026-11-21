@@ -9,8 +9,23 @@ describe('VacantesService · ciclo de vida con permisos (HU-14)', () => {
   const ID_OTRO_RECLUTADOR = '20000000-0000-4000-8000-000000000099';
 
   function crearServicio(vacante: { id: string; estado: string | null } | null, postulantes = 0) {
-    const prisma = {
+    // actualizarVacante guarda dentro de una transacción con bloqueo por vacante.
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       vacante: {
+        update: jest.fn().mockResolvedValue(vacante),
+        findUniqueOrThrow: jest.fn().mockResolvedValue(vacante),
+        findFirst: jest.fn().mockResolvedValue(vacante),
+      },
+      vacanteRequisitoTecnico: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+      vacante: {
+        count: jest.fn().mockResolvedValue(vacante ? 1 : 0),
         findFirst: jest.fn().mockResolvedValue(vacante),
         findUniqueOrThrow: jest.fn().mockResolvedValue(vacante),
         update: jest.fn().mockImplementation(({ data }: { data: { estado?: string } }) =>
@@ -20,7 +35,7 @@ describe('VacantesService · ciclo de vida con permisos (HU-14)', () => {
       },
       postulacion: { count: jest.fn().mockResolvedValue(postulantes) },
     };
-    return { servicio: new VacantesService(prisma as never), prisma };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never), prisma };
   }
 
   describe('cerrarVacante', () => {

@@ -748,11 +748,17 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
       $queryRaw: jest.fn().mockResolvedValue([]),
       vacante: {
         update: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Nueva' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Actual' }),
       },
     };
     const prisma = {
       vacante: {
         count: jest.fn().mockResolvedValue(opts.vacantesVisibles ?? 1),
+        // cambiarEstado (HU-14) lee y actualiza la vacante fuera de la transacción.
+        findFirst: jest.fn().mockResolvedValue(
+          opts.vacantesVisibles === 0 ? null : { id: ID_VACANTE, estado: 'PUBLICADO' },
+        ),
+        update: jest.fn().mockResolvedValue({ id: ID_VACANTE, estado: 'PAUSADO' }),
       },
       $transaction: jest.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     };
@@ -789,12 +795,25 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
   it('actualiza solo los campos enviados', async () => {
     const { servicio, tx } = crearServicio();
 
-    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { estado: 'PAUSADA' });
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { titulo: 'Nueva' });
 
     expect(tx.vacante.update).toHaveBeenCalledWith({
       where: { id: ID_VACANTE },
-      data: { estado: 'PAUSADA' },
+      data: { titulo: 'Nueva', fecha_actualizacion: expect.any(Date) },
     });
+  });
+
+  it('cambia el estado con la política única de transiciones (HU-14)', async () => {
+    const { servicio, prisma, tx } = crearServicio();
+
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { estado: 'PAUSADA' });
+
+    expect(prisma.vacante.update).toHaveBeenCalledWith({
+      where: { id: ID_VACANTE },
+      data: { estado: 'PAUSADO', fecha_actualizacion: expect.any(Date) },
+      select: { id: true, estado: true },
+    });
+    expect(tx.vacante.update).not.toHaveBeenCalled();
   });
 
   it('serializa los envíos simultáneos con el bloqueo por vacante dentro de la transacción', async () => {

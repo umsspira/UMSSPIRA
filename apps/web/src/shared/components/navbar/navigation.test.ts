@@ -1,5 +1,4 @@
-
-import { activeSection, directHref, navigationFor, NAVBAR_ACCOUNT_LINKS, primaryNavigation, visibleLinks } from './navigation';
+import { activeSection, directHref, isCurrentDestination, navigationFor, NAVBAR_ACCOUNT_LINKS, primaryNavigation, visibleLinks } from './navigation';
 
 const destinations = (role: Parameters<typeof navigationFor>[0]) => navigationFor(role).flatMap(section => section.items.map(item => item.href)).filter(Boolean);
 const mentorshipItems = () => navigationFor('titulado', true).find(section => section.id === 'mentorship')!.items;
@@ -140,5 +139,3 @@ describe('HU15 · una sola lista para escritorio y móvil', () => {
     }
   });
 });
-
-

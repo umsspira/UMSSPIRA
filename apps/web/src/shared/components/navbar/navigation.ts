@@ -154,10 +154,10 @@ export interface PrimaryNavItem {
  * Única fuente de las opciones de navegación: Inicio + secciones según el rol.
  * La barra de escritorio y el menú móvil solo cambian la presentación, nunca la lista (HU15).
  */
-export function primaryNavigation(role: NavbarRole | null, home: string): PrimaryNavItem[] {
+export function primaryNavigation(role: NavbarRole | null, home: string, activeMentor = false): PrimaryNavItem[] {
   return [
     { id: 'home', label: 'Inicio', href: home, items: [] },
-    ...navigationFor(role).map(section => ({
+    ...navigationFor(role, activeMentor).map(section => ({
       id: section.id,
       label: section.label,
       href: directHref(section.id, role) ?? undefined,
@@ -165,4 +165,3 @@ export function primaryNavigation(role: NavbarRole | null, home: string): Primar
     })),
   ];
 }
-
