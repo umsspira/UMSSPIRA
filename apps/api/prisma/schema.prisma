@@ -791,6 +791,11 @@ model Postulacion {
   id_vacante       String?   @db.Uuid
   porcentaje_match Int?
   fecha_match      DateTime? @db.Timestamptz(6)
+  hash_entrada     String?   @db.VarChar(64)
+  estado_match     String?   @db.VarChar(24)
+  hash_en_calculo  String?   @db.VarChar(64)
+  reclamo_match_id String?   @db.Uuid
+  reclamo_match_hasta DateTime? @db.Timestamptz(6)
   estado           String?   @db.VarChar
   created_at       DateTime? @db.Timestamp(6)
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

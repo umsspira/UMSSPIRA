@@ -21,7 +21,7 @@ devuelve `[]`.
 
 ## Datos visibles
 
-Cada postulante contiene exactamente estas 14 claves:
+Cada postulante contiene exactamente estas 16 claves:
 
 | Clave | Contenido y comportamiento |
 | --- | --- |
@@ -34,7 +34,9 @@ Cada postulante contiene exactamente estas 14 claves:
 | `appliedAt` | Fecha de postulación en formato ISO o `null`. |
 | `hasCv` | Indica si existe un CV con `contenido` no nulo; un registro sin contenido no cuenta. Listado y detalle solo seleccionan su ID para calcular este indicador, sin publicar el ID, la ruta ni los bytes. |
 | `cvUrl` | `null`; T16.1 no implementa la descarga del CV. |
-| `matchPercentage` | Valor almacenado convertido a número finito, o `null`; no se calcula ni recalcula. |
+| `matchPercentage` | Porcentaje vigente entre 0 y 100, o `null` si no está disponible. HU-12 puede recalcularlo durante la consulta. |
+| `matchCalculatedAt` | Fecha del cálculo vigente en formato ISO, o `null`. |
+| `matchStatus` | Estado técnico de la afinidad: `ready`, `profile-incomplete`, `no-requirements`, `pending` o `error`. No es la etapa de postulación. |
 | `skills` | `null`; su implementación y el desglose de afinidad corresponden a HU15. |
 | `workExperience` | Arreglo de experiencia laboral con las cuatro claves indicadas abajo. |
 | `education` | Arreglo de formación académica con las cuatro claves indicadas abajo. |

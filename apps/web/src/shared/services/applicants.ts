@@ -60,6 +60,8 @@ interface RawApplicant {
   hasCv?: boolean | null;
   cvUrl?: string | null;
   matchPercentage?: number | null;
+  matchStatus?: Applicant['matchStatus'];
+  skills?: Applicant["skills"];
   /** HU-10: fecha del último cálculo guardado (fecha_match). */
   matchCalculatedAt?: string | null;
   /** HU-16 (CA-07): ubicación y nivel de experiencia del perfil. */
@@ -170,12 +172,13 @@ function normalizeApplicant(raw: RawApplicant): Applicant {
       typeof raw.matchPercentage === "number" && Number.isFinite(raw.matchPercentage)
         ? raw.matchPercentage
         : null,
+    skills: Array.isArray(raw.skills) ? raw.skills : null,
     location: typeof raw.location === "string" && raw.location.trim() ? raw.location : null,
     experienceLevel: toExperienceLevel(raw.experienceLevel),
     workExperience: toWorkExperience(raw.workExperience),
     education: toEducation(raw.education),
     certifications: toCertifications(raw.certifications),
-    matchStatus: null,
+    matchStatus: raw.matchStatus ?? null,
     matchCalculatedAt:
       typeof raw.matchCalculatedAt === "string" && Number.isFinite(Date.parse(raw.matchCalculatedAt))
         ? raw.matchCalculatedAt
@@ -388,7 +391,8 @@ function isValidAffinityResult(result: unknown): result is JobPostingAffinityRes
 
 /** Conserva el porcentaje y la fecha guardados (GET postulantes) y solo marca el error. */
 function withAffinityError(applicant: Applicant, message: string): Applicant {
-  return { ...applicant, matchStatus: null, comparison: [], matchError: message };
+  // HU-10 fallido no debe borrar el estado persistido de HU-12 ni confundir 0 % con pendiente.
+  return { ...applicant, comparison: [], matchError: message };
 }
 
 function applyBatchItem(applicant: Applicant, item: JobPostingAffinityBatchItem): Applicant {

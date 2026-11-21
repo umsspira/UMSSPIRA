@@ -67,7 +67,10 @@ export interface Applicant {
    * El frontend NUNCA lo calcula. Si no viene, es null (CA-10).
    */
   matchPercentage: number | null;
-  matchStatus: JobPostingAffinityResult["status"] | null;
+  /** Estado persistido de HU-12 o resultado del cálculo por lote de HU-10. */
+  matchStatus: import('@umsspira/shared-types').JobPostingStoredMatchStatus | JobPostingAffinityResult["status"] | null;
+  /** Desglose por habilidad devuelto por HU-12. */
+  skills?: Array<{ skill: string; required: boolean; matched: boolean }> | null;
   /** Fecha ISO recibida del cálculo por lote. Null si no hubo cálculo. */
   matchCalculatedAt: string | null;
   /** Desglose real por requisito devuelto por el motor de afinidad. */

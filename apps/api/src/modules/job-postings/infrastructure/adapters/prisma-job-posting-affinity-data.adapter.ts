@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import type { Prisma } from '../../../../generated/prisma/client';
 import type {
   JobPostingAffinityDataPort,
   JobPostingAffinityProfile,
@@ -14,11 +15,11 @@ export class PrismaJobPostingAffinityDataAdapter
 {
   constructor(private readonly prisma: PrismaService) {}
 
-  async readProfiles(userIds: readonly string[]): Promise<JobPostingAffinityProfile[]> {
+  async readProfiles(userIds: readonly string[], db: Prisma.TransactionClient | PrismaService = this.prisma): Promise<JobPostingAffinityProfile[]> {
     if (!userIds.length) {
       return [];
     }
-    const profiles = await this.prisma.titulado.findMany({
+    const profiles = await db.titulado.findMany({
       where: { id_usuario: { in: [...new Set(userIds)] } },
       select: {
         id: true,
@@ -66,11 +67,11 @@ export class PrismaJobPostingAffinityDataAdapter
     });
   }
 
-  async readRequirements(vacancyIds: readonly string[]): Promise<JobPostingAffinityRequirements[]> {
+  async readRequirements(vacancyIds: readonly string[], db: Prisma.TransactionClient | PrismaService = this.prisma): Promise<JobPostingAffinityRequirements[]> {
     if (!vacancyIds.length) {
       return [];
     }
-    const vacancies = await this.prisma.vacante.findMany({
+    const vacancies = await db.vacante.findMany({
       where: { id: { in: [...new Set(vacancyIds)] } },
       select: {
         id: true,
