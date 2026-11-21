@@ -27,6 +27,9 @@ export const modalidades: Array<Prisma.ModalidadTrabajoCreateManyInput & { id: s
 export const areas: Array<Prisma.AreaCreateManyInput & { id: string }> = [
   { id: AREA_IDS.technology, nombre: 'Tecnología', padre_id: null },
   { id: AREA_IDS.management, nombre: 'Gestión', padre_id: null },
+  { id: AREA_IDS.backend, nombre: 'Backend', padre_id: null },
+  { id: AREA_IDS.frontend, nombre: 'Frontend', padre_id: null },
+  { id: AREA_IDS.databases, nombre: 'Bases de datos', padre_id: null },
   { id: AREA_IDS.software, nombre: 'Desarrollo de software', padre_id: null },
   { id: AREA_IDS.data, nombre: 'Análisis de datos', padre_id: AREA_IDS.technology },
   { id: AREA_IDS.projects, nombre: 'Gestión de proyectos', padre_id: AREA_IDS.management },
@@ -37,15 +40,12 @@ export const areas: Array<Prisma.AreaCreateManyInput & { id: string }> = [
   { id: AREA_IDS.itManagement, nombre: 'Gestión TI', padre_id: null },
 ];
 
-// HU 6.21: 39 tópicos con los mismos UUID y padres que el SQL del DBA.
+// HU 6.21: las especialidades Backend, Frontend y Bases de datos son áreas raíz.
 export const topicos: Array<Prisma.AreaCreateManyInput & { id: string; nombre: string; padre_id: string }> = [
-  { id: '60000000-0000-4000-8000-000000000011', nombre: 'Backend', padre_id: AREA_IDS.technology },
-  { id: '60000000-0000-4000-8000-000000000012', nombre: 'Frontend', padre_id: AREA_IDS.technology },
-  { id: '60000000-0000-4000-8000-000000000013', nombre: 'Bases de datos', padre_id: AREA_IDS.technology },
-  { id: '60000000-0000-4000-8000-000000000014', nombre: 'APIs REST', padre_id: AREA_IDS.technology },
-  { id: '60000000-0000-4000-8000-000000000015', nombre: 'Node.js', padre_id: AREA_IDS.technology },
-  { id: '60000000-0000-4000-8000-000000000016', nombre: 'React', padre_id: AREA_IDS.technology },
-  { id: '60000000-0000-4000-8000-000000000018', nombre: 'PostgreSQL', padre_id: AREA_IDS.technology },
+  { id: '60000000-0000-4000-8000-000000000014', nombre: 'APIs REST', padre_id: AREA_IDS.backend },
+  { id: '60000000-0000-4000-8000-000000000015', nombre: 'Node.js', padre_id: AREA_IDS.backend },
+  { id: '60000000-0000-4000-8000-000000000016', nombre: 'React', padre_id: AREA_IDS.frontend },
+  { id: '60000000-0000-4000-8000-000000000018', nombre: 'PostgreSQL', padre_id: AREA_IDS.databases },
   { id: '60000000-0000-4000-8000-000000000019', nombre: 'Arquitectura de software', padre_id: AREA_IDS.technology },
   { id: '60000000-0000-4000-8000-000000000020', nombre: 'Metodologías ágiles', padre_id: AREA_IDS.management },
   { id: '60000000-0000-4000-8000-000000000021', nombre: 'Liderazgo técnico', padre_id: AREA_IDS.management },
@@ -78,6 +78,17 @@ export const topicos: Array<Prisma.AreaCreateManyInput & { id: string; nombre: s
   { id: '60000000-0000-4000-8000-000000000048', nombre: 'Gobierno de TI', padre_id: AREA_IDS.itManagement },
   { id: '60000000-0000-4000-8000-000000000049', nombre: 'Gestión de incidentes', padre_id: AREA_IDS.itManagement },
   { id: '60000000-0000-4000-8000-000000000050', nombre: 'Arquitectura empresarial', padre_id: AREA_IDS.itManagement },
+  { id: '60000000-0000-4000-8000-000000000051', nombre: 'Spring Boot', padre_id: AREA_IDS.backend },
+  { id: '60000000-0000-4000-8000-000000000052', nombre: 'Laravel', padre_id: AREA_IDS.backend },
+  { id: '60000000-0000-4000-8000-000000000053', nombre: 'Golang', padre_id: AREA_IDS.backend },
+  { id: '60000000-0000-4000-8000-000000000054', nombre: 'Microservicios', padre_id: AREA_IDS.backend },
+  { id: '60000000-0000-4000-8000-000000000055', nombre: 'Accesibilidad web', padre_id: AREA_IDS.frontend },
+  { id: '60000000-0000-4000-8000-000000000056', nombre: 'Diseño de interfaces', padre_id: AREA_IDS.frontend },
+  { id: '60000000-0000-4000-8000-000000000057', nombre: 'Rendimiento web', padre_id: AREA_IDS.frontend },
+  { id: '60000000-0000-4000-8000-000000000058', nombre: 'Angular', padre_id: AREA_IDS.frontend },
+  { id: '60000000-0000-4000-8000-000000000059', nombre: 'Modelado de datos', padre_id: AREA_IDS.databases },
+  { id: '60000000-0000-4000-8000-000000000060', nombre: 'Optimización de consultas', padre_id: AREA_IDS.databases },
+  { id: '60000000-0000-4000-8000-000000000061', nombre: 'MySQL', padre_id: AREA_IDS.databases },
 ];
 
 export const tiposReporte: Array<Prisma.TipoReporteCreateManyInput & { id: string }> = [
