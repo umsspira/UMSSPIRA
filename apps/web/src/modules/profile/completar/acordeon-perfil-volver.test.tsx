@@ -1,13 +1,16 @@
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ProfileStoreProvider } from '@/modules/profile/state/profile-store';
 import type { ProfileRecords } from '@/modules/profile/types/profile-record';
 
 import { AcordeonPerfil } from './acordeon-perfil';
 
+const mockBack = jest.fn();
+const mockPush = jest.fn();
+
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: mockPush, back: mockBack }),
 }));
 
 const SIN_REGISTROS: ProfileRecords = { education: [], experience: [], certification: [], project: [] };
@@ -33,5 +36,18 @@ describe('Completar perfil · botón Volver (HU-11)', () => {
     renderAcordeon('/afinidad');
 
     expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', '/afinidad');
+  });
+
+  it('al presionar Volver sin pantalla de origen regresa a la pantalla anterior del historial', () => {
+    mockBack.mockClear();
+    mockPush.mockClear();
+    window.history.pushState({}, '', '/profile/records/education/1/edit');
+    window.history.pushState({}, '', '/profile/completar');
+    renderAcordeon();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
+
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalledWith('/profile');
   });
 });
