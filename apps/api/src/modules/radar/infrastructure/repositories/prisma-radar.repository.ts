@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import type {
+  AggregatedUnmappedKeyword,
   AreaScoreRecord,
   RadarCalculationSnapshot,
   RadarRepositoryPort,
@@ -11,6 +12,11 @@ import {
   normalizeTopKeywords,
 } from '../../domain/policies/affinity-calculator';
 import { DICTIONARY_VERSION } from '../../domain/policies/affinity-config';
+
+const RADAR_TRANSACTION_OPTIONS = {
+  maxWait: 10000,
+  timeout: 15000,
+} as const;
 
 type CalculateRadarRow = {
   id: string;
@@ -28,6 +34,13 @@ type AfinidadRadarRow = {
   porcentaje: unknown;
   palabras_clave_top: unknown;
   contribuciones_keyword?: unknown;
+};
+
+type AggregatedUnmappedKeywordRow = {
+  termino: string;
+  frecuencia_total: number | bigint | string;
+  cantidad_titulados: number | bigint | string;
+  ultima_deteccion: Date | null;
 };
 
 @Injectable()
@@ -98,6 +111,27 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
     return rows.map(({ termino }) => termino);
   }
 
+  async getAggregatedUnmappedKeywords(): Promise<AggregatedUnmappedKeyword[]> {
+    const rows = await this.client.$queryRaw<AggregatedUnmappedKeywordRow[]>`
+      SELECT
+        termino,
+        SUM(frecuencia)::int AS frecuencia_total,
+        COUNT(DISTINCT id_titulado)::int AS cantidad_titulados,
+        MAX(fecha_deteccion) AS ultima_deteccion
+      FROM public.palabra_clave_no_mapeada
+      GROUP BY termino
+      HAVING COUNT(DISTINCT id_titulado) >= 3
+      ORDER BY SUM(frecuencia) DESC, COUNT(DISTINCT id_titulado) DESC, termino ASC
+    `;
+
+    return rows.map((row) => ({
+      term: row.termino,
+      totalFrequency: Number(row.frecuencia_total),
+      graduatesCount: Number(row.cantidad_titulados),
+      lastDetectedAt: row.ultima_deteccion ?? null,
+    }));
+  }
+
   async executeWithAdvisoryLock<T>(
     tituladoId: string,
     operation: (repository: RadarRepositoryPort) => Promise<T>,
@@ -111,7 +145,7 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
     return this.prisma.$transaction(async (transaction) => {
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tituladoId}))`;
       return operation(new PrismaTransactionalRadarRepository(this.prisma, transaction));
-    });
+    }, RADAR_TRANSACTION_OPTIONS);
   }
 
   async saveCalculation(params: {
@@ -127,7 +161,10 @@ export class PrismaRadarRepository implements RadarRepositoryPort {
       return this.persist(this.transaction, params);
     }
 
-    return this.prisma.$transaction((transaction) => this.persist(transaction, params));
+    return this.prisma.$transaction(
+      (transaction) => this.persist(transaction, params),
+      RADAR_TRANSACTION_OPTIONS,
+    );
   }
 
   private async persist(

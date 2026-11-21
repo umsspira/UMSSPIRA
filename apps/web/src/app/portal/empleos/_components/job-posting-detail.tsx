@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Briefcase, CalendarDays, MapPin } from 'lucide-react';
 import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
@@ -9,11 +9,8 @@ import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
 import { ApplyToVacancyButton } from '@/shared/components/apply-to-vacancy-button';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
-import { calculateVacancyAffinity, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
-import {
-  descriptionWithoutRequirements,
-  mergeTechnicalRequirements,
-} from '@/shared/utils/job-posting-requirements';
+import { calculateVacancyAffinity, type JobPostingAffinityResult } from '@/shared/services/job-posting-affinity';
+import { descriptionWithoutRequirements } from '@/shared/utils/job-posting-requirements';
 
 type DetailState =
   | { status: 'loading' }
@@ -21,7 +18,10 @@ type DetailState =
   | { status: 'not-found' }
   | { status: 'error' };
 
-type AffinityState = { status: 'loading' } | { status: 'error' } | VacancyAffinityResult;
+type AffinityState =
+  | { status: 'loading' }
+  | { status: 'error'; message?: string; retryable?: boolean }
+  | JobPostingAffinityResult;
 
 export function JobPostingDetail({
   id,
@@ -32,6 +32,7 @@ export function JobPostingDetail({
   backHref?: string;
   presentation?: 'legacy' | 'hu002';
 }) {
+  const comparisonId = useId();
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [retryCount, setRetryCount] = useState(0);
   const [affinityState, setAffinityState] = useState<AffinityState>({ status: 'loading' });
@@ -63,9 +64,7 @@ export function JobPostingDetail({
 
   const loadedPosting = state.status === 'loaded' ? state.posting : null;
   const technicalRequirements = useMemo(
-    () => loadedPosting
-      ? mergeTechnicalRequirements(loadedPosting.descripcionTecnica, loadedPosting.requisitos)
-      : [],
+    () => loadedPosting?.requisitos ?? [],
     [loadedPosting],
   );
 
@@ -74,14 +73,19 @@ export function JobPostingDetail({
     let active = true;
     setAffinityState({ status: 'loading' });
     setShowComparison(false);
-    calculateVacancyAffinity(technicalRequirements).then(
+    calculateVacancyAffinity(id).then(
       (result) => active && setAffinityState(result),
-      () => active && setAffinityState({ status: 'error' }),
+      (error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'No se pudo calcular la afinidad';
+        const retryable = (error as Record<string, unknown>)?.status === 503 || (error as Record<string, unknown>)?.retryable !== false;
+        setAffinityState({ status: 'error', message, retryable });
+      },
     );
     return () => {
       active = false;
     };
-  }, [id, loadedPosting, technicalRequirements, affinityRetryCount]);
+  }, [id, loadedPosting, affinityRetryCount]);
 
   if (state.status === 'loading') {
     return (
@@ -264,12 +268,12 @@ export function JobPostingDetail({
                 {affinityState.status === 'profile-incomplete' && (
                   <div className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] p-5 text-center">
                     <p className="font-semibold text-slate-800">Completa tu perfil para conocer tu afinidad</p>
-                    <Link href="/profile" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
-                      Completar perfil
+                    <Link href="/profile/completar" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
+                      Completar perfil profesional
                     </Link>
                   </div>
                 )}
-                {affinityState.status === 'insufficient-requirements' && (
+                {(affinityState.status === 'no-requirements' || (affinityState as { status: string }).status === 'insufficient-requirements') && (
                   <div role="status" className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] px-4 py-6 text-center">
                     <p className="font-semibold text-slate-800">Afinidad no calculada</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">La oferta no contiene requisitos técnicos identificables para comparar.</p>
@@ -301,11 +305,10 @@ export function JobPostingDetail({
                     </div>
                     <p className="mt-4 text-sm leading-6 text-slate-600">Estimación orientativa basada en los requisitos identificados. No garantiza la contratación.</p>
                     <p className="mt-3 text-sm text-slate-500">Actualizado: {new Date(affinityState.calculatedAt).toLocaleString('es-BO')}</p>
-                    <button type="button" aria-expanded={showComparison} onClick={() => setShowComparison((visible) => !visible)} className="mt-5 min-h-12 w-full rounded-lg border border-[#D8CEBF] px-4 font-semibold text-[#172238] hover:bg-slate-50">
+                    <button type="button" aria-expanded={showComparison} aria-controls={comparisonId} onClick={() => setShowComparison((visible) => !visible)} className="mt-5 min-h-12 w-full rounded-lg border border-[#D8CEBF] px-4 font-semibold text-[#172238] hover:bg-slate-50">
                       {showComparison ? 'Ocultar comparación' : 'Ver comparación'}
                     </button>
-                    {showComparison && (
-                      <ul className="mt-4 space-y-3 border-t border-[#E8E1D6] pt-4">
+                      <ul id={comparisonId} hidden={!showComparison} className="mt-4 space-y-3 border-t border-[#E8E1D6] pt-4">
                         {affinityState.comparison.map((item, index) => (
                           <li key={`${item.requirement}-${index}`} className="rounded-lg bg-[#FAF8F3] p-3 text-sm">
                             <p className="font-semibold text-slate-800">{item.requirement}</p>
@@ -314,7 +317,6 @@ export function JobPostingDetail({
                           </li>
                         ))}
                       </ul>
-                    )}
                   </>
                 )}
                 <p id="job-affinity-note" className="mt-4 text-sm leading-6 text-slate-500">
@@ -330,6 +332,14 @@ export function JobPostingDetail({
                   <div>
                     <dt className="text-sm text-slate-500">Experiencia</dt>
                     <dd className="mt-1 font-semibold">{posting.nivelExperiencia ?? 'No especificada'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-slate-500">Ãrea laboral</dt>
+                    <dd className="mt-1 font-semibold">{posting.areaLaboral ?? 'No especificada'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-slate-500">UbicaciÃ³n</dt>
+                    <dd className="mt-1 font-semibold">{posting.ubicacion ?? 'No especificada'}</dd>
                   </div>
                   <div>
                     <dt className="text-sm text-slate-500">Publicación</dt>

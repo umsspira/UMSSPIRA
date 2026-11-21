@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ApplicantStageTimeline } from "./applicant-stage-timeline";
 import { Applicant } from "../types/applicant";
 import {
@@ -70,6 +70,7 @@ export function MatchBreakdownView({
   applicant: Applicant;
   onBack?: () => void;
 }) {
+  const tabsId = useId();
   const [activeTab, setActiveTab] = useState<Tab>("coincidencia");
 
   const matchAvailable = hasMatch(applicant.matchPercentage);
@@ -169,13 +170,29 @@ export function MatchBreakdownView({
       </div>
 
       {/* Pestañas */}
-      <div className="flex border-b border-[#EEE9DF]" role="tablist">
-        {TABS.map((tab) => (
+      <div className="flex border-b border-[#EEE9DF]" role="tablist" aria-label="Información del postulante">
+        {TABS.map((tab, index) => (
           <button
             key={tab.id}
+            id={`${tabsId}-tab-${tab.id}`}
+            type="button"
             role="tab"
+            aria-controls={`${tabsId}-panel-${tab.id}`}
             aria-selected={activeTab === tab.id}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(event) => {
+              let next = index;
+              if (event.key === "ArrowRight") next = (index + 1) % TABS.length;
+              else if (event.key === "ArrowLeft") next = (index - 1 + TABS.length) % TABS.length;
+              else if (event.key === "Home") next = 0;
+              else if (event.key === "End") next = TABS.length - 1;
+              else return;
+              event.preventDefault();
+              const nextTab = TABS[next];
+              setActiveTab(nextTab.id);
+              document.getElementById(`${tabsId}-tab-${nextTab.id}`)?.focus();
+            }}
             className={`flex-1 min-h-11 md:min-h-0 px-2 md:px-4 py-2 text-sm font-semibold border-b-2 -mb-px ${
               activeTab === tab.id
                 ? "border-orange-500 text-orange-600"
@@ -188,6 +205,7 @@ export function MatchBreakdownView({
       </div>
 
       {/* Pestaña: Perfil */}
+      <div id={`${tabsId}-panel-perfil`} role="tabpanel" aria-labelledby={`${tabsId}-tab-perfil`} hidden={activeTab !== "perfil"} tabIndex={0}>
       {activeTab === "perfil" && (
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-[#EEE9DF] grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-[#1B2632]">
           <div>
@@ -212,8 +230,10 @@ export function MatchBreakdownView({
           </div>
         </div>
       )}
+      </div>
 
       {/* Pestaña: Coincidencia técnica (CA-03, CA-04) */}
+      <div id={`${tabsId}-panel-coincidencia`} role="tabpanel" aria-labelledby={`${tabsId}-tab-coincidencia`} hidden={activeTab !== "coincidencia"} tabIndex={0}>
       {activeTab === "coincidencia" && (
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-[#EEE9DF] space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -223,7 +243,7 @@ export function MatchBreakdownView({
                 Resultado de coincidencia técnica
               </h3>
               <div className="relative w-40 h-40 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <svg aria-hidden="true" className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                   <path
                     className="text-gray-200"
                     strokeWidth="3.5"
@@ -269,10 +289,11 @@ export function MatchBreakdownView({
                   Desglose por habilidades: {MATCH_UNAVAILABLE_LABEL.toLowerCase()}.
                 </p>
               ) : (
-                skills.map((s) => (
-                  <div key={s.skill} className="grid grid-cols-[minmax(0,110px)_1fr_44px] items-center gap-3">
+                <ul className="space-y-3">
+                {skills.map((s) => (
+                  <li key={s.skill} className="grid grid-cols-[minmax(0,110px)_1fr_44px] items-center gap-3">
                     <span className="text-xs font-medium text-[#1B2632] break-words [overflow-wrap:anywhere]">{s.skill}</span>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div aria-hidden="true" className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${skillBarColor(s.percentage)}`}
                         style={{
@@ -283,8 +304,9 @@ export function MatchBreakdownView({
                     <span className="text-xs font-medium text-[#1B2632] text-right">
                       {formatMatch(s.percentage)}
                     </span>
-                  </div>
-                ))
+                  </li>
+                ))}
+                </ul>
               )}
             </div>
           </div>
@@ -309,8 +331,10 @@ export function MatchBreakdownView({
           )}
         </div>
       )}
+      </div>
 
       {/* Pestaña: CV */}
+<div id={`${tabsId}-panel-cv`} role="tabpanel" aria-labelledby={`${tabsId}-tab-cv`} hidden={activeTab !== "cv"} tabIndex={0}>
 {activeTab === "cv" && (
   <div className="bg-white rounded-2xl p-8 shadow-sm border border-[#EEE9DF] text-center text-sm text-gray-500">
     {applicant.cvUrl ? (
@@ -327,8 +351,10 @@ export function MatchBreakdownView({
     )}
   </div>
 )}
+</div>
 
 {/* Pestaña: Historial - CA-08 */}
+<div id={`${tabsId}-panel-historial`} role="tabpanel" aria-labelledby={`${tabsId}-tab-historial`} hidden={activeTab !== "historial"} tabIndex={0}>
 {activeTab === "historial" && (
   <div className="space-y-4">
     <ApplicantStageTimeline
@@ -337,6 +363,7 @@ export function MatchBreakdownView({
     />
   </div>
 )}
+</div>
     </div>
   );
 }

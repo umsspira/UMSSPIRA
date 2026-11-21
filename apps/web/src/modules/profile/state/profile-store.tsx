@@ -26,6 +26,8 @@ type ProfileStore = {
   description: string;
   isLoading: boolean;
   loadError: string | null;
+  // La carga falló porque no hay sesión (401): la pantalla debe pedir iniciar sesión (Observación 2)
+  requiresLogin: boolean;
   retryLoad: () => void;
   addEducation: (record: NewRecord<EducationRecord>) => void;
   addExperience: (record: NewRecord<ExperienceRecord>) => void;
@@ -67,6 +69,7 @@ export function ProfileStoreProvider({
   const [description, setDescription] = useState(initialDescription);
   const [isLoading, setIsLoading] = useState(initialRecords === undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [requiresLogin, setRequiresLogin] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   const cargarDesdeApi = initialRecords === undefined;
@@ -83,6 +86,7 @@ useEffect(() => {
   async function cargarPerfil() {
     setIsLoading(true);
     setLoadError(null);
+    setRequiresLogin(false);
 
     try {
       const perfil = await obtenerResumenPerfil();
@@ -94,6 +98,7 @@ useEffect(() => {
       }
     } catch (error) {
       if (vigente) {
+        setRequiresLogin((error as { status?: unknown } | null)?.status === 401);
         setLoadError(
           error instanceof Error
             ? error.message
@@ -144,6 +149,7 @@ useEffect(() => {
       description,
       isLoading,
       loadError,
+      requiresLogin,
       retryLoad,
       addEducation: (record) => addRecord('education', record),
       addExperience: (record) => addRecord('experience', record),
@@ -153,7 +159,7 @@ useEffect(() => {
       removeRecord,
       setDescription,
     }),
-    [header, records, description, isLoading, loadError, retryLoad, addRecord, updateRecord, removeRecord],
+    [header, records, description, isLoading, loadError, requiresLogin, retryLoad, addRecord, updateRecord, removeRecord],
   );
 
   return <ProfileStoreContext.Provider value={value}>{children}</ProfileStoreContext.Provider>;

@@ -38,7 +38,7 @@ export default function VerifyEmailPage() {
   };
 
   return (
-    <main className="min-h-[calc(100vh-144px)] bg-palladian px-4 py-8 sm:py-12 flex items-center justify-center">
+    <main className="flex-1 bg-palladian px-4 py-8 sm:py-12 flex items-center justify-center">
       <div className="w-full max-w-xl">
         <ProgressSteps currentStep="email" />
         <VerifyEmailForm

@@ -27,6 +27,15 @@ import {
   type OnboardingAvailabilityStatus,
   type OnboardingSchedule,
 } from '../services/mentor-onboarding-api';
+import { getMentorInterests } from '../services/mentor-interests-api';
+import {
+  getMentorProfileInformation,
+  type MentorProfileInformationState,
+} from '../services/mentor-profile-info-api';
+import {
+  getMentorProgressSteps,
+  isMentorProfileInformationComplete,
+} from '../model/mentor-onboarding-progress';
 
 type Step = 1 | 2 | 3;
 
@@ -35,6 +44,54 @@ const STEP_TITLES: Record<Step, string> = {
   2: 'Intereses',
   3: 'Disponibilidad',
 };
+
+async function withInterestCatalog(
+  state: MentorOnboardingState,
+  signal?: AbortSignal,
+): Promise<MentorOnboardingState> {
+  const selectedAreaIds = new Set(state.areas.selectedIds);
+  const areaIds = Array.from(selectedAreaIds);
+  const hasMissingTopics = areaIds.some(areaId =>
+    !state.interests.catalog.some(group => group.area.id === areaId && group.intereses.length > 0),
+  );
+  if (!hasMissingTopics) {
+    return state;
+  }
+
+  const legacyInterests = await getMentorInterests(signal);
+  const areasById = new Map(legacyInterests.catalog.map(area => [area.id, area]));
+  const catalog = [...state.interests.catalog];
+  for (const areaId of areaIds) {
+    if (catalog.some(group => group.area.id === areaId && group.intereses.length > 0)) continue;
+    const area = areasById.get(areaId);
+    if (!area?.topics.length) continue;
+    const existing = catalog.find(group => group.area.id === areaId);
+    const group = {
+      area: existing?.area ?? { id: area.id, nombre: area.name },
+      intereses: area.topics.map(interest => ({
+        id: interest.id,
+        nombre: interest.name,
+        area: { id: area.id, nombre: area.name },
+        seleccionado: legacyInterests.configuration.topicIds.includes(interest.id),
+      })),
+    };
+    const index = catalog.findIndex(item => item.area.id === areaId);
+    if (index >= 0) catalog[index] = group;
+    else catalog.push(group);
+  }
+  const fallbackSelectedIds = legacyInterests.configuration.topicIds.filter(id =>
+    catalog.some(group => group.intereses.some(interest => interest.id === id)),
+  );
+
+  return {
+    ...state,
+    interests: {
+      ...state.interests,
+      catalog,
+      selectedIds: Array.from(new Set([...state.interests.selectedIds, ...fallbackSelectedIds])),
+    },
+  };
+}
 
 const WEEKDAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
@@ -78,20 +135,13 @@ function validateStep(
       fields.push(`El horario del ${WEEKDAY_NAMES[schedule.weekday].toLowerCase()} debe terminar después de iniciar`);
     }
   }
-  const seen = new Set<number>();
-  for (const schedule of schedules) {
-    if (seen.has(schedule.weekday)) {
-      fields.push('Solo puede existir un horario por día');
-      break;
-    }
-    seen.add(schedule.weekday);
-  }
   return fields.length ? { schedules: fields } : null;
 }
 
 export function MentorOnboardingWizard() {
   const router = useRouter();
   const [onboarding, setOnboarding] = useState<MentorOnboardingState | null>(null);
+  const [profileInformation, setProfileInformation] = useState<MentorProfileInformationState | null>(null);
   const [step, setStep] = useState<Step>(1);
   const [areaIds, setAreaIds] = useState<string[]>([]);
   const [interestIds, setInterestIds] = useState<string[]>([]);
@@ -120,13 +170,17 @@ export function MentorOnboardingWizard() {
     setLoading(true);
     setLoadError('');
     setLoadCode('');
-    getMentorOnboarding(controller.signal)
-      .then((state) => {
+    Promise.all([
+      getMentorOnboarding(controller.signal).then(state => withInterestCatalog(state, controller.signal)),
+      getMentorProfileInformation(controller.signal),
+    ])
+      .then(([state, information]) => {
         if (controller.signal.aborted) return;
         setOnboarding(state);
+        setProfileInformation(information);
         applyState(state);
         setStep(state.currentStep);
-        setCompleteView(state.isComplete);
+        setCompleteView(state.isComplete && isMentorProfileInformationComplete(information));
       })
       .catch((reason) => {
         if (controller.signal.aborted) return;
@@ -137,7 +191,9 @@ export function MentorOnboardingWizard() {
             ? 'Inicia sesión para configurar tu perfil de mentor.'
             : error?.status === 403
               ? error.message
-              : 'No se pudo cargar tu configuración. Intenta nuevamente.',
+              : reason instanceof Error
+                ? reason.message
+                : 'No se pudo cargar tu configuración. Intenta nuevamente.',
         );
       })
       .finally(() => {
@@ -199,10 +255,11 @@ export function MentorOnboardingWizard() {
       } else {
         next = await saveMentorOnboardingAvailability(status!, schedules);
       }
+      next = await withInterestCatalog(next);
       if (!mounted.current) return;
       setOnboarding(next);
       applyState(next);
-      if (next.isComplete) {
+      if (next.isComplete && isMentorProfileInformationComplete(profileInformation)) {
         setCompleteView(true);
         setStep(3);
         return;
@@ -274,8 +331,9 @@ export function MentorOnboardingWizard() {
   const selectedInterestNames = onboarding.interests.catalog.flatMap((group) =>
     group.intereses.filter((interest) => onboarding.interests.selectedIds.includes(interest.id)).map((interest) => interest.nombre),
   );
+  const progressSteps = getMentorProgressSteps(onboarding, profileInformation);
 
-  if (completeView && onboarding.isComplete) {
+  if (completeView && onboarding.isComplete && progressSteps.every(({ completed }) => completed)) {
     return (
       <main className="mentorship-shell onboarding-page">
         <nav aria-label="Ruta de navegación" className="mentorship-breadcrumb">
@@ -340,22 +398,19 @@ export function MentorOnboardingWizard() {
       <p className="page-eyebrow">Red universitaria de desarrollo</p>
       <h1 className="page-title page-title-with-eyebrow">Configura tu perfil de mentor</h1>
       <p className="page-description">
-        Completa los tres pasos en orden. Tu avance se guarda paso a paso y puedes retomarlo cuando quieras.
+        Completa las cuatro secciones de tu perfil. Tu avance se guarda paso a paso y puedes retomarlo cuando quieras.
       </p>
 
       <MentorOnboardingProgress
-        currentStep={step}
-        totalSteps={onboarding.totalSteps}
-        steps={onboarding.steps}
-        completedSteps={onboarding.completedSteps}
-        onSelect={chooseDraft}
+        currentStep={progressSteps.every(({ completed }) => completed) ? 4 : step}
+        steps={progressSteps}
       />
 
       <section className="onboarding-card" aria-labelledby="onboarding-step-title">
         <div className="onboarding-card-heading">
           <span aria-hidden="true"><ShieldCheckIcon /></span>
           <div>
-            <p>Paso {step} de {onboarding.totalSteps}</p>
+            <p>Paso {step} de 4</p>
             <h2 id="onboarding-step-title">{STEP_TITLES[step]}</h2>
           </div>
         </div>

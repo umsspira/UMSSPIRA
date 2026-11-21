@@ -13,3 +13,13 @@ export function describeMailError(error: unknown): string {
   const message = error instanceof Error && error.message ? error.message : 'Error desconocido';
   return message.slice(0, MAIL_ERROR_MAX_LENGTH);
 }
+
+export type MailNotificationStatus = 'pendiente' | 'enviada' | 'fallida';
+
+// Estado de correo_tramite visto por el administrador (CA-14.8).
+export function toNotificationStatus(state: string): MailNotificationStatus {
+  const value = state.trim().toLowerCase();
+  if (value === 'fallida' || value === 'fallido') {return 'fallida';}
+  if (value === 'enviada' || value === 'enviado') {return 'enviada';}
+  return 'pendiente';
+}

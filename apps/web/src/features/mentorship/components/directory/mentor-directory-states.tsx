@@ -14,7 +14,7 @@ export function DirectoryEmpty({ filtered, onClear }: { filtered: boolean; onCle
   const Icon = filtered ? SearchIcon : UsersIcon;
   return <div className="directory-state">
     <span className="directory-state-icon"><Icon aria-hidden="true" /></span>
-    <h2>{filtered ? 'No encontramos mentores con estos filtros' : 'Todavía no hay mentores disponibles'}</h2>
+    <h2>{filtered ? 'No encontramos mentores con estos filtros' : 'No hay mentores disponibles por el momento'}</h2>
     <p>{filtered ? 'Prueba otras áreas o limpia los filtros para explorar el directorio.' : 'Actualmente no encontramos mentores que cumplan las condiciones para aparecer en el directorio.'}</p>
     {filtered ? <button type="button" className="mentor-button mentor-button-secondary" onClick={onClear}>Limpiar filtros</button>
       : <Link href="/mentorship" className="mentor-button mentor-button-secondary"><ArrowLeftIcon className="icon" aria-hidden="true" />Volver a Mentorías</Link>}

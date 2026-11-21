@@ -785,7 +785,8 @@ model VacanteRequisitoTecnico {
 model Postulacion {
   id_usuario       String?   @db.Uuid
   id_vacante       String?   @db.Uuid
-  porcentaje_match Decimal?  @db.Decimal
+  porcentaje_match Int?
+  fecha_match      DateTime? @db.Timestamptz(6)
   estado           String?   @db.VarChar
   created_at       DateTime? @db.Timestamp(6)
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -1708,4 +1709,13 @@ model Certificado {
 
   @@unique([id_evento, id_usuario], map: "certificado_unico_por_usuario_evento")
   @@map("certificado")
+}
+
+model RadarDiccionarioVersion {
+  version          String   @id @db.VarChar(50)
+  fingerprint      String   @db.VarChar(64)
+  fecha_aplicacion DateTime @default(now()) @db.Timestamptz(6)
+  descripcion      String?  @db.Text
+
+  @@map("radar_diccionario_version")
 }

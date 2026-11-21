@@ -336,7 +336,7 @@ Plan de recorte si falta tiempo, en este orden:
 | HU-10 | epic1 | Pendiente | | |
 | HU-11 | epic2 | Pendiente | | |
 | HU-12 | epic7 | Pendiente | | |
-| HU-13 | epic6 | Pendiente | | |
+| HU-13 | epic6 | En revisión | feat/epic6-HU13-editar-vacante-validada | Falta el recálculo de afinidad al guardar (depende de HU-10/HU-12) |
 | HU-14 | epic8 | Pendiente | | |
 | HU-15 | epic4 | Pendiente | | |
 | HU-16 | epic9 | Pendiente | | |
