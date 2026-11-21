@@ -48,11 +48,14 @@ describe('VacantesService · postulantes (HU-01)', () => {
         id: ID_POSTULACION,
         name: 'Ana Rojas',
         email: 'ana.rojas.demo@umsspira.local',
+        location: null,
+        experienceLevel: null,
         stage: 'preseleccionado',
         appliedAt: '2026-11-02T00:00:00.000Z',
         hasCv: false,
         cvUrl: null,
         matchPercentage: 92.5,
+        skills: null,
       },
     ]);
   });

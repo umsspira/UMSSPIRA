@@ -4,8 +4,10 @@ import {
 } from "../types/applicant";
 import { JOB_POSTING_AFFINITY_BATCH_LIMIT } from "@umsspira/shared-types";
 import type {
+  JobPostingAffinityBatchItem,
   JobPostingAffinityBatchRequest,
   JobPostingAffinityBatchResponse,
+  JobPostingAffinityResult,
 } from "@umsspira/shared-types";
 import { apiClient, ApiClientError } from "./api-client";
 
@@ -51,6 +53,8 @@ interface RawApplicant {
   hasCv?: boolean;
   cvUrl?: string | null;
   matchPercentage?: number | null;
+  /** HU-10: fecha del último cálculo guardado (fecha_match). */
+  matchCalculatedAt?: string | null;
 }
 
 /** HU-04: códigos de etapa del backend → etiqueta que muestra la interfaz. */
@@ -93,7 +97,10 @@ function normalizeApplicant(raw: RawApplicant): Applicant {
         ? raw.matchPercentage
         : null,
     matchStatus: null,
-    matchCalculatedAt: null,
+    matchCalculatedAt:
+      typeof raw.matchCalculatedAt === "string" && Number.isFinite(Date.parse(raw.matchCalculatedAt))
+        ? raw.matchCalculatedAt
+        : null,
     comparison: [],
     matchError: null,
   };
@@ -262,107 +269,122 @@ async function apiGet<T>(path: string): Promise<T> {
   }
 }
 
+/** Si el motor no responde, la lista sigue visible con el último porcentaje guardado. */
+export const AFFINITY_UNAVAILABLE_MESSAGE =
+  "No se pudo calcular la coincidencia técnica en este momento. Se muestra el último resultado guardado, si existe.";
+
+const COMPARISON_RESULTS = ["exact", "similar", "not-found"] as const;
+
+function isValidAffinityResult(result: unknown): result is JobPostingAffinityResult {
+  if (!result || typeof result !== "object") return false;
+  const r = result as Record<string, unknown>;
+  if (!Array.isArray(r.comparison)) return false;
+  const comparisonOk = r.comparison.every((item: unknown) => {
+    if (!item || typeof item !== "object") return false;
+    const c = item as Record<string, unknown>;
+    return (
+      typeof c.requirement === "string"
+      && (c.matchedSkill === null || typeof c.matchedSkill === "string")
+      && (COMPARISON_RESULTS as readonly unknown[]).includes(c.result)
+    );
+  });
+  if (!comparisonOk) return false;
+  if (r.status === "ready") {
+    return (
+      typeof r.percentage === "number"
+      && Number.isFinite(r.percentage)
+      && r.percentage >= 0
+      && r.percentage <= 100
+      && typeof r.calculatedAt === "string"
+      && Number.isFinite(Date.parse(r.calculatedAt))
+    );
+  }
+  return (
+    (r.status === "profile-incomplete" || r.status === "no-requirements")
+    && r.percentage === null
+    && r.calculatedAt === null
+    && r.comparison.length === 0
+  );
+}
+
+/** Conserva el porcentaje y la fecha guardados (GET postulantes) y solo marca el error. */
+function withAffinityError(applicant: Applicant, message: string): Applicant {
+  return { ...applicant, matchStatus: null, comparison: [], matchError: message };
+}
+
+function applyBatchItem(applicant: Applicant, item: JobPostingAffinityBatchItem): Applicant {
+  if (item.result && isValidAffinityResult(item.result)) {
+    return {
+      ...applicant,
+      matchPercentage: item.result.percentage,
+      matchStatus: item.result.status,
+      matchCalculatedAt: item.result.calculatedAt,
+      comparison: item.result.comparison,
+      matchError: null,
+    };
+  }
+  const message =
+    item.error && typeof item.error.message === "string" && item.error.message.trim()
+      ? item.error.message
+      : AFFINITY_UNAVAILABLE_MESSAGE;
+  return withAffinityError(applicant, message);
+}
+
+async function requestAffinityChunk(
+  vacancyId: string,
+  chunk: Applicant[],
+): Promise<Map<string, JobPostingAffinityBatchItem>> {
+  const request: JobPostingAffinityBatchRequest = {
+    mode: "applicants",
+    vacancyId,
+    applicationIds: chunk.map((applicant) => applicant.id),
+  };
+  const response = await apiClient<JobPostingAffinityBatchResponse>("/api/v1/affinity/batch", {
+    method: "POST",
+    authenticated: true,
+    body: request,
+  });
+  const items = new Map<string, JobPostingAffinityBatchItem>();
+  if (!response || !Array.isArray(response.data)) return items;
+  const ids = new Set(request.applicationIds);
+  for (const item of response.data) {
+    // Se ignoran elementos de otra vacante, desconocidos o repetidos.
+    if (
+      item
+      && item.vacancyId === vacancyId
+      && typeof item.applicationId === "string"
+      && ids.has(item.applicationId)
+      && !items.has(item.applicationId)
+    ) {
+      items.set(item.applicationId, item);
+    }
+  }
+  return items;
+}
+
 async function getAffinityByApplicants(
   vacancyId: string,
   applicants: Applicant[],
 ): Promise<Applicant[]> {
   if (applicants.length === 0) return [];
-  const resultByApplicant = new Map<string, Applicant>();
+  const enriched: Applicant[] = [];
 
   for (let offset = 0; offset < applicants.length; offset += JOB_POSTING_AFFINITY_BATCH_LIMIT) {
     const chunk = applicants.slice(offset, offset + JOB_POSTING_AFFINITY_BATCH_LIMIT);
-    const request: JobPostingAffinityBatchRequest = {
-      mode: "applicants",
-      vacancyId,
-      applicationIds: chunk.map((applicant) => applicant.id),
-    };
-    let response: JobPostingAffinityBatchResponse;
+    let items: Map<string, JobPostingAffinityBatchItem> | null = null;
     try {
-      response = await apiClient<JobPostingAffinityBatchResponse>("/api/v1/affinity/batch", {
-        method: "POST",
-        authenticated: true,
-        body: request,
-      });
+      items = await requestAffinityChunk(vacancyId, chunk);
     } catch {
-      throw new MatchEngineError();
+      items = null; // HU-10 caído o no disponible: la lista se muestra igual.
     }
-
-    if (!response || !Array.isArray(response.data)) throw new MatchEngineError();
-    for (const item of response.data) {
-      if (
-        !item
-        || item.vacancyId !== vacancyId
-        || typeof item.applicationId !== "string"
-        || resultByApplicant.has(item.applicationId)
-      ) {
-        throw new MatchEngineError();
-      }
-      const applicant = chunk.find((candidate) => candidate.id === item.applicationId);
-      if (!applicant) throw new MatchEngineError();
-      const result = item.result;
-      if (
-        !result
-        && (!item.error || typeof item.error.message !== "string" || !item.error.message.trim())
-      ) {
-        throw new MatchEngineError();
-      }
-      if (result) {
-        if (!Array.isArray(result.comparison)) throw new MatchEngineError();
-        const invalidComparison = result.comparison.some((comparison) =>
-          !comparison
-          || typeof comparison.requirement !== "string"
-          || (comparison.matchedSkill !== null && typeof comparison.matchedSkill !== "string")
-          || (
-            comparison.result !== "exact"
-            && comparison.result !== "similar"
-            && comparison.result !== "not-found"
-          ),
-        );
-        if (
-          invalidComparison
-          || (
-            result.status !== "ready"
-            && result.status !== "profile-incomplete"
-            && result.status !== "no-requirements"
-          )
-        ) {
-          throw new MatchEngineError();
-        }
-        if (
-          result.status === "ready"
-          ? typeof result.percentage !== "number"
-            || !Number.isFinite(result.percentage)
-            || result.percentage < 0
-            || result.percentage > 100
-            || typeof result.calculatedAt !== "string"
-            || !Number.isFinite(Date.parse(result.calculatedAt))
-          : result.percentage !== null
-            || result.calculatedAt !== null
-            || result.comparison.length !== 0
-        ) {
-          throw new MatchEngineError();
-        }
-      }
-      resultByApplicant.set(item.applicationId, {
-        ...applicant,
-        matchPercentage: result?.percentage ?? null,
-        matchStatus: result?.status ?? null,
-        matchCalculatedAt: result?.calculatedAt ?? null,
-        comparison: result?.comparison ?? [],
-        matchError: item.error?.message ?? null,
-      });
-    }
-    if (chunk.some((applicant) => !resultByApplicant.has(applicant.id))) {
-      throw new MatchEngineError();
+    for (const applicant of chunk) {
+      const item = items?.get(applicant.id);
+      enriched.push(item ? applyBatchItem(applicant, item) : withAffinityError(applicant, AFFINITY_UNAVAILABLE_MESSAGE));
     }
   }
 
-  const enriched = applicants.map((applicant, index) => {
-    const result = resultByApplicant.get(applicant.id);
-    if (!result) throw new MatchEngineError();
-    return { applicant: result, index };
-  });
   return enriched
+    .map((applicant, index) => ({ applicant, index }))
     .sort((a, b) => {
       const aMatch = a.applicant.matchPercentage;
       const bMatch = b.applicant.matchPercentage;

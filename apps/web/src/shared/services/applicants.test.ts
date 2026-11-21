@@ -149,7 +149,7 @@ describe('servicio de postulantes con la API real (HU-15)', () => {
     expect(batchCalls[1][1].body.applicationIds).toHaveLength(1);
   });
 
-  it('preserva los errores individuales sin inventar porcentaje ni desglose', async () => {
+  it('preserva los errores individuales sin inventar desglose y conserva el porcentaje guardado', async () => {
     apiClientMock.mockResolvedValueOnce([raw]).mockResolvedValueOnce({
       data: [{
         vacancyId: VACANTE,
@@ -162,12 +162,67 @@ describe('servicio de postulantes con la API real (HU-15)', () => {
     const [applicant] = await service.getApplicantsByVacancy(VACANTE);
 
     expect(applicant).toMatchObject({
-      matchPercentage: null,
+      matchPercentage: 92,
       matchStatus: null,
       matchCalculatedAt: null,
       comparison: [],
       matchError: 'No se pudo calcular',
     });
+  });
+
+  it('muestra la lista aunque el cálculo por lote falle, con el último resultado guardado', async () => {
+    const guardado = { ...raw, matchCalculatedAt: '2026-11-19T10:00:00.000Z' };
+    apiClientMock
+      .mockResolvedValueOnce([guardado])
+      .mockRejectedValueOnce(new ApiClientError('servicio no disponible', 503));
+
+    const lista = await service.getApplicantsByVacancy(VACANTE);
+
+    expect(lista).toHaveLength(1);
+    expect(lista[0]).toMatchObject({
+      name: 'Ana Rojas',
+      matchPercentage: 92,
+      matchCalculatedAt: '2026-11-19T10:00:00.000Z',
+      matchStatus: null,
+      comparison: [],
+      matchError: service.AFFINITY_UNAVAILABLE_MESSAGE,
+    });
+  });
+
+  it('marca solo al postulante con respuesta inválida y no tumba al resto', async () => {
+    const second = { ...raw, id: '44800000-0000-4000-8000-000000000002', name: 'Beto', matchPercentage: null };
+    apiClientMock.mockResolvedValueOnce([raw, second]).mockResolvedValueOnce({
+      data: [
+        {
+          vacancyId: VACANTE,
+          applicationId: raw.id,
+          result: { status: 'ready', percentage: 150, calculatedAt: 'no-es-fecha', comparison: [] },
+          error: null,
+        },
+        {
+          vacancyId: VACANTE,
+          applicationId: second.id,
+          result: { status: 'ready', percentage: 60, calculatedAt: '2026-11-20T12:00:00.000Z', comparison: [] },
+          error: null,
+        },
+      ],
+    });
+
+    const lista = await service.getApplicantsByVacancy(VACANTE);
+
+    expect(lista.find((a) => a.name === 'Beto')).toMatchObject({ matchPercentage: 60, matchError: null });
+    expect(lista.find((a) => a.name === 'Ana Rojas')).toMatchObject({
+      matchPercentage: 92,
+      matchError: service.AFFINITY_UNAVAILABLE_MESSAGE,
+    });
+  });
+
+  it('marca como no disponible a quien el lote no devolvió', async () => {
+    apiClientMock.mockResolvedValueOnce([raw]).mockResolvedValueOnce({ data: [] });
+
+    const [applicant] = await service.getApplicantsByVacancy(VACANTE);
+
+    expect(applicant.matchError).toBe(service.AFFINITY_UNAVAILABLE_MESSAGE);
   });
 
   it('conserva el estado sin requisitos sin inventar porcentaje ni fecha', async () => {
@@ -193,6 +248,18 @@ describe('servicio de postulantes con la API real (HU-15)', () => {
       matchCalculatedAt: null,
       comparison: [],
       matchError: null,
+    });
+  });
+
+  it('muestra el detalle aunque el cálculo por lote falle', async () => {
+    apiClientMock
+      .mockResolvedValueOnce(raw)
+      .mockRejectedValueOnce(new ApiClientError('no encontrado', 404));
+
+    await expect(service.getApplicantById(VACANTE, raw.id)).resolves.toMatchObject({
+      id: raw.id,
+      matchPercentage: 92,
+      matchError: service.AFFINITY_UNAVAILABLE_MESSAGE,
     });
   });
 

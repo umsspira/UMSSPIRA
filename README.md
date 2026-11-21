@@ -288,11 +288,11 @@ Lo publican epic1 (HU-10) y epic6 (HU-09) en las primeras 2 horas. Todos program
 - Tipos en `packages/shared-types`:
   - `JobPostingAffinityResult`: `{ status, percentage, calculatedAt, comparison[] }`
   - `comparison[]`: `{ requirement, matchedSkill, result }` con `result: 'exact' | 'similar' | 'not-found'`
-- El cálculo de afinidad para postulantes es de solo lectura y devuelve `calculatedAt`; HU-15 no requiere una migración.
+- Tabla `postulacion`: se mantiene `porcentaje_match` y se agrega `fecha_match` (migración nueva).
 - Endpoints:
   - `POST /api/v1/job-postings/:id/requisitos` (HU-09) — escritura de requisitos técnicos.
-  - `POST /api/v1/affinity/batch` (HU-10) — afinidad por lote de vacantes o postulaciones; HU-15 usa `mode: "applicants"`.
-  - `GET /api/v1/vacantes/:idVacante/postulantes` — devuelve los datos base de cada postulación.
+  - `POST /api/v1/affinity/batch` (HU-10) — afinidad de N vacantes o postulantes en una sola llamada.
+  - `GET /api/v1/vacantes/:idVacante/postulantes` — ahora incluye `comparison[]` y `skills` reales (HU-15).
 
 ### 3. Reparto de HUs (5 puntos por grupo)
 
@@ -338,7 +338,7 @@ Plan de recorte si falta tiempo, en este orden:
 | HU-12 | epic7 | Pendiente | | |
 | HU-13 | epic6 | Pendiente | | |
 | HU-14 | epic8 | Pendiente | | |
-| HU-15 | epic4 | En progreso | `feat/G6-HU15-comparacion-real` | Cliente consume el batch HU-10; falta validar con su integración en `dev`. |
+| HU-15 | epic4 | En progreso | `feat/G6-HU15-E5` | Consume el lote de HU-10 (`mode: "applicants"`); si el motor falla, la lista se muestra con el último porcentaje guardado. Mergear después de #938. |
 | HU-16 | epic9 | Pendiente | | |
 | HU-17 | epic3 | Pendiente | | |
 | HU-18 | epic7 | Pendiente | | |

@@ -7,6 +7,7 @@ import { Applicant, APPLICANT_STATUSES, ApplicantStatus } from "@/shared/types/a
 import { Vacancy } from "@/shared/types/vacancy";
 import {
   getApplicantsByVacancy,
+  AFFINITY_UNAVAILABLE_MESSAGE,
   MATCH_ENGINE_ERROR_MESSAGE,
   updateApplicantStage,
 } from "@/shared/services/applicants";
@@ -256,6 +257,12 @@ export default function CandidatesPage() {
                 ? `Mostrando 0 de ${applicants.length} postulantes`
                 : `Mostrando ${firstIndex + 1}–${firstIndex + pageApplicants.length} de ${filteredApplicants.length} postulantes`}
             </p>
+
+            {applicants.some((applicant) => applicant.matchError === AFFINITY_UNAVAILABLE_MESSAGE) && (
+              <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {AFFINITY_UNAVAILABLE_MESSAGE}
+              </p>
+            )}
 
             {filteredApplicants.length === 0 ? (
               <div className="bg-white p-8 rounded-xl text-center border border-[#EEE9DF] text-gray-500">Ningún postulante cumple con los filtros aplicados.</div>
