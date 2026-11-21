@@ -338,7 +338,7 @@ Plan de recorte si falta tiempo, en este orden:
 | HU-12 | epic7 | Pendiente | | |
 | HU-13 | epic6 | Pendiente | | |
 | HU-14 | epic8 | Pendiente | | |
-| HU-15 | epic4 | Pendiente | | |
+| HU-15 | epic4 | En progreso | `feat/G6-HU15-E5` | Consume el lote de HU-10 (`mode: "applicants"`); si el motor falla, la lista se muestra con el último porcentaje guardado. Mergear después de #938. |
 | HU-16 | epic9 | Pendiente | | |
 | HU-17 | epic3 | Pendiente | | |
 | HU-18 | epic7 | Pendiente | | |
