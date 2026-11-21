@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { AyudaBolsaTrabajo } from '@/modules/ayuda/ayuda-bolsa-trabajo';
+import { ComoFuncionaAfinidad } from '@/modules/ayuda/como-funciona-afinidad';
 
 export const metadata: Metadata = {
   title: 'Ayuda · Bolsa de trabajo',
@@ -16,5 +17,11 @@ export default function AyudaBolsaTrabajoPage({
     ? requestedTab
     : 'titulado';
 
-  return <AyudaBolsaTrabajo key={initialTab} initialTab={initialTab} />;
+  return (
+    <AyudaBolsaTrabajo
+      key={initialTab}
+      initialTab={initialTab}
+      affinityContent={<ComoFuncionaAfinidad />}
+    />
+  );
 }

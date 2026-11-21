@@ -8,6 +8,7 @@ import { ApiError } from '@/shared/services/api-client';
 import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
 import { ApplyToVacancyButton } from '@/shared/components/apply-to-vacancy-button';
+import { ComoSeCalculaModal } from '@/modules/ayuda/como-se-calcula-modal';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinity, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
 import {
@@ -37,6 +38,7 @@ export function JobPostingDetail({
   const [affinityState, setAffinityState] = useState<AffinityState>({ status: 'loading' });
   const [affinityRetryCount, setAffinityRetryCount] = useState(0);
   const [showComparison, setShowComparison] = useState(false);
+  const [mostrarCalculo, setMostrarCalculo] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -74,6 +76,7 @@ export function JobPostingDetail({
     let active = true;
     setAffinityState({ status: 'loading' });
     setShowComparison(false);
+    setMostrarCalculo(false);
     calculateVacancyAffinity(technicalRequirements).then(
       (result) => active && setAffinityState(result),
       () => active && setAffinityState({ status: 'error' }),
@@ -287,7 +290,16 @@ export function JobPostingDetail({
                   <>
                     <div className="mt-6 flex items-center justify-between gap-3">
                       <p className="text-5xl font-bold tracking-tight text-[#A64D35]">{affinityState.percentage}%</p>
-                      <span className="text-sm text-slate-500">Afinidad</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-sm text-slate-500">Afinidad</span>
+                        <button
+                          type="button"
+                          onClick={() => setMostrarCalculo(true)}
+                          className="min-h-10 text-right text-sm font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500"
+                        >
+                          ¿Cómo se calcula?
+                        </button>
+                      </div>
                     </div>
                     <div
                       role="progressbar"
@@ -301,6 +313,12 @@ export function JobPostingDetail({
                     </div>
                     <p className="mt-4 text-sm leading-6 text-slate-600">Estimación orientativa basada en los requisitos identificados. No garantiza la contratación.</p>
                     <p className="mt-3 text-sm text-slate-500">Actualizado: {new Date(affinityState.calculatedAt).toLocaleString('es-BO')}</p>
+                    <ComoSeCalculaModal
+                      open={mostrarCalculo}
+                      onClose={() => setMostrarCalculo(false)}
+                      percentage={affinityState.percentage}
+                      comparison={affinityState.comparison}
+                    />
                     <button type="button" aria-expanded={showComparison} onClick={() => setShowComparison((visible) => !visible)} className="mt-5 min-h-12 w-full rounded-lg border border-[#D8CEBF] px-4 font-semibold text-[#172238] hover:bg-slate-50">
                       {showComparison ? 'Ocultar comparación' : 'Ver comparación'}
                     </button>
