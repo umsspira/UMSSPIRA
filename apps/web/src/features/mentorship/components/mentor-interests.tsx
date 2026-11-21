@@ -694,30 +694,34 @@ export function MentorInterests({
           <ArrowLeftIcon size={16} aria-hidden="true" />
           Atrás: Áreas técnicas
         </SecondaryButton>
-        <span role="status">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span>
-        <SecondaryButton disabled={!dirty || saving} onClick={() => setDialog('discard')}>
-          Descartar cambios
-        </SecondaryButton>
-        {dirty && (
-          <SecondaryButton disabled={saving} onClick={() => { setSaveDestination(undefined); setDialog('save'); }}>
-            Guardar
-          </SecondaryButton>
-        )}
-        {dirty ? (
-          <PrimaryButton loading={saving} iconRight={ArrowRightIcon} onClick={() => { setSaveDestination(nextHref); setDialog('save'); }}>
-            Guardar y continuar
-          </PrimaryButton>
-        ) : (
-          <PrimaryButton disabled={saving} iconRight={ArrowRightIcon} onClick={() => leave(nextHref)}>
-            Continuar a disponibilidad
-          </PrimaryButton>
-        )}
-        {success && (
-          <SecondaryButton className="interests-return-profile" onClick={() => leave('/mentorship/profile')}>
-            <CheckIcon size={16} aria-hidden="true" />
-            Volver a mi perfil
-          </SecondaryButton>
-        )}
+        <div className="interests-actions-panel">
+          <div className="interests-actions-buttons">
+            <SecondaryButton disabled={!dirty || saving} onClick={() => setDialog('discard')}>
+              Descartar cambios
+            </SecondaryButton>
+            {dirty ? (
+              <PrimaryButton loading={saving} iconRight={ArrowRightIcon} onClick={() => { setSaveDestination(nextHref); setDialog('save'); }}>
+                Guardar y continuar
+              </PrimaryButton>
+            ) : (
+              <PrimaryButton disabled={saving} iconRight={ArrowRightIcon} onClick={() => leave(nextHref)}>
+                Continuar a disponibilidad
+              </PrimaryButton>
+            )}
+            {success && (
+              <SecondaryButton className="interests-return-profile" onClick={() => leave('/mentorship/profile')}>
+                <CheckIcon size={16} aria-hidden="true" />
+                Volver a mi perfil
+              </SecondaryButton>
+            )}
+          </div>
+          <span
+            role="status"
+            className={`interests-save-status${dirty ? ' interests-save-status-dirty' : ''}`}
+          >
+            {dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}
+          </span>
+        </div>
       </footer>
 
       {/* Modal guardar configuración */}

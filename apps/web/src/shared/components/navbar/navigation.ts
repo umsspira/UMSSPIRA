@@ -1,3 +1,6 @@
+import {
+  CalendarDays, ClipboardList, Compass, Inbox, Layers, Send, Sparkles, UserRound,
+} from 'lucide-react';
 import type { NavbarLink, NavbarRole, NavbarSection } from './types';
 
 export const NAVBAR_ROLE_LABEL: Record<NavbarRole, string> = {
@@ -38,13 +41,14 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
   ] },
   { id: 'mentorship', label: 'Mentorías', items: [
     { id: 'inst-mentorias', label: 'Sobre las mentorías', href: '/portal/institucional?tab=mentorias', guestOnly: true },
-    { id: 'mentorship', label: 'Red de mentorías', href: '/mentorship', roles: signedIn },
-    { id: 'mentor-profile', label: 'Mi perfil de mentor', href: '/mentorship/profile', roles: members },
-    { id: 'mentor-information', label: 'Información de mi perfil', href: '/mentorship/profile/information', roles: members },
-    { id: 'mentor-areas', label: 'Áreas técnicas', href: '/mentorship/profile/areas', roles: members },
-    { id: 'mentor-interests', label: 'Intereses de mentoría', href: '/mentorship/profile/interests', roles: members },
-    { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: members },
-    { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests', roles: members },
+    { id: 'mentorship', label: 'Explorar mentores', href: '/mentorship', roles: signedIn, icon: Compass },
+    { id: 'mentor-profile', label: 'Mi perfil', href: '/mentorship/profile', roles: graduates, icon: UserRound, mentorOnly: true },
+    { id: 'mentor-information', label: 'Información', href: '/mentorship/profile/information', roles: graduates, icon: ClipboardList, mentorOnly: true },
+    { id: 'mentor-areas', label: 'Áreas', href: '/mentorship/profile/areas', roles: graduates, icon: Layers, mentorOnly: true },
+    { id: 'mentor-interests', label: 'Intereses', href: '/mentorship/profile/interests', roles: graduates, icon: Sparkles, mentorOnly: true },
+    { id: 'mentor-availability', label: 'Disponibilidad', href: '/mentorship/profile/availability', roles: graduates, icon: CalendarDays, mentorOnly: true },
+    { id: 'mentor-my-requests', label: 'Mis solicitudes', href: '/mentorship/requests', roles: graduates, icon: Send },
+    { id: 'mentor-requests', label: 'Solicitudes recibidas', href: '/mentorship/requests/received', roles: graduates, icon: Inbox, mentorOnly: true },
   ] },
   { id: 'events', label: 'Eventos', items: [
     { id: 'inst-events', label: 'Eventos institucionales', href: '/portal/institucional?tab=eventos', guestOnly: true },
@@ -79,17 +83,31 @@ export const NAVBAR_ACCOUNT_LINKS: NavbarLink[] = [
   { id: 'admin-home', label: 'Panel administrativo', href: '/portal/admin', roles: admins },
 ];
 
-export function visibleLinks(items: NavbarLink[], role: NavbarRole | null) {
+export function visibleLinks(items: NavbarLink[], role: NavbarRole | null, activeMentor = false) {
   return items.filter(item => {
     if (item.guestOnly && role !== null) return false;
+    if (item.mentorOnly && !activeMentor) return false;
     return !item.roles || (role !== null && item.roles.includes(role));
   });
 }
 
-export function navigationFor(role: NavbarRole | null): NavbarSection[] {
+export function navigationFor(role: NavbarRole | null, activeMentor = false): NavbarSection[] {
   return NAVBAR_SECTIONS
-    .map(section => ({ ...section, items: visibleLinks(section.items, role).filter(item => !item.hidden) }))
+    .map(section => ({ ...section, items: visibleLinks(section.items, role, activeMentor).filter(item => !item.hidden) }))
     .filter(section => section.items.length > 0);
+}
+
+/**
+ * Marca el destino exacto de la vista actual, incluida su query.
+ */
+export function isCurrentDestination(href: string, currentPath: string) {
+  const [hrefPath, hrefQuery = ''] = href.split('?');
+  const [currentHrefPath, currentQuery = ''] = currentPath.split('?');
+  if (hrefPath !== currentHrefPath) return false;
+  const expected = new URLSearchParams(hrefQuery);
+  const current = new URLSearchParams(currentQuery);
+  if (expected.size !== current.size) return false;
+  return Array.from(expected).every(([key, value]) => current.get(key) === value);
 }
 
 /**
