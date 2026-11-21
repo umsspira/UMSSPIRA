@@ -65,5 +65,9 @@ export async function updateMentorParticipation(isActive: boolean, signal?: Abor
     body: JSON.stringify({ esta_activo: isActive }),
     signal,
   });
-  return toMentorState(data, eligible);
+  const state = toMentorState(data, eligible);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('umsspira:mentor-participation-changed'));
+  }
+  return state;
 }

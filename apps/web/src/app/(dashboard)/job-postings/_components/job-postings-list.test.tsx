@@ -35,7 +35,7 @@ const posting: AvailableJobPosting = {
   ].join('\n'),
   modalidad: 'HIBRIDO',
   fechaPublicacion: '2026-11-16T10:00:00.000Z',
-  requisitos:[],
+  requisitos: [{ id: 'requirement-1', nombre: 'React' }],
 };
 
 describe('JobPostingsList', () => {
@@ -60,7 +60,7 @@ describe('JobPostingsList', () => {
     expect(screen.getByRole('cell', { name: 'Híbrido' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver oferta' })).toHaveAttribute(
       'href',
-      '/portal/empleos/vacancy-1',
+      '/portal/job-postings/detalle?jobId=vacancy-1',
     );
     expect(calculateAffinity).toHaveBeenCalledWith(
       [{ id: 'requirement-1', nombre: 'React' }],
@@ -75,11 +75,11 @@ describe('JobPostingsList', () => {
     render(<JobPostingsList />);
 
     expect(await screen.findByText('Sin calcular')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Agrega tus habilidades al perfil' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Configura temas/ })).toHaveAttribute(
       'href',
-      '/profile/completar?seccion=proyectos',
+      '/mentorship/onboarding',
     );
-    expect(screen.getByText('Agrega habilidades a tu perfil para calcular la afinidad')).toBeInTheDocument();
+    expect(screen.getByText(/Selecciona temas técnicos/)).toBeInTheDocument();
   });
 
   it('muestra el error de carga del perfil y permite reintentar sin recargar vacantes', async () => {
@@ -104,6 +104,7 @@ describe('JobPostingsList', () => {
       empresa: 'Tecno',
       modalidad: 'REMOTO',
       fechaPublicacion: '2026-11-17T10:00:00.000Z',
+      requisitos: [{ id: 'recent-react', nombre: 'React' }],
       descripcionTecnica: 'Desarrollo web.\n\n**Conocimientos técnicos requeridos:**\n- React',
     };
     const olderPosting: AvailableJobPosting = {
@@ -113,6 +114,7 @@ describe('JobPostingsList', () => {
       empresa: 'Datos S.A.',
       modalidad: 'HIBRIDO',
       fechaPublicacion: '2026-11-15T10:00:00.000Z',
+      requisitos: [{ id: 'older-sql', nombre: 'SQL' }],
       descripcionTecnica: 'Análisis de información.\n\n**Conocimientos técnicos requeridos:**\n- SQL',
     };
     listPostings.mockResolvedValue([recentPosting, olderPosting]);
@@ -172,7 +174,7 @@ describe('JobPostingsList', () => {
 
     expect(
       await screen.findByRole('heading', {
-        name: 'Aún no hay vacantes disponibles',
+        name: /no hay vacantes disponibles/,
       }),
     ).toBeInTheDocument();
 
@@ -239,7 +241,7 @@ describe('JobPostingsList', () => {
     expect(rows[2]).toHaveTextContent('Vacante cero');
     expect(rows[2]).toHaveTextContent('0% Afinidad');
     expect(rows[3]).toHaveTextContent('Vacante sin cálculo');
-    expect(rows[3]).toHaveTextContent('Sin calcular');
+    expect(rows[3]).toHaveTextContent('Sin requisitos');
   });
     it('actualiza disponibilidad y afinidades al consultar nuevamente', async () => {
     const removedPosting = {
@@ -293,7 +295,7 @@ describe('JobPostingsList', () => {
     expect(loadSkills).toHaveBeenCalledTimes(2);
   });
 
-    it('combina requisitos de descripción y base sin duplicarlos', async () => {
+    it('calcula solo con los requisitos estructurados guardados', async () => {
     listPostings.mockResolvedValue([
       {
         ...posting,
@@ -310,8 +312,8 @@ describe('JobPostingsList', () => {
 
     expect(calculateAffinity).toHaveBeenCalledWith(
       [
-        { id: 'requirement-1', nombre: 'React' },
-        { id: 'requirement-2', nombre: 'SQL' },
+        { id: 'stored-react', nombre: 'React' },
+        { id: 'stored-sql', nombre: 'SQL' },
       ],
       ['React'],
     );

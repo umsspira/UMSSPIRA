@@ -37,6 +37,16 @@ export function PublishVacancyForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [loading, setLoading] = useState(false);
+  const [requisitosTecnicos, setRequisitosTecnicos] = useState<string[]>([]);
+  const [requisitoDraft, setRequisitoDraft] = useState("");
+
+  const addRequirement = () => {
+    const name = requisitoDraft.trim().replace(/\s+/g, " ");
+    if (!name || requisitosTecnicos.some((item) => item.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())) return;
+    if (requisitosTecnicos.length >= 30) { setFeedback({ type: "error", text: "Puedes agregar hasta 30 requisitos" }); return; }
+    setRequisitosTecnicos((items) => [...items, name]);
+    setRequisitoDraft("");
+  };
 
   const setField = (field: keyof VacancyFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -60,6 +70,8 @@ export function PublishVacancyForm() {
 
   const handleCancel = () => {
     setFormData(initialFormData);
+    setRequisitosTecnicos([]);
+    setRequisitoDraft("");
     setErrors({});
     setFeedback(null);
   };
@@ -88,8 +100,11 @@ export function PublishVacancyForm() {
           modalidad: formData.modality,
           nivelExperiencia: formData.experienceLevel,
           descripcionTecnica: formData.technicalDescription.trim(),
+          requisitosTecnicos,
       });
       setFormData(initialFormData);
+      setRequisitosTecnicos([]);
+      setRequisitoDraft("");
       setErrors({});
       setFeedback({ type: "success", text: "Vacante publicada correctamente ✅" });
     } catch (error) {
@@ -227,6 +242,13 @@ export function PublishVacancyForm() {
                 <p className="mt-2 text-xs text-[#7B858E]">
                   Incluye tecnologías, herramientas y conocimientos necesarios.
                 </p>
+              </div>
+
+              <div>
+                <label htmlFor="technical-requirement" className="mb-2 block text-sm font-semibold text-abyssal">Requisitos técnicos</label>
+                <input id="technical-requirement" value={requisitoDraft} maxLength={200} onChange={(event) => setRequisitoDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addRequirement(); } }} placeholder="Escribe un requisito y presiona Enter" className={`${inputBase} h-11 border-oatmeal px-3 placeholder:text-[#8A929A]`} aria-describedby="requirement-limit" />
+                <p id="requirement-limit" className="mt-1 text-xs text-[#7B858E]">{requisitosTecnicos.length} de 30 requisitos</p>
+                <div className="mt-2 flex flex-wrap gap-2">{requisitosTecnicos.map((name) => <button key={name} type="button" onClick={() => setRequisitosTecnicos((items) => items.filter((item) => item !== name))} className="rounded-full border border-oatmeal px-3 py-1 text-sm">{name} ×</button>)}</div>
               </div>
 
               {/* Mensaje */}

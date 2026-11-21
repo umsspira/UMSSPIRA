@@ -6,4 +6,5 @@ export interface CreateJobPostingInput {
   modalidad: JobModality;
   nivelExperiencia: string;
   descripcionTecnica: string;
+  requisitosTecnicos?: string[];
 }

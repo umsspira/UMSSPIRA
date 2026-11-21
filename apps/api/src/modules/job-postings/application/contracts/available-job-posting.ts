@@ -7,6 +7,8 @@ export interface JobPostingListCandidate extends JobPostingAvailabilityCandidate
   id: string;
   title: string;
   companyName: string | null;
+  areaName?: string | null;
+  locationName?: string | null;
   technicalDescription: string | null;
   modality: string | null;
   publicationDate: Date | null;

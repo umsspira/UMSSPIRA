@@ -55,6 +55,8 @@ import { CreateMentorshipRequestUseCase } from '../../application/use-cases/crea
 import { ListReceivedMentorshipRequestsUseCase } from '../../application/use-cases/list-received-mentorship-requests.use-case';
 import { GetReceivedMentorshipRequestUseCase } from '../../application/use-cases/get-received-mentorship-request.use-case';
 import { RespondToMentorshipRequestUseCase } from '../../application/use-cases/respond-to-mentorship-request.use-case';
+import { ListMyMentorshipRequestsUseCase } from '../../application/use-cases/list-my-mentorship-requests.use-case';
+import { CancelMyMentorshipRequestUseCase } from '../../application/use-cases/cancel-my-mentorship-request.use-case';
 import { GetMentorSlotsUseCase } from '../../application/use-cases/get-mentor-slots.use-case';
 import { GetMentorOnboardingUseCase } from '../../application/use-cases/get-mentor-onboarding.use-case';
 import { SaveMentorOnboardingAreasUseCase } from '../../application/use-cases/save-mentor-onboarding-areas.use-case';
@@ -114,6 +116,18 @@ export const mentorshipProviders: Provider[] = [
     inject: [MENTORSHIP_REQUEST_REPOSITORY],
     useFactory: (repository: MentorshipRequestRepository) =>
       new RespondToMentorshipRequestUseCase(repository),
+  },
+  {
+    provide: ListMyMentorshipRequestsUseCase,
+    inject: [MENTORSHIP_REQUEST_REPOSITORY],
+    useFactory: (repository: MentorshipRequestRepository) =>
+      new ListMyMentorshipRequestsUseCase(repository),
+  },
+  {
+    provide: CancelMyMentorshipRequestUseCase,
+    inject: [MENTORSHIP_REQUEST_REPOSITORY],
+    useFactory: (repository: MentorshipRequestRepository) =>
+      new CancelMyMentorshipRequestUseCase(repository),
   },
   {
     provide: GetMentorEligibilityUseCase,
