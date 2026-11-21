@@ -1,6 +1,6 @@
 # HU-11 · Similitud avanzada del motor de afinidad
 
-> Estado: **provisional**. La regla vive en `apps/api/src/modules/job-postings/domain/policies/requirement-similarity.ts` y la usará el servicio de matching de la HU-10 (`CalculateJobPostingAffinity`) cuando se integre. Esta HU no agrega endpoints ni migraciones.
+> Estado: **integrada con la HU-10.** La regla vive en `apps/api/src/modules/job-postings/domain/policies/requirement-similarity.ts` y la usa `calculateJobPostingAffinity` (motor de `POST /api/v1/affinity/batch`). Esta HU no agrega endpoints ni migraciones.
 
 ## Problema
 
@@ -69,8 +69,13 @@ Siguen funcionando las palabras compuestas («desarrollo de software», «api re
 
 `ALGORITHM_VERSION = 'job-affinity-hu11-v1'`. Cambiar reglas, pesos o el stemmer obliga a subirla. La HU-10 debe guardarla junto al porcentaje (por ejemplo, combinada con la versión del diccionario, como `radar/domain/policies/input-hash.ts`) para recalcular los porcentajes hechos con versiones viejas.
 
-## Pendiente para la integración con la HU-10
+## Integración con la HU-10 (hecha)
 
-- Llamar a `compareRequirements(requisitos, textosDelPerfil, extractor)` desde `CalculateJobPostingAffinity`, con el `KeywordExtractorService` ya cargado por `KeywordDictionaryLoader`.
-- Llevar `weight` y `algorithmVersion` al contrato de `packages/shared-types` que define la HU-10.
-- Retirar la comparación por substring del frontend cuando la HU-10 publique su endpoint.
+- `JobPostingAffinityExtractorPort.loadExtractor()` entrega el `KeywordExtractorService` ya cargado; el adaptador traduce un diccionario caído a `NLP_DICTIONARY_UNAVAILABLE` (503).
+- `CalculateJobPostingAffinity` arma el perfil una vez (`buildProfileIndex`, campo por campo) y lo compara con cada vacante con `compareRequirementsWithProfile`.
+- El contrato de `packages/shared-types` no cambia: `comparison[]` ya admitía `exact`, `similar` y `not-found`, y el porcentaje sigue siendo entero.
+
+## Pendiente para otras HU
+
+- **HU-12 (recálculo):** guardar `ALGORITHM_VERSION` junto a `porcentaje_match` para recalcular lo calculado con versiones viejas.
+- **HU-15 (comparación postulante-vacante):** usar `comparison[]` tal cual; `similar` ya trae `matchedSkill`.
