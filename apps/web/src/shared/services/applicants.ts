@@ -7,9 +7,9 @@ import { apiClient, ApiClientError } from "./api-client";
        GET /api/v1/vacantes/:idVacante/postulantes
    Para usarla, en apps/web/.env.local pon:
        NEXT_PUBLIC_USE_MOCK=false
-   Sin esa variable se siguen usando los datos de prueba de abajo.
+   Sin esa variable se utiliza la API real. Los datos de prueba requieren true explícito.
    ============================================================ */
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 // Solo para probar con datos de prueba:
 //   "ok" | "empty" (CA-07) | "error" (CA-08 / CA-09)
@@ -43,6 +43,7 @@ interface RawApplicant {
   appliedAt?: string | null;
   cvUrl?: string | null;
   matchPercentage?: number | null;
+  matchStatus?: Applicant['matchStatus'];
   skills?: Applicant["skills"];
 }
 
@@ -82,6 +83,7 @@ function normalizeApplicant(raw: RawApplicant): Applicant {
       typeof raw.matchPercentage === "number" && Number.isFinite(raw.matchPercentage)
         ? raw.matchPercentage
         : null,
+    matchStatus: raw.matchStatus,
     skills: Array.isArray(raw.skills) ? raw.skills : null,
   };
 }

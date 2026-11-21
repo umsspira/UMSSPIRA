@@ -45,6 +45,9 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
     };
     const tx = {
       $executeRaw: jest.fn().mockResolvedValue([]),
+      $queryRaw: jest.fn().mockResolvedValue([{ id: '55000000-0000-4000-8000-000000000001' }]),
+      vacante: { findUnique: jest.fn().mockResolvedValue(opts.vacante === undefined
+        ? { estado: 'PUBLICADA', fecha_cierre: null } : opts.vacante) },
       postulacion: {
         findFirst: jest.fn().mockResolvedValue(opts.postulacionEnTransaccion ?? null),
         create: jest.fn().mockResolvedValue({ id: ID_POSTULACION }),
@@ -73,6 +76,8 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
         prisma as never,
         calculateAffinity as never,
         affinityData as never,
+        {} as never,
+        affinityData as never,
       ),
       prisma,
       tx,
@@ -98,6 +103,8 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
           created_at: expect.any(Date),
           porcentaje_match: 80,
           fecha_match: new Date('2026-11-20T12:00:00.000Z'),
+          hash_entrada: expect.stringMatching(/^[0-9a-f]{64}$/),
+          estado_match: 'ready',
         },
       });
       expect(affinityData.readProfiles).toHaveBeenCalledWith([ID_USUARIO]);

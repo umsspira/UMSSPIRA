@@ -51,6 +51,7 @@ export default function CandidatesPage() {
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [vacancy, setVacancy] = useState<Vacancy | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -64,7 +65,8 @@ export default function CandidatesPage() {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
+      if (reloadKey === 0) setLoading(true);
+      else setRefreshing(true);
       setError(false);
       try {
         const vac = await getVacancyById(vacancyId).catch(() => null);
@@ -79,13 +81,34 @@ export default function CandidatesPage() {
           setError(true);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     }
 
     load();
     return () => { cancelled = true; };
   }, [vacancyId, reloadKey]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setReloadKey((key) => key + 1), 500);
+    };
+    const interval = setInterval(schedule, 30_000);
+    window.addEventListener('focus', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    return () => {
+      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+    };
+  }, []);
 
   const {
     searchTerm, setSearchTerm, minMatch, setMinMatch,
@@ -94,7 +117,7 @@ export default function CandidatesPage() {
   } = useApplicantFilters(applicants);
   
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [searchTerm, minMatch, selectedStatus, selectedLevel, applicants]);
+  useEffect(() => { setPage(1); }, [searchTerm, minMatch, selectedStatus, selectedLevel]);
 
   const totalPages = Math.max(1, Math.ceil(filteredApplicants.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -167,6 +190,7 @@ export default function CandidatesPage() {
       </div>
 
       {vacancy && <VacancyHeader vacancy={vacancy} />}
+      {refreshing && <p role="status" className="text-sm text-[#1B2632]">Actualizando afinidades…</p>}
 
       {loading && <div className="p-8 text-center text-[#1B2632] font-medium" role="status">Cargando candidatos...</div>}
 
@@ -244,7 +268,9 @@ export default function CandidatesPage() {
                         </td>
 
                         <td className="px-4 py-3">
-                          {hasMatch(applicant.matchPercentage) ? (
+                          {refreshing ? (
+                            <span className="text-gray-500" role="status">Actualizando…</span>
+                          ) : hasMatch(applicant.matchPercentage) ? (
                             <div className="flex items-center gap-3 min-w-[170px]">
                               <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                                 <div className={`h-full rounded-full ${listBarColor(applicant.matchPercentage)}`} style={{ width: `${clampForDisplay(applicant.matchPercentage)}%` }} />
@@ -252,7 +278,15 @@ export default function CandidatesPage() {
                               <span className="font-bold text-[#1B2632] w-10 text-right">{formatMatch(applicant.matchPercentage)}</span>
                             </div>
                           ) : (
-                            <span className="text-gray-500">{formatMatch(null)}</span>
+                            <span className="text-gray-500" role="status">{applicant.matchStatus === 'profile-incomplete'
+                              ? 'Perfil incompleto'
+                              : applicant.matchStatus === 'no-requirements'
+                                ? 'Sin requisitos'
+                                : applicant.matchStatus === 'error'
+                                  ? 'Error de afinidad; se reintentará'
+                                  : applicant.matchStatus === 'pending'
+                                    ? 'Actualización pendiente'
+                                    : formatMatch(null)}</span>
                           )}
                         </td>
 

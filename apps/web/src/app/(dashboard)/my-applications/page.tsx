@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays } from 'lucide-react';
 import {
@@ -17,32 +17,63 @@ function appliedDate(value: string | null): string {
   return value ? DATE_FORMAT.format(new Date(value)) : 'Fecha no disponible';
 }
 
-function affinityLabel(value: number | null): string {
-  return value === null
-    ? 'Sin calcular'
-    : `${value.toLocaleString('es-BO', { maximumFractionDigits: 2 })} %`;
+function affinityLabel(value: number | null, status?: MyApplication['matchStatus']): string {
+  if (status === 'pending') return 'Actualización pendiente';
+  if (status === 'error') return 'No se pudo actualizar';
+  if (status === 'profile-incomplete') return 'Perfil incompleto';
+  if (status === 'no-requirements') return 'Vacante sin requisitos';
+  return value === null ? 'Sin calcular' : `${value.toLocaleString('es-BO', { maximumFractionDigits: 2 })} %`;
 }
 
 export default function MyApplicationsPage() {
   const [applications, setApplications] = useState<MyApplication[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const requestId = useRef(0);
 
-  const loadApplications = useCallback(async () => {
-    setLoading(true);
+  const loadApplications = useCallback(async (background = false) => {
+    const currentRequest = ++requestId.current;
+    if (background) setRefreshing(true);
+    else setLoading(true);
     setError(false);
     try {
-      setApplications(await fetchMyApplications());
+      const next = await fetchMyApplications();
+      if (currentRequest === requestId.current) setApplications(next);
     } catch {
-      setApplications(null);
-      setError(true);
+      if (currentRequest === requestId.current) {
+        if (!background) setApplications(null);
+        setError(true);
+      }
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void loadApplications();
+  }, [loadApplications]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void loadApplications(true), 500);
+    };
+    const interval = setInterval(schedule, 30_000);
+    window.addEventListener('focus', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    return () => {
+      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+      requestId.current += 1;
+    };
   }, [loadApplications]);
 
   return (
@@ -53,6 +84,7 @@ export default function MyApplicationsPage() {
           Revisa tus ofertas y el porcentaje de afinidad disponible para cada una.
         </p>
       </header>
+      {refreshing && <p role="status" className="text-sm text-abyssal-blue/70">Actualizando afinidades…</p>}
 
       {loading ? (
         <p role="status" className="rounded-2xl border border-oatmeal bg-white p-8 text-center">
@@ -111,7 +143,7 @@ export default function MyApplicationsPage() {
                     </p>
                     <p className="text-sm text-slate-700">
                       Afinidad:{' '}
-                      <span className="font-semibold">{affinityLabel(application.matchPercentage)}</span>
+                      <span className="font-semibold">{refreshing ? 'Actualizando…' : affinityLabel(application.matchPercentage, application.matchStatus)}</span>
                     </p>
                   </div>
                   {application.vacancyId && (

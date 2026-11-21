@@ -32,6 +32,7 @@ export interface Applicant {
    * El frontend NUNCA lo calcula. Si no viene, es null (CA-10).
    */
   matchPercentage: number | null;
+  matchStatus?: import('@umsspira/shared-types').JobPostingStoredMatchStatus;
   /** Desglose por habilidad devuelto por el motor. null o vacío = no disponible. */
   skills: SkillMatch[] | null;
 }

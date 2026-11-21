@@ -39,8 +39,26 @@ export function JobPostingDetail({
   const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setRetryCount((count) => count + 1), 500);
+    };
+    const interval = setInterval(schedule, 30_000);
+    window.addEventListener('focus', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    return () => {
+      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
-    setState({ status: 'loading' });
+    setState((previous) => previous.status === 'loaded' ? previous : { status: 'loading' });
 
     getAvailableJobPosting(id).then(
       (posting) => {
