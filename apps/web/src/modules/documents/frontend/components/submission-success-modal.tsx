@@ -5,7 +5,7 @@ import { Check, Home, X } from 'lucide-react';
 import { Button } from '@/shared/components/button';
 import { SubmissionConfirmation, type SubmittedDocumentType } from './submission-confirmation';
 import type { DocumentType } from '../services';
-import { formatFileSize } from '../validation/document-file';
+import { formatFileSize } from '../lib/format-file-size';
 import type { SubmittedRegistration } from '../services';
 
 const DOCUMENT_TYPE_MAP: Record<DocumentType, SubmittedDocumentType> = {

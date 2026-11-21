@@ -28,6 +28,21 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
       vacante?: unknown;
     } = {},
   ) {
+    const calculatedAt = '2026-11-20T12:00:00.000Z';
+    const calculateAffinity = {
+      execute: jest.fn().mockResolvedValue([
+        {
+          vacancyId: ID_VACANTE,
+          result: { status: 'ready', percentage: 80, calculatedAt, comparison: [] },
+        },
+      ]),
+    };
+    const affinityData = {
+      readProfiles: jest.fn().mockResolvedValue([{ userId: ID_USUARIO }]),
+      readRequirements: jest
+        .fn()
+        .mockResolvedValue([{ vacancyId: ID_VACANTE, requirements: ['Java'] }]),
+    };
     const tx = {
       $executeRaw: jest.fn().mockResolvedValue([]),
       postulacion: {
@@ -53,12 +68,22 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
       },
       $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(tx)),
     };
-    return { servicio: new VacantesService(prisma as never), prisma, tx };
+    return {
+      servicio: new VacantesService(
+        prisma as never,
+        calculateAffinity as never,
+        affinityData as never,
+      ),
+      prisma,
+      tx,
+      calculateAffinity,
+      affinityData,
+    };
   }
 
   describe('postular', () => {
     it('crea la postulación enlazando al titulado con la vacante disponible', async () => {
-      const { servicio, prisma, tx } = crearServicio();
+      const { servicio, prisma, tx, calculateAffinity, affinityData } = crearServicio();
 
       await expect(servicio.postular(ID_VACANTE, ID_USUARIO)).resolves.toEqual({
         postulada: true,
@@ -71,8 +96,13 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
           id_vacante: ID_VACANTE,
           estado: 'postulado',
           created_at: expect.any(Date),
+          porcentaje_match: 80,
+          fecha_match: new Date('2026-11-20T12:00:00.000Z'),
         },
       });
+      expect(affinityData.readProfiles).toHaveBeenCalledWith([ID_USUARIO]);
+      expect(affinityData.readRequirements).toHaveBeenCalledWith([ID_VACANTE]);
+      expect(calculateAffinity.execute).toHaveBeenCalled();
       expect(prisma.vacante.findUnique).toHaveBeenCalledWith({
         where: { id: ID_VACANTE },
         select: { id: true, estado: true, fecha_cierre: true },
@@ -151,7 +181,7 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
     });
 
     it('es idempotente cuando la postulación ya existe', async () => {
-      const { servicio, prisma, tx } = crearServicio({
+      const { servicio, prisma, tx, calculateAffinity } = crearServicio({
         postulacionPrevia: { id: ID_POSTULACION },
       });
 
@@ -161,6 +191,20 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
       });
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(tx.postulacion.create).not.toHaveBeenCalled();
+      expect(calculateAffinity.execute).not.toHaveBeenCalled();
+    });
+
+    it('continúa la postulación sin afinidad cuando falla el cálculo técnico', async () => {
+      const { servicio, tx, calculateAffinity } = crearServicio();
+      calculateAffinity.execute.mockRejectedValueOnce(new Error('NLP no disponible'));
+
+      await expect(servicio.postular(ID_VACANTE, ID_USUARIO)).resolves.toEqual({
+        postulada: true,
+        yaExistia: false,
+      });
+      expect(tx.postulacion.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ porcentaje_match: null, fecha_match: null }),
+      });
     });
 
     it('resuelve la carrera de postulaciones simultáneas dentro de la transacción', async () => {

@@ -56,18 +56,26 @@ export function measureLighting(
   };
 }
 
+export interface SharpnessMetrics {
+  sharpness: number;
+  sharpnessMedian: number;
+  activeTileCount: number;
+}
+
 /**
- * Nitidez como varianza del laplaciano, calculada por bloques. Se promedian
- * solo los bloques con mas detalle para que los margenes blancos de un
- * documento no hagan parecer borrosa a una foto nitida.
+ * Calcula la nitidez por bloques mediante la varianza del laplaciano.
+ * Determina tanto el promedio del porcentaje superior (bloques con mayor detalle)
+ * como la mediana de los bloques con contenido real para detectar desenfoques
+ * localizados en el cuerpo del texto.
  */
-export function measureSharpness(
+export function computeSharpnessMetrics(
   luma: Float32Array,
   width: number,
   height: number,
   tileSize: number,
   topFraction: number,
-): number {
+  activeTileMin: number,
+): SharpnessMetrics {
   const tileVariances: number[] = [];
 
   for (let tileY = 0; tileY < height; tileY += tileSize) {
@@ -101,13 +109,45 @@ export function measureSharpness(
     }
   }
 
-  if (tileVariances.length === 0) return 0;
+  if (tileVariances.length === 0) {
+    return { sharpness: 0, sharpnessMedian: 0, activeTileCount: 0 };
+  }
 
   tileVariances.sort((a, b) => b - a);
   const takeCount = Math.max(1, Math.ceil(tileVariances.length * topFraction));
   let total = 0;
   for (let i = 0; i < takeCount; i += 1) total += tileVariances[i];
-  return total / takeCount;
+  const sharpness = total / takeCount;
+
+  const activeVariances = tileVariances
+    .filter((v) => v >= activeTileMin)
+    .sort((a, b) => a - b);
+  const activeTileCount = activeVariances.length;
+  let sharpnessMedian = 0;
+  if (activeTileCount > 0) {
+    const mid = Math.floor(activeTileCount / 2);
+    sharpnessMedian =
+      activeTileCount % 2 === 0
+        ? (activeVariances[mid - 1] + activeVariances[mid]) / 2
+        : activeVariances[mid];
+  }
+
+  return { sharpness, sharpnessMedian, activeTileCount };
+}
+
+/**
+ * Nitidez como varianza del laplaciano, calculada por bloques. Se promedian
+ * solo los bloques con mas detalle para que los margenes blancos de un
+ * documento no hagan parecer borrosa a una foto nitida.
+ */
+export function measureSharpness(
+  luma: Float32Array,
+  width: number,
+  height: number,
+  tileSize: number,
+  topFraction: number,
+): number {
+  return computeSharpnessMetrics(luma, width, height, tileSize, topFraction, 20).sharpness;
 }
 
 /** Calcula las metricas de calidad de una imagen ya reducida. */
@@ -125,12 +165,13 @@ export function computeImageQualityMetrics(
     config.lumaMarginFraction,
     config.glareLumaThreshold,
   );
-  const sharpness = measureSharpness(
+  const { sharpness, sharpnessMedian, activeTileCount } = computeSharpnessMetrics(
     luma,
     pixels.width,
     pixels.height,
     config.sharpnessTileSize,
     config.sharpnessTopFraction,
+    config.sharpnessActiveTileMin,
   );
   return {
     originalWidth,
@@ -139,6 +180,8 @@ export function computeImageQualityMetrics(
     contrast,
     glareRatio,
     sharpness,
+    sharpnessMedian,
+    activeTileCount,
   };
 }
 /** Convierte las metricas en avisos para el Titulado. Cero avisos si todo esta bien. */
@@ -150,7 +193,12 @@ export function evaluateImageQuality(
 
   const shortSide = Math.min(metrics.originalWidth, metrics.originalHeight);
   const longSide = Math.max(metrics.originalWidth, metrics.originalHeight);
-  if (shortSide < config.minShortSide || longSide < config.minLongSide) {
+  const totalPixels = metrics.originalWidth * metrics.originalHeight;
+  if (
+    totalPixels < config.minPixels ||
+    shortSide < config.minShortSide ||
+    longSide < config.minLongSide
+  ) {
     warnings.push({
       code: "LOW_RESOLUTION",
       message: "La imagen es pequeña y podría no leerse bien.",
@@ -159,7 +207,12 @@ export function evaluateImageQuality(
     });
   }
 
-  if (metrics.sharpness < config.blurThreshold) {
+  const isTopFractionBlurry = metrics.sharpness < config.blurThreshold;
+  const isMedianBlurry =
+    metrics.activeTileCount >= config.minActiveTiles &&
+    metrics.sharpnessMedian < config.blurMedianThreshold;
+
+  if (isTopFractionBlurry || isMedianBlurry) {
     warnings.push({
       code: "BLURRY",
       message: "La imagen parece borrosa.",

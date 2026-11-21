@@ -1,0 +1,33 @@
+meta {
+  name: HU17 - Expediente inexistente (404)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/applications/00000000-0000-4000-8000-000000000017/history
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("HU17: UUID valido inexistente responde 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+  test("HU17: no retorna OCR ni eventos", function () {
+    const data = res.getBody()?.data;
+    expect(data?.events).to.be.undefined;
+    expect(data?.ocr).to.be.undefined;
+  });
+}
+
+docs {
+  Token de administrador con solicitudes:read.
+  Usa UUID de formato valido y presumiblemente inexistente.
+  Si ese UUID existe en tu base, sustituyelo por otro UUID inexistente.
+  El 404 debe tener el mismo tratamiento de acceso que otra carrera.
+}

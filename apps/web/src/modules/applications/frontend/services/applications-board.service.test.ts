@@ -2,7 +2,11 @@ import {
   fetchApplicationsBoard,
   fetchApplicationsMetrics,
   fetchApplicationDetail,
+  fetchApplicationHistory,
   fetchDocumentUrl,
+  fetchFindingChecks,
+  saveFindingCheck,
+  type HumanFindingCheck,
 } from './applications-board.service';
 import { clearAccessToken, setAccessToken } from '@/shared/services/auth-session';
 
@@ -102,5 +106,170 @@ describe('applications-board.service', () => {
         headers: expect.objectContaining({ Authorization: 'Bearer admin-token' }),
       }),
     );
+  });
+
+  it('conserva el objeto de historial del contrato API, incluidos los eventos anidados', async () => {
+    const history = {
+      applicationId: 's-1',
+      currentVersion: 2,
+      ocr: { latestAnalysis: null, latestResult: null },
+      eventCount: 1,
+      events: [
+        {
+          id: 'event-1',
+          version: 2,
+          action: 'ENVIO',
+          title: 'Solicitud corregida y reenviada',
+          description: 'Corrección reenviada para revisión.',
+          actor: { type: 'TITULADO', id: 'user-1' },
+          occurredAt: '2026-11-15T12:00:00.000Z',
+        },
+      ],
+    };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: history }),
+    });
+
+    await expect(fetchApplicationHistory('s-1')).resolves.toEqual({
+      ok: true,
+      data: history,
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/applications/s-1/history',
+      expect.anything(),
+    );
+  });
+
+  describe('comprobación humana de hallazgos (CA-14.3 y CA-14.7)', () => {
+    it('obtiene las comprobaciones humanas registradas desde la API', async () => {
+      const checks: HumanFindingCheck[] = [
+        {
+          field: 'career',
+          action: 'CONFIRMADO',
+          author: 'admin@umss.edu',
+          checkedAt: '2026-11-17T20:00:00.000Z',
+          version: 1,
+        },
+      ];
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: checks }),
+      });
+
+      const result = await fetchFindingChecks('app-1');
+      expect(result).toEqual({ ok: true, data: checks });
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/v1/applications/app-1/findings-checks',
+        expect.anything(),
+      );
+    });
+
+    it('guarda una comprobación y sincroniza con el almacenamiento local', async () => {
+      const check: HumanFindingCheck = {
+        field: 'career',
+        action: 'CORREGIDO',
+        verifiedValue: 'Ingeniería de Sistemas',
+        author: 'revisor@umss.edu',
+        checkedAt: '2026-11-17T21:00:00.000Z',
+        version: 1,
+      };
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: check }),
+      });
+
+      const result = await saveFindingCheck(
+        'app-1',
+        {
+          field: 'career',
+          action: 'CORREGIDO',
+          verifiedValue: 'Ingeniería de Sistemas',
+          author: 'revisor@umss.edu',
+        },
+        1,
+      );
+
+      expect(result).toEqual({ ok: true, data: check });
+    });
+
+    it('exige actualizar si la versión de la solicitud cambió (CA-14.7)', async () => {
+      const result = await saveFindingCheck(
+        'app-1',
+        {
+          field: 'career',
+          action: 'CONFIRMADO',
+          expectedVersion: 1,
+        },
+        2, // versión actual avanzada a 2
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        status: 409,
+        needsLogin: false,
+        message: 'La solicitud cambió; actualiza el expediente.',
+      });
+    });
+
+    it('maneja el código 409 del servidor y devuelve vista desactualizada', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({ error: 'VERSION_CONFLICT' }),
+      });
+
+      const result = await saveFindingCheck(
+        'app-1',
+        {
+          field: 'graduationYear',
+          action: 'NO_VERIFICABLE',
+          reason: 'Documento borroso en el año',
+          expectedVersion: 1,
+        },
+        1,
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        status: 409,
+        needsLogin: false,
+        message: 'La solicitud cambió; actualiza el expediente.',
+      });
+    });
+
+    it('usa el almacenamiento local si el endpoint devuelve 404', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ message: 'Not found' }),
+      });
+
+      const result = await saveFindingCheck(
+        'app-local',
+        {
+          field: 'ci',
+          action: 'CONFIRMADO',
+          author: 'localAdmin',
+          expectedVersion: 1,
+        },
+        1,
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.field).toBe('ci');
+        expect(result.data.action).toBe('CONFIRMADO');
+        expect(result.data.author).toBe('localAdmin');
+        expect(result.data.version).toBe(1);
+      }
+
+      // Al consultar, debe devolver el registro guardado localmente
+      const fetched = await fetchFindingChecks('app-local');
+      expect(fetched.ok).toBe(true);
+      if (fetched.ok) {
+        expect(fetched.data.some((c) => c.field === 'ci')).toBe(true);
+      }
+    });
   });
 });

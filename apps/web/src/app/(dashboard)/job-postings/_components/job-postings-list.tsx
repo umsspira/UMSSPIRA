@@ -7,7 +7,10 @@ import type { AvailableJobPosting, TechnicalRequirement } from '@umsspira/shared
 import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
 import { listAvailableJobPostings } from '@/shared/services/available-job-postings';
-import { calculateVacancyAffinityWithSkills, loadTituladoSkills, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
+import {
+  getVacanciesAffinityBatch,
+  type JobPostingAffinityBatchItem,
+} from '@/shared/services/job-posting-affinity';
 import { jobPostingDetailRoute } from '@/shared/routes/job-postings';
 import { descriptionWithoutRequirements } from '@/shared/utils/job-posting-requirements';
 
@@ -18,8 +21,8 @@ type ListState =
 
 type AffinityState =
   | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'loaded'; results: Record<string, VacancyAffinityResult>; skillsAvailable: boolean };
+  | { status: 'error'; message: string; retryable?: boolean }
+  | { status: 'loaded'; results: Record<string, JobPostingAffinityBatchItem>; hasProfileIncomplete: boolean };
 
 function normalize(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
@@ -64,9 +67,18 @@ function requirementsFor(posting: AvailableJobPosting): TechnicalRequirement[] {
   return posting.requisitos;
 }
 
-function affinityBadge(result: VacancyAffinityResult | undefined) {
-  if (!result) return { text: 'Calculando…', className: 'border-slate-200 bg-white text-slate-500' };
-  if (result.status === 'insufficient-requirements') return { text: 'Sin requisitos', className: 'border-slate-200 bg-white text-slate-500' };
+function affinityBadge(item: JobPostingAffinityBatchItem | undefined) {
+  if (!item) return { text: 'Calculando…', className: 'border-slate-200 bg-white text-slate-500' };
+  if (item.error) {
+    return { text: 'Error de cálculo', className: 'border-red-200 bg-red-50 text-red-700' };
+  }
+  const result = item.result;
+  if (result.status === 'no-requirements') {
+    return { text: 'Sin requisitos', className: 'border-slate-200 bg-white text-slate-500' };
+  }
+  if (result.status === 'profile-incomplete') {
+    return { text: 'Sin calcular', className: 'border-slate-200 bg-white text-slate-500' };
+  }
   if (result.status === 'ready') {
     const color = result.percentage >= 80
       ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
@@ -106,22 +118,30 @@ export function JobPostingsList() {
 
   useEffect(() => {
     if (state.status !== 'loaded') return;
+    if (state.postings.length === 0) {
+      setAffinityState({ status: 'loaded', results: {}, hasProfileIncomplete: false });
+      return;
+    }
     let active = true;
     setAffinityState({ status: 'loading' });
-    loadTituladoSkills().then(
-      (profileSkills) => {
+    const ids = state.postings.map((posting) => posting.id);
+    getVacanciesAffinityBatch(ids).then(
+      (results) => {
         if (!active) return;
-        const skills = profileSkills.status === 'ready' ? profileSkills.skills : [];
-        const results = Object.fromEntries(state.postings.map((posting) => [
-          posting.id,
-          calculateVacancyAffinityWithSkills(requirementsFor(posting), skills),
-        ]));
-        setAffinityState({ status: 'loaded', results, skillsAvailable: skills.length > 0 });
+        const hasProfileIncomplete = Object.values(results).some(
+          (item) => item.result?.status === 'profile-incomplete',
+        );
+        setAffinityState({ status: 'loaded', results, hasProfileIncomplete });
       },
-      (error: unknown) => active && setAffinityState({
-        status: 'error',
-        message: error instanceof Error ? error.message : 'No se pudo cargar el perfil del titulado.',
-      }),
+      (error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'No se pudo cargar la afinidad.';
+        setAffinityState({
+          status: 'error',
+          message,
+          retryable: (error as any)?.status === 503 || (error as any)?.retryable !== false,
+        });
+      },
     );
     return () => { active = false; };
   }, [state, affinityRetryCount]);
@@ -153,8 +173,8 @@ export function JobPostingsList() {
       if (sortByAffinity && affinityState.status === 'loaded') {
         const leftResult = affinityState.results[left.id];
         const rightResult = affinityState.results[right.id];
-        const leftScore = leftResult?.status === 'ready' ? leftResult.percentage : -1;
-        const rightScore = rightResult?.status === 'ready' ? rightResult.percentage : -1;
+        const leftScore = leftResult?.result?.status === 'ready' ? leftResult.result.percentage : -1;
+        const rightScore = rightResult?.result?.status === 'ready' ? rightResult.result.percentage : -1;
         if (leftScore !== rightScore) return rightScore - leftScore;
       }
 
@@ -272,16 +292,16 @@ export function JobPostingsList() {
                   {filtered.length} {filtered.length === 1 ? 'vacante encontrada' : 'vacantes encontradas'}
                 </span>
                 <span className="text-slate-400" aria-hidden="true">•</span>
-                <span className={sortByAffinity && affinityState.status === 'loaded' && affinityState.skillsAvailable ? 'text-emerald-700' : 'text-slate-500'}>
+                <span className={sortByAffinity && affinityState.status === 'loaded' && !affinityState.hasProfileIncomplete ? 'text-emerald-700' : 'text-slate-500'}>
                   {!sortByAffinity
                     ? 'Ordenadas por fecha de publicación'
                     : affinityState.status === 'loading'
                       ? 'Calculando afinidad con tu perfil…'
-                      : affinityState.status === 'loaded' && affinityState.skillsAvailable
+                      : affinityState.status === 'loaded' && !affinityState.hasProfileIncomplete
                         ? 'Ordenadas automáticamente según afinidad con tu perfil'
                         : affinityState.status === 'loaded'
-                          ? 'Selecciona temas técnicos en Mentorías para calcular la afinidad'
-                            : `No se pudo cargar el perfil del titulado: ${affinityState.message}`}
+                          ? 'Completa tu perfil profesional para calcular la afinidad'
+                          : `No se pudo cargar el perfil del titulado: ${affinityState.message}`}
                 </span>
                 {affinityState.status === 'error' && (
                   <button
@@ -292,9 +312,9 @@ export function JobPostingsList() {
                     Reintentar afinidad
                   </button>
                 )}
-                {affinityState.status === 'loaded' && !affinityState.skillsAvailable && (
-                  <Link href="/mentorship/onboarding" className="font-semibold text-orange-800 underline underline-offset-2">
-                    Configura temas técnicos en Mentorías
+                {affinityState.status === 'loaded' && affinityState.hasProfileIncomplete && (
+                  <Link href="/profile/completar" className="font-semibold text-orange-800 underline underline-offset-2">
+                    Completar perfil profesional
                   </Link>
                 )}
                 {(query || modality || area || city) && (

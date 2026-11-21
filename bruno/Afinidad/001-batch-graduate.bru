@@ -1,0 +1,37 @@
+meta {
+  name: Batch modo titulado
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/affinity/batch
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "mode": "vacancies",
+    "vacancyIds": ["{{vacancyId}}", "{{vacancyId2}}"]
+  }
+}
+
+tests {
+  test("Respuesta HTTP 200 para lote válido", () {
+    expect(res.status).to.equal(200);
+    expect(res.body.data).to.be.an("array");
+  });
+}
+
+docs {
+  Requiere token Titulado con permiso perfil:self:read. El perfil se toma del actor autenticado; el body no permite enviar userId.
+}

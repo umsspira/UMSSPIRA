@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function RegisterReviewPage() {
   return (
-    <div className="min-h-screen bg-palladian px-4 py-10 sm:px-6">
+    <div className="flex-1 bg-palladian px-4 py-10 sm:px-6">
       <main className="mx-auto max-w-4xl">
         <RegistrationReview />
         <div className="mt-6 flex justify-end">
