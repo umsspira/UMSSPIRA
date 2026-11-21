@@ -61,4 +61,35 @@ describe('PendingChangesDialog', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
+
+  it('mantiene el foco en el diálogo y lo devuelve al cerrar', () => {
+    const { rerender } = render(
+      <>
+        <button type="button">Abrir</button>
+        <PendingChangesDialog {...defaultProps} open={false} />
+      </>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Abrir' });
+    trigger.focus();
+    rerender(
+      <>
+        <button type="button">Abrir</button>
+        <PendingChangesDialog {...defaultProps} />
+      </>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Recalcular' })).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(screen.getByRole('button', { name: 'Ahora no' })).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('button', { name: 'Recalcular' })).toHaveFocus();
+
+    rerender(
+      <>
+        <button type="button">Abrir</button>
+        <PendingChangesDialog {...defaultProps} open={false} />
+      </>,
+    );
+    expect(trigger).toHaveFocus();
+  });
 });

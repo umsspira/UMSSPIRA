@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Briefcase, CalendarDays, MapPin } from 'lucide-react';
 import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
@@ -32,6 +32,7 @@ export function JobPostingDetail({
   backHref?: string;
   presentation?: 'legacy' | 'hu002';
 }) {
+  const comparisonId = useId();
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [retryCount, setRetryCount] = useState(0);
   const [affinityState, setAffinityState] = useState<AffinityState>({ status: 'loading' });
@@ -304,11 +305,10 @@ export function JobPostingDetail({
                     </div>
                     <p className="mt-4 text-sm leading-6 text-slate-600">Estimación orientativa basada en los requisitos identificados. No garantiza la contratación.</p>
                     <p className="mt-3 text-sm text-slate-500">Actualizado: {new Date(affinityState.calculatedAt).toLocaleString('es-BO')}</p>
-                    <button type="button" aria-expanded={showComparison} onClick={() => setShowComparison((visible) => !visible)} className="mt-5 min-h-12 w-full rounded-lg border border-[#D8CEBF] px-4 font-semibold text-[#172238] hover:bg-slate-50">
+                    <button type="button" aria-expanded={showComparison} aria-controls={comparisonId} onClick={() => setShowComparison((visible) => !visible)} className="mt-5 min-h-12 w-full rounded-lg border border-[#D8CEBF] px-4 font-semibold text-[#172238] hover:bg-slate-50">
                       {showComparison ? 'Ocultar comparación' : 'Ver comparación'}
                     </button>
-                    {showComparison && (
-                      <ul className="mt-4 space-y-3 border-t border-[#E8E1D6] pt-4">
+                      <ul id={comparisonId} hidden={!showComparison} className="mt-4 space-y-3 border-t border-[#E8E1D6] pt-4">
                         {affinityState.comparison.map((item, index) => (
                           <li key={`${item.requirement}-${index}`} className="rounded-lg bg-[#FAF8F3] p-3 text-sm">
                             <p className="font-semibold text-slate-800">{item.requirement}</p>
@@ -317,7 +317,6 @@ export function JobPostingDetail({
                           </li>
                         ))}
                       </ul>
-                    )}
                   </>
                 )}
                 <p id="job-affinity-note" className="mt-4 text-sm leading-6 text-slate-500">
