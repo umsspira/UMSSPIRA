@@ -1,9 +1,11 @@
 ALTER TABLE "postulacion"
 ADD COLUMN "fecha_match" TIMESTAMPTZ(6);
 
--- Los porcentajes anteriores no tienen fecha de cálculo y no pueden presentarse como vigentes.
+-- Asocia fecha_match con created_at para preservar los porcentajes calculados previamente sin violar el CHECK.
 UPDATE "postulacion"
-SET "porcentaje_match" = NULL;
+SET "fecha_match" = COALESCE("created_at", NOW())
+WHERE "porcentaje_match" IS NOT NULL
+  AND "fecha_match" IS NULL;
 
 ALTER TABLE "postulacion"
 ALTER COLUMN "porcentaje_match" TYPE INTEGER
