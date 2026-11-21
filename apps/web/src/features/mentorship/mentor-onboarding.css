@@ -95,13 +95,13 @@
 .onboarding-progress-steps {
   display: grid;
   gap: .5rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.onboarding-progress-steps button {
+.onboarding-progress-steps a {
   display: flex;
   width: 100%;
   align-items: center;
@@ -111,18 +111,21 @@
   background: transparent;
   padding: .5rem;
   text-align: left;
-  cursor: default;
-  color: var(--ink-70);
-}
-
-.onboarding-progress-steps .is-complete button {
   cursor: pointer;
+  color: var(--ink-70);
+  text-decoration: none;
 }
 
-.onboarding-progress-steps .is-current button,
-.onboarding-progress-steps .is-complete button:hover {
+.onboarding-progress-steps .is-current a,
+.onboarding-progress-steps .is-complete a:hover,
+.onboarding-progress-steps a:hover {
   border-color: var(--oatmeal-70);
   background: var(--palladian-50);
+}
+
+.onboarding-progress-steps a:focus-visible {
+  outline: 2px solid var(--flame);
+  outline-offset: 2px;
 }
 
 .onboarding-progress-number {

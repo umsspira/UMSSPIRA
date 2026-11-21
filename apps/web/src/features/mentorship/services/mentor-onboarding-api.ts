@@ -250,6 +250,16 @@ export async function getMentorOnboarding(signal?: AbortSignal): Promise<MentorO
   return parseState(await request(BASE, { method: 'GET', signal }));
 }
 
+export async function getMyTechnicalInterests(): Promise<string[]> {
+  const value = await request('/api/v1/mentorship/interests/mine', { method: 'GET' });
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) =>
+    isRecord(item) && typeof item.nombre === 'string' && item.nombre.trim()
+      ? [item.nombre.trim()]
+      : [],
+  );
+}
+
 export async function saveMentorOnboardingAreas(areaIds: string[]): Promise<MentorOnboardingState> {
   return parseState(
     await request(`${BASE}/areas`, {

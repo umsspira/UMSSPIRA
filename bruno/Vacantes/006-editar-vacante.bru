@@ -1,0 +1,38 @@
+meta {
+  name: Editar mi vacante
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/vacantes/{{vacanteId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "titulo": "Desarrollador web junior",
+    "modalidad": "HIBRIDO",
+    "nivel_experiencia": "Junior",
+    "descripcion_tecnica": "Requisitos técnicos de la vacante con al menos cincuenta caracteres."
+  }
+}
+
+docs {
+  Usa el UUID de una vacante propia en vacanteId y un token de Empresa en accessToken.
+  Edición parcial: envía solo los campos que quieras cambiar (al menos uno).
+  modalidad solo acepta PRESENCIAL, HIBRIDO o REMOTO. descripcion_tecnica mínimo 50 caracteres.
+  400 VALIDATION_ERROR con error.fields si el body no cumple el schema.
+  403 si el actor no tiene el permiso empresas:self:write.
+  404 si la vacante no existe o no es de la empresa del actor.
+}

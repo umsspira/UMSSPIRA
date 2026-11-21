@@ -13,8 +13,10 @@ import {
 } from './application/ports/radar-repository.port';
 import { CalculateRadarUseCase } from './application/use-cases/calculate-radar.use-case';
 import { GetRadarUseCase } from './application/use-cases/get-radar.use-case';
+import { GetUnmappedKeywordsSummaryUseCase } from './application/use-cases/get-unmapped-keywords-summary.use-case';
 import { RecalculateRadarUseCase } from './application/use-cases/recalculate-radar.use-case';
 import { GetRadarController } from './http/controllers/get-radar.controller';
+import { GetUnmappedKeywordsSummaryController } from './http/controllers/get-unmapped-keywords-summary.controller';
 import { RecalculateRadarController } from './http/controllers/recalculate-radar.controller';
 import { NlpKeywordExtractorAdapter } from './infrastructure/adapters/nlp-keyword-extractor.adapter';
 import { PrismaProfileTextReaderAdapter } from './infrastructure/adapters/prisma-profile-text-reader.adapter';
@@ -24,7 +26,12 @@ import { PrismaAreaWeightReaderAdapter } from './infrastructure/adapters/prisma-
 
 @Module({
   imports: [PrismaModule, NlpModule],
-  controllers: [GetRadarController, RecalculateRadarController, GetAreaCertificationsController],
+  controllers: [
+    GetRadarController,
+    RecalculateRadarController,
+    GetAreaCertificationsController,
+    GetUnmappedKeywordsSummaryController,
+  ],
   providers: [
     PrismaCertificationReaderAdapter,
     { provide: RADAR_CERTIFICATION_READER_PORT, useExisting: PrismaCertificationReaderAdapter },
@@ -44,6 +51,7 @@ import { PrismaAreaWeightReaderAdapter } from './infrastructure/adapters/prisma-
     },
     RecalculateRadarUseCase,
     GetRadarUseCase,
+    GetUnmappedKeywordsSummaryUseCase,
   ],
   exports: [RADAR_REPOSITORY_PORT, CalculateRadarUseCase],
 })

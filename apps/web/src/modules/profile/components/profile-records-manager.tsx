@@ -115,6 +115,25 @@ export function ProfileRecordsManager({
     }
   }
 
+  // Sin sesión no se muestran la foto, «Agregar registros» ni las pestañas: no se pueden usar (Observación 2).
+  // El middleware ya lleva al login; esto cubre una sesión que vence con la pantalla abierta
+  if (store?.requiresLogin) {
+    return (
+      <div className="flex flex-col gap-6">
+        <h1 className="text-[28px] font-semibold leading-tight text-blue-fantastic">Mis registros del perfil</h1>
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-3 rounded-2xl border border-abyssal-blue/10 bg-white px-6 py-6 text-sm"
+        >
+          <p>Inicia sesión para ver y editar tus registros.</p>
+          <Link href="/login" className="rounded-lg bg-burning-flame px-4 py-2 font-bold text-abyssal-blue">
+            Iniciar sesión
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -126,15 +145,15 @@ export function ProfileRecordsManager({
         <ProfileQuickLinks current="/profile/records" />
       </header>
 
-      {/* HU-16: foto actual o avatar con iniciales */}
+      {/* Avatar con iniciales; las fotos de perfil ya no se pueden cargar. */}
       <ProfilePhotoSection name={store?.header?.name ?? ''} />
 
       <Link
-        href="/profile/records/add"
+        href="/profile/registros/agregar"
         className="inline-flex w-fit items-center gap-2 rounded-lg bg-burning-flame px-5 py-3 text-sm font-bold text-abyssal-blue transition hover:brightness-95"
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
-        Agregar Registros
+        Agregar registros
       </Link>
 
       <div
