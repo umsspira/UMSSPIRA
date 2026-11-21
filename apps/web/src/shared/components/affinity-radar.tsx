@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
   AFFINITY_AREA_LABELS,
   AFFINITY_AREA_SHORT_LABELS,
@@ -53,6 +53,7 @@ export default function AffinityRadar({
   selectedAreaId,
   onSelectArea,     
 }: AffinityRadarProps) {
+  const descriptionId = useId();
   const [internalSelectedArea, setInternalSelectedArea] = useState<string | null>(null);
   const isControlled = selectedAreaId !== undefined;
   const selectedArea = selectedAreaId !== undefined ? selectedAreaId : internalSelectedArea;
@@ -75,6 +76,7 @@ export default function AffinityRadar({
       id,
       label: AFFINITY_AREA_LABELS[id],
       shortLabel: AFFINITY_AREA_SHORT_LABELS[id],
+      hasValue: Boolean(found) && Number.isFinite(rawValue),
       previousAffinity: found?.previousAffinity ?? null,
       value: clampPercentage(rawValue),
       displayValue: formatPercentage(rawValue),
@@ -116,7 +118,13 @@ export default function AffinityRadar({
       }
     >
       <div className="relative w-full aspect-square">
-        <svg viewBox={viewBox} className="w-full h-full overflow-visible">
+        <svg
+          viewBox={viewBox}
+          className="w-full h-full overflow-visible"
+          role={isMini ? 'img' : 'group'}
+          aria-label="Radar de afinidad"
+          aria-describedby={descriptionId}
+        >
           {[20, 40, 60, 80, 100].map((level) => (
             <polygon
               key={`grid-${level}`}
@@ -257,9 +265,12 @@ export default function AffinityRadar({
                 height={height}
                 className="overflow-visible"
               >
-                <div
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  aria-pressed={isSelected}
                   onClick={() => handleSelectArea(data.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border cursor-pointer transition-all w-max mx-auto select-none ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border cursor-pointer transition-all w-max mx-auto select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
                     isSelected
                       ? 'bg-slate-900 border-slate-900 shadow-lg scale-105'
                       : 'bg-white/90 backdrop-blur-sm border-slate-200 hover:border-red-800 hover:shadow-md'
@@ -285,15 +296,27 @@ export default function AffinityRadar({
                       />
                     )}
                   </div>
-                </div>
+                </button>
               </foreignObject>
             );
           })}
         </svg>
       </div>
 
+      <div id={descriptionId} className="sr-only">
+        {isRadarEmpty ? (
+          <p>El radar no tiene datos de afinidad disponibles.</p>
+        ) : (
+          <ul>
+            {chartData.map((data) => (
+              <li key={data.id}>{data.label}: {data.hasValue ? data.displayValue : 'Sin datos'}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {!isMini && !isRadarEmpty && (
-        <div className="mt-6 w-full min-h-[100px] bg-slate-50 rounded-lg p-4 flex flex-col items-center justify-center text-center border border-slate-100">
+        <div aria-live="polite" aria-atomic="true" className="mt-6 w-full min-h-[100px] bg-slate-50 rounded-lg p-4 flex flex-col items-center justify-center text-center border border-slate-100">
           <p className="text-xs text-slate-500 font-semibold mb-1 tracking-wider">
             ÁREA SELECCIONADA
           </p>

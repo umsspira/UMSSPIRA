@@ -1,6 +1,6 @@
 // HU-16 (T16.4): botón «Descargar CV» en el detalle del postulante (vista del reclutador).
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 jest.mock('../services/applicants', () => ({
   downloadApplicantCv: jest.fn(),
@@ -216,4 +216,23 @@ describe("MatchBreakdownView (HU-15)", () => {
     expect(screen.getByText("No hay suficientes datos del perfil para calcular la comparación."))
       .toBeInTheDocument();
   });
+});
+
+it("presenta la comparación real como lista textual y permite navegar las pestañas con teclado", () => {
+  render(<MatchBreakdownView applicant={applicant} />);
+
+  const tab = screen.getByRole("tab", { name: "Coincidencia técnica" });
+  const panel = screen.getByRole("tabpanel", { name: "Coincidencia técnica" });
+  expect(tab).toHaveAttribute("aria-controls", panel.id);
+  const items = within(within(panel).getByRole("list")).getAllByRole("listitem");
+  expect(items[0]).toHaveTextContent("TypeScript");
+  expect(items[0]).toHaveTextContent("Exacta");
+  expect(items[1]).toHaveTextContent("Docker");
+  expect(items[1]).toHaveTextContent("No encontrada");
+
+  tab.focus();
+  fireEvent.keyDown(tab, { key: "ArrowRight" });
+  expect(screen.getByRole("tab", { name: "CV" })).toHaveFocus();
+  expect(screen.getByRole("tab", { name: "CV" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("tabpanel", { name: "CV" })).toHaveTextContent("El postulante aún no subió su CV");
 });

@@ -38,7 +38,7 @@ const posting: AvailableJobPostingDetail = {
 describe('JobPostingDetail', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    calculateAffinity.mockResolvedValue({ status: 'insufficient-requirements' });
+    calculateAffinity.mockResolvedValue({ status: 'no-requirements', percentage: null, calculatedAt: null, comparison: [] });
     getMyApplication.mockResolvedValue({ postulada: false });
   });
 
@@ -155,7 +155,13 @@ describe('JobPostingDetail', () => {
     expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
     expect(screen.queryByText(/Conocimientos técnicos requeridos/)).not.toBeInTheDocument();
     expect(await screen.findByText('100%')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver comparación' }));
+    const button = screen.getByRole('button', { name: 'Ver comparación' });
+    button.focus();
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(button);
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveTextContent('React Native');
     expect(screen.getByText('Habilidad: React Native')).toBeInTheDocument();
     expect(screen.getByText('Habilidad: PostgreSQL avanzado')).toBeInTheDocument();
   });

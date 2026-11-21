@@ -55,6 +55,9 @@ function databaseWith(status: string | null = 'CONFIRMADA', endDate = new Date(n
       delete: jest.fn(),
       deleteMany: jest.fn(),
     },
+    recordatorioEvento: {
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     evento: { update: jest.fn(), updateMany: jest.fn() },
     paseQr: {
       update: jest.fn(),
@@ -111,6 +114,18 @@ describe('Cancelación de inscripción en PrismaEventsRepository', () => {
     expect(db.tx.paseQr.updateMany).toHaveBeenCalledWith({
       where: { id_inscripcion: registrationId },
       data: { estado: 'INVALIDADO' },
+    });
+    expect(db.tx.recordatorioEvento.updateMany).toHaveBeenCalledWith({
+      where: {
+        id_inscripcion: registrationId,
+        estado: { in: ['PENDIENTE', 'FALLIDO', 'EN_PROCESO'] },
+      },
+      data: {
+        estado: 'OMITIDO',
+        error: null,
+        reintentar_en: null,
+        procesando_desde: null,
+      },
     });
     expect(db.tx.paseQr.delete).not.toHaveBeenCalled();
     expect(db.event.cupo_maximo).toBe(10);
