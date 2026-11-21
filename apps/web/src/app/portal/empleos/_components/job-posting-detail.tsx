@@ -69,9 +69,11 @@ export function JobPostingDetail({
   useEffect(() => {
     if (!loadedPosting) return;
     let active = true;
+    // HU-20 T20.1: al recalcular, la ventana «¿Cómo se calcula?» se cierra.
+    // Va antes de setAffinityState para no quedar pegado a la llamada que cambia la HU-10.
+    setMostrarCalculo(false);
     setAffinityState({ status: 'loading' });
     setShowComparison(false);
-    setMostrarCalculo(false);
     calculateVacancyAffinity(technicalRequirements).then(
       (result) => active && setAffinityState(result),
       () => active && setAffinityState({ status: 'error' }),
