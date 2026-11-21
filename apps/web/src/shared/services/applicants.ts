@@ -1,4 +1,12 @@
-import { Applicant, ApplicantStatus, EXPERIENCE_LEVELS, ExperienceLevel } from "../types/applicant";
+import {
+  Applicant,
+  ApplicantStatus,
+} from "../types/applicant";
+import { JOB_POSTING_AFFINITY_BATCH_LIMIT } from "@umsspira/shared-types";
+import type {
+  JobPostingAffinityBatchRequest,
+  JobPostingAffinityBatchResponse,
+} from "@umsspira/shared-types";
 import { apiClient, ApiClientError } from "./api-client";
 
 /* ============================================================
@@ -9,7 +17,8 @@ import { apiClient, ApiClientError } from "./api-client";
    demo explícita, poniendo en apps/web/.env.local:
        NEXT_PUBLIC_USE_MOCK=true
    ============================================================ */
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+const USE_MOCK =
+  process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 // Solo para probar con datos de prueba:
 //   "ok" | "empty" (CA-07) | "error" (CA-08 / CA-09)
@@ -34,16 +43,14 @@ interface RawApplicant {
   id: string | number;
   name: string;
   email: string;
-  location?: string | null;
-  experienceLevel?: string | null;
   /** HU-01: código de etapa que envía la API (postulado, en_revision, ...). */
   stage?: string | null;
   /** Etiqueta ya traducida (solo en los datos de prueba antiguos). */
   status?: Applicant["status"];
   appliedAt?: string | null;
+  hasCv?: boolean;
   cvUrl?: string | null;
   matchPercentage?: number | null;
-  skills?: Applicant["skills"];
 }
 
 /** HU-04: códigos de etapa del backend → etiqueta que muestra la interfaz. */
@@ -71,29 +78,24 @@ function toStatus(raw: RawApplicant): ApplicantStatus {
   return raw.status ?? "Postulado";
 }
 
-function toExperienceLevel(value: unknown): ExperienceLevel | null {
-  return (EXPERIENCE_LEVELS as readonly string[]).includes(String(value))
-    ? (value as ExperienceLevel)
-    : null;
-}
-
 function normalizeApplicant(raw: RawApplicant): Applicant {
   return {
     id: String(raw.id),
     name: raw.name,
     email: raw.email,
-    // El perfil del titulado aún no registra ubicación ni nivel: se muestran como no registrados.
-    location: raw.location || null,
-    experienceLevel: toExperienceLevel(raw.experienceLevel),
     status: toStatus(raw),
     appliedAt: raw.appliedAt ?? null,
+    hasCv: raw.hasCv === true,
     cvUrl: raw.cvUrl ?? null,
     // Ejemplo si la API usara otros nombres: raw.porcentaje_match
     matchPercentage:
       typeof raw.matchPercentage === "number" && Number.isFinite(raw.matchPercentage)
         ? raw.matchPercentage
         : null,
-    skills: Array.isArray(raw.skills) ? raw.skills : null,
+    matchStatus: null,
+    matchCalculatedAt: null,
+    comparison: [],
+    matchError: null,
   };
 }
 
@@ -105,84 +107,85 @@ const MOCK_APPLICANTS: Applicant[] = [
     id: "app-1",
     name: "Carlos Rojas",
     email: "carlos.rojas@email.com",
-    location: "Cochabamba, Bolivia",
-    experienceLevel: "Senior",
     status: "En revisión",
     appliedAt: "2025-09-10",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: 92,
-    skills: [
-      { skill: "Node.js", percentage: 100 },
-      { skill: "TypeScript", percentage: 90 },
-      { skill: "REST API", percentage: 80 },
-      { skill: "PostgreSQL", percentage: 80 },
-      { skill: "Docker", percentage: 70 },
-      { skill: "AWS", percentage: 60 },
+    matchStatus: "ready",
+    matchCalculatedAt: null,
+    comparison: [
+      { requirement: "Node.js", matchedSkill: "Node.js", result: "exact" },
+      { requirement: "TypeScript", matchedSkill: "TypeScript", result: "exact" },
+      { requirement: "Docker", matchedSkill: "Docker", result: "exact" },
     ],
+    matchError: null,
   },
   {
     id: "app-2",
     name: "María López",
     email: "maria.lopez@email.com",
-    location: "Cochabamba, Bolivia",
-    experienceLevel: "Senior",
     status: "En revisión",
     appliedAt: "2025-09-08",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: 85,
-    skills: [
-      { skill: "Python", percentage: 95 },
-      { skill: "FastAPI", percentage: 90 },
-      { skill: "PostgreSQL", percentage: 80 },
-      { skill: "Docker", percentage: 75 },
+    matchStatus: "ready",
+    matchCalculatedAt: null,
+    comparison: [
+      { requirement: "Python", matchedSkill: "Python", result: "exact" },
+      { requirement: "PostgreSQL", matchedSkill: "PostgreSQL", result: "exact" },
     ],
+    matchError: null,
   },
   {
     id: "app-3",
     name: "Luis Fernández",
     email: "luis.fernandez@email.com",
-    location: "Quillacollo, Cochabamba",
-    experienceLevel: "Semi-Senior",
     status: "Preseleccionado",
     appliedAt: "2025-09-06",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: 78,
-    skills: [
-      { skill: "Java", percentage: 85 },
-      { skill: "Spring Boot", percentage: 80 },
-      { skill: "MySQL", percentage: 75 },
-      { skill: "Docker", percentage: 65 },
+    matchStatus: "ready",
+    matchCalculatedAt: null,
+    comparison: [
+      { requirement: "Java", matchedSkill: "Java", result: "exact" },
+      { requirement: "Spring Boot", matchedSkill: "Spring Boot", result: "exact" },
     ],
+    matchError: null,
   },
   {
     id: "app-4",
     name: "Ana Torres",
     email: "ana.torres@email.com",
-    location: "Cochabamba, Bolivia",
-    experienceLevel: "Semi-Senior",
     status: "En revisión",
     appliedAt: "2025-09-05",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: 72,
-    skills: [
-      { skill: "Node.js", percentage: 80 },
-      { skill: "JavaScript", percentage: 75 },
-      { skill: "MongoDB", percentage: 70 },
-      { skill: "REST API", percentage: 65 },
+    matchStatus: "ready",
+    matchCalculatedAt: null,
+    comparison: [
+      { requirement: "JavaScript", matchedSkill: "JavaScript", result: "exact" },
+      { requirement: "MongoDB", matchedSkill: "MongoDB", result: "exact" },
     ],
+    matchError: null,
   },
   {
     // Caso CA-10: el motor no devolvió porcentaje
     id: "app-5",
     name: "Luis Mamani",
     email: "luis.mamani@email.com",
-    location: "Sacaba, Cochabamba",
-    experienceLevel: "Junior",
     status: "Postulado",
     appliedAt: "2025-09-04",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: null,
-    skills: null,
+    matchStatus: "profile-incomplete",
+    matchCalculatedAt: null,
+    comparison: [],
+    matchError: null,
   },
 ];
 
@@ -259,6 +262,117 @@ async function apiGet<T>(path: string): Promise<T> {
   }
 }
 
+async function getAffinityByApplicants(
+  vacancyId: string,
+  applicants: Applicant[],
+): Promise<Applicant[]> {
+  if (applicants.length === 0) return [];
+  const resultByApplicant = new Map<string, Applicant>();
+
+  for (let offset = 0; offset < applicants.length; offset += JOB_POSTING_AFFINITY_BATCH_LIMIT) {
+    const chunk = applicants.slice(offset, offset + JOB_POSTING_AFFINITY_BATCH_LIMIT);
+    const request: JobPostingAffinityBatchRequest = {
+      mode: "applicants",
+      vacancyId,
+      applicationIds: chunk.map((applicant) => applicant.id),
+    };
+    let response: JobPostingAffinityBatchResponse;
+    try {
+      response = await apiClient<JobPostingAffinityBatchResponse>("/api/v1/affinity/batch", {
+        method: "POST",
+        authenticated: true,
+        body: request,
+      });
+    } catch {
+      throw new MatchEngineError();
+    }
+
+    if (!response || !Array.isArray(response.data)) throw new MatchEngineError();
+    for (const item of response.data) {
+      if (
+        !item
+        || item.vacancyId !== vacancyId
+        || typeof item.applicationId !== "string"
+        || resultByApplicant.has(item.applicationId)
+      ) {
+        throw new MatchEngineError();
+      }
+      const applicant = chunk.find((candidate) => candidate.id === item.applicationId);
+      if (!applicant) throw new MatchEngineError();
+      const result = item.result;
+      if (
+        !result
+        && (!item.error || typeof item.error.message !== "string" || !item.error.message.trim())
+      ) {
+        throw new MatchEngineError();
+      }
+      if (result) {
+        if (!Array.isArray(result.comparison)) throw new MatchEngineError();
+        const invalidComparison = result.comparison.some((comparison) =>
+          !comparison
+          || typeof comparison.requirement !== "string"
+          || (comparison.matchedSkill !== null && typeof comparison.matchedSkill !== "string")
+          || (
+            comparison.result !== "exact"
+            && comparison.result !== "similar"
+            && comparison.result !== "not-found"
+          ),
+        );
+        if (
+          invalidComparison
+          || (
+            result.status !== "ready"
+            && result.status !== "profile-incomplete"
+            && result.status !== "no-requirements"
+          )
+        ) {
+          throw new MatchEngineError();
+        }
+        if (
+          result.status === "ready"
+          ? typeof result.percentage !== "number"
+            || !Number.isFinite(result.percentage)
+            || result.percentage < 0
+            || result.percentage > 100
+            || typeof result.calculatedAt !== "string"
+            || !Number.isFinite(Date.parse(result.calculatedAt))
+          : result.percentage !== null
+            || result.calculatedAt !== null
+            || result.comparison.length !== 0
+        ) {
+          throw new MatchEngineError();
+        }
+      }
+      resultByApplicant.set(item.applicationId, {
+        ...applicant,
+        matchPercentage: result?.percentage ?? null,
+        matchStatus: result?.status ?? null,
+        matchCalculatedAt: result?.calculatedAt ?? null,
+        comparison: result?.comparison ?? [],
+        matchError: item.error?.message ?? null,
+      });
+    }
+    if (chunk.some((applicant) => !resultByApplicant.has(applicant.id))) {
+      throw new MatchEngineError();
+    }
+  }
+
+  const enriched = applicants.map((applicant, index) => {
+    const result = resultByApplicant.get(applicant.id);
+    if (!result) throw new MatchEngineError();
+    return { applicant: result, index };
+  });
+  return enriched
+    .sort((a, b) => {
+      const aMatch = a.applicant.matchPercentage;
+      const bMatch = b.applicant.matchPercentage;
+      if (aMatch === null) return bMatch === null ? a.index - b.index : 1;
+      if (bMatch === null) return -1;
+      return bMatch - aMatch || a.index - b.index;
+    })
+    .map(({ applicant }) => applicant);
+}
+
 /* ============================================================
    SERVICIO PÚBLICO (lanzan MatchEngineError si fallan)
    El parámetro vacancyPublishedAt solo se usa con datos de prueba.
@@ -286,7 +400,7 @@ export async function getApplicantsByVacancy(
   }
   if (!Array.isArray(data)) throw new MatchEngineError();
 
-  return (data as RawApplicant[]).map(normalizeApplicant);
+  return getAffinityByApplicants(vacancyId, (data as RawApplicant[]).map(normalizeApplicant));
 }
 
 /** Detalle de un postulante. Devuelve null si no existe. */
@@ -305,7 +419,7 @@ export async function getApplicantById(
     const data = await apiGet<RawApplicant>(
       `/api/v1/vacantes/${encodeURIComponent(vacancyId)}/postulantes/${encodeURIComponent(applicantId)}`
     );
-    return normalizeApplicant(data);
+    return (await getAffinityByApplicants(vacancyId, [normalizeApplicant(data)]))[0] ?? null;
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) return null;
     throw error;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Applicant, APPLICANT_STATUSES, ApplicantStatus, EXPERIENCE_LEVELS } from "@/shared/types/applicant";
+import { Applicant, APPLICANT_STATUSES, ApplicantStatus } from "@/shared/types/applicant";
 import { Vacancy } from "@/shared/types/vacancy";
 import {
   getApplicantsByVacancy,
@@ -141,12 +141,12 @@ export default function CandidatesPage() {
 
   const {
     searchTerm, setSearchTerm, minMatch, setMinMatch,
-    selectedStatus, setSelectedStatus, selectedLevel, setSelectedLevel,
+    selectedStatus, setSelectedStatus,
     filteredApplicants, handleClearFilters,
   } = useApplicantFilters(applicants);
   
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [searchTerm, minMatch, selectedStatus, selectedLevel, applicants]);
+  useEffect(() => { setPage(1); }, [searchTerm, minMatch, selectedStatus, applicants]);
 
   const totalPages = Math.max(1, Math.ceil(filteredApplicants.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -243,13 +243,6 @@ export default function CandidatesPage() {
                   {APPLICANT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-[#1B2632]">Nivel de experiencia</label>
-                <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]">
-                  <option value="Todos">Todos</option>
-                  {EXPERIENCE_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
               <input type="text" placeholder="Buscar candidato" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:max-w-md px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]" />
@@ -291,11 +284,7 @@ export default function CandidatesPage() {
                     )}
 
                     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-[#1B2632]">
-                      <div className="min-w-0">
-                        <dt className="text-xs font-bold text-gray-500">Nivel</dt>
-                        <dd className="break-words">{applicant.experienceLevel ?? "No registrado"}</dd>
-                      </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 col-span-2">
                         <dt className="text-xs font-bold text-gray-500">Fecha de postulación</dt>
                         <dd>{formatDate(applicant.appliedAt)}</dd>
                       </div>
@@ -322,7 +311,6 @@ export default function CandidatesPage() {
                     <tr>
                       <th className="px-4 py-3 font-bold">Candidato</th>
                       <th className="px-4 py-3 font-bold">Coincidencia técnica</th>
-                      <th className="px-4 py-3 font-bold">Nivel de experiencia</th>
                       <th className="px-4 py-3 font-bold">Etapa de selección</th>
                       <th className="px-4 py-3 font-bold">Fecha de postulación</th>
                       <th className="px-4 py-3 font-bold text-center">Acciones</th>
@@ -353,8 +341,6 @@ export default function CandidatesPage() {
                           )}
                         </td>
 
-                        <td className="px-4 py-3 text-[#1B2632]">{applicant.experienceLevel ?? "No registrado"}</td>
-                        
                         <td className="px-4 py-3">{stageSelector(applicant)}</td>
 
                         <td className="px-4 py-3 text-[#1B2632]">{formatDate(applicant.appliedAt)}</td>

@@ -374,15 +374,12 @@ export class VacantesService {
       id: p.id,
       name: nombreCompleto || p.usuario?.nombre || 'Sin nombre',
       email: p.usuario?.correo ?? '',
-      location: null,
-      experienceLevel: null,
       stage: p.estado ?? 'postulado',
       appliedAt: p.created_at ? p.created_at.toISOString() : null,
       hasCv: Boolean(titulado?.curriculum_vitae),
       cvUrl: null,
-      // El porcentaje viene del motor (Épica 3/5); aquí NUNCA se calcula (CA-02, CA-10).
+      // El porcentaje viene del motor (Épica 3/5); aquí nunca se calcula.
       matchPercentage: match !== null && Number.isFinite(match) ? match : null,
-      skills: null,
     };
   }
 

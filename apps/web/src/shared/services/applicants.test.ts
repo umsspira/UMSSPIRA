@@ -15,17 +15,14 @@ const raw = {
   id: '44800000-0000-4000-8000-000000000001',
   name: 'Ana Rojas',
   email: 'ana.rojas.demo@umsspira.local',
-  location: null,
-  experienceLevel: null,
   stage: 'en_revision',
   appliedAt: '2026-11-02T00:00:00.000Z',
   hasCv: false,
   cvUrl: null,
   matchPercentage: 92,
-  skills: null,
 };
 
-describe('servicio de postulantes con la API real (HU-01)', () => {
+describe('servicio de postulantes con la API real (HU-15)', () => {
   const apiClientMock = apiClient as unknown as jest.Mock;
 
   afterAll(() => {
@@ -34,27 +31,78 @@ describe('servicio de postulantes con la API real (HU-01)', () => {
 
   beforeEach(() => apiClientMock.mockReset());
 
-  it('consulta el endpoint de Épica 4 con la sesión del usuario', async () => {
-    apiClientMock.mockResolvedValueOnce([raw]);
+  it('consulta la lista y calcula afinidad por lote con la sesión autenticada', async () => {
+    apiClientMock
+      .mockResolvedValueOnce([raw])
+      .mockResolvedValueOnce({
+        data: [{
+          vacancyId: VACANTE,
+          applicationId: raw.id,
+          result: {
+            status: 'ready',
+            percentage: 72,
+            calculatedAt: '2026-11-20T12:00:00.000Z',
+            comparison: [
+              { requirement: 'TypeScript', matchedSkill: 'TypeScript', result: 'exact' },
+              { requirement: 'Docker', matchedSkill: null, result: 'not-found' },
+            ],
+          },
+          error: null,
+        }],
+      });
 
-    await service.getApplicantsByVacancy(VACANTE);
+    const applicants = await service.getApplicantsByVacancy(VACANTE);
 
     expect(apiClientMock).toHaveBeenCalledWith(
       `/api/v1/vacantes/${VACANTE}/postulantes`,
       { method: 'GET', authenticated: true },
     );
+    expect(apiClientMock).toHaveBeenLastCalledWith('/api/v1/affinity/batch', {
+      method: 'POST',
+      authenticated: true,
+      body: { mode: 'applicants', vacancyId: VACANTE, applicationIds: [raw.id] },
+    });
+    expect(applicants[0]).toMatchObject({
+      matchPercentage: 72,
+      matchStatus: 'ready',
+      matchCalculatedAt: '2026-11-20T12:00:00.000Z',
+      comparison: [
+        { requirement: 'TypeScript', matchedSkill: 'TypeScript', result: 'exact' },
+        { requirement: 'Docker', matchedSkill: null, result: 'not-found' },
+      ],
+      matchError: null,
+    });
   });
 
-  it('traduce el código de etapa y deja vacíos los datos no registrados', async () => {
+  it('prioriza el porcentaje real del motor y ordena los postulantes descendentemente', async () => {
+    const second = { ...raw, id: '44800000-0000-4000-8000-000000000002', name: 'Beto' };
     apiClientMock.mockResolvedValueOnce([
       raw,
-      { ...raw, id: '2', stage: 'entrevista', matchPercentage: null },
-    ]);
+      { ...second, stage: 'entrevista', matchPercentage: 99 },
+    ]).mockResolvedValueOnce({
+      data: [
+        {
+          vacancyId: VACANTE,
+          applicationId: raw.id,
+          result: { status: 'ready', percentage: 40, calculatedAt: '2026-11-20T12:00:00.000Z', comparison: [] },
+          error: null,
+        },
+        {
+          vacancyId: VACANTE,
+          applicationId: second.id,
+          result: { status: 'ready', percentage: 85, calculatedAt: '2026-11-20T12:00:00.000Z', comparison: [] },
+          error: null,
+        },
+      ],
+    });
 
     const lista = await service.getApplicantsByVacancy(VACANTE);
 
-    expect(lista[0]).toMatchObject({ status: 'En revisión', location: null, experienceLevel: null, matchPercentage: 92 });
-    expect(lista[1]).toMatchObject({ status: 'Entrevista', matchPercentage: null });
+    expect(lista.map((applicant) => [applicant.name, applicant.matchPercentage])).toEqual([
+      ['Beto', 85],
+      ['Ana Rojas', 40],
+    ]);
+    expect(lista[0]?.status).toBe('Entrevista');
   });
 
   it('muestra el error del motor si la API falla o la vacante no es accesible (CA-09)', async () => {
@@ -70,6 +118,84 @@ describe('servicio de postulantes con la API real (HU-01)', () => {
     await expect(service.getApplicantsByVacancy(VACANTE)).rejects.toBeInstanceOf(service.MatchEngineError);
   });
 
+  it('divide las solicitudes en lotes de hasta 50 postulaciones', async () => {
+    const records = Array.from({ length: 51 }, (_, index) => ({
+      ...raw,
+      id: `44800000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    }));
+    apiClientMock.mockResolvedValueOnce(records);
+    apiClientMock.mockResolvedValueOnce({
+      data: records.slice(0, 50).map((record) => ({
+        vacancyId: VACANTE,
+        applicationId: record.id,
+        result: { status: 'ready', percentage: 50, calculatedAt: '2026-11-20T12:00:00.000Z', comparison: [] },
+        error: null,
+      })),
+    });
+    apiClientMock.mockResolvedValueOnce({
+      data: [{
+        vacancyId: VACANTE,
+        applicationId: records[50]!.id,
+        result: { status: 'ready', percentage: 50, calculatedAt: '2026-11-20T12:00:00.000Z', comparison: [] },
+        error: null,
+      }],
+    });
+
+    await service.getApplicantsByVacancy(VACANTE);
+
+    const batchCalls = apiClientMock.mock.calls.filter(([path]) => path === '/api/v1/affinity/batch');
+    expect(batchCalls).toHaveLength(2);
+    expect(batchCalls[0][1].body.applicationIds).toHaveLength(50);
+    expect(batchCalls[1][1].body.applicationIds).toHaveLength(1);
+  });
+
+  it('preserva los errores individuales sin inventar porcentaje ni desglose', async () => {
+    apiClientMock.mockResolvedValueOnce([raw]).mockResolvedValueOnce({
+      data: [{
+        vacancyId: VACANTE,
+        applicationId: raw.id,
+        result: null,
+        error: { code: 'AFFINITY_CALCULATION_FAILED', message: 'No se pudo calcular', retryable: true },
+      }],
+    });
+
+    const [applicant] = await service.getApplicantsByVacancy(VACANTE);
+
+    expect(applicant).toMatchObject({
+      matchPercentage: null,
+      matchStatus: null,
+      matchCalculatedAt: null,
+      comparison: [],
+      matchError: 'No se pudo calcular',
+    });
+  });
+
+  it('conserva el estado sin requisitos sin inventar porcentaje ni fecha', async () => {
+    apiClientMock.mockResolvedValueOnce([raw]).mockResolvedValueOnce({
+      data: [{
+        vacancyId: VACANTE,
+        applicationId: raw.id,
+        result: {
+          status: 'no-requirements',
+          percentage: null,
+          calculatedAt: null,
+          comparison: [],
+        },
+        error: null,
+      }],
+    });
+
+    const [applicant] = await service.getApplicantsByVacancy(VACANTE);
+
+    expect(applicant).toMatchObject({
+      matchPercentage: null,
+      matchStatus: 'no-requirements',
+      matchCalculatedAt: null,
+      comparison: [],
+      matchError: null,
+    });
+  });
+
   it('devuelve null en el detalle cuando el postulante no existe', async () => {
     apiClientMock.mockRejectedValueOnce(new ApiClientError('no encontrado', 404));
 
@@ -77,11 +203,27 @@ describe('servicio de postulantes con la API real (HU-01)', () => {
   });
 
   it('devuelve el detalle normalizado', async () => {
-    apiClientMock.mockResolvedValueOnce(raw);
+    apiClientMock
+      .mockResolvedValueOnce(raw)
+      .mockResolvedValueOnce({
+        data: [{
+          vacancyId: VACANTE,
+          applicationId: raw.id,
+          result: {
+            status: 'ready',
+            percentage: 92,
+            calculatedAt: '2026-11-20T12:00:00.000Z',
+            comparison: [{ requirement: 'Node.js', matchedSkill: 'Node.js', result: 'exact' }],
+          },
+          error: null,
+        }],
+      });
 
     await expect(service.getApplicantById(VACANTE, raw.id)).resolves.toMatchObject({
       id: raw.id,
       status: 'En revisión',
+      matchPercentage: 92,
+      comparison: [{ requirement: 'Node.js', matchedSkill: 'Node.js', result: 'exact' }],
     });
     expect(apiClientMock).toHaveBeenCalledWith(
       `/api/v1/vacantes/${VACANTE}/postulantes/${raw.id}`,
@@ -122,11 +264,20 @@ describe('modo de datos de prueba (deuda 3 de Épica 5)', () => {
         const { apiClient: isolatedClient } = require('./api-client') as typeof import('./api-client');
         const isolated = require('./applicants') as typeof import('./applicants');
         (isolatedClient as unknown as jest.Mock).mockReset();
-        (isolatedClient as unknown as jest.Mock).mockResolvedValueOnce([raw]);
+        (isolatedClient as unknown as jest.Mock)
+          .mockResolvedValueOnce([raw])
+          .mockResolvedValueOnce({
+            data: [{
+              vacancyId: VACANTE,
+              applicationId: raw.id,
+              result: { status: 'ready', percentage: 70, calculatedAt: '2026-11-20T12:00:00.000Z', comparison: [] },
+              error: null,
+            }],
+          });
 
         const lista = await isolated.getApplicantsByVacancy(VACANTE);
 
-        expect(isolatedClient).toHaveBeenCalledTimes(1);
+        expect(isolatedClient).toHaveBeenCalledTimes(2);
         expect(lista[0].name).toBe('Ana Rojas');
       });
     } finally {

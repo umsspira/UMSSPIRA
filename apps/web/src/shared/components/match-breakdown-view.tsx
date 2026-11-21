@@ -9,7 +9,6 @@ import {
   formatMatch,
   getMatchLevel,
   hasMatch,
-  skillBarColor,
 } from "../utils/match-format";
 import { formatDate, getInitials } from "../utils/format";
 
@@ -74,7 +73,6 @@ export function MatchBreakdownView({
 
   const matchAvailable = hasMatch(applicant.matchPercentage);
   const level = getMatchLevel(applicant.matchPercentage);
-  const skills = applicant.skills ?? [];
 
   return (
     <div className="space-y-6">
@@ -110,14 +108,16 @@ export function MatchBreakdownView({
                 <button
                   disabled
                   aria-describedby="cv-no-disponible"
-                  title="El postulante aún no subió su CV"
+                  title={applicant.hasCv ? "El CV está registrado, pero no hay una descarga disponible" : "El postulante aún no subió su CV"}
                   className="min-h-11 md:min-h-0 justify-center px-5 py-2.5 text-sm font-bold text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed inline-flex items-center gap-2"
                 >
                   <DownloadIcon />
                   Descargar CV
                 </button>
                 <p id="cv-no-disponible" className="text-xs text-gray-500 text-center md:text-left">
-                  El postulante aún no subió su CV
+                  {applicant.hasCv
+                    ? "El CV está registrado, pero no hay una descarga disponible."
+                    : "El postulante aún no subió su CV."}
                 </p>
               </div>
             )}
@@ -140,14 +140,8 @@ export function MatchBreakdownView({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold text-[#1B2632] break-words [overflow-wrap:anywhere]">{applicant.name}</h2>
-                {applicant.experienceLevel && (
-                  <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                    {applicant.experienceLevel}
-                  </span>
-                )}
               </div>
               <p className="text-sm text-gray-500 break-all">{applicant.email}</p>
-              <p className="text-sm text-gray-500">{applicant.location ?? "Ubicación no registrada"}</p>
               {/* CA-15: en móvil la fecha de postulación se ve sin cambiar de pestaña */}
               <p className="text-sm text-gray-500 md:hidden">Postulado el {formatDate(applicant.appliedAt)}</p>
             </div>
@@ -195,14 +189,6 @@ export function MatchBreakdownView({
             <p className="font-medium break-all">{applicant.email}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Ubicación</p>
-            <p className="font-medium">{applicant.location ?? "No registrada"}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500">Nivel de experiencia</p>
-            <p className="font-medium">{applicant.experienceLevel ?? "No registrado"}</p>
-          </div>
-          <div>
             <p className="text-xs text-gray-500">Estado</p>
             <p className="font-medium">{applicant.status}</p>
           </div>
@@ -216,7 +202,7 @@ export function MatchBreakdownView({
       {/* Pestaña: Coincidencia técnica (CA-03, CA-04) */}
       {activeTab === "coincidencia" && (
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-[#EEE9DF] space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8">
             {/* Dona con el porcentaje general recibido */}
             <div className="flex flex-col items-center justify-center p-2 md:p-6">
               <h3 className="text-sm font-bold text-[#1B2632] mb-4">
@@ -261,32 +247,51 @@ export function MatchBreakdownView({
               </div>
             </div>
 
-            {/* Desglose por habilidad (valores tal cual los envía la API) */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-[#1B2632] mb-2">Desglose por habilidades</h3>
-              {skills.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  Desglose por habilidades: {MATCH_UNAVAILABLE_LABEL.toLowerCase()}.
-                </p>
-              ) : (
-                skills.map((s) => (
-                  <div key={s.skill} className="grid grid-cols-[minmax(0,110px)_1fr_44px] items-center gap-3">
-                    <span className="text-xs font-medium text-[#1B2632] break-words [overflow-wrap:anywhere]">{s.skill}</span>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${skillBarColor(s.percentage)}`}
-                        style={{
-                          width: `${hasMatch(s.percentage) ? clampForDisplay(s.percentage) : 0}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-xs font-medium text-[#1B2632] text-right">
-                      {formatMatch(s.percentage)}
-                    </span>
-                  </div>
-                ))
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-[#1B2632]">Comparación por requisito</h3>
+              {applicant.matchCalculatedAt && (
+                <span className="text-xs text-gray-500">
+                  Calculado: {new Date(applicant.matchCalculatedAt).toLocaleString("es-BO")}
+                </span>
               )}
             </div>
+            {applicant.matchError ? (
+              <p role="alert" className="text-sm text-red-700">{applicant.matchError}</p>
+            ) : applicant.comparison.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                {applicant.matchStatus === "profile-incomplete"
+                  ? "No hay suficientes datos del perfil para calcular la comparación."
+                  : applicant.matchStatus === "no-requirements"
+                    ? "La vacante no tiene requisitos técnicos configurados."
+                    : "No hay requisitos técnicos disponibles para comparar."}
+              </p>
+            ) : (
+              <div className="divide-y divide-[#EEE9DF] rounded-xl border border-[#EEE9DF]">
+                {applicant.comparison.map((item) => (
+                  <div
+                    key={item.requirement}
+                    className="grid grid-cols-1 gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                  >
+                    <span className="text-sm font-medium text-[#1B2632]">{item.requirement}</span>
+                    <span className="text-sm text-gray-600">
+                      {item.matchedSkill ?? "Sin coincidencia"}
+                    </span>
+                    <span className={`text-xs font-bold ${
+                      item.result === "exact"
+                        ? "text-emerald-700"
+                        : item.result === "similar"
+                          ? "text-orange-700"
+                          : "text-gray-500"
+                    }`}>
+                      {item.result === "exact" ? "Exacta" : item.result === "similar" ? "Similar" : "No encontrada"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Resumen (solo si hay porcentaje recibido) */}
@@ -323,7 +328,9 @@ export function MatchBreakdownView({
         Ver CV del postulante
       </a>
     ) : (
-      "CV no disponible por el momento."
+      applicant.hasCv
+        ? "El CV está registrado, pero no hay una descarga disponible."
+        : "CV no disponible por el momento."
     )}
   </div>
 )}
