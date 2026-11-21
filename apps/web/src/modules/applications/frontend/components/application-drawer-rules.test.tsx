@@ -12,6 +12,9 @@ jest.mock('./application-detail', () => ({
 jest.mock('./observe-dialog', () => ({ ObserveDialog: ({ open }: { open: boolean }) => open ? <p>Formulario observar</p> : null }));
 jest.mock('./approve-dialog', () => ({ ApproveDialog: () => null }));
 jest.mock('./reject-dialog', () => ({ RejectDialog: () => null }));
+jest.mock('./history-tab', () => ({
+  HistoryTab: () => <p>Resumen del historial</p>,
+}));
 
 describe('T-11.3 acciones del administrador', () => {
   beforeEach(() => {
@@ -37,5 +40,23 @@ describe('T-11.3 acciones del administrador', () => {
     }
     expect(screen.getByRole('button', { name: 'Aprobar' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Rechazar' })).toBeEnabled();
+  });
+
+  it('navega a Historial desde teclado y mantiene la pestaña de solo lectura', async () => {
+    (fetchApplicationDetail as jest.Mock).mockResolvedValue({ ok: true, data: {
+      id: 'id', status: 'PENDIENTE', firstName: 'Ana', lastName: 'Perez',
+    } });
+    render(<ApplicationDrawer open applicationId="id" onClose={jest.fn()} />);
+
+    await screen.findByRole('button', { name: 'Aprobar' });
+    const detailsTab = screen.getByRole('tab', { name: 'Expediente' });
+    fireEvent.keyDown(detailsTab, { key: 'ArrowRight' });
+
+    expect(screen.getByRole('tab', { name: 'Historial' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByText('Resumen del historial')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 });

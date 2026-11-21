@@ -105,11 +105,12 @@ export default function LoginPage({
               href="/portal/institucional"
               aria-label="Volver al inicio"
               title="Volver al inicio"
-              className="flex h-11 w-11 items-center justify-center rounded-full text-abyssal-blue transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-abyssal-blue"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-medium text-abyssal-blue transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-abyssal-blue"
             >
               <Svg>
                 <path d="m12 5-7 7 7 7M5 12h14" />
               </Svg>
+              <span>Volver al inicio</span>
             </Link>
           </nav>
           <header className="flex items-center justify-between gap-3">

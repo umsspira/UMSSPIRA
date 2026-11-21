@@ -24,10 +24,6 @@ import { ReadSignedBackupUseCase } from '../../application/use-cases/read-signed
 import { GetProfessionalDescriptionUseCase } from '../../application/use-cases/get-professional-description.use-case';
 import { SaveProfessionalDescriptionUseCase } from '../../application/use-cases/save-professional-description.use-case';
 import { CreateProjectUseCase } from '../../application/use-cases/create-project.use-case';
-import {
-  ReadProfilePhotoUseCase,
-  SaveProfilePhotoUseCase,
-} from '../../application/use-cases/profile-photo.use-case';
 import { UploadCvUseCase } from '../../application/use-cases/upload-cv.use-case';
 import { ReadCvUseCase } from '../../application/use-cases/read-cv.use-case';
 
@@ -114,16 +110,6 @@ export const profileProviders: Provider[] = [
     provide: CreateProjectUseCase,
     inject: [PROFILE_REPOSITORY],
     useFactory: (repository: ProfileRepository) => new CreateProjectUseCase(repository),
-  },
-  {
-    provide: SaveProfilePhotoUseCase,
-    inject: [PROFILE_REPOSITORY],
-    useFactory: (repository: ProfileRepository) => new SaveProfilePhotoUseCase(repository),
-  },
-  {
-    provide: ReadProfilePhotoUseCase,
-    inject: [PROFILE_REPOSITORY],
-    useFactory: (repository: ProfileRepository) => new ReadProfilePhotoUseCase(repository),
   },
   {
     provide: UploadCvUseCase,

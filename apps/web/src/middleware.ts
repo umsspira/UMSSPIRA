@@ -96,4 +96,7 @@ export const config = { matcher: [
   '/portal', '/portal/empleos', '/portal/empleos/:path*', '/portal/mentorias', '/portal/comunidad', '/portal/beneficios',
   '/portal/eventos', '/portal/eventos/:path*', '/portal/mensajes',
   '/mentorship', '/mentorship/:path*', '/job-postings', '/job-postings/:path*', '/my-applications/:path*',
+  // Observación 2: el perfil es información personal; todas sus pantallas exigen sesión.
+  // Sin sesión se va al login antes de pasar por Mis registros o por Completar perfil.
+  '/profile', '/profile/:path*',
 ] };

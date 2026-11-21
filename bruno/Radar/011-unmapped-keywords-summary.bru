@@ -1,0 +1,38 @@
+meta {
+  name: GET Radar - términos no mapeados
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/v1/radar/unmapped-keywords
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{radarReportsToken}}
+}
+
+tests {
+  test("Resumen agregado con mínimo de tres titulados", () => {
+    expect(res.status).to.equal(200);
+    const vector = res.body.data;
+    const hiddenTerm = bru.getVar("radarTermTwoGraduates") || bru.getEnvVar("radarTermTwoGraduates");
+    const visibleTerm = bru.getVar("radarTermThreeGraduates") || bru.getEnvVar("radarTermThreeGraduates");
+    expect(vector.dictionaryVersion).to.be.a("string").and.not.empty;
+    expect(vector.items).to.be.an("array");
+    expect(vector.totalTerms).to.equal(vector.items.length);
+    for (const item of vector.items) {
+      expect(item.term).to.be.a("string").and.not.empty;
+      expect(item.graduatesCount).to.be.at.least(3);
+      expect(item.totalFrequency).to.be.at.least(item.graduatesCount);
+    }
+    if (hiddenTerm) expect(vector.items.map((item) => item.term)).not.to.include(hiddenTerm);
+    if (visibleTerm) expect(vector.items.map((item) => item.term)).to.include(visibleTerm);
+  });
+}
+
+docs {
+  Configurar radarReportsToken con un usuario que tenga reportes:read. Para el caso con datos, configurar radarTermTwoGraduates y radarTermThreeGraduates con términos conocidos del fixture QA.
+}

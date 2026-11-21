@@ -1,24 +1,11 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 
-import { useProfilePhotoStore } from '@/shared/hooks/use-profile-photo-store';
-
 import { ProfilePhotoBadge, ProfilePhotoContent } from './profile-photo-avatar';
 
+// HU-6.20 (G1): el perfil muestra iniciales en lugar de la foto
 describe('ProfilePhotoContent', () => {
-  beforeEach(() => {
-    useProfilePhotoStore.setState({ photoUrl: null, status: 'ready' });
-  });
-
-
-  it('sin foto conserva el contenido de respaldo (las iniciales)', () => {
-    render(<span><ProfilePhotoContent fallback="FL" /></span>);
-    expect(screen.getByText('FL')).toBeInTheDocument();
-    expect(document.querySelector('img')).not.toBeInTheDocument();
-  });
-
-  it('con una foto guardada conserva las iniciales y no muestra la foto', () => {
-    useProfilePhotoStore.setState({ photoUrl: 'blob:foto', status: 'ready' });
+  it('muestra las iniciales y nunca una foto', () => {
     render(<span><ProfilePhotoContent fallback="FL" /></span>);
     expect(screen.getByText('FL')).toBeInTheDocument();
     expect(document.querySelector('img')).not.toBeInTheDocument();
@@ -26,17 +13,7 @@ describe('ProfilePhotoContent', () => {
 });
 
 describe('ProfilePhotoBadge', () => {
-  beforeEach(() => {
-    useProfilePhotoStore.setState({ photoUrl: null, status: 'ready' });
-  });
-
-  it('sin foto no dibuja nada', () => {
-    render(<ProfilePhotoBadge />);
-    expect(screen.queryByTestId('profile-photo-badge')).not.toBeInTheDocument();
-  });
-
-  it('no dibuja el badge aunque haya una foto guardada', () => {
-    useProfilePhotoStore.setState({ photoUrl: 'blob:foto', status: 'ready' });
+  it('no dibuja el badge de foto', () => {
     render(<ProfilePhotoBadge />);
     expect(screen.queryByTestId('profile-photo-badge')).not.toBeInTheDocument();
   });

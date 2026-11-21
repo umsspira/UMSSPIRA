@@ -1,0 +1,28 @@
+meta {
+  name: HU17 - Exigir autenticacion (401)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/applications/{{applicationId}}/history
+  body: none
+  auth: none
+}
+
+tests {
+  test("HU17: sin sesion responde 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+  test("HU17: no revela historial sin token", function () {
+    const data = res.getBody()?.data;
+    expect(data?.events).to.be.undefined;
+    expect(data?.ocr).to.be.undefined;
+  });
+}
+
+docs {
+  No envia Authorization Bearer. Usa applicationId de una solicitud
+  valida. Si Bruno envia cookies de sesion automaticamente, deshabilitalas
+  para esta peticion. No confundir 401 (sin sesion) con 403 (sin permiso).
+}
