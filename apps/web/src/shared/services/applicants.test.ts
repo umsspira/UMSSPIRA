@@ -4,9 +4,6 @@ jest.mock('./api-client', () => {
   return { ...actual, apiClient: jest.fn() };
 });
 
-// USE_MOCK se lee al cargar el módulo: se fija antes de importarlo.
-const originalUseMock = process.env.NEXT_PUBLIC_USE_MOCK;
-process.env.NEXT_PUBLIC_USE_MOCK = 'false';
 const { apiClient, ApiClientError } = require('./api-client') as typeof import('./api-client');
 const service = require('./applicants') as typeof import('./applicants');
 
@@ -27,10 +24,6 @@ const raw = {
 
 describe('servicio de postulantes con la API real (HU-01)', () => {
   const apiClientMock = apiClient as unknown as jest.Mock;
-
-  afterAll(() => {
-    process.env.NEXT_PUBLIC_USE_MOCK = originalUseMock;
-  });
 
   beforeEach(() => apiClientMock.mockReset());
 

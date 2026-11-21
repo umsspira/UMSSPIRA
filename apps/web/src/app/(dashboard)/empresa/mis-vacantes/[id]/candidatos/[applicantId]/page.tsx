@@ -55,7 +55,7 @@ export default function ApplicantMatchPage() {
       setError(false);
       try {
         const vac = await getVacancyById(vacancyId).catch(() => null);
-        const data = await getApplicantById(vacancyId, applicantId, vac?.publishedAt);
+        const data = await getApplicantById(vacancyId, applicantId);
         if (!cancelled) {
           setApplicant(data);
           setVacancy(vac);
