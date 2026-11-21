@@ -3,12 +3,16 @@ import { BusinessRuleError } from '../../../../shared/errors/business-rule-error
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import type { CreateMentorshipRequestInput } from '../../application/contracts/create-mentorship-request.input';
 import type { MentorshipRequestQuery } from '../../application/contracts/mentorship-request-query';
+import type { MyMentorshipRequestQuery } from '../../application/contracts/my-mentorship-request-query';
 import type { MentorshipRequestRepository } from '../../application/ports/mentorship-request-repository.port';
 import type {
   MentorSlotDay,
   MentorshipRequest,
+  MentorshipRequestCounts,
   MentorshipRequestPage,
   MentorshipRequestStatus,
+  MyMentorshipRequest,
+  MyMentorshipRequestPage,
 } from '../../domain/entities/mentorship-request';
 import type { RegistrationSecurity } from '../../../registrations/application/ports/registration-security.port';
 import { REGISTRATION_SECURITY } from '../../../registrations/application/ports/registration-security.port';
@@ -17,6 +21,7 @@ import { canReceiveMentorship } from '../../domain/policies/mentor.policy';
 import { upcomingWindow } from '../../domain/policies/mentor-schedule.policy';
 import { toAvailability } from '../translators/mentor.translator';
 import { availabilityOrder, lockGraduate } from './mentor-transaction';
+import { isMentorPublished } from './mentor-publication';
 
 const toDatabaseDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const toDatabaseTime = (time: string) => new Date(`1970-01-01T${time}:00.000Z`);
@@ -32,6 +37,7 @@ const requestSelect = {
   estado: true,
   fecha_respuesta: true,
   fecha_creacion: true,
+  fecha_actualizacion: true,
   usuario: {
     select: {
       nombre: true,
@@ -41,6 +47,45 @@ const requestSelect = {
 } satisfies Prisma.MentoriaSolicitudSelect;
 
 type MentorshipRequestRow = Prisma.MentoriaSolicitudGetPayload<{ select: typeof requestSelect }>;
+
+// El cargo del mentor se toma de su experiencia actual o más reciente, igual que en el perfil detallado.
+const myRequestSelect = {
+  id: true,
+  id_mentor: true,
+  id_usuario: true,
+  solicitud_fecha: true,
+  solicitud_inicio: true,
+  solicitud_fin: true,
+  mensaje: true,
+  estado: true,
+  fecha_respuesta: true,
+  fecha_creacion: true,
+  fecha_actualizacion: true,
+  mentor: {
+    select: {
+      id: true,
+      titulado: {
+        select: {
+          nombre: true,
+          apellido: true,
+          experiencia_laboral_registros: {
+            orderBy: [
+              { fecha_fin: { sort: 'desc', nulls: 'first' } },
+              { fecha_inicio: 'desc' },
+              { id: 'asc' },
+            ],
+            take: 1,
+            select: { cargo: true, empresa: true },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.MentoriaSolicitudSelect;
+
+type MyMentorshipRequestRow = Prisma.MentoriaSolicitudGetPayload<{
+  select: typeof myRequestSelect;
+}>;
 
 function toMentorshipRequest(row: MentorshipRequestRow): MentorshipRequest {
   if (
@@ -72,6 +117,45 @@ function toMentorshipRequest(row: MentorshipRequestRow): MentorshipRequest {
     status: row.estado,
     createdAt: row.fecha_creacion,
     respondedAt: row.fecha_respuesta,
+    updatedAt: row.fecha_actualizacion,
+  };
+}
+
+function toMyMentorshipRequest(row: MyMentorshipRequestRow): MyMentorshipRequest {
+  if (
+    !row.id_mentor ||
+    !row.id_usuario ||
+    !row.solicitud_fecha ||
+    !row.solicitud_inicio ||
+    !row.solicitud_fin ||
+    !row.estado
+  ) {
+    throw new BusinessRuleError(
+      'invalid',
+      'SOLICITUD_INCOMPLETA',
+      'La solicitud no contiene todos los datos requeridos',
+    );
+  }
+  const experience = row.mentor?.titulado?.experiencia_laboral_registros[0];
+  const mentorName = [row.mentor?.titulado?.nombre, row.mentor?.titulado?.apellido]
+    .filter(Boolean)
+    .join(' ');
+  return {
+    id: row.id,
+    mentorId: row.id_mentor,
+    requesterId: row.id_usuario,
+    requesterName: null,
+    date: row.solicitud_fecha,
+    startTime: row.solicitud_inicio,
+    endTime: row.solicitud_fin,
+    message: row.mensaje,
+    status: row.estado,
+    createdAt: row.fecha_creacion,
+    respondedAt: row.fecha_respuesta,
+    mentorName: mentorName || null,
+    mentorPosition: experience?.cargo ?? null,
+    mentorCompany: experience?.empresa ?? null,
+    updatedAt: row.fecha_actualizacion,
   };
 }
 
@@ -127,7 +211,8 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
     if (
       mentorUser?.estado !== 'ACTIVO' ||
       mentorUser.rol !== 'titulado' ||
-      !canReceiveMentorship(mentor.esta_activo === true, toAvailability(availability).status)
+      !canReceiveMentorship(mentor.esta_activo === true, toAvailability(availability).status) ||
+      !(await isMentorPublished(this.prisma, mentorId))
     ) {
       throw new BusinessRuleError(
         'forbidden',
@@ -245,7 +330,10 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
           orderBy: availabilityOrder,
           select: { estado: true, fecha_actualizacion: true },
         });
-        if (!canReceiveMentorship(mentor.esta_activo, toAvailability(availability).status)) {
+        if (
+          !canReceiveMentorship(mentor.esta_activo, toAvailability(availability).status) ||
+          !(await isMentorPublished(tx, mentor.id))
+        ) {
           throw new BusinessRuleError(
             'forbidden',
             'MENTOR_NOT_AVAILABLE',
@@ -461,6 +549,115 @@ export class PrismaMentorshipRequestRepository implements MentorshipRequestRepos
           );
         }
         return toMentorshipRequest(row);
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  async listCreatedByUser(
+    userId: string,
+    query: MyMentorshipRequestQuery,
+  ): Promise<MyMentorshipRequestPage> {
+    const where = {
+      id_usuario: userId,
+      ...(query.status ? { estado: query.status } : {}),
+    };
+    const [rows, total, grouped] = await Promise.all([
+      this.prisma.mentoriaSolicitud.findMany({
+        where,
+        select: myRequestSelect,
+        orderBy: [
+          { fecha_creacion: { sort: 'desc', nulls: 'last' } },
+          { solicitud_fecha: { sort: 'desc', nulls: 'last' } },
+          { id: 'desc' },
+        ],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      this.prisma.mentoriaSolicitud.count({ where }),
+      this.prisma.mentoriaSolicitud.groupBy({
+        by: ['estado'],
+        where: { id_usuario: userId },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const counts: MentorshipRequestCounts = {
+      TODAS: 0,
+      PENDIENTE: 0,
+      ACEPTADO: 0,
+      RECHAZADO: 0,
+      CANCELADO: 0,
+    };
+    for (const group of grouped) {
+      if (group.estado) {
+        counts[group.estado] = group._count._all;
+        counts.TODAS += group._count._all;
+      }
+    }
+
+    return {
+      items: rows.map(toMyMentorshipRequest),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      totalPages: Math.ceil(total / query.pageSize),
+      counts,
+    };
+  }
+
+  async cancelCreated(
+    userId: string,
+    requestId: string,
+    now: Date,
+  ): Promise<MyMentorshipRequest> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await tx.mentoriaSolicitud.findFirst({
+          where: { id: requestId, id_usuario: userId },
+          select: { id: true, estado: true },
+        });
+        // Una solicitud ajena responde 404 para no revelar su existencia.
+        if (!current) {
+          throw new BusinessRuleError(
+            'missing',
+            'SOLICITUD_NO_ENCONTRADA',
+            'La solicitud no existe o no te pertenece',
+          );
+        }
+        if (current.estado !== 'PENDIENTE') {
+          throw new BusinessRuleError(
+            'conflict',
+            'SOLICITUD_NO_PENDIENTE',
+            'Esta solicitud ya no está pendiente',
+          );
+        }
+
+        const updated = await tx.mentoriaSolicitud.updateMany({
+          where: { id: requestId, id_usuario: userId, estado: 'PENDIENTE' },
+          data: { estado: 'CANCELADO', fecha_actualizacion: now },
+        });
+        // Dos cancelaciones simultáneas: solo una puede cambiar el estado.
+        if (updated.count !== 1) {
+          throw new BusinessRuleError(
+            'conflict',
+            'SOLICITUD_NO_PENDIENTE',
+            'Esta solicitud ya no está pendiente',
+          );
+        }
+
+        const row = await tx.mentoriaSolicitud.findUnique({
+          where: { id: requestId },
+          select: myRequestSelect,
+        });
+        if (!row) {
+          throw new BusinessRuleError(
+            'missing',
+            'SOLICITUD_NO_ENCONTRADA',
+            'La solicitud no existe o no te pertenece',
+          );
+        }
+        return toMyMentorshipRequest(row);
       },
       { timeout: 15000 },
     );

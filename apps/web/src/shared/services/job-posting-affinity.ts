@@ -1,20 +1,5 @@
-import { obtenerResumenPerfil } from '@/modules/profile/services/perfil-api';
-import type { ResumenPerfil } from '@/modules/profile/services/perfil-api';
 import type { TechnicalRequirement } from '@umsspira/shared-types';
-import { apiFetch } from './api-client';
-import { normalizeJobPostingTerm } from '@/shared/utils/job-posting-requirements';
-
-const NLP_EXTRACT_ENDPOINT = '/api/v1/nlp/extract';
-const NLP_MAX_TEXT_LENGTH = 5000;
-
-interface ExtractedKeyword {
-  term: string;
-  count: number;
-}
-
-interface ExtractedKeywordsResponse {
-  keywords: ExtractedKeyword[];
-}
+import { getMentorOnboarding, getMyTechnicalInterests, MentorOnboardingError } from '@/features/mentorship/services/mentor-onboarding-api';
 
 export type VacancyAffinityResult =
   | { status: 'profile-incomplete' }
@@ -34,43 +19,8 @@ export type TituladoSkillsResult =
   | { status: 'ready'; skills: string[] }
   | { status: 'profile-incomplete' };
 
-function profileTexts(profile: ResumenPerfil): string[] {
-  const { education, experience, certification, project } = profile.records;
-  return [
-    profile.description,
-    ...education.flatMap((record) => 'title' in record ? [record.title, record.degree] : []),
-    ...experience.flatMap((record) => 'position' in record ? [record.position] : []),
-    ...certification.flatMap((record) => 'issuer' in record ? [record.name, record.degree] : []),
-    ...project.flatMap((record) => 'technologies' in record ? [record.name, record.description, record.technologies ?? ''] : []),
-  ].concat(profile.header.career).map((text) => text.trim()).filter(Boolean);
-}
-
-function textChunks(texts: string[]): string[] {
-  const chunks: string[] = [];
-  let current = '';
-
-  for (const text of texts) {
-    for (let offset = 0; offset < text.length; offset += NLP_MAX_TEXT_LENGTH) {
-      const part = text.slice(offset, offset + NLP_MAX_TEXT_LENGTH);
-      const next = current ? `${current}\n${part}` : part;
-      if (next.length > NLP_MAX_TEXT_LENGTH) {
-        chunks.push(current);
-        current = part;
-      } else {
-        current = next;
-      }
-    }
-  }
-
-  if (current) chunks.push(current);
-  return chunks;
-}
-
-function projectTechnologySkills(profile: ResumenPerfil): string[] {
-  return profile.records.project.flatMap((project) =>
-    ('technologies' in project ? project.technologies ?? '' : '')
-      .split(/[,;\n|]+/).map((technology) => technology.trim()).filter(Boolean),
-  );
+function normalizeWords(value: string): string[] {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').match(/[a-z0-9]+/g) ?? [];
 }
 
 export async function calculateVacancyAffinity(
@@ -78,44 +28,31 @@ export async function calculateVacancyAffinity(
 ): Promise<VacancyAffinityResult> {
   if (requirements.length === 0) return { status: 'insufficient-requirements' };
 
-  const profile = await obtenerResumenPerfil();
-  const texts = profileTexts(profile);
-  const explicitSkills = projectTechnologySkills(profile);
-  const extracted = await Promise.all(
-    textChunks(texts).map((text) =>
-      apiFetch<ExtractedKeywordsResponse>(NLP_EXTRACT_ENDPOINT, {
-        method: 'POST',
-        body: JSON.stringify({ text }),
-      }),
-    ),
-  );
-  const skills = Array.from(new Set([
-    ...extracted.flatMap((result) => result.keywords.map((keyword) => keyword.term)),
-    ...explicitSkills,
-  ])).filter((skill) => normalizeJobPostingTerm(skill).length > 0);
-
-  return calculateVacancyAffinityWithSkills(requirements, skills);
+  const profile = await loadTituladoSkills();
+  return profile.status === 'ready'
+    ? calculateVacancyAffinityWithSkills(requirements, profile.skills)
+    : { status: 'profile-incomplete' };
 }
 
 /** Carga el perfil una vez para calcular la afinidad de todas las vacantes del listado. */
 export async function loadTituladoSkills(): Promise<TituladoSkillsResult> {
-  const profile = await obtenerResumenPerfil();
-  const texts = profileTexts(profile);
-  const explicitSkills = projectTechnologySkills(profile);
-  const extracted = await Promise.all(
-    textChunks(texts).map((text) =>
-      apiFetch<ExtractedKeywordsResponse>(NLP_EXTRACT_ENDPOINT, {
-        method: 'POST',
-        body: JSON.stringify({ text }),
-      }),
-    ),
-  );
-  const skills = Array.from(new Set([
-    ...extracted.flatMap((result) => result.keywords.map((keyword) => keyword.term)),
-    ...explicitSkills,
-  ])).filter((skill) => normalizeJobPostingTerm(skill).length > 0);
-
-  return skills.length > 0 ? { status: 'ready', skills } : { status: 'profile-incomplete' };
+  try {
+    const [onboarding, customInterests] = await Promise.all([
+      getMentorOnboarding(),
+      getMyTechnicalInterests(),
+    ]);
+    const skills = Array.from(new Set([
+      ...onboarding.areas.intereses.map((interest) => interest.nombre),
+      ...onboarding.interests.catalog.flatMap((group) => group.intereses.filter((interest) => interest.seleccionado).map((interest) => interest.nombre)),
+      ...customInterests,
+    ].map((skill) => skill.trim()).filter(Boolean)));
+    return { status: 'ready', skills };
+  } catch (error) {
+    if (error instanceof MentorOnboardingError && (error.status === 403 || error.status === 404)) {
+      return { status: 'profile-incomplete' };
+    }
+    throw error;
+  }
 }
 
 export function calculateVacancyAffinityWithSkills(
@@ -123,20 +60,21 @@ export function calculateVacancyAffinityWithSkills(
   skills: string[],
 ): VacancyAffinityResult {
   if (requirements.length === 0) return { status: 'insufficient-requirements' };
-  if (skills.length === 0) return { status: 'profile-incomplete' };
-
-  const comparison = requirements.map(({ nombre }) => {
-    const normalizedRequirement = normalizeJobPostingTerm(nombre);
+  const uniqueRequirements = Array.from(new Map(requirements.map((requirement) => [normalizeWords(requirement.nombre).join(' '), requirement])).values());
+  const comparison = uniqueRequirements.map(({ nombre }) => {
+    const requiredWords = normalizeWords(nombre);
     const matchedSkill = skills.find((skill) => {
-      const normalizedSkill = normalizeJobPostingTerm(skill);
-      return normalizedSkill.length >= 3 && normalizedRequirement.includes(normalizedSkill);
+      const skillWords = normalizeWords(skill);
+      return requiredWords.length > 0 && requiredWords.every((word) =>
+        skillWords.some((skillWord) => skillWord === word || (word === 'java' && skillWord === 'javascript')),
+      );
     }) ?? null;
 
     return {
       requirement: nombre,
       matchedSkill,
       result: matchedSkill
-        ? normalizeJobPostingTerm(matchedSkill) === normalizedRequirement
+        ? normalizeWords(matchedSkill).join(' ') === requiredWords.join(' ')
           ? 'exact' as const
           : 'similar' as const
         : 'not-found' as const,
@@ -146,7 +84,7 @@ export function calculateVacancyAffinityWithSkills(
 
   return {
     status: 'ready',
-    percentage: Math.round((matchedCount / requirements.length) * 100),
+    percentage: Math.min(100, Math.round((matchedCount / uniqueRequirements.length) * 100)),
     calculatedAt: new Date().toISOString(),
     comparison,
   };

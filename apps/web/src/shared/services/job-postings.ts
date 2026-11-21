@@ -6,6 +6,7 @@ export interface CreateJobPostingInput {
   modalidad: string;
   nivelExperiencia: string;
   descripcionTecnica: string;
+  requisitosTecnicos?: string[];
 }
 
 export async function createJobPosting(
