@@ -3,7 +3,7 @@ import { RegistrationForm } from '@/modules/registration/frontend/components/reg
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen bg-palladian px-4 py-10 sm:px-6">
+    <div className="flex-1 bg-palladian px-4 py-10 sm:px-6">
       <main className="mx-auto max-w-3xl">
         <ProgressSteps currentStep="data" />
         <RegistrationForm />
