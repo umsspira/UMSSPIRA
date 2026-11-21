@@ -1,15 +1,26 @@
-import { Applicant, ApplicantStatus, EXPERIENCE_LEVELS, ExperienceLevel } from "../types/applicant";
+import {
+  Applicant,
+  ApplicantStatus,
+} from "../types/applicant";
+import { JOB_POSTING_AFFINITY_BATCH_LIMIT } from "@umsspira/shared-types";
+import type {
+  JobPostingAffinityBatchItem,
+  JobPostingAffinityBatchRequest,
+  JobPostingAffinityBatchResponse,
+  JobPostingAffinityResult,
+} from "@umsspira/shared-types";
 import { apiClient, ApiClientError } from "./api-client";
 
 /* ============================================================
    CONFIGURACIÓN
-   HU-01 (Sprint 3): los postulantes vienen de la API real de Épica 4
+   Los postulantes vienen de la API real de Épica 4
        GET /api/v1/vacantes/:idVacante/postulantes
-   Para usarla, en apps/web/.env.local pon:
-       NEXT_PUBLIC_USE_MOCK=false
-   Sin esa variable se siguen usando los datos de prueba de abajo.
+   Los datos de prueba de abajo solo se usan en desarrollo o en una
+   demo explícita, poniendo en apps/web/.env.local:
+       NEXT_PUBLIC_USE_MOCK=true
    ============================================================ */
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+const USE_MOCK =
+  process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 // Solo para probar con datos de prueba:
 //   "ok" | "empty" (CA-07) | "error" (CA-08 / CA-09)
@@ -34,16 +45,16 @@ interface RawApplicant {
   id: string | number;
   name: string;
   email: string;
-  location?: string | null;
-  experienceLevel?: string | null;
   /** HU-01: código de etapa que envía la API (postulado, en_revision, ...). */
   stage?: string | null;
   /** Etiqueta ya traducida (solo en los datos de prueba antiguos). */
   status?: Applicant["status"];
   appliedAt?: string | null;
+  hasCv?: boolean;
   cvUrl?: string | null;
   matchPercentage?: number | null;
-  skills?: Applicant["skills"];
+  /** HU-10: fecha del último cálculo guardado (fecha_match). */
+  matchCalculatedAt?: string | null;
 }
 
 /** HU-04: códigos de etapa del backend → etiqueta que muestra la interfaz. */
@@ -51,19 +62,24 @@ const STAGE_LABELS: Record<string, ApplicantStatus> = {
   postulado: "Postulado",
   en_revision: "En revisión",
   preseleccionado: "Preseleccionado",
-  entrevista: "Entrevistado",
+  entrevista: "Entrevista",
   descartado: "Descartado",
 };
+
+/** HU-04: etiqueta de la interfaz → código que espera el backend. */
+export const STAGE_CODES: Record<ApplicantStatus, string> = {
+  Postulado: "postulado",
+  "En revisión": "en_revision",
+  Preseleccionado: "preseleccionado",
+  Entrevista: "entrevista",
+  Descartado: "descartado",
+};
+
+export const STAGE_UPDATE_ERROR_MESSAGE = "No se pudo guardar la etapa. Intenta de nuevo.";
 
 function toStatus(raw: RawApplicant): ApplicantStatus {
   if (raw.stage && STAGE_LABELS[raw.stage]) return STAGE_LABELS[raw.stage];
   return raw.status ?? "Postulado";
-}
-
-function toExperienceLevel(value: unknown): ExperienceLevel | null {
-  return (EXPERIENCE_LEVELS as readonly string[]).includes(String(value))
-    ? (value as ExperienceLevel)
-    : null;
 }
 
 function normalizeApplicant(raw: RawApplicant): Applicant {
@@ -71,18 +87,22 @@ function normalizeApplicant(raw: RawApplicant): Applicant {
     id: String(raw.id),
     name: raw.name,
     email: raw.email,
-    // El perfil del titulado aún no registra ubicación ni nivel: se muestran como no registrados.
-    location: raw.location || null,
-    experienceLevel: toExperienceLevel(raw.experienceLevel),
     status: toStatus(raw),
     appliedAt: raw.appliedAt ?? null,
+    hasCv: raw.hasCv === true,
     cvUrl: raw.cvUrl ?? null,
     // Ejemplo si la API usara otros nombres: raw.porcentaje_match
     matchPercentage:
       typeof raw.matchPercentage === "number" && Number.isFinite(raw.matchPercentage)
         ? raw.matchPercentage
         : null,
-    skills: Array.isArray(raw.skills) ? raw.skills : null,
+    matchStatus: null,
+    matchCalculatedAt:
+      typeof raw.matchCalculatedAt === "string" && Number.isFinite(Date.parse(raw.matchCalculatedAt))
+        ? raw.matchCalculatedAt
+        : null,
+    comparison: [],
+    matchError: null,
   };
 }
 
@@ -94,84 +114,85 @@ const MOCK_APPLICANTS: Applicant[] = [
     id: "app-1",
     name: "Carlos Rojas",
     email: "carlos.rojas@email.com",
-    location: "Cochabamba, Bolivia",
-    experienceLevel: "Senior",
     status: "En revisión",
     appliedAt: "2025-09-10",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: 92,
-    skills: [
-      { skill: "Node.js", percentage: 100 },
-      { skill: "TypeScript", percentage: 90 },
-      { skill: "REST API", percentage: 80 },
-      { skill: "PostgreSQL", percentage: 80 },
-      { skill: "Docker", percentage: 70 },
-      { skill: "AWS", percentage: 60 },
+    matchStatus: "ready",
+    matchCalculatedAt: null,
+    comparison: [
+      { requirement: "Node.js", matchedSkill: "Node.js", result: "exact" },
+      { requirement: "TypeScript", matchedSkill: "TypeScript", result: "exact" },
+      { requirement: "Docker", matchedSkill: "Docker", result: "exact" },
     ],
+    matchError: null,
   },
   {
     id: "app-2",
     name: "María López",
     email: "maria.lopez@email.com",
-    location: "Cochabamba, Bolivia",
-    experienceLevel: "Senior",
     status: "En revisión",
     appliedAt: "2025-09-08",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: 85,
-    skills: [
-      { skill: "Python", percentage: 95 },
-      { skill: "FastAPI", percentage: 90 },
-      { skill: "PostgreSQL", percentage: 80 },
-      { skill: "Docker", percentage: 75 },
+    matchStatus: "ready",
+    matchCalculatedAt: null,
+    comparison: [
+      { requirement: "Python", matchedSkill: "Python", result: "exact" },
+      { requirement: "PostgreSQL", matchedSkill: "PostgreSQL", result: "exact" },
     ],
+    matchError: null,
   },
   {
     id: "app-3",
     name: "Luis Fernández",
     email: "luis.fernandez@email.com",
-    location: "Quillacollo, Cochabamba",
-    experienceLevel: "Semi-Senior",
     status: "Preseleccionado",
     appliedAt: "2025-09-06",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: 78,
-    skills: [
-      { skill: "Java", percentage: 85 },
-      { skill: "Spring Boot", percentage: 80 },
-      { skill: "MySQL", percentage: 75 },
-      { skill: "Docker", percentage: 65 },
+    matchStatus: "ready",
+    matchCalculatedAt: null,
+    comparison: [
+      { requirement: "Java", matchedSkill: "Java", result: "exact" },
+      { requirement: "Spring Boot", matchedSkill: "Spring Boot", result: "exact" },
     ],
+    matchError: null,
   },
   {
     id: "app-4",
     name: "Ana Torres",
     email: "ana.torres@email.com",
-    location: "Cochabamba, Bolivia",
-    experienceLevel: "Semi-Senior",
     status: "En revisión",
     appliedAt: "2025-09-05",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: 72,
-    skills: [
-      { skill: "Node.js", percentage: 80 },
-      { skill: "JavaScript", percentage: 75 },
-      { skill: "MongoDB", percentage: 70 },
-      { skill: "REST API", percentage: 65 },
+    matchStatus: "ready",
+    matchCalculatedAt: null,
+    comparison: [
+      { requirement: "JavaScript", matchedSkill: "JavaScript", result: "exact" },
+      { requirement: "MongoDB", matchedSkill: "MongoDB", result: "exact" },
     ],
+    matchError: null,
   },
   {
     // Caso CA-10: el motor no devolvió porcentaje
     id: "app-5",
     name: "Luis Mamani",
     email: "luis.mamani@email.com",
-    location: "Sacaba, Cochabamba",
-    experienceLevel: "Junior",
     status: "Postulado",
     appliedAt: "2025-09-04",
+    hasCv: false,
     cvUrl: null,
     matchPercentage: null,
-    skills: null,
+    matchStatus: "profile-incomplete",
+    matchCalculatedAt: null,
+    comparison: [],
+    matchError: null,
   },
 ];
 
@@ -248,6 +269,132 @@ async function apiGet<T>(path: string): Promise<T> {
   }
 }
 
+/** Si el motor no responde, la lista sigue visible con el último porcentaje guardado. */
+export const AFFINITY_UNAVAILABLE_MESSAGE =
+  "No se pudo calcular la coincidencia técnica en este momento. Se muestra el último resultado guardado, si existe.";
+
+const COMPARISON_RESULTS = ["exact", "similar", "not-found"] as const;
+
+function isValidAffinityResult(result: unknown): result is JobPostingAffinityResult {
+  if (!result || typeof result !== "object") return false;
+  const r = result as Record<string, unknown>;
+  if (!Array.isArray(r.comparison)) return false;
+  const comparisonOk = r.comparison.every((item: unknown) => {
+    if (!item || typeof item !== "object") return false;
+    const c = item as Record<string, unknown>;
+    return (
+      typeof c.requirement === "string"
+      && (c.matchedSkill === null || typeof c.matchedSkill === "string")
+      && (COMPARISON_RESULTS as readonly unknown[]).includes(c.result)
+    );
+  });
+  if (!comparisonOk) return false;
+  if (r.status === "ready") {
+    return (
+      typeof r.percentage === "number"
+      && Number.isFinite(r.percentage)
+      && r.percentage >= 0
+      && r.percentage <= 100
+      && typeof r.calculatedAt === "string"
+      && Number.isFinite(Date.parse(r.calculatedAt))
+    );
+  }
+  return (
+    (r.status === "profile-incomplete" || r.status === "no-requirements")
+    && r.percentage === null
+    && r.calculatedAt === null
+    && r.comparison.length === 0
+  );
+}
+
+/** Conserva el porcentaje y la fecha guardados (GET postulantes) y solo marca el error. */
+function withAffinityError(applicant: Applicant, message: string): Applicant {
+  return { ...applicant, matchStatus: null, comparison: [], matchError: message };
+}
+
+function applyBatchItem(applicant: Applicant, item: JobPostingAffinityBatchItem): Applicant {
+  if (item.result && isValidAffinityResult(item.result)) {
+    return {
+      ...applicant,
+      matchPercentage: item.result.percentage,
+      matchStatus: item.result.status,
+      matchCalculatedAt: item.result.calculatedAt,
+      comparison: item.result.comparison,
+      matchError: null,
+    };
+  }
+  const message =
+    item.error && typeof item.error.message === "string" && item.error.message.trim()
+      ? item.error.message
+      : AFFINITY_UNAVAILABLE_MESSAGE;
+  return withAffinityError(applicant, message);
+}
+
+async function requestAffinityChunk(
+  vacancyId: string,
+  chunk: Applicant[],
+): Promise<Map<string, JobPostingAffinityBatchItem>> {
+  const request: JobPostingAffinityBatchRequest = {
+    mode: "applicants",
+    vacancyId,
+    applicationIds: chunk.map((applicant) => applicant.id),
+  };
+  const response = await apiClient<JobPostingAffinityBatchResponse>("/api/v1/affinity/batch", {
+    method: "POST",
+    authenticated: true,
+    body: request,
+  });
+  const items = new Map<string, JobPostingAffinityBatchItem>();
+  if (!response || !Array.isArray(response.data)) return items;
+  const ids = new Set(request.applicationIds);
+  for (const item of response.data) {
+    // Se ignoran elementos de otra vacante, desconocidos o repetidos.
+    if (
+      item
+      && item.vacancyId === vacancyId
+      && typeof item.applicationId === "string"
+      && ids.has(item.applicationId)
+      && !items.has(item.applicationId)
+    ) {
+      items.set(item.applicationId, item);
+    }
+  }
+  return items;
+}
+
+async function getAffinityByApplicants(
+  vacancyId: string,
+  applicants: Applicant[],
+): Promise<Applicant[]> {
+  if (applicants.length === 0) return [];
+  const enriched: Applicant[] = [];
+
+  for (let offset = 0; offset < applicants.length; offset += JOB_POSTING_AFFINITY_BATCH_LIMIT) {
+    const chunk = applicants.slice(offset, offset + JOB_POSTING_AFFINITY_BATCH_LIMIT);
+    let items: Map<string, JobPostingAffinityBatchItem> | null = null;
+    try {
+      items = await requestAffinityChunk(vacancyId, chunk);
+    } catch {
+      items = null; // HU-10 caído o no disponible: la lista se muestra igual.
+    }
+    for (const applicant of chunk) {
+      const item = items?.get(applicant.id);
+      enriched.push(item ? applyBatchItem(applicant, item) : withAffinityError(applicant, AFFINITY_UNAVAILABLE_MESSAGE));
+    }
+  }
+
+  return enriched
+    .map((applicant, index) => ({ applicant, index }))
+    .sort((a, b) => {
+      const aMatch = a.applicant.matchPercentage;
+      const bMatch = b.applicant.matchPercentage;
+      if (aMatch === null) return bMatch === null ? a.index - b.index : 1;
+      if (bMatch === null) return -1;
+      return bMatch - aMatch || a.index - b.index;
+    })
+    .map(({ applicant }) => applicant);
+}
+
 /* ============================================================
    SERVICIO PÚBLICO (lanzan MatchEngineError si fallan)
    El parámetro vacancyPublishedAt solo se usa con datos de prueba.
@@ -275,7 +422,7 @@ export async function getApplicantsByVacancy(
   }
   if (!Array.isArray(data)) throw new MatchEngineError();
 
-  return (data as RawApplicant[]).map(normalizeApplicant);
+  return getAffinityByApplicants(vacancyId, (data as RawApplicant[]).map(normalizeApplicant));
 }
 
 /** Detalle de un postulante. Devuelve null si no existe. */
@@ -294,9 +441,37 @@ export async function getApplicantById(
     const data = await apiGet<RawApplicant>(
       `/api/v1/vacantes/${encodeURIComponent(vacancyId)}/postulantes/${encodeURIComponent(applicantId)}`
     );
-    return normalizeApplicant(data);
+    return (await getAffinityByApplicants(vacancyId, [normalizeApplicant(data)]))[0] ?? null;
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) return null;
     throw error;
+  }
+}
+
+/**
+ * HU-04: cambia la etapa de un postulante.
+ * Usa apiClient para enviar la sesión (Bearer) igual que el resto de la app;
+ * un fetch directo con cookie sin X-CSRF-Token responde 403.
+ */
+export async function updateApplicantStage(
+  vacancyId: string,
+  applicantId: string,
+  status: ApplicantStatus
+): Promise<void> {
+  if (USE_MOCK) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return;
+  }
+
+  try {
+    await apiClient(
+      `/api/v1/vacantes/${encodeURIComponent(vacancyId)}/postulantes/${encodeURIComponent(applicantId)}/etapa`,
+      { method: "PATCH", authenticated: true, body: { etapa: STAGE_CODES[status] } }
+    );
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status < 500 && error.message) {
+      throw new Error(error.message);
+    }
+    throw new Error(STAGE_UPDATE_ERROR_MESSAGE);
   }
 }
