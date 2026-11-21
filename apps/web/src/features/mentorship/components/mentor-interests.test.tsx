@@ -14,11 +14,23 @@ let onSave: jest.Mock;
 beforeEach(() => { push.mockReset(); onSave = jest.fn(async config => config); });
 function setup() { render(<MentorInterests catalog={catalog} initialConfiguration={initialConfiguration} onSave={onSave} />); }
 function add() { fireEvent.click(screen.getByRole('button', { name: 'APIs REST' })); }
-function openSave() { fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' })); }
+function saveButton(count?: number) {
+  return screen.getByRole('button', {
+    name: count === undefined ? /^Guardar configuración \(\d+\)$/ : `Guardar configuración (${count})`,
+  });
+}
+function openSave() { fireEvent.click(saveButton()); }
 function confirmSave() { fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' })); }
+function expectProgress(completed: number) {
+  expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' }))
+    .toHaveTextContent(`${completed} de 3 pasos completados`);
+}
 
 it('muestra el catálogo por área y permite ir a configurar otras áreas', () => {
   setup();
+  expect(within(screen.getByRole('region', { name: 'Completa tu perfil de mentor' }))
+    .getAllByRole('listitem').map(item => item.querySelector('strong')?.textContent))
+    .toEqual(['Áreas técnicas', 'Intereses de mentoría', 'Disponibilidad']);
   expect(screen.getByRole('heading', { name: 'Web' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Bases de datos' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'PostgreSQL' })).not.toBeInTheDocument();
@@ -36,20 +48,102 @@ it('no muestra tarjetas del catálogo si el mentor no ha seleccionado áreas', (
   expect(screen.queryByRole('button', { name: 'PostgreSQL' })).not.toBeInTheDocument();
 });
 
+it('TC-010: actualiza el contador del borrador entre áreas y lo restaura al descartar', () => {
+  const countCatalog: InterestArea[] = [
+    {
+      id: 'backend', name: 'Backend', description: '',
+      topics: [{ id: 'backend-saved', name: 'Node.js' }, { id: 'api', name: 'APIs REST' }],
+    },
+    { id: 'frontend', name: 'Frontend', description: '', topics: [{ id: 'react', name: 'React' }] },
+    {
+      id: 'legacy', name: 'Legada', description: '', locked: true,
+      topics: [{ id: 'legacy-custom', name: 'Interés legado', isCustom: true }],
+    },
+  ];
+  render(
+    <MentorInterests
+      catalog={countCatalog}
+      initialConfiguration={{ areaIds: ['backend', 'frontend', 'legacy'], topicIds: ['backend-saved', 'legacy-custom'] }}
+      onSave={onSave}
+    />,
+  );
+
+  expect(screen.getByRole('button', { name: 'Continuar a disponibilidad' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Node.js' }));
+  expect(saveButton(0)).toBeEnabled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'APIs REST' }));
+  expect(saveButton(1)).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'React' }));
+  expect(saveButton(2)).toBeEnabled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'APIs REST' }));
+  expect(saveButton(1)).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+  fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
+
+  expect(screen.getByRole('button', { name: 'Node.js' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'false');
+  expect(screen.getByRole('button', { name: 'React' })).toHaveAttribute('aria-pressed', 'false');
+  expect(screen.queryByRole('button', { name: /^Guardar configuración/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Continuar a disponibilidad' })).toBeEnabled();
+});
+
+it('TC-010: cuenta personalizados de áreas activas y excluye áreas bloqueadas', () => {
+  const countCatalog: InterestArea[] = [
+    {
+      id: 'active', name: 'Activa', description: '',
+      topics: [{ id: 'custom-active', name: 'Tema propio', isCustom: true }, { id: 'suggested', name: 'Sugerido' }],
+    },
+    {
+      id: 'locked', name: 'Bloqueada', description: '', locked: true,
+      topics: [{ id: 'custom-locked', name: 'Tema bloqueado', isCustom: true }],
+    },
+  ];
+  render(
+    <MentorInterests
+      catalog={countCatalog}
+      initialConfiguration={{ areaIds: ['active', 'locked'], topicIds: ['custom-active', 'custom-locked'] }}
+      onSave={onSave}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Sugerido' }));
+  expect(saveButton(2)).toBeEnabled();
+  expect(screen.getByRole('heading', { name: 'Bloqueada' })).toBeInTheDocument();
+});
+
 it('guarda solo después de confirmar y muestra el resultado', async () => {
   setup(); add(); openSave();
+  expectProgress(1);
+  expect(screen.getByText('En edición')).toBeInTheDocument();
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
+  expect(parseFloat((screen.getByRole('progressbar').firstElementChild as HTMLElement).style.width)).toBeCloseTo(100 / 3);
   expect(onSave).not.toHaveBeenCalled();
   expect(screen.getByRole('alertdialog')).toHaveTextContent('APIs REST');
   confirmSave();
   await screen.findByText(/Intereses guardados correctamente/);
   expect(onSave).toHaveBeenCalledWith({ areaIds: ['web'], topicIds: ['react', 'rest'] });
   expect(push).toHaveBeenCalledWith('/mentorship/profile/availability');
+  expectProgress(2);
+  expect(screen.queryByText('En edición')).not.toBeInTheDocument();
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');
   expect(screen.getByRole('button', { name: 'Continuar a disponibilidad' })).toBeEnabled();
   expect(screen.getByRole('button', { name: 'Descartar cambios' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Volver a mi perfil' })).toBeEnabled();
   expect(screen.queryByText('Cambios sin guardar')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Volver a mi perfil' }));
   expect(push).toHaveBeenCalledWith('/mentorship/profile');
+});
+
+it('recalcula el avance con la configuración devuelta por el guardado', async () => {
+  onSave.mockResolvedValueOnce({ areaIds: ['web'], topicIds: [] });
+  setup(); add(); openSave(); confirmSave();
+  await screen.findByText(/Intereses guardados correctamente/);
+  expectProgress(1);
+  expect(screen.getByRole('button', { name: 'React' })).toHaveAttribute('aria-pressed', 'false');
+  expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'false');
+  expect(push).toHaveBeenCalledWith('/mentorship/profile/availability');
 });
 
 it('muestra el estado de cambios y vuelve a guardar al editar después del éxito', async () => {
@@ -62,7 +156,7 @@ it('muestra el estado de cambios y vuelve a guardar al editar después del éxit
   await screen.findByRole('button', { name: 'Volver a mi perfil' });
   fireEvent.click(screen.getByRole('button', { name: 'APIs REST' }));
   expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Guardar y continuar' })).toBeEnabled();
+  expect(saveButton(1)).toBeEnabled();
   expect(screen.getByText('Cambios sin guardar')).toBeInTheDocument();
 });
 
@@ -71,6 +165,9 @@ it('mantiene el borrador y permite reintentar cuando falla el guardado', async (
   setup(); add(); openSave();
   confirmSave();
   expect(await screen.findByRole('alert')).toHaveTextContent('Error de conexión');
+  expectProgress(1);
+  expect(screen.getByText('En edición')).toBeInTheDocument();
+  expect(push).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Volver a mi perfil' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'true');
   confirmSave();
@@ -79,10 +176,30 @@ it('mantiene el borrador y permite reintentar cuando falla el guardado', async (
 
 it('descarta y restaura la última configuración guardada', () => {
   setup(); add();
+  expect(screen.getByText('En edición')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Descartar cambios' }));
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Descartar cambios' }));
   expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'false');
+  expectProgress(2);
+  expect(screen.queryByText('En edición')).not.toBeInTheDocument();
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');
   expect(onSave).not.toHaveBeenCalled();
+});
+
+it('marca En edición al quitar un interés guardado y restaura el progreso al recargar', async () => {
+  const view = render(<MentorInterests catalog={catalog} initialConfiguration={initialConfiguration} onSave={onSave} />);
+  fireEvent.click(screen.getByRole('button', { name: 'React' }));
+  expect(screen.getByRole('button', { name: 'React' })).toHaveAttribute('aria-pressed', 'false');
+  expectProgress(1);
+  expect(screen.getByText('En edición')).toBeInTheDocument();
+  openSave();
+  confirmSave();
+  await screen.findByText(/Intereses guardados correctamente/);
+  expectProgress(1);
+  view.unmount();
+  render(<MentorInterests catalog={catalog} initialConfiguration={{ areaIds: ['web'], topicIds: [] }} onSave={onSave} />);
+  expectProgress(1);
+  expect(screen.queryByText('En edición')).not.toBeInTheDocument();
 });
 
 it('confirma la eliminación de un área y sus tópicos sin guardar automáticamente', () => {
@@ -168,8 +285,8 @@ it('espera el resultado del servidor antes de mostrar éxito', async () => {
   setup(); add(); openSave();
   confirmSave();
   expect(screen.queryByText(/Intereses guardados correctamente/)).not.toBeInTheDocument();
-  expect(screen.getAllByRole('button', { name: 'Guardar y continuar' })).toHaveLength(2);
-  screen.getAllByRole('button', { name: 'Guardar y continuar' }).forEach(button => expect(button).toBeDisabled());
+  expect(saveButton(2)).toBeDisabled();
+  expect(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' })).toBeDisabled();
   resolve(initialConfiguration);
   await waitFor(() => expect(screen.getByRole('button', { name: 'APIs REST' })).toHaveAttribute('aria-pressed', 'false'));
   expect(onSave).toHaveBeenCalledTimes(1);

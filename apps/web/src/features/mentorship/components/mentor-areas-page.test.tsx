@@ -37,6 +37,9 @@ beforeEach(() => {
 it('muestra el catálogo ordenado alfabéticamente en la pantalla dedicada', async () => {
   render(<MentorAreasPage />);
   const list = await screen.findByRole('list', { name: 'Catálogo de áreas técnicas' });
+  expect(within(screen.getByRole('region', { name: 'Completa tu perfil de mentor' }))
+    .getAllByRole('listitem').map(item => item.querySelector('strong')?.textContent))
+    .toEqual(['Áreas técnicas', 'Intereses de mentoría', 'Disponibilidad']);
   expect(within(list).getAllByRole('listitem').map(item => item.textContent)).toEqual([
     'Arquitectura y diseño de softwarePatrones y microservicios. Agregar',
     'Bases de datosSQL y NoSQL. Agregar',
@@ -59,6 +62,22 @@ it('selecciona y deselecciona cada área sin duplicarla', async () => {
   fireEvent.click(databases);
   expect(databases).not.toBeChecked();
   expect(screen.getByText('0 de 5 áreas seleccionadas')).toBeInTheDocument();
+});
+
+it('TC-004: permite seleccionar y guardar Backend, Frontend y Bases de datos como áreas', async () => {
+  const specialties: MentorArea[] = [
+    { id: 'backend', nombre: 'Backend', descripcion: null },
+    { id: 'frontend', nombre: 'Frontend', descripcion: null },
+    { id: 'databases', nombre: 'Bases de datos', descripcion: null },
+  ];
+  getAreas.mockResolvedValue({ areas: specialties, selectedIds: [] });
+  render(<MentorAreasPage />);
+  for (const name of ['Backend', 'Frontend', 'Bases de datos']) {
+    fireEvent.click(await screen.findByRole('checkbox', { name }));
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+  await waitFor(() => expect(updateAreas).toHaveBeenCalledWith(specialties.map(area => area.id)));
+  expect(screen.getByText('3 de 5 áreas seleccionadas')).toBeInTheDocument();
 });
 
 it('limita la selección a cinco áreas y permite descartar cambios', async () => {
