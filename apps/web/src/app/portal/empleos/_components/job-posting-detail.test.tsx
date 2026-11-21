@@ -155,9 +155,39 @@ describe('JobPostingDetail', () => {
     expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
     expect(screen.queryByText(/Conocimientos técnicos requeridos/)).not.toBeInTheDocument();
     expect(await screen.findByText('100%')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver comparación' }));
+    const button = screen.getByRole('button', { name: 'Ver comparación' });
+    button.focus();
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(button);
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveTextContent('React Native');
     expect(screen.getByText('Habilidad: React Native')).toBeInTheDocument();
     expect(screen.getByText('Habilidad: PostgreSQL avanzado')).toBeInTheDocument();
+  });
+
+  it('abre y cierra la explicación del porcentaje desde el detalle de la vacante', async () => {
+    getAvailable.mockResolvedValue(posting);
+    calculateAffinity.mockResolvedValue({
+      status: 'ready',
+      percentage: 67,
+      calculatedAt: '2026-11-20T09:00:00.000Z',
+      comparison: [
+        { requirement: 'Node.js', matchedSkill: 'Node.js', result: 'exact' },
+        { requirement: 'PostgreSQL', matchedSkill: 'PostgreSQL', result: 'exact' },
+        { requirement: 'Docker', matchedSkill: null, result: 'not-found' },
+      ],
+    });
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+    fireEvent.click(await screen.findByRole('button', { name: '¿Cómo se calcula?' }));
+
+    expect(screen.getByRole('dialog', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
+    expect(screen.getByText('2 de 3 requisitos = 67 %')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
   });
 
   it('muestra error y volver a vacantes en la presentación HU-002', async () => {

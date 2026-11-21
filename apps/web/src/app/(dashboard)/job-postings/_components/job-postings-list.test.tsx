@@ -51,18 +51,56 @@ describe('JobPostingsList', () => {
     });
   });
 
+  it('incluye Ayuda con acceso directo a la guía del titulado (T20.2)', async () => {
+    render(<JobPostingsList />);
+
+    expect(screen.getByRole('link', { name: 'Ayuda' })).toHaveAttribute(
+      'href', '/ayuda/bolsa-de-trabajo?tab=titulado',
+    );
+    expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Buscar vacante' })).toBeInTheDocument();
+  });
+
   it('muestra la afinidad calculada, una descripción breve y el enlace al detalle', async () => {
     render(<JobPostingsList />);
 
     expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
     expect(screen.getByText(/Crear interfaces para la plataforma\./)).toBeInTheDocument();
     expect(screen.queryByText('Conocimientos técnicos requeridos:')).not.toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: 'Híbrido' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ver oferta' })).toHaveAttribute(
+    expect(screen.getByRole('cell', { name: 'Modalidad: Híbrido' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver oferta: Desarrollador frontend' })).toHaveAttribute(
       'href',
       '/portal/job-postings/detalle?jobId=vacancy-1',
     );
     expect(getAffinityBatch).toHaveBeenCalledWith(['vacancy-1']);
+  });
+
+  it('presenta cada vacante con etiquetas visibles en móvil sin depender de un ancho fijo', async () => {
+    render(<JobPostingsList />);
+
+    await screen.findByText('95% Afinidad');
+    const table = screen.getByRole('table');
+    expect(table).not.toHaveClass('min-w-[850px]');
+    expect(table).toHaveClass('block', 'md:table');
+    expect(screen.getByRole('cell', { name: /Empresa: Empresa/ })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: /Afinidad: 95% Afinidad/ })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: /Área laboral: No especificada/ })).toBeInTheDocument();
+  });
+
+  it('consulta la afinidad de 50 vacantes en un solo lote', async () => {
+    const postings = Array.from({ length: 50 }, (_, index) => ({
+      ...posting,
+      id: `vacancy-${index}`,
+      titulo: `Vacante ${index}`,
+    }));
+    listPostings.mockResolvedValue(postings);
+    getAffinityBatch.mockResolvedValue({});
+
+    render(<JobPostingsList />);
+
+    expect(await screen.findByText('50 vacantes encontradas')).toBeInTheDocument();
+    expect(getAffinityBatch).toHaveBeenCalledTimes(1);
+    expect(getAffinityBatch).toHaveBeenCalledWith(postings.map(({ id }) => id));
   });
 
   it('enlaza a proyectos del perfil cuando no hay habilidades disponibles', async () => {
@@ -171,6 +209,7 @@ describe('JobPostingsList', () => {
     });
     expect(screen.getAllByRole('row')).toHaveLength(2);
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('Analista de Datos');
+    expect(getAffinityBatch).toHaveBeenCalledTimes(1);
 
     fireEvent.change(screen.getByLabelText('Buscar vacante'), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText('Filtrar por modalidad'), {

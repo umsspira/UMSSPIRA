@@ -14,6 +14,7 @@ import { CreateEventController } from './http/controllers/create-event.controlle
 import { UpdateEventDraftController } from './http/controllers/update-event-draft.controller';
 import { UpdatePublishedEventController } from './http/controllers/update-published-event.controller';
 import { PublishEventDraftController } from './http/controllers/publish-event-draft.controller';
+import { DownloadMyCertificateService } from './application/download-my-certificate.service';
 import { ScheduleEventDraftController } from './http/controllers/schedule-event-draft.controller';
 import { ScheduledEventPublicationWorker } from './infrastructure/workers/scheduled-event-publication.worker';
 import { CancelEventScheduleController } from './http/controllers/cancel-event-schedule.controller';
@@ -33,12 +34,20 @@ import { ValidateAttendancePassController } from './http/controllers/validate-at
 import { ValidateAttendancePassService } from './application/validate-attendance-pass.service';
 import { CertificateTemplateController } from './http/controllers/certificate-template.controller';
 import { certificateTemplatesProviders } from './infrastructure/providers/certificate-templates.providers';
-
+import { EventReminderWorker } from './infrastructure/workers/event-reminder.worker';
+import { EventReminderSettingsController } from './http/controllers/event-reminder-settings.controller';
+import { EventReminderSettingsService } from './application/event-reminder-settings.service';
+import { MyCertificatesController } from './http/controllers/my-certificates.controller';
+import { ListMyCertificatesService } from './application/list-my-certificates.service';
+import { GenerateCertificatesController } from './http/controllers/generate-certificates.controller';
+import { GenerateCertificatesService } from './application/generate-certificates.service';
+import { PrismaCertificatesRepository } from './infrastructure/repositories/prisma-certificates.repository';
 
 @Module({
   imports: [PrismaModule, AuthModule, NotificationsModule],
   controllers: [
     CertificateTemplateController,
+    EventReminderSettingsController,
     GetEventCatalogController,
     ListMyEventRegistrationsController,
     ListOwnedEventsController,
@@ -62,15 +71,23 @@ import { certificateTemplatesProviders } from './infrastructure/providers/certif
     ValidateAttendancePassController,
     EventPassesController,
     CancelPublishedEventController,
+    MyCertificatesController,
+    GenerateCertificatesController, 
   ],
   providers: [
     ScheduledEventPublicationWorker,
+    EventReminderWorker,
+    EventReminderSettingsService,
     ...eventsProviders,
     ...certificateTemplatesProviders,
     OptionalAuthenticationGuard,
     GenerateEventPassService,
     ListUserPassesService,
     ValidateAttendancePassService,
+    GenerateCertificatesService, 
+    PrismaCertificatesRepository,
+    ListMyCertificatesService,
+    DownloadMyCertificateService,
   ],
 })
 export class EventsModule {}

@@ -338,7 +338,7 @@ Plan de recorte si falta tiempo, en este orden:
 | HU-12 | epic7 | Implementada en código; pendiente de validación funcional aislada | feat/G4-E5-HU12-recalculo-afinidad | Recálculo lazy con hash SHA-256; migración creada sin aplicar |
 | HU-13 | epic6 | En revisión | feat/epic6-HU13-editar-vacante-validada | Falta el recálculo de afinidad al guardar (depende de HU-10/HU-12) |
 | HU-14 | epic8 | Pendiente | | |
-| HU-15 | epic4 | Pendiente | | |
+| HU-15 | epic4 | En progreso | `feat/G6-HU15-E5` | Consume el lote de HU-10 (`mode: "applicants"`); si el motor falla, la lista se muestra con el último porcentaje guardado. Mergear después de #938. |
 | HU-16 | epic9 | Pendiente | | |
 | HU-17 | epic3 | Pendiente | | |
 | HU-18 | epic7 | Pendiente | | |

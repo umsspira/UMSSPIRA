@@ -6,7 +6,6 @@ export function useApplicantFilters(initialApplicants: Applicant[]) {
   const [searchTerm, setSearchTerm] = useState("");
   const [minMatch, setMinMatch] = useState<number>(0);
   const [selectedStatus, setSelectedStatus] = useState<string>("Todos");
-  const [selectedLevel, setSelectedLevel] = useState<string>("Todos");
 
   const filteredApplicants = useMemo(() => {
     return initialApplicants.filter((applicant) => {
@@ -30,20 +29,14 @@ export function useApplicantFilters(initialApplicants: Applicant[]) {
         return false;
       }
 
-      // Nivel de experiencia
-      if (selectedLevel !== "Todos" && applicant.experienceLevel !== selectedLevel) {
-        return false;
-      }
-
       return true;
     });
-  }, [initialApplicants, searchTerm, minMatch, selectedStatus, selectedLevel]);
+  }, [initialApplicants, searchTerm, minMatch, selectedStatus]);
 
   const handleClearFilters = () => {
     setSearchTerm("");
     setMinMatch(0);
     setSelectedStatus("Todos");
-    setSelectedLevel("Todos");
   };
 
   return {
@@ -53,8 +46,6 @@ export function useApplicantFilters(initialApplicants: Applicant[]) {
     setMinMatch,
     selectedStatus,
     setSelectedStatus,
-    selectedLevel,
-    setSelectedLevel,
     filteredApplicants,
     handleClearFilters,
   };

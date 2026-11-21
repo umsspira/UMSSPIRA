@@ -3,8 +3,9 @@ import type { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 const MODULES = new Set([
   'auth', 'user', 'companies', 'job-postings', 'registrations', 'applications',
-  'email-verification', 'documents', 'perfil', 'events', 'mentorship', 'reports', 'surveys',
+  'email-verification', 'documents', 'perfil', 'events', 'certificates', 'mentorship', 'reports', 'surveys',
   'nlp', 'radar', 'chat', 'vacantes', 'affinity',
+  'push-subscriptions', 'event-notifications',
 ]);
 
 async function proxy(request: NextRequest, context: { params: { path: string[] } }): Promise<Response> {

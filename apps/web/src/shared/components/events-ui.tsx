@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { EventScheduleDialog } from '@/shared/components/event-schedule-dialog';
+import { EventReminderSettingsPanel } from '@/shared/components/event-reminder-settings';
 import {
   EVENT_STATUS,
   type EventItem,
@@ -89,6 +90,7 @@ export function EventManagementContent({
     setErrorMessage,
   } = useAdminEvents(userId, !compact);
   const [pendingPublication, setPendingPublication] = useState<EventItem | null>(null);
+  const [showReminderSettings, setShowReminderSettings] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [pendingCancellation, setPendingCancellation] = useState<EventItem | null>(null);
@@ -293,6 +295,15 @@ export function EventManagementContent({
           <p>Administra los eventos universitarios de la comunidad UMSSPIRA.</p>
         </div>
         <div className="events-title-actions">
+          <button
+            type="button"
+            className="event-button event-button-secondary"
+            aria-expanded={showReminderSettings}
+            aria-controls="event-reminder-global-panel"
+            onClick={() => setShowReminderSettings((open) => !open)}
+          >
+            {showReminderSettings ? 'Cerrar recordatorios' : 'Recordatorios'}
+          </button>
           <Link href="/events/inactive" className="event-button event-button-secondary events-inactive-button">
             Eventos inactivos
           </Link>
@@ -301,6 +312,7 @@ export function EventManagementContent({
           </Link>
         </div>
       </div>
+      {showReminderSettings ? <EventReminderSettingsPanel /> : null}
 
       <EventAdminTabs active="management" />
 

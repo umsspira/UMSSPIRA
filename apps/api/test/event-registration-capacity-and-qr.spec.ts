@@ -112,6 +112,7 @@ function databaseWithPass(hasPass = true) {
   const calls = {
     lock: jest.fn(),
     registrationUpdate: jest.fn(),
+    reminderUpdate: jest.fn(),
     passUpdate: jest.fn(),
     passUpsert: jest.fn(),
     eventRead: jest.fn(),
@@ -187,6 +188,16 @@ function databaseWithPass(hasPass = true) {
         },
       },
       evento: { findUnique: async () => event },
+      configuracionRecordatorios: {
+        findUniqueOrThrow: async () => ({ anticipacion_horas: 24 }),
+      },
+      recordatorioEvento: {
+        create: async () => ({ id: randomUUID() }),
+        updateMany: async (args: { where: unknown; data: unknown }) => {
+          calls.reminderUpdate(args);
+          return { count: 0 };
+        },
+      },
       paseQr: {
         updateMany: async (args: {
           where: { id_inscripcion: string };
@@ -291,6 +302,18 @@ describe('Consistencia de ocupación y QR al cancelar', () => {
     expect(db.calls.eventRead).toHaveBeenLastCalledWith(
       expect.objectContaining({ include: eventInclude }),
     );
+    expect(db.calls.reminderUpdate).toHaveBeenCalledWith({
+      where: {
+        id_inscripcion: registrationId,
+        estado: { in: ['PENDIENTE', 'FALLIDO', 'EN_PROCESO'] },
+      },
+      data: {
+        estado: 'OMITIDO',
+        error: null,
+        reintentar_en: null,
+        procesando_desde: null,
+      },
+    });
     expect(db.state.passes[0].estado).toBe('INVALIDADO');
   });
 

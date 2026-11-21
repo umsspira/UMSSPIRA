@@ -10,6 +10,8 @@ import { Navbar } from './navbar';
 import { NAVBAR_ROLE_LABEL } from './navigation';
 import type { NavbarRole, NavbarSession } from './types';
 import { clearAllSurveyDrafts } from '@/modules/surveys/frontend/hooks/use-survey-draft';
+import { useEventNotifications } from '@/features/notifications/hooks/use-event-notifications';
+import { EventNotificationToast } from './event-notification-toast';
 
 const roles: NavbarRole[] = ['titulado', 'empresa', 'administrador'];
 
@@ -40,6 +42,8 @@ export function ConnectedNavbar() {
   // undefined = todavía no se sabe (no se muestra ninguna barra de cuenta ni de visitante)
   const [session, setSessionState] = useState<NavbarSession | null | undefined>(cachedSession);
   const [logoutError, setLogoutError] = useState(false);
+  const { items: notifications, error: notificationsError, markRead, refresh, toast, dismissToast } =
+    useEventNotifications(session?.role === 'titulado');
   // HU-004 CA-07: durante el cierre voluntario, el 401 de /me no debe redirigir por su cuenta.
   const loggingOut = useRef(false);
 
@@ -129,5 +133,13 @@ export function ConnectedNavbar() {
   // (Iniciar sesión / Registro). La barra por rol solo se ve en el resto del portal.
   const isPublicLanding = pathname === '/portal/institucional' || pathname?.startsWith('/portal/institucional/');
 
-  return <><Navbar session={isPublicLanding ? null : (session ?? null)} loading={!isPublicLanding && session === undefined} onLogout={logout} />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;
+  return <><Navbar
+    session={isPublicLanding ? null : (session ?? null)}
+    loading={!isPublicLanding && session === undefined}
+    onLogout={logout}
+    notifications={notifications}
+    onNotificationsOpen={() => void refresh()}
+    notificationsError={notificationsError}
+    onNotificationRead={markRead}
+  /><EventNotificationToast item={toast} onClose={dismissToast} />{logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}</>;
 }

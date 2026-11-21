@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import DownloadProfileButton from '@/modules/profile/components/download-profile-button';
+import { CvSection } from '@/modules/profile/cv/cv-section';
 import AffinityLinkCard from '@/modules/profile/ver/affinity-link-card';
 import ProfessionalDescription from '@/modules/profile/ver/professional-description';
 import ProfileCompleteness from '@/modules/profile/ver/profile-completeness';
@@ -100,6 +101,9 @@ if (loadError) {
           {header && <DownloadProfileButton header={header} records={records} />}
         </div>
       </header>
+
+      {/* HU-16 (T16.3): sección «Currículum (CV)» para subir o reemplazar el CV en PDF */}
+      <CvSection />
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
         {/* Columna izquierda: resumen (solo escritorio) y acceso a la afinidad (Épica 3) */}

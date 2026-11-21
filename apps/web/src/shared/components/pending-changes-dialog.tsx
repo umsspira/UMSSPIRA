@@ -20,24 +20,45 @@ export const PendingChangesDialog: React.FC<PendingChangesDialogProps> = ({
   onDismiss,
 }) => {
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
 
   useEffect(() => {
     if (!open) return;
-    // El foco inicial va al botón primario para que Enter dispare el recálculo
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     primaryButtonRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onDismiss();
+      if (event.key === 'Escape') {
+        onDismissRef.current();
+      } else if (event.key === 'Tab') {
+        const buttons = dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
+        if (!buttons?.length) return;
+        const first = buttons[0];
+        const last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onDismiss]);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-abyssal-blue/60">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="pending-changes-title"

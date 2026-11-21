@@ -43,6 +43,7 @@ export default function EventDetailPage({
   const [registrationErrorKind, setRegistrationErrorKind] = useState<'duplicate' | 'capacity' | 'unavailable' | 'generic' | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [reminderContext, setReminderContext] = useState({ opened: false, rescheduled: false });
   const isOnline = useOnlineStatus();
 
   const loadEvent = useCallback(async () => {
@@ -146,6 +147,14 @@ export default function EventDetailPage({
     void loadEvent();
   }, [loadEvent]);
 
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    setReminderContext({
+      opened: query.get('fromReminder') === '1',
+      rescheduled: query.get('rescheduled') === '1',
+    });
+  }, [id]);
+
   if (isLoading) {
     return (
       <main className="hu2-detail-page">
@@ -181,7 +190,10 @@ export default function EventDetailPage({
               <dl>
                 <div><dt>Inicio</dt><dd>{formatEventDateTime(historicalEvent.startDate)}</dd></div>
                 <div><dt>Fin</dt><dd>{formatEventDateTime(historicalEvent.endDate)}</dd></div>
-                <div><dt>Ubicación</dt><dd>{historicalEvent.location || 'Por definir'}</dd></div>
+                <div>
+                  <dt>Ubicación</dt>
+                  <dd>{historicalEvent.location || 'Por definir'}</dd>
+                </div>
               </dl>
               <p className="hu3-registration-message" role="status">
                 Este evento fue cancelado y no acepta nuevas inscripciones. Tu participación permanece en el historial.
@@ -301,6 +313,12 @@ export default function EventDetailPage({
               <h1 className="min-w-0 max-w-full break-words">
                 {event.title}
               </h1>
+              {reminderContext.opened ? (
+                <p className="hu3-registration-message" role="status">Abierto desde un recordatorio</p>
+              ) : null}
+              {reminderContext.rescheduled ? (
+                <p className="hu3-registration-message" role="status">Fecha actualizada antes del envío</p>
+              ) : null}
             </div>
           </article>
 
@@ -309,7 +327,10 @@ export default function EventDetailPage({
             <dl>
               <div><dt>Inicio</dt><dd>{formatEventDateTime(event.startDate)}</dd></div>
               <div><dt>Fin</dt><dd>{formatEventDateTime(event.endDate)}</dd></div>
-              <div><dt>Ubicación</dt><dd>{event.location || 'Por definir'}</dd></div>
+              <div>
+                <dt>Ubicación</dt>
+                <dd>{event.location || 'Por definir'}</dd>
+              </div>
               <div><dt>Cupo máximo</dt><dd>{formatPeopleCount(event.maxCapacity)}</dd></div>
               <div><dt>Organiza</dt><dd>UMSSPIRA</dd></div>
             </dl>
@@ -374,6 +395,7 @@ export default function EventDetailPage({
           <h2>Descripción</h2>
           <p>{event.description || 'Sin descripción disponible.'}</p>
         </section>
+
         {isFull && !existingRegistration ? (
           <section className="hu3-capacity-alert" role="alert">
             <div>
