@@ -18,6 +18,8 @@ function build(overrides?: { reviewError?: Error }) {
     email: 'maria@example.com',
     fullName: 'María Pérez',
     code: 'TIT-2026-ABC123',
+    status: 'PENDIENTE',
+    version: 1,
   });
   const review = overrides?.reviewError
     ? jest.fn().mockRejectedValue(overrides.reviewError)

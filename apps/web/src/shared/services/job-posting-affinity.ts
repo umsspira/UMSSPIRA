@@ -1,91 +1,76 @@
-import type { TechnicalRequirement } from '@umsspira/shared-types';
-import { getMentorOnboarding, getMyTechnicalInterests, MentorOnboardingError } from '@/features/mentorship/services/mentor-onboarding-api';
+import type {
+  JobPostingAffinityBatchError,
+  JobPostingAffinityBatchItem,
+  JobPostingAffinityBatchRequest,
+  JobPostingAffinityComparison,
+  JobPostingAffinityResult,
+} from '@umsspira/shared-types';
+import { JOB_POSTING_AFFINITY_BATCH_LIMIT } from '@umsspira/shared-types';
+import { apiFetch } from './api-client';
 
-export type VacancyAffinityResult =
-  | { status: 'profile-incomplete' }
-  | { status: 'insufficient-requirements' }
-  | {
-      status: 'ready';
-      percentage: number;
-      calculatedAt: string;
-      comparison: Array<{
-        requirement: string;
-        matchedSkill: string | null;
-        result: 'exact' | 'similar' | 'not-found';
-      }>;
-    };
+export type {
+  JobPostingAffinityBatchError,
+  JobPostingAffinityBatchItem,
+  JobPostingAffinityComparison,
+  JobPostingAffinityResult,
+};
 
-export type TituladoSkillsResult =
-  | { status: 'ready'; skills: string[] }
-  | { status: 'profile-incomplete' };
+/**
+ * Consulta la afinidad de una o varias vacantes mediante el endpoint POST /api/v1/affinity/batch.
+ * Si el conjunto supera los 50 elementos (límite del endpoint), se divide en fragmentos de máximo 50.
+ */
+export async function getVacanciesAffinityBatch(
+  vacancyIds: string[],
+): Promise<Record<string, JobPostingAffinityBatchItem>> {
+  if (vacancyIds.length === 0) return {};
+  const uniqueIds = Array.from(new Set(vacancyIds));
+  const chunks: string[][] = [];
+  for (let i = 0; i < uniqueIds.length; i += JOB_POSTING_AFFINITY_BATCH_LIMIT) {
+    chunks.push(uniqueIds.slice(i, i + JOB_POSTING_AFFINITY_BATCH_LIMIT));
+  }
 
-function normalizeWords(value: string): string[] {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').match(/[a-z0-9]+/g) ?? [];
-}
-
-export async function calculateVacancyAffinity(
-  requirements: TechnicalRequirement[],
-): Promise<VacancyAffinityResult> {
-  if (requirements.length === 0) return { status: 'insufficient-requirements' };
-
-  const profile = await loadTituladoSkills();
-  return profile.status === 'ready'
-    ? calculateVacancyAffinityWithSkills(requirements, profile.skills)
-    : { status: 'profile-incomplete' };
-}
-
-/** Carga el perfil una vez para calcular la afinidad de todas las vacantes del listado. */
-export async function loadTituladoSkills(): Promise<TituladoSkillsResult> {
-  try {
-    const [onboarding, customInterests] = await Promise.all([
-      getMentorOnboarding(),
-      getMyTechnicalInterests(),
-    ]);
-    const skills = Array.from(new Set([
-      ...onboarding.areas.intereses.map((interest) => interest.nombre),
-      ...onboarding.interests.catalog.flatMap((group) => group.intereses.filter((interest) => interest.seleccionado).map((interest) => interest.nombre)),
-      ...customInterests,
-    ].map((skill) => skill.trim()).filter(Boolean)));
-    return { status: 'ready', skills };
-  } catch (error) {
-    if (error instanceof MentorOnboardingError && (error.status === 403 || error.status === 404)) {
-      return { status: 'profile-incomplete' };
+  const results: Record<string, JobPostingAffinityBatchItem> = {};
+  for (const chunk of chunks) {
+    const items = await apiFetch<JobPostingAffinityBatchItem[]>('/api/v1/affinity/batch', {
+      method: 'POST',
+      body: JSON.stringify({
+        mode: 'vacancies',
+        vacancyIds: chunk,
+      } satisfies JobPostingAffinityBatchRequest),
+    });
+    for (const item of items ?? []) {
+      results[item.vacancyId] = item;
     }
+  }
+  return results;
+}
+
+/**
+ * Consulta la afinidad de una vacante individual para la vista de detalle.
+ */
+export async function getVacancyAffinity(
+  vacancyId: string,
+): Promise<JobPostingAffinityBatchItem> {
+  const map = await getVacanciesAffinityBatch([vacancyId]);
+  const item = map[vacancyId];
+  if (!item) {
+    throw new Error('No se recibió resultado de afinidad para la vacante seleccionada');
+  }
+  return item;
+}
+
+/**
+ * Función de conveniencia para la vista de detalle de vacante.
+ */
+export async function calculateVacancyAffinity(
+  vacancyId: string,
+): Promise<JobPostingAffinityResult> {
+  const item = await getVacancyAffinity(vacancyId);
+  if (item.error) {
+    const error = new Error(item.error.message);
+    (error as Record<string, unknown>).code = item.error.code;
+    (error as Record<string, unknown>).retryable = item.error.retryable;
     throw error;
   }
-}
-
-export function calculateVacancyAffinityWithSkills(
-  requirements: TechnicalRequirement[],
-  skills: string[],
-): VacancyAffinityResult {
-  if (requirements.length === 0) return { status: 'insufficient-requirements' };
-  const uniqueRequirements = Array.from(new Map(requirements.map((requirement) => [normalizeWords(requirement.nombre).join(' '), requirement])).values());
-  const comparison = uniqueRequirements.map(({ nombre }) => {
-    const requiredWords = normalizeWords(nombre);
-    const matchedSkill = skills.find((skill) => {
-      const skillWords = normalizeWords(skill);
-      return requiredWords.length > 0 && requiredWords.every((word) =>
-        skillWords.some((skillWord) => skillWord === word || (word === 'java' && skillWord === 'javascript')),
-      );
-    }) ?? null;
-
-    return {
-      requirement: nombre,
-      matchedSkill,
-      result: matchedSkill
-        ? normalizeWords(matchedSkill).join(' ') === requiredWords.join(' ')
-          ? 'exact' as const
-          : 'similar' as const
-        : 'not-found' as const,
-    };
-  });
-  const matchedCount = comparison.filter((item) => item.matchedSkill !== null).length;
-
-  return {
-    status: 'ready',
-    percentage: Math.min(100, Math.round((matchedCount / uniqueRequirements.length) * 100)),
-    calculatedAt: new Date().toISOString(),
-    comparison,
-  };
+  return item.result;
 }

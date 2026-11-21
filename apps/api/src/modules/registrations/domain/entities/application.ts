@@ -7,6 +7,7 @@ export interface ApplicationDetail {
   };
   currentReviewer?: { name: string | null; email: string };
   id: string;
+  version: number;
   code: string;
   fullName: string;
   firstName: string;
@@ -29,6 +30,11 @@ export interface ApplicationDetail {
   name: string | null;
   email: string;
   reviewedAt: string;
+  } | null;
+  reviewNotification?: {
+    eventId: string;
+    status: 'pendiente' | 'enviada' | 'fallida';
+    attempts: number;
   } | null;
 }
 
