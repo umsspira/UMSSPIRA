@@ -17,6 +17,9 @@ import { JobPostingAffinityBatchController } from './job-posting-affinity-batch.
 const VACANCY_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const APPLICATION_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const FOREIGN_APPLICATION_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const ids = (count: number) => Array.from({ length: count }, (_, index) =>
+  `${(index + 1).toString(16).padStart(8, '0')}-aaaa-4aaa-8aaa-aaaaaaaaaaaa`,
+);
 const graduateActor = {
   id: 'graduate-user', email: 'graduate@example.com', name: null, role: 'titulado', permissions: ['perfil:self:read'],
   scopes: { companyIds: [], graduateId: null, careerIds: [] }, credentialVersion: 1,
@@ -76,6 +79,22 @@ describe('HTTP T10.5 affinity batch', () => {
   it('rechaza payload inválido de lote completo (400)', async () => {
     await request(app.getHttpServer()).post('/api/v1/affinity/batch').set('Authorization', 'Bearer graduate-token')
       .send({ mode: 'vacancies', vacancyIds: [VACANCY_ID, VACANCY_ID] }).expect(400);
+    expect(batchData.readPublicVacancies).not.toHaveBeenCalled();
+  });
+  it('acepta límites de lote con 1 y 50 elementos (200)', async () => {
+    await request(app.getHttpServer()).post('/api/v1/affinity/batch').set('Authorization', 'Bearer graduate-token')
+      .send({ mode: 'vacancies', vacancyIds: ids(1) }).expect(200);
+    await request(app.getHttpServer()).post('/api/v1/affinity/batch').set('Authorization', 'Bearer graduate-token')
+      .send({ mode: 'vacancies', vacancyIds: ids(50) }).expect(200);
+  });
+  it('rechaza lote de más de 50 elementos (400)', async () => {
+    await request(app.getHttpServer()).post('/api/v1/affinity/batch').set('Authorization', 'Bearer graduate-token')
+      .send({ mode: 'vacancies', vacancyIds: ids(51) }).expect(400);
+    expect(batchData.readPublicVacancies).not.toHaveBeenCalled();
+  });
+  it('rechaza lote con UUID inválido (400)', async () => {
+    await request(app.getHttpServer()).post('/api/v1/affinity/batch').set('Authorization', 'Bearer graduate-token')
+      .send({ mode: 'vacancies', vacancyIds: ['invalid-uuid'] }).expect(400);
     expect(batchData.readPublicVacancies).not.toHaveBeenCalled();
   });
   it('responde 200 en modo titulado y usa el perfil del actor', async () => {

@@ -100,7 +100,7 @@ describe('T10.5 batch affinity authorization and isolation', () => {
     });
     data.readProfiles.mockResolvedValue([profile, { ...profile, userId: 'candidate-2', tituladoId: 'titulado-2' }]);
     calculate.execute.mockImplementation(async ({ profile: candidate }: { profile: JobPostingAffinityProfile | null; vacancies: readonly JobPostingAffinityRequirements[] }) => {
-      if (candidate?.userId === 'candidate-1') throw new Error('simulated individual calculation failure');
+      if (candidate?.userId === 'candidate-1') {throw new Error('simulated individual calculation failure');}
       return [{ vacancyId: VACANCY_1, result: READY }];
     });
     const response = await useCase.execute(company, {

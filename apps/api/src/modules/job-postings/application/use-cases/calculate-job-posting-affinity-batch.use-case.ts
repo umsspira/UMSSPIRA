@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Optional } from '@nestjs/common';
 import type {
   JobPostingAffinityBatchItem,
   JobPostingAffinityBatchResponse,
@@ -32,7 +32,7 @@ export class CalculateJobPostingAffinityBatch {
     @Inject(JOB_POSTING_AFFINITY_DATA) private readonly affinityData: JobPostingAffinityDataPort,
     @Inject(JOB_POSTING_AFFINITY_BATCH_DATA) private readonly batchData: JobPostingAffinityBatchDataPort,
     private readonly calculate: CalculateJobPostingAffinity,
-    private readonly now: () => Date = () => new Date(),
+    @Optional() private readonly now: () => Date = () => new Date(),
   ) {}
 
 
@@ -58,7 +58,7 @@ export class CalculateJobPostingAffinityBatch {
 
   private async forGraduate(actor: ActorContext, ids: string[]): Promise<JobPostingAffinityBatchResponse> {
     const vacancies = await this.batchData.readPublicVacancies(ids, this.now());
-    if (vacancies.length !== ids.length) throw new ForbiddenException();
+    if (vacancies.length !== ids.length) {throw new ForbiddenException();}
     const [profile] = await this.affinityData.readProfiles([actor.id]);
     const results = await this.calculateByRequirements(profile ?? null, vacancies);
     return {
@@ -78,10 +78,14 @@ export class CalculateJobPostingAffinityBatch {
     applicationIds: string[],
   ): Promise<JobPostingAffinityBatchResponse> {
     const scoped = await this.batchData.readCompanyVacancyApplications(vacancyId, actor.id, applicationIds);
-    if (!scoped || scoped.applications.length !== applicationIds.length) throw new ForbiddenException();
-    const profiles = await this.affinityData.readProfiles(
-      scoped.applications.flatMap(({ userId }) => userId ? [userId] : []),
+    if (!scoped || scoped.applications.length !== applicationIds.length) {throw new ForbiddenException();}
+    const hasRequirements = scoped.vacancy.requirements.some((name) =>
+      normalizeTechnicalRequirementName(name),
     );
+    const userIds = hasRequirements
+      ? scoped.applications.flatMap(({ userId }) => (userId ? [userId] : []))
+      : [];
+    const profiles = userIds.length > 0 ? await this.affinityData.readProfiles(userIds) : [];
     const profileByUser = new Map(profiles.map((profile) => [profile.userId, profile]));
     const applicationById = new Map(
       scoped.applications.map((application) => [application.applicationId, application]),
@@ -99,10 +103,10 @@ export class CalculateJobPostingAffinityBatch {
       try {
         const calculated = await this.calculateByRequirements(profile, [scoped.vacancy]);
         const result = calculated.get(vacancyId);
-        if (!result) throw new Error('Resultado ausente');
-        for (const applicationId of groupIds) resultByApplication.set(applicationId, result);
+        if (!result) {throw new Error('Resultado ausente');}
+        for (const applicationId of groupIds) {resultByApplication.set(applicationId, result);}
       } catch (error) {
-        if (error instanceof AffinityDictionaryUnavailableError) throw error;
+        if (error instanceof AffinityDictionaryUnavailableError) {throw error;}
         for (const applicationId of groupIds) {
           resultByApplication.set(applicationId, null);
           errorByApplication.set(applicationId, ERROR_ITEM);
@@ -133,17 +137,17 @@ export class CalculateJobPostingAffinityBatch {
     const results = new Map<string, JobPostingAffinityResult | null>();
     if (empty.length) {
       try {
-        for (const item of await this.calculate.execute({ profile, vacancies: empty })) results.set(item.vacancyId, item.result);
+        for (const item of await this.calculate.execute({ profile, vacancies: empty })) {results.set(item.vacancyId, item.result);}
       } catch {
-        for (const { vacancyId } of empty) results.set(vacancyId, null);
+        for (const { vacancyId } of empty) {results.set(vacancyId, null);}
       }
     }
-    if (!required.length) return results;
+    if (!required.length) {return results;}
     try {
-      for (const item of await this.calculate.execute({ profile, vacancies: required })) results.set(item.vacancyId, item.result);
+      for (const item of await this.calculate.execute({ profile, vacancies: required })) {results.set(item.vacancyId, item.result);}
     } catch (error) {
-      if (error instanceof AffinityDictionaryUnavailableError) throw error;
-      for (const { vacancyId } of required) results.set(vacancyId, null);
+      if (error instanceof AffinityDictionaryUnavailableError) {throw error;}
+      for (const { vacancyId } of required) {results.set(vacancyId, null);}
     }
     return results;
   }

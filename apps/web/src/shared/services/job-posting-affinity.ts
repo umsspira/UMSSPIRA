@@ -67,9 +67,10 @@ export async function calculateVacancyAffinity(
 ): Promise<JobPostingAffinityResult> {
   const item = await getVacancyAffinity(vacancyId);
   if (item.error) {
-    const error = new Error(item.error.message);
-    (error as Record<string, unknown>).code = item.error.code;
-    (error as Record<string, unknown>).retryable = item.error.retryable;
+    const error = Object.assign(new Error(item.error.message), {
+      code: item.error.code,
+      retryable: item.error.retryable,
+    });
     throw error;
   }
   return item.result;
