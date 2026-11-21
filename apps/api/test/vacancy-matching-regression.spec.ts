@@ -1,17 +1,27 @@
 import { calculateJobPostingAffinity } from '../src/modules/job-postings/domain/policies/calculate-job-posting-affinity';
+import { buildProfileIndex } from '../src/modules/job-postings/domain/policies/requirement-similarity';
+import { KeywordExtractorService } from '../src/modules/nlp/application/services/keyword-extractor.service';
 import { passesMatchingRegression, vacancyMatchingCases } from './integration/support/vacancy-matching-cases';
 
 type CaseId = (typeof vacancyMatchingCases)[number]['id'];
 
 const CALCULATED_AT = '2026-11-20T12:00:00.000Z';
 
-/** Aplica la regla real de HU-10 a un caso sintético, sin base de datos ni NLP. */
+// Desde la HU-11 el motor pasa perfil y requisitos por el mismo NLP: diccionario mínimo de los casos
+const extractor = new KeywordExtractorService();
+extractor.loadDictionary([
+  { canonical: 'sql', aliases: [] },
+  { canonical: 'python', aliases: [] },
+]);
+
+/** Aplica la regla real de HU-10 (con la similitud de HU-11) a un caso sintético, sin base de datos. */
 function evaluateCase(id: CaseId) {
   const found = vacancyMatchingCases.find((item) => item.id === id);
   if (!found) {
     throw new Error(`Caso sintético inexistente: ${id}`);
   }
-  return calculateJobPostingAffinity(found.requiredSkills, found.profileSkills, CALCULATED_AT);
+  const profile = buildProfileIndex(found.profileSkills, extractor);
+  return calculateJobPostingAffinity(found.requiredSkills, profile, extractor, CALCULATED_AT);
 }
 
 function readPercentages(): Record<CaseId, number> {
@@ -36,7 +46,7 @@ describe('HU-E5-17 · regresión de afinidad con el motor real de HU-10 (CA-08)'
   it('marca cada requisito como exacto o no encontrado según el perfil', () => {
     expect(evaluateCase('exacta').comparison.map((item) => item.result)).toEqual(['exact', 'exact']);
     expect(evaluateCase('parcial').comparison).toEqual([
-      { requirement: 'SQL', matchedSkill: 'SQL', result: 'exact' },
+      { requirement: 'SQL', matchedSkill: 'sql', result: 'exact' },
       { requirement: 'Python', matchedSkill: null, result: 'not-found' },
     ]);
     expect(evaluateCase('sin-coincidencia').comparison.map((item) => item.result)).toEqual([
