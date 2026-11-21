@@ -300,7 +300,7 @@ export function JobPostingsList() {
                       : affinityState.status === 'loaded' && !affinityState.hasProfileIncomplete
                         ? 'Ordenadas automáticamente según afinidad con tu perfil'
                         : affinityState.status === 'loaded'
-                          ? 'Selecciona temas técnicos en Mentorías para calcular la afinidad'
+                          ? 'Completa tu perfil profesional para calcular la afinidad'
                           : `No se pudo cargar el perfil del titulado: ${affinityState.message}`}
                 </span>
                 {affinityState.status === 'error' && (
@@ -313,8 +313,8 @@ export function JobPostingsList() {
                   </button>
                 )}
                 {affinityState.status === 'loaded' && affinityState.hasProfileIncomplete && (
-                  <Link href="/mentorship/onboarding" className="font-semibold text-orange-800 underline underline-offset-2">
-                    Configura temas técnicos en Mentorías
+                  <Link href="/profile/completar" className="font-semibold text-orange-800 underline underline-offset-2">
+                    Completar perfil profesional
                   </Link>
                 )}
                 {(query || modality || area || city) && (

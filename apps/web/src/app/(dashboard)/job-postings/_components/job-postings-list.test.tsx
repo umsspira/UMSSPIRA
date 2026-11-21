@@ -82,11 +82,11 @@ describe('JobPostingsList', () => {
     render(<JobPostingsList />);
 
     expect(await screen.findByText('Sin calcular')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Configura temas/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Completar perfil profesional/ })).toHaveAttribute(
       'href',
-      '/mentorship/onboarding',
+      '/profile/completar',
     );
-    expect(screen.getByText(/Selecciona temas técnicos/)).toBeInTheDocument();
+    expect(screen.getByText(/Completa tu perfil profesional/)).toBeInTheDocument();
   });
 
   it('muestra el error de carga del perfil y permite reintentar sin recargar vacantes', async () => {

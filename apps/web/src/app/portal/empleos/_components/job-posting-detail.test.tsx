@@ -229,6 +229,10 @@ describe('JobPostingDetail', () => {
     render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
 
     expect(await screen.findByText('Completa tu perfil para conocer tu afinidad')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Completar perfil profesional' })).toHaveAttribute(
+      'href',
+      '/profile/completar',
+    );
     expect(screen.queryByText(/\d+\s*%/)).not.toBeInTheDocument();
   });
 

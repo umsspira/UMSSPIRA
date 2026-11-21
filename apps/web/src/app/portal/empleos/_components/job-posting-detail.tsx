@@ -267,8 +267,8 @@ export function JobPostingDetail({
                 {affinityState.status === 'profile-incomplete' && (
                   <div className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] p-5 text-center">
                     <p className="font-semibold text-slate-800">Completa tu perfil para conocer tu afinidad</p>
-                    <Link href="/mentorship/onboarding" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
-                      Configurar perfil de mentoría
+                    <Link href="/profile/completar" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
+                      Completar perfil profesional
                     </Link>
                   </div>
                 )}
