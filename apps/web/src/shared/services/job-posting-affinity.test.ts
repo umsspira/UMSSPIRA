@@ -1,68 +1,153 @@
-import type { MentorOnboardingResponse } from '@umsspira/shared-types';
-import { getMentorOnboarding, getMyTechnicalInterests } from '@/features/mentorship/services/mentor-onboarding-api';
-import { calculateVacancyAffinity, calculateVacancyAffinityWithSkills, loadTituladoSkills } from './job-posting-affinity';
+import type { JobPostingAffinityBatchItem } from '@umsspira/shared-types';
+import { apiFetch, ApiError } from './api-client';
+import {
+  calculateVacancyAffinity,
+  getVacanciesAffinityBatch,
+  getVacancyAffinity,
+} from './job-posting-affinity';
 
-jest.mock('@/features/mentorship/services/mentor-onboarding-api', () => ({
-  getMentorOnboarding: jest.fn(),
-  getMyTechnicalInterests: jest.fn(),
-  MentorOnboardingError: class MentorOnboardingError extends Error {
-    constructor(message: string, public status: number) { super(message); }
+jest.mock('./api-client', () => ({
+  apiFetch: jest.fn(),
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+    }
   },
 }));
 
-const onboarding = {
-  isComplete: true,
-  currentStep: 3 as const,
-  totalSteps: 3,
-  completedSteps: [1, 2, 3],
-  steps: [],
-  areas: { catalog: [], selectedIds: [], intereses: [{ id_area: 'area-1', nombre: 'React Native' }] },
-  interests: { selectedIds: [], catalog: [] },
-  availability: { availabilityStatus: null, schedules: [] },
-} satisfies MentorOnboardingResponse;
+const mockApiFetch = jest.mocked(apiFetch);
 
-const readOnboarding = jest.mocked(getMentorOnboarding);
-const readCustomInterests = jest.mocked(getMyTechnicalInterests);
-
-describe('afinidad de vacantes con tópicos de mentoría', () => {
+describe('job-posting-affinity service client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    readOnboarding.mockResolvedValue(onboarding);
-    readCustomInterests.mockResolvedValue(['Spring Boot']);
   });
 
-  it('lee intereses seleccionados y temas personalizados del perfil de mentoría', async () => {
-    await expect(loadTituladoSkills()).resolves.toEqual({
-      status: 'ready',
-      skills: ['React Native', 'Spring Boot'],
+  it('retorna mapa vacío si la lista de IDs está vacía sin llamar a apiFetch', async () => {
+    const result = await getVacanciesAffinityBatch([]);
+    expect(result).toEqual({});
+    expect(mockApiFetch).not.toHaveBeenCalled();
+  });
+
+  it('consulta afinidad en lote para vacantes con mode: vacancies', async () => {
+    const mockBatchItems: JobPostingAffinityBatchItem[] = [
+      {
+        vacancyId: 'vac-1',
+        result: {
+          status: 'ready',
+          percentage: 85,
+          calculatedAt: '2026-11-20T12:00:00.000Z',
+          comparison: [{ requirement: 'React', matchedSkill: 'React', result: 'exact' }],
+        },
+        error: null,
+      },
+      {
+        vacancyId: 'vac-2',
+        result: {
+          status: 'ready',
+          percentage: 0,
+          calculatedAt: '2026-11-20T12:00:00.000Z',
+          comparison: [{ requirement: 'COBOL', matchedSkill: null, result: 'not-found' }],
+        },
+        error: null,
+      },
+    ];
+
+    mockApiFetch.mockResolvedValue(mockBatchItems);
+
+    const result = await getVacanciesAffinityBatch(['vac-1', 'vac-2']);
+
+    expect(mockApiFetch).toHaveBeenCalledWith('/api/v1/affinity/batch', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'vacancies', vacancyIds: ['vac-1', 'vac-2'] }),
+    });
+    expect(result['vac-1']).toEqual(mockBatchItems[0]);
+    expect(result['vac-2']).toEqual(mockBatchItems[1]);
+  });
+
+  it('divide en solicitudes de máximo 50 cuando hay más de 50 vacantes', async () => {
+    const ids = Array.from({ length: 55 }, (_, i) => `vac-${i + 1}`);
+
+    mockApiFetch.mockImplementation(async (_path, options) => {
+      const parsed = JSON.parse(options?.body as string);
+      return parsed.vacancyIds.map((id: string) => ({
+        vacancyId: id,
+        result: {
+          status: 'ready',
+          percentage: 50,
+          calculatedAt: '2026-11-20T12:00:00.000Z',
+          comparison: [],
+        },
+        error: null,
+      }));
+    });
+
+    const result = await getVacanciesAffinityBatch(ids);
+
+    expect(mockApiFetch).toHaveBeenCalledTimes(2);
+    expect(Object.keys(result)).toHaveLength(55);
+  });
+
+  it('propaga fallo 503 cuando el servicio NLP o diccionario no está disponible', async () => {
+    mockApiFetch.mockRejectedValue(
+      new ApiError(503, 'Diccionario no disponible', 'NLP_DICTIONARY_UNAVAILABLE'),
+    );
+
+    await expect(getVacanciesAffinityBatch(['vac-1'])).rejects.toMatchObject({
+      status: 503,
+      code: 'NLP_DICTIONARY_UNAVAILABLE',
     });
   });
 
-  it('aplica comparación por palabras, la excepción JavaScript y porcentaje por requisito único', () => {
-    const result = calculateVacancyAffinityWithSkills([
-      { id: '1', nombre: 'Java' },
-      { id: '2', nombre: 'React' },
-      { id: '3', nombre: 'PostgreSQL' },
-      { id: '4', nombre: 'TypeScript' },
-      { id: '5', nombre: 'SQL' },
-      { id: '6', nombre: 'Java Script' },
-      { id: '7', nombre: 'Spring Boot' },
-      { id: '8', nombre: 'java' },
-    ], ['JavaScript', 'React Native', 'PostgreSQL avanzado', 'typescript', 'NoSQL', 'Spring Boot avanzado']);
+  it('devuelve item individual mediante getVacancyAffinity', async () => {
+    const mockItem: JobPostingAffinityBatchItem = {
+      vacancyId: 'vac-1',
+      result: {
+        status: 'no-requirements',
+        percentage: null,
+        calculatedAt: null,
+        comparison: [],
+      },
+      error: null,
+    };
+    mockApiFetch.mockResolvedValue([mockItem]);
 
-    expect(result).toMatchObject({ status: 'ready', percentage: 71 });
-    if (result.status === 'ready') {
-      expect(result.comparison.map((item) => item.result)).toEqual([
-        'similar', 'similar', 'similar', 'exact', 'not-found', 'not-found', 'similar',
-      ]);
-    }
+    const item = await getVacancyAffinity('vac-1');
+    expect(item).toEqual(mockItem);
   });
 
-  it('no calcula si la vacante no tiene requisitos y da 0% si el perfil no tiene tópicos', async () => {
-    await expect(calculateVacancyAffinity([])).resolves.toEqual({ status: 'insufficient-requirements' });
-    readOnboarding.mockResolvedValue({ ...onboarding, areas: { ...onboarding.areas, intereses: [] } });
-    readCustomInterests.mockResolvedValue([]);
-    await expect(loadTituladoSkills()).resolves.toEqual({ status: 'ready', skills: [] });
-    expect(calculateVacancyAffinityWithSkills([{ id: '1', nombre: 'React' }], [])).toMatchObject({ status: 'ready', percentage: 0 });
+  it('calculateVacancyAffinity retorna el result si la vacante fue calculada con éxito', async () => {
+    const mockItem: JobPostingAffinityBatchItem = {
+      vacancyId: 'vac-1',
+      result: {
+        status: 'profile-incomplete',
+        percentage: null,
+        calculatedAt: null,
+        comparison: [],
+      },
+      error: null,
+    };
+    mockApiFetch.mockResolvedValue([mockItem]);
+
+    const result = await calculateVacancyAffinity('vac-1');
+    expect(result).toEqual(mockItem.result);
+  });
+
+  it('calculateVacancyAffinity lanza error si la vacante tiene error individual', async () => {
+    const mockItem: JobPostingAffinityBatchItem = {
+      vacancyId: 'vac-1',
+      result: null,
+      error: {
+        code: 'AFFINITY_CALCULATION_FAILED',
+        message: 'No se pudo calcular la afinidad',
+        retryable: true,
+      },
+    };
+    mockApiFetch.mockResolvedValue([mockItem]);
+
+    await expect(calculateVacancyAffinity('vac-1')).rejects.toMatchObject({
+      message: 'No se pudo calcular la afinidad',
+      code: 'AFFINITY_CALCULATION_FAILED',
+      retryable: true,
+    });
   });
 });

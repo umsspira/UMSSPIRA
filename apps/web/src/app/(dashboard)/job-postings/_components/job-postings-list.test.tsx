@@ -1,10 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { AvailableJobPosting } from '@umsspira/shared-types';
+import type { AvailableJobPosting, JobPostingAffinityBatchItem } from '@umsspira/shared-types';
 import { listAvailableJobPostings } from '@/shared/services/available-job-postings';
-import {
-  calculateVacancyAffinityWithSkills,
-  loadTituladoSkills,
-} from '@/shared/services/job-posting-affinity';
+import { getVacanciesAffinityBatch } from '@/shared/services/job-posting-affinity';
 import { JobPostingsList } from './job-postings-list';
 
 jest.mock('@/shared/services/available-job-postings', () => ({
@@ -12,13 +9,11 @@ jest.mock('@/shared/services/available-job-postings', () => ({
 }));
 
 jest.mock('@/shared/services/job-posting-affinity', () => ({
-  calculateVacancyAffinityWithSkills: jest.fn(),
-  loadTituladoSkills: jest.fn(),
+  getVacanciesAffinityBatch: jest.fn(),
 }));
 
 const listPostings = jest.mocked(listAvailableJobPostings);
-const loadSkills = jest.mocked(loadTituladoSkills);
-const calculateAffinity = jest.mocked(calculateVacancyAffinityWithSkills);
+const getAffinityBatch = jest.mocked(getVacanciesAffinityBatch);
 
 const posting: AvailableJobPosting = {
   id: 'vacancy-1',
@@ -42,12 +37,17 @@ describe('JobPostingsList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     listPostings.mockResolvedValue([posting]);
-    loadSkills.mockResolvedValue({ status: 'ready', skills: ['React'] });
-    calculateAffinity.mockReturnValue({
-      status: 'ready',
-      percentage: 95,
-      calculatedAt: '2026-11-17T10:00:00.000Z',
-      comparison: [{ requirement: 'React', matchedSkill: 'React', result: 'exact' }],
+    getAffinityBatch.mockResolvedValue({
+      'vacancy-1': {
+        vacancyId: 'vacancy-1',
+        result: {
+          status: 'ready',
+          percentage: 95,
+          calculatedAt: '2026-11-17T10:00:00.000Z',
+          comparison: [{ requirement: 'React', matchedSkill: 'React', result: 'exact' }],
+        },
+        error: null,
+      },
     });
   });
 
@@ -72,30 +72,48 @@ describe('JobPostingsList', () => {
       'href',
       '/portal/job-postings/detalle?jobId=vacancy-1',
     );
-    expect(calculateAffinity).toHaveBeenCalledWith(
-      [{ id: 'requirement-1', nombre: 'React' }],
-      ['React'],
-    );
+    expect(getAffinityBatch).toHaveBeenCalledWith(['vacancy-1']);
   });
 
   it('enlaza a proyectos del perfil cuando no hay habilidades disponibles', async () => {
-    loadSkills.mockResolvedValue({ status: 'profile-incomplete' });
-    calculateAffinity.mockReturnValue({ status: 'profile-incomplete' });
+    getAffinityBatch.mockResolvedValue({
+      'vacancy-1': {
+        vacancyId: 'vacancy-1',
+        result: {
+          status: 'profile-incomplete',
+          percentage: null,
+          calculatedAt: null,
+          comparison: [],
+        },
+        error: null,
+      },
+    });
 
     render(<JobPostingsList />);
 
     expect(await screen.findByText('Sin calcular')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Configura temas/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Completar perfil profesional/ })).toHaveAttribute(
       'href',
-      '/mentorship/onboarding',
+      '/profile/completar',
     );
-    expect(screen.getByText(/Selecciona temas técnicos/)).toBeInTheDocument();
+    expect(screen.getByText(/Completa tu perfil profesional/)).toBeInTheDocument();
   });
 
   it('muestra el error de carga del perfil y permite reintentar sin recargar vacantes', async () => {
-    loadSkills
+    getAffinityBatch
       .mockRejectedValueOnce(new Error('Ocurrió un error inesperado'))
-      .mockResolvedValueOnce({ status: 'ready', skills: ['React'] });
+      .mockResolvedValueOnce({
+        'vacancy-1': {
+          vacancyId: 'vacancy-1',
+          result: {
+            status: 'ready',
+            percentage: 95,
+            calculatedAt: '2026-11-17T10:00:00.000Z',
+            comparison: [],
+          },
+          error: null,
+        },
+      });
 
     render(<JobPostingsList />);
 
@@ -104,6 +122,7 @@ describe('JobPostingsList', () => {
 
     expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
     expect(listPostings).toHaveBeenCalledTimes(1);
+    expect(getAffinityBatch).toHaveBeenCalledTimes(2);
   });
 
   it('filtra por texto y modalidad y alterna el orden entre afinidad y fecha', async () => {
@@ -128,12 +147,28 @@ describe('JobPostingsList', () => {
       descripcionTecnica: 'Análisis de información.\n\n**Conocimientos técnicos requeridos:**\n- SQL',
     };
     listPostings.mockResolvedValue([recentPosting, olderPosting]);
-    calculateAffinity.mockImplementation((requirements) => ({
-      status: 'ready',
-      percentage: requirements[0]?.nombre === 'SQL' ? 90 : 60,
-      calculatedAt: '2026-11-17T10:00:00.000Z',
-      comparison: [],
-    }));
+    getAffinityBatch.mockResolvedValue({
+      'vacancy-recent': {
+        vacancyId: 'vacancy-recent',
+        result: {
+          status: 'ready',
+          percentage: 60,
+          calculatedAt: '2026-11-17T10:00:00.000Z',
+          comparison: [],
+        },
+        error: null,
+      },
+      'vacancy-older': {
+        vacancyId: 'vacancy-older',
+        result: {
+          status: 'ready',
+          percentage: 90,
+          calculatedAt: '2026-11-17T10:00:00.000Z',
+          comparison: [],
+        },
+        error: null,
+      },
+    });
 
     render(<JobPostingsList />);
 
@@ -162,21 +197,44 @@ describe('JobPostingsList', () => {
     expect(rows[1]).toHaveTextContent('Desarrollador JavaScript');
     expect(screen.getByText('Ordenadas por fecha de publicación')).toBeInTheDocument();
   });
+
   it('desempata por ID cuando la afinidad y la fecha coinciden', async () => {
     listPostings.mockResolvedValue([
       { ...posting, id: 'vacancy-b', titulo: 'Vacante B' },
       { ...posting, id: 'vacancy-a', titulo: 'Vacante A' },
     ]);
+    getAffinityBatch.mockResolvedValue({
+      'vacancy-b': {
+        vacancyId: 'vacancy-b',
+        result: {
+          status: 'ready',
+          percentage: 95,
+          calculatedAt: '2026-11-17T10:00:00.000Z',
+          comparison: [],
+        },
+        error: null,
+      },
+      'vacancy-a': {
+        vacancyId: 'vacancy-a',
+        result: {
+          status: 'ready',
+          percentage: 95,
+          calculatedAt: '2026-11-17T10:00:00.000Z',
+          comparison: [],
+        },
+        error: null,
+      },
+    });
 
     render(<JobPostingsList />);
 
-    // Espera a que termine el cálculo de ambas vacantes.
     expect(await screen.findAllByText('95% Afinidad')).toHaveLength(2);
 
     const rows = screen.getAllByRole('row');
     expect(rows[1]).toHaveTextContent('Vacante A');
     expect(rows[2]).toHaveTextContent('Vacante B');
   });
+
   it('muestra el estado vacío y deshabilita el selector de orden', async () => {
     listPostings.mockResolvedValue([]);
 
@@ -194,8 +252,9 @@ describe('JobPostingsList', () => {
 
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
-    it('muestra Sin calcular cuando falla la carga del perfil', async () => {
-    loadSkills.mockRejectedValueOnce(new Error('Servicio no disponible'));
+
+  it('muestra Sin calcular cuando falla la carga de afinidad', async () => {
+    getAffinityBatch.mockRejectedValueOnce(new Error('Servicio no disponible'));
 
     render(<JobPostingsList />);
 
@@ -205,7 +264,7 @@ describe('JobPostingsList', () => {
   });
 
   it('mantiene 0 % antes de las vacantes sin cálculo y conserva su asociación', async () => {
-      listPostings.mockResolvedValue([
+    listPostings.mockResolvedValue([
       {
         ...posting,
         id: 'vacancy-pending',
@@ -227,17 +286,37 @@ describe('JobPostingsList', () => {
       },
     ]);
 
-    calculateAffinity.mockImplementation((requirements) => {
-      if (requirements.length === 0) {
-        return { status: 'insufficient-requirements' };
-      }
-
-      return {
-        status: 'ready',
-        percentage: requirements[0]?.nombre === 'Python' ? 0 : 90,
-        calculatedAt: '2026-11-17T10:00:00.000Z',
-        comparison: [],
-      };
+    getAffinityBatch.mockResolvedValue({
+      'vacancy-pending': {
+        vacancyId: 'vacancy-pending',
+        result: {
+          status: 'no-requirements',
+          percentage: null,
+          calculatedAt: null,
+          comparison: [],
+        },
+        error: null,
+      },
+      'vacancy-zero': {
+        vacancyId: 'vacancy-zero',
+        result: {
+          status: 'ready',
+          percentage: 0,
+          calculatedAt: '2026-11-17T10:00:00.000Z',
+          comparison: [],
+        },
+        error: null,
+      },
+      'vacancy-high': {
+        vacancyId: 'vacancy-high',
+        result: {
+          status: 'ready',
+          percentage: 90,
+          calculatedAt: '2026-11-17T10:00:00.000Z',
+          comparison: [],
+        },
+        error: null,
+      },
     });
 
     render(<JobPostingsList />);
@@ -253,12 +332,13 @@ describe('JobPostingsList', () => {
     expect(rows[3]).toHaveTextContent('Vacante sin cálculo');
     expect(rows[3]).toHaveTextContent('Sin requisitos');
   });
-    it('actualiza disponibilidad y afinidades al consultar nuevamente', async () => {
+
+  it('actualiza disponibilidad y afinidades al consultar nuevamente', async () => {
     const removedPosting = {
       ...posting,
       id: 'vacancy-removed',
       titulo: 'Vacante retirada',
-            descripcionTecnica: null,
+      descripcionTecnica: null,
       requisitos: [{ id: 'stored-python', nombre: 'Python' }],
     };
     const remainingPosting = {
@@ -271,20 +351,41 @@ describe('JobPostingsList', () => {
       .mockResolvedValueOnce([removedPosting, remainingPosting])
       .mockResolvedValueOnce([remainingPosting]);
 
-    loadSkills
-      .mockResolvedValueOnce({ status: 'ready', skills: ['React'] })
-      .mockResolvedValueOnce({ status: 'ready', skills: ['SQL'] });
-
-    calculateAffinity.mockImplementation((requirements, skills) => ({
-      status: 'ready',
-      percentage: skills.includes('SQL')
-        ? 80
-        : requirements[0]?.nombre === 'Python'
-          ? 95
-          : 40,
-      calculatedAt: '2026-11-17T10:00:00.000Z',
-      comparison: [],
-    }));
+    getAffinityBatch
+      .mockResolvedValueOnce({
+        'vacancy-removed': {
+          vacancyId: 'vacancy-removed',
+          result: {
+            status: 'ready',
+            percentage: 95,
+            calculatedAt: '2026-11-17T10:00:00.000Z',
+            comparison: [],
+          },
+          error: null,
+        },
+        'vacancy-remaining': {
+          vacancyId: 'vacancy-remaining',
+          result: {
+            status: 'ready',
+            percentage: 40,
+            calculatedAt: '2026-11-17T10:00:00.000Z',
+            comparison: [],
+          },
+          error: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        'vacancy-remaining': {
+          vacancyId: 'vacancy-remaining',
+          result: {
+            status: 'ready',
+            percentage: 80,
+            calculatedAt: '2026-11-17T10:00:00.000Z',
+            comparison: [],
+          },
+          error: null,
+        },
+      });
 
     render(<JobPostingsList />);
 
@@ -302,30 +403,26 @@ describe('JobPostingsList', () => {
     expect(screen.getAllByRole('row')).toHaveLength(2);
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('Vacante vigente');
     expect(listPostings).toHaveBeenCalledTimes(2);
-    expect(loadSkills).toHaveBeenCalledTimes(2);
+    expect(getAffinityBatch).toHaveBeenCalledTimes(2);
   });
 
-    it('calcula solo con los requisitos estructurados guardados', async () => {
-    listPostings.mockResolvedValue([
-      {
-        ...posting,
-        requisitos: [
-          { id: 'stored-react', nombre: 'React' },
-          { id: 'stored-sql', nombre: 'SQL' },
-        ],
+  it('muestra error individual de cálculo en badge si falla una vacante', async () => {
+    listPostings.mockResolvedValue([posting]);
+    getAffinityBatch.mockResolvedValue({
+      'vacancy-1': {
+        vacancyId: 'vacancy-1',
+        result: null,
+        error: {
+          code: 'AFFINITY_CALCULATION_FAILED',
+          message: 'Error en motor',
+          retryable: true,
+        },
       },
-    ]);
+    });
 
     render(<JobPostingsList />);
 
-    expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
-
-    expect(calculateAffinity).toHaveBeenCalledWith(
-      [
-        { id: 'stored-react', nombre: 'React' },
-        { id: 'stored-sql', nombre: 'SQL' },
-      ],
-      ['React'],
-    );
+    expect(await screen.findByText('Error de cálculo')).toBeInTheDocument();
+    expect(screen.queryByText('0% Afinidad')).not.toBeInTheDocument();
   });
 });

@@ -136,3 +136,18 @@ it("permite el módulo radar sin devolver 404", async () => {
   expect(result.status).toBe(200);
   expect(fetchMock.mock.calls[0][0]).toBe("http://backend:3000/api/v1/radar");
 });
+
+it("permite el módulo affinity sin devolver 404", async () => {
+  fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+  const request = new NextRequest("http://frontend/api/v1/affinity/batch", {
+    method: "POST",
+    body: JSON.stringify({ mode: "vacancies", vacancyIds: ["00000000-0000-4000-8000-000000000001"] }),
+  });
+
+  const result = await POST(request, {
+    params: { path: ["affinity", "batch"] },
+  });
+
+  expect(result.status).toBe(200);
+  expect(fetchMock.mock.calls[0][0]).toBe("http://backend:3000/api/v1/affinity/batch");
+});

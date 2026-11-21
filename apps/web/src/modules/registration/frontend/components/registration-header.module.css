@@ -1,0 +1,24 @@
+.account {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.prompt {
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .account {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .prompt {
+    font-size: 11px;
+    line-height: 14px;
+  }
+}

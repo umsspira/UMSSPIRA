@@ -6,7 +6,7 @@ export const metadata = {
 
 export default function ConfirmationPage() {
   return (
-    <main className="flex min-h-screen items-center bg-palladian px-4 py-10">
+    <main className="flex flex-1 items-center bg-palladian px-4 py-10">
       <ConfirmationContent />
     </main>
   );

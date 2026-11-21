@@ -377,7 +377,12 @@ describe('Registro documental: fronteras HTTP y permisos', () => {
   });
 
   it('acepta el dictamen en español y conserva el contrato de notificación', async () => {
-    applications.find.mockResolvedValueOnce({ email: 'maria@example.com', fullName: 'Maria Rojas' });
+    applications.find.mockResolvedValueOnce({
+      email: 'maria@example.com',
+      fullName: 'Maria Rojas',
+      status: 'PENDIENTE',
+      version: 1,
+    });
     applications.review.mockResolvedValueOnce({
       id: randomUUID(),
       applicationId,

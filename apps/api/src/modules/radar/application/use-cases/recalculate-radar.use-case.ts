@@ -3,6 +3,7 @@ import { KEYWORD_EXTRACTOR_PORT, KeywordExtractorPort } from '../ports/keyword-e
 import {
   RADAR_REPOSITORY_PORT,
   RadarRepositoryPort,
+  RadarCalculationSnapshot,
   AreaScoreRecord,
 } from '../ports/radar-repository.port';
 import {
@@ -44,60 +45,83 @@ export class RecalculateRadarUseCase {
     const currentHash = calculateInputHash(texts, DICTIONARY_VERSION);
     const startedAt = Date.now();
 
+    const reuseCalculation = async (
+      repository: RadarRepositoryPort,
+      latestCalc: RadarCalculationSnapshot,
+    ) => {
+      // CA-HU8-11: la referencia sigue siendo el cálculo anterior al vigente,
+      // no el cálculo vigente consigo mismo.
+      const [previous, unmappedKeywords] = await Promise.all([
+        repository.getPreviousCalculation(tituladoId, latestCalc.id),
+        repository.getUnmappedKeywords(tituladoId),
+      ]);
+
+      return buildRadarVector({
+        calculation: latestCalc,
+        previous,
+        hasLaborHistory,
+        hasPendingChanges: false,
+        recalculated: false,
+        processingMs: Date.now() - startedAt,
+        unmappedKeywords,
+      });
+    };
+
+    const existing = await this.radarRepository.getLatestCalculation(tituladoId);
+    if (existing?.hashEntrada === currentHash) {
+      const unchanged = await this.radarRepository.executeWithAdvisoryLock(
+        tituladoId,
+        async (repository) => {
+          const latest = await repository.getLatestCalculation(tituladoId);
+          return latest?.hashEntrada === currentHash ? reuseCalculation(repository, latest) : null;
+        },
+      );
+      if (unchanged) {return unchanged;}
+    }
+
+    // Extraer palabras clave (carga perezosa del diccionario NLP) y leer pesos en paralelo
+    // antes de abrir la transacción con bloqueo asesor, evitando agotar el pool o el timeout
+    // transaccional de PostgreSQL durante el recálculo.
+    const [{ keywords, unmapped }, areaWeights] = await Promise.all([
+      this.keywordExtractor.extractFromTexts([...texts]),
+      this.areaWeightReader.getAreaWeights(),
+    ]);
+
+    // Si no reconoció nada, el cálculo queda como VACIO con las seis áreas en cero.
+    const estado = keywords.length === 0 ? 'VACIO' : 'COMPLETADO';
+
+    const mappedKeywords = mapKeywordsToRadarAreas(keywords, areaWeights);
+    const slugs = Object.keys(RADAR_AREA_IDS) as RadarArea[];
+    const areas: AreaScoreRecord[] = [];
+
+    for (const slug of slugs) {
+      const areaId = RADAR_AREA_IDS[slug];
+      const areaMappings = mappedKeywords
+        .filter((mapping) => mapping.areaId === areaId)
+        .map(({ term, peso }) => ({ term, peso }));
+
+      const areaResult = calculateAreaAffinity(keywords, areaMappings);
+      const contribucionesKeyword = calculateAreaKeywordContributions(keywords, areaMappings);
+
+      areas.push({
+        areaSlug: slug,
+        areaId,
+        puntaje: areaResult.puntaje,
+        porcentaje: areaResult.porcentaje,
+        ponderacion: areaResult.ponderacion,
+        palabrasClaveTop: areaResult.palabrasClaveTop,
+        contribucionesKeyword,
+      });
+    }
+
     // Bloqueo asesor transaccional (pg_advisory_xact_lock) por titulado.
     // Garantiza que si el front manda 2 clicks rápidos, no se duplique el cálculo.
     return this.radarRepository.executeWithAdvisoryLock(tituladoId, async (repository) => {
       // Verificar idempotencia: si el hash no cambió, devolvemos el cálculo intacto.
       const latestCalc = await repository.getLatestCalculation(tituladoId);
 
-      if (latestCalc && latestCalc.hashEntrada === currentHash) {
-        // CA-HU8-11: la referencia sigue siendo el cálculo anterior al vigente,
-        // no el cálculo vigente consigo mismo.
-        const previous = await repository.getPreviousCalculation(tituladoId, latestCalc.id);
-        const unmappedKeywords = await repository.getUnmappedKeywords(tituladoId);
-
-        return buildRadarVector({
-          calculation: latestCalc,
-          previous,
-          hasLaborHistory,
-          hasPendingChanges: false,
-          recalculated: false,
-          processingMs: Date.now() - startedAt,
-          unmappedKeywords,
-        });
-      }
-
-      // Extraer palabras clave usando el puerto NLP. Si el diccionario no está disponible
-      // lanza un error y la transacción se revierte sin persistir nada.
-      const { keywords, unmapped } = await this.keywordExtractor.extractFromTexts([...texts]);
-
-      // Si no reconoció nada, el cálculo queda como VACIO con las seis áreas en cero.
-      const estado = keywords.length === 0 ? 'VACIO' : 'COMPLETADO';
-
-      // Cargar los pesos de la base de datos.
-      const areaWeights = await this.areaWeightReader.getAreaWeights();
-      const mappedKeywords = mapKeywordsToRadarAreas(keywords, areaWeights);
-      const slugs = Object.keys(RADAR_AREA_IDS) as RadarArea[];
-      const areas: AreaScoreRecord[] = [];
-
-      for (const slug of slugs) {
-        const areaId = RADAR_AREA_IDS[slug];
-        const areaMappings = mappedKeywords
-          .filter((mapping) => mapping.areaId === areaId)
-          .map(({ term, peso }) => ({ term, peso }));
-
-        const areaResult = calculateAreaAffinity(keywords, areaMappings);
-        const contribucionesKeyword = calculateAreaKeywordContributions(keywords, areaMappings);
-
-        areas.push({
-          areaSlug: slug,
-          areaId,
-          puntaje: areaResult.puntaje,
-          porcentaje: areaResult.porcentaje,
-          ponderacion: areaResult.ponderacion,
-          palabrasClaveTop: areaResult.palabrasClaveTop,
-          contribucionesKeyword,
-        });
+      if (latestCalc?.hashEntrada === currentHash) {
+        return reuseCalculation(repository, latestCalc);
       }
 
       // Persistir cálculo, seis afinidades y no mapeados en una sola transacción atómica.
