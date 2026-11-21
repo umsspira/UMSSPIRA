@@ -1,3 +1,5 @@
+import type { JobPostingStatus } from '../policies/job-posting-status.policy';
+
 export const JOB_MODALITIES = ['PRESENCIAL', 'HIBRIDO', 'REMOTO'] as const;
 export type JobModality = (typeof JOB_MODALITIES)[number];
 
@@ -8,6 +10,6 @@ export interface JobPosting {
   modality: JobModality;
   experienceLevel: string;
   technicalDescription: string;
-  status: 'PUBLICADO' | 'CERRADO';
+  status: JobPostingStatus;
   createdAt: Date;
 }

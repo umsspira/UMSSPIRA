@@ -106,6 +106,22 @@ it('conserva el fallback visual de sesión ante errores transitorios en cualquie
   expect(screen.getByText('talento: empresa')).toBeInTheDocument();
 });
 
+it('sin conexión mantiene al usuario si su sesión offline sigue vigente (HU07)', async () => {
+  window.localStorage.setItem('umsspira.offline.session-validation', JSON.stringify({ userId: 'u1', validatedAt: Date.now() }));
+  window.localStorage.setItem('umsspira.offline.nav-user', JSON.stringify({ name: 'titulado', initials: 'TI', role: 'titulado' }));
+  fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('titulado: titulado')).toBeInTheDocument();
+});
+
+it('sin conexión muestra visitante si la sesión offline venció', async () => {
+  window.localStorage.setItem('umsspira.offline.session-validation', JSON.stringify({ userId: 'u1', validatedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 }));
+  window.localStorage.setItem('umsspira.offline.nav-user', JSON.stringify({ name: 'titulado', initials: 'TI', role: 'titulado' }));
+  fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('Visitante')).toBeInTheDocument();
+});
+
 it('limpia la sesión visual y muestra acciones públicas ante un 401 explícito', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
   const view = render(<ConnectedNavbar />);
@@ -245,6 +261,30 @@ it('mantiene el borrador cuando falla el logout desde la navbar', async () => {
   expect(window.localStorage.getItem('umsspira:survey-draft:usuario-1')).not.toBeNull();
 });
 
+it('sin conexión se puede cerrar sesión: queda pendiente y se va a /login (HU07)', async () => {
+  const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  jest.mocked(revokeCurrentSession).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  expect(window.localStorage.getItem('umsspira.offline.pending-logout')).toBe('1');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(clearSession).toHaveBeenCalled();
+  consoleError.mockRestore();
+});
+
+it('con el servidor caído (500) también se puede cerrar sesión en este equipo', async () => {
+  const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  jest.mocked(revokeCurrentSession).mockRejectedValueOnce(new SessionError(500, 'No se pudo cerrar la sesión'));
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  consoleError.mockRestore();
+});
+
 it('la portada institucional siempre muestra la barra de visitante, aunque haya sesión', async () => {
   mockPathname = '/portal/institucional';
   fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: { email: 'ana@umss.edu', role: 'titulado' } }) } as Response);
@@ -264,4 +304,19 @@ it('conserva la sesión al cambiar de página: no vuelve a mostrar la barra de v
   render(<ConnectedNavbar />);
   expect(screen.getByText('ana: titulado')).toBeInTheDocument();
   expect(screen.queryByText('Visitante')).not.toBeInTheDocument();
+});
+
+it('sin conexión se cierra sesión con el botón de la propia barra (sin botones duplicados flotantes)', async () => {
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
+
+  jest.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+  fireEvent(window, new Event('offline'));
+  expect(screen.queryByTestId('offline-logout-button')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: 'Cerrar sesión' })).toHaveLength(1);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  jest.restoreAllMocks();
 });

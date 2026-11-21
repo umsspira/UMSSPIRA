@@ -12,6 +12,7 @@ import { seedEpic6 } from './epic-6';
 import { seedEpic7 } from './epic-7';
 import { seedEpic8 } from './epic-8';
 import { seedEpic9 } from './epic-9';
+import { seedHu19 } from './hu19-demo';
 import { seedQaSecondCareer } from './qa-second-career';
 
 async function seedDemo(): Promise<void> {
@@ -31,6 +32,7 @@ async function seedDemo(): Promise<void> {
     { name: 'épica 7', run: seedEpic7 },
     { name: 'épica 8', run: seedEpic8 },
     { name: 'épica 9', run: seedEpic9 },
+    { name: 'épica 5 · HU-19 (vacantes con requisitos, perfiles y postulaciones)', run: seedHu19 },
     { name: 'QA segunda carrera y radar', run: seedQaSecondCareer },
   ];
 
