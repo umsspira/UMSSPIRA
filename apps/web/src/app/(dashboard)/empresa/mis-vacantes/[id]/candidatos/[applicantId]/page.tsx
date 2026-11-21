@@ -2,18 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Applicant } from "@/shared/types/applicant";
+import { Applicant, APPLICANT_STATUSES, ApplicantStatus } from "@/shared/types/applicant";
 import { Vacancy } from "@/shared/types/vacancy";
 import {
   getApplicantById,
   MATCH_ENGINE_ERROR_MESSAGE,
+  updateApplicantStage,
 } from "@/shared/services/applicants";
 import { getVacancyById } from "@/shared/services/vacancies";
 import { VacancyHeader } from "@/shared/components/vacancy-header";
 import { MatchBreakdownView } from "@/shared/components/match-breakdown-view";
 import { Cargando, EstadoError } from "../../../../_components/estado-pantalla";
 
-const STAGES = ["Postulado", "En revisión", "Preseleccionado", "Entrevista", "Descartado"];
+const STAGES: readonly ApplicantStatus[] = APPLICANT_STATUSES;
 
 // Colores de la línea de tiempo
 const getStageColor = (stage: string) => {
@@ -40,10 +41,15 @@ export default function ApplicantMatchPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   // Estados para la línea de tiempo y el cambio de etapa
-  const [selectedStage, setSelectedStage] = useState<string>("");
+  const [selectedStage, setSelectedStage] = useState<ApplicantStatus>("Postulado");
   const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const goBackToList = () => router.push(`/empresa/mis-vacantes/${vacancyId}/candidatos`);
 
@@ -75,15 +81,6 @@ export default function ApplicantMatchPage() {
     return () => { cancelled = true; };
   }, [vacancyId, applicantId, reloadKey]);
 
-  // Agregamos el traductor para que el backend entienda el código
-  const STAGE_CODES: Record<string, string> = {
-    "Postulado": "postulado",
-    "En revisión": "en_revision",
-    "Preseleccionado": "preseleccionado",
-    "Entrevista": "entrevista",
-    "Descartado": "descartado",
-  };
-
   const handleSaveStage = async () => {
     if (!applicant || selectedStage === applicant.status) return;
 
@@ -95,30 +92,17 @@ export default function ApplicantMatchPage() {
     await saveStage(selectedStage);
   };
 
-  const saveStage = async (newStage: string) => {
+  const saveStage = async (newStage: ApplicantStatus) => {
     if (!applicant) return;
     setIsSaving(true);
     setIsDiscardModalOpen(false);
 
     try {
-      const res = await fetch(`/api/v1/vacantes/${vacancyId}/postulantes/${applicantId}/etapa`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        // 👇 AQUÍ ESTÁ EL CAMBIO: Enviamos "etapa" con el código en minúsculas
-        body: JSON.stringify({ etapa: STAGE_CODES[newStage] }),
-      });
-
-      if (!res.ok) throw new Error("Error al actualizar");
-
-      // Actualizamos el estado local
-      setApplicant((prev) => prev ? { ...prev, status: newStage as any } : prev);
-      
-      // Mostrar el mensaje de éxito (CA-02)
-      setToastMessage(`Etapa actualizada: ${applicant.name} pasó a ${newStage}`);
-      setTimeout(() => setToastMessage(null), 4000);
-
+      await updateApplicantStage(vacancyId, applicantId, newStage);
+      setApplicant((prev) => (prev ? { ...prev, status: newStage } : prev));
+      showToast("success", `Etapa actualizada: ${applicant.name} pasó a ${newStage}`);
     } catch (err) {
-      alert("Hubo un error al guardar la etapa. Intenta de nuevo.");
+      showToast("error", err instanceof Error ? err.message : "No se pudo guardar la etapa. Intenta de nuevo.");
     } finally {
       setIsSaving(false);
     }
@@ -128,9 +112,12 @@ export default function ApplicantMatchPage() {
     <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6 relative">
       
       {/* Cartel de éxito */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-bottom-4">
-          {toastMessage}
+      {toast && (
+        <div
+          role={toast.type === "error" ? "alert" : "status"}
+          className={`fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 text-white px-6 py-3 rounded-lg shadow-lg z-50 ${toast.type === "error" ? "bg-red-600" : "bg-green-600"}`}
+        >
+          {toast.message}
         </div>
       )}
 
@@ -223,7 +210,7 @@ export default function ApplicantMatchPage() {
                 <label className="text-sm font-medium text-[#1B2632]">Mover a</label>
                 <select
                   value={selectedStage}
-                  onChange={(e) => setSelectedStage(e.target.value)}
+                  onChange={(e) => setSelectedStage(e.target.value as ApplicantStatus)}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]"
                 >
                   {STAGES.map((s) => (

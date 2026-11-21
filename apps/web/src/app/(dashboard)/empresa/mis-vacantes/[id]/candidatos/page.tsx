@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Applicant, APPLICANT_STATUSES, EXPERIENCE_LEVELS } from "@/shared/types/applicant";
+import { Applicant, APPLICANT_STATUSES, ApplicantStatus } from "@/shared/types/applicant";
 import { Vacancy } from "@/shared/types/vacancy";
 import {
   getApplicantsByVacancy,
+  AFFINITY_UNAVAILABLE_MESSAGE,
   MATCH_ENGINE_ERROR_MESSAGE,
+  updateApplicantStage,
 } from "@/shared/services/applicants";
 import { getVacancyById } from "@/shared/services/vacancies";
 import { useApplicantFilters } from "@/shared/hooks/useApplicantFilters";
@@ -16,31 +18,77 @@ import { VacancyHeader } from "@/shared/components/vacancy-header";
 import { clampForDisplay, formatMatch, hasMatch, listBarColor } from "@/shared/utils/match-format";
 import { formatDate, getInitials } from "@/shared/utils/format";
 
-// --- CA-14: Colores por etapa ---
-const getStageStyle = (status: string) => {
-  switch (status) {
-    case "Postulado": return "bg-gray-100 text-gray-700 border border-gray-200";
-    case "En revisión": return "bg-orange-100 text-orange-700 border border-orange-200";
-    case "Preseleccionado": return "bg-blue-100 text-blue-700 border border-blue-200";
-    case "Entrevista": return "bg-green-100 text-green-700 border border-green-200";
-    case "Descartado": return "bg-red-100 text-red-700 border border-red-200";
-    default: return "bg-gray-100 text-gray-700 border border-gray-200";
-  }
+// --- CA-14: Colores por etapa (una sola fuente para la etiqueta y el menú) ---
+const STAGE_STYLES: Record<ApplicantStatus, { pill: string; dot: string }> = {
+  Postulado: { pill: "bg-gray-100 text-gray-700 border border-gray-200", dot: "bg-gray-500" },
+  "En revisión": { pill: "bg-orange-100 text-orange-700 border border-orange-200", dot: "bg-orange-500" },
+  Preseleccionado: { pill: "bg-blue-100 text-blue-700 border border-blue-200", dot: "bg-blue-500" },
+  Entrevista: { pill: "bg-green-100 text-green-700 border border-green-200", dot: "bg-green-500" },
+  Descartado: { pill: "bg-red-100 text-red-700 border border-red-200", dot: "bg-red-500" },
 };
 
-// Puntito de color para el menú
-const getDotColor = (status: string) => {
-  switch (status) {
-    case "Postulado": return "bg-gray-500";
-    case "En revisión": return "bg-orange-500";
-    case "Preseleccionado": return "bg-blue-500";
-    case "Entrevista": return "bg-green-500";
-    case "Descartado": return "bg-red-500";
-    default: return "bg-gray-500";
-  }
-};
+interface StageSelectorProps {
+  applicant: Applicant;
+  isOpen: boolean;
+  isUpdating: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onSelect: (stage: ApplicantStatus) => void;
+}
 
-const STAGES = ["Postulado", "En revisión", "Preseleccionado", "Entrevista", "Descartado"];
+/** HU-04: etiqueta de etapa con el menú «Cambiar etapa» (tabla y tarjetas móviles). */
+function StageSelector({ applicant, isOpen, isUpdating, onToggle, onClose, onSelect }: StageSelectorProps) {
+  const current = STAGE_STYLES[applicant.status];
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={isUpdating}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label={`Etapa de ${applicant.name}: ${applicant.status}. Cambiar etapa`}
+        className={`px-3 py-1.5 text-xs font-semibold rounded-full flex items-center justify-between gap-2 min-w-[140px] ${current.pill} ${isUpdating ? "opacity-50 cursor-wait" : "hover:opacity-80"}`}
+      >
+        {isUpdating ? "Guardando..." : applicant.status}
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden="true" />
+          <div role="menu" className="absolute top-full left-0 mt-2 w-60 bg-white border border-[#EEE9DF] rounded-xl shadow-xl z-20 p-2">
+            <p className="px-2 pt-1 pb-2 text-xs font-bold text-[#1B2632] border-b border-[#EEE9DF] mb-1">Cambiar etapa</p>
+            {APPLICANT_STATUSES.map((stage) => {
+              const isCurrent = applicant.status === stage;
+              return (
+                <button
+                  key={stage}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={isCurrent}
+                  onClick={() => (isCurrent ? onClose() : onSelect(stage))}
+                  className={`w-full flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm text-left ${isCurrent ? "bg-[#F7F4EE] font-semibold text-[#1B2632]" : "text-gray-700 hover:bg-gray-50"}`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${STAGE_STYLES[stage].dot}`} aria-hidden="true" />
+                    {stage}
+                  </span>
+                  {isCurrent && (
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-green-700">
+                      Actual
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function CandidatesPage() {
   const params = useParams();
@@ -58,7 +106,12 @@ export default function CandidatesPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmDiscardId, setConfirmDiscardId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -89,12 +142,12 @@ export default function CandidatesPage() {
 
   const {
     searchTerm, setSearchTerm, minMatch, setMinMatch,
-    selectedStatus, setSelectedStatus, selectedLevel, setSelectedLevel,
+    selectedStatus, setSelectedStatus,
     filteredApplicants, handleClearFilters,
   } = useApplicantFilters(applicants);
   
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [searchTerm, minMatch, selectedStatus, selectedLevel, applicants]);
+  useEffect(() => { setPage(1); }, [searchTerm, minMatch, selectedStatus, applicants]);
 
   const totalPages = Math.max(1, Math.ceil(filteredApplicants.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -102,15 +155,7 @@ export default function CandidatesPage() {
   const pageApplicants = filteredApplicants.slice(firstIndex, firstIndex + PAGE_SIZE);
 
   // --- CA-02 y CA-16: Lógica para guardar la etapa ---
-  const STAGE_CODES: Record<string, string> = {
-    "Postulado": "postulado",
-    "En revisión": "en_revision",
-    "Preseleccionado": "preseleccionado",
-    "Entrevista": "entrevista",
-    "Descartado": "descartado",
-  };
-
-  const handleUpdateStage = async (applicantId: string, newStage: string, applicantName: string) => {
+  const handleUpdateStage = async (applicantId: string, newStage: ApplicantStatus, applicantName: string) => {
     if (newStage === "Descartado") {
       setConfirmDiscardId(applicantId);
       setOpenMenuId(null);
@@ -119,40 +164,44 @@ export default function CandidatesPage() {
     await saveStage(applicantId, newStage, applicantName);
   };
 
-  const saveStage = async (applicantId: string, newStage: string, applicantName: string) => {
+  const saveStage = async (applicantId: string, newStage: ApplicantStatus, applicantName: string) => {
     setUpdatingId(applicantId);
     setOpenMenuId(null);
     setConfirmDiscardId(null);
-    
+
     try {
-      const res = await fetch(`/api/v1/vacantes/${vacancyId}/postulantes/${applicantId}/etapa`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ etapa: STAGE_CODES[newStage] }),
-      });
-
-      if (!res.ok) throw new Error("Error al actualizar");
-
+      await updateApplicantStage(vacancyId, applicantId, newStage);
       setApplicants((prev) =>
-        prev.map((app) => app.id === applicantId ? { ...app, status: newStage as any } : app)
+        prev.map((app) => (app.id === applicantId ? { ...app, status: newStage } : app))
       );
-
-      setToastMessage(`Etapa actualizada: ${applicantName} pasó a ${newStage}`);
-      setTimeout(() => setToastMessage(null), 4000);
-
+      showToast("success", `Etapa actualizada: ${applicantName} pasó a ${newStage}`);
     } catch (err) {
-      alert("Hubo un error al guardar la etapa. Intenta de nuevo.");
+      showToast("error", err instanceof Error ? err.message : "No se pudo guardar la etapa. Intenta de nuevo.");
     } finally {
       setUpdatingId(null);
     }
   };
 
+  const stageSelector = (applicant: Applicant) => (
+    <StageSelector
+      applicant={applicant}
+      isOpen={openMenuId === applicant.id}
+      isUpdating={updatingId === applicant.id}
+      onToggle={() => setOpenMenuId(openMenuId === applicant.id ? null : applicant.id)}
+      onClose={() => setOpenMenuId(null)}
+      onSelect={(stage) => handleUpdateStage(applicant.id, stage, applicant.name)}
+    />
+  );
+
   return (
     <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6 relative">
       
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-bottom-4">
-          {toastMessage}
+      {toast && (
+        <div
+          role={toast.type === "error" ? "alert" : "status"}
+          className={`fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 text-white px-6 py-3 rounded-lg shadow-lg z-50 ${toast.type === "error" ? "bg-red-600" : "bg-green-600"}`}
+        >
+          {toast.message}
         </div>
       )}
 
@@ -195,13 +244,6 @@ export default function CandidatesPage() {
                   {APPLICANT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-[#1B2632]">Nivel de experiencia</label>
-                <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]">
-                  <option value="Todos">Todos</option>
-                  {EXPERIENCE_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
               <input type="text" placeholder="Buscar candidato" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:max-w-md px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]" />
@@ -216,16 +258,66 @@ export default function CandidatesPage() {
                 : `Mostrando ${firstIndex + 1}–${firstIndex + pageApplicants.length} de ${filteredApplicants.length} postulantes`}
             </p>
 
+            {applicants.some((applicant) => applicant.matchError === AFFINITY_UNAVAILABLE_MESSAGE) && (
+              <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {AFFINITY_UNAVAILABLE_MESSAGE}
+              </p>
+            )}
+
             {filteredApplicants.length === 0 ? (
               <div className="bg-white p-8 rounded-xl text-center border border-[#EEE9DF] text-gray-500">Ningún postulante cumple con los filtros aplicados.</div>
             ) : (
-              <div className="bg-white rounded-xl border border-[#EEE9DF] shadow-sm overflow-visible">
+              <>
+              {/* HU-03 (CA-03 / CA-12): en móvil cada postulante es una tarjeta */}
+              <ul className="md:hidden space-y-3">
+                {pageApplicants.map((applicant) => (
+                  <li key={applicant.id} className="bg-white rounded-xl border border-[#EEE9DF] shadow-sm p-4 space-y-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-[#EEE9DF] text-[#1B2632] text-xs font-bold flex items-center justify-center shrink-0">
+                        {getInitials(applicant.name)}
+                      </div>
+                      <span className="font-semibold text-[#1B2632] min-w-0 break-words [overflow-wrap:anywhere]">{applicant.name}</span>
+                    </div>
+
+                    {hasMatch(applicant.matchPercentage) ? (
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${listBarColor(applicant.matchPercentage)}`} style={{ width: `${clampForDisplay(applicant.matchPercentage)}%` }} />
+                        </div>
+                        <span className="font-bold text-[#1B2632] w-12 text-right text-sm">{formatMatch(applicant.matchPercentage)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500">Coincidencia técnica: {formatMatch(null)}</span>
+                    )}
+
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-[#1B2632]">
+                      <div className="min-w-0 col-span-2">
+                        <dt className="text-xs font-bold text-gray-500">Fecha de postulación</dt>
+                        <dd>{formatDate(applicant.appliedAt)}</dd>
+                      </div>
+                      <div className="min-w-0 col-span-2">
+                        <dt className="text-xs font-bold text-gray-500 mb-1">Etapa de selección</dt>
+                        <dd>{stageSelector(applicant)}</dd>
+                      </div>
+                    </dl>
+
+                    <Link
+                      href={`/empresa/mis-vacantes/${vacancyId}/candidatos/${applicant.id}`}
+                      className="flex min-h-11 w-full items-center justify-center rounded-lg border border-gray-300 text-sm font-bold text-[#1B2632] hover:bg-gray-50"
+                    >
+                      Ver detalle
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Escritorio: tabla (overflow visible para que el menú de etapa no se corte) */}
+              <div className="hidden md:block bg-white rounded-xl border border-[#EEE9DF] shadow-sm overflow-visible">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-[#1B2632] border-b border-[#EEE9DF]">
                     <tr>
                       <th className="px-4 py-3 font-bold">Candidato</th>
                       <th className="px-4 py-3 font-bold">Coincidencia técnica</th>
-                      <th className="px-4 py-3 font-bold">Nivel de experiencia</th>
                       <th className="px-4 py-3 font-bold">Etapa de selección</th>
                       <th className="px-4 py-3 font-bold">Fecha de postulación</th>
                       <th className="px-4 py-3 font-bold text-center">Acciones</th>
@@ -256,42 +348,7 @@ export default function CandidatesPage() {
                           )}
                         </td>
 
-                        <td className="px-4 py-3 text-[#1B2632]">{applicant.experienceLevel ?? "No registrado"}</td>
-                        
-                        <td className="px-4 py-3 relative">
-                          <button
-                            onClick={() => setOpenMenuId(openMenuId === applicant.id ? null : applicant.id)}
-                            disabled={updatingId === applicant.id}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-full flex items-center justify-between min-w-[130px] ${getStageStyle(applicant.status)} ${updatingId === applicant.id ? 'opacity-50 cursor-wait' : 'hover:opacity-80'}`}
-                          >
-                            {applicant.status}
-                            <svg className="w-3 h-3 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                          </button>
-
-                          {openMenuId === applicant.id && (
-                            <>
-                              <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)}></div>
-                              <div className="absolute top-full left-4 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 animate-in fade-in zoom-in-95">
-                                <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cambiar etapa</div>
-                                {STAGES.map((stage) => (
-                                  <button
-                                    key={stage}
-                                    onClick={() => handleUpdateStage(applicant.id, stage, applicant.name)}
-                                    className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${applicant.status === stage ? 'font-bold bg-gray-50' : 'text-gray-700'}`}
-                                  >
-                                    <span className="flex items-center gap-2">
-                                      <span className={`w-2 h-2 rounded-full ${getDotColor(stage)}`}></span>
-                                      {stage}
-                                    </span>
-                                    {applicant.status === stage && (
-                                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </td>
+                        <td className="px-4 py-3">{stageSelector(applicant)}</td>
 
                         <td className="px-4 py-3 text-[#1B2632]">{formatDate(applicant.appliedAt)}</td>
 
@@ -307,6 +364,7 @@ export default function CandidatesPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
             
             {totalPages > 1 && (
