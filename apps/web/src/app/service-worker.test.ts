@@ -174,6 +174,20 @@ describe('service worker del portal', () => {
     expect(await response.text()).toContain('Sin conexión');
   });
 
+  it('recargar (F5 o Ctrl+F5) el inicio sin conexión muestra la pantalla «Sin conexión a Internet»; un enlace normal no', async () => {
+    for (const cache of ['no-cache', 'reload']) {
+      const { listeners } = loadWorker({ fetchImpl: offlineFetch });
+      const respondWith = jest.fn();
+      listeners.fetch({
+        request: { method: 'GET', url: 'https://umsspira.test/portal', headers: new Headers(), mode: 'navigate', cache },
+        respondWith,
+      });
+      const html = await (await respondWith.mock.calls[0][0] as Response).text();
+      expect(html).toContain('Sin conexión a Internet');
+      expect(html).toContain('Disponible sin conexión');
+    }
+  });
+
   async function pantallaSinConexion(path: string) {
     const { listeners } = loadWorker({ fetchImpl: offlineFetch });
     const respondWith = jest.fn();
@@ -219,6 +233,32 @@ describe('service worker del portal', () => {
     const guest = JSON.parse(/var NAV_GUEST = (\[.*?\]);/s.exec(html)![1]) as { label: string }[];
     expect(member.map((item) => item.label)).toEqual(['Inicio', ...navigationFor('titulado').map((s) => s.label)]);
     expect(guest.map((item) => item.label)).toEqual(['Inicio', ...navigationFor(null).map((s) => s.label)]);
+  });
+
+  it('secciones principales: se guardan al visitarlas, así que pasan por el Service Worker', () => {
+    for (const path of ['/portal', '/portal/comunidad', '/portal/beneficios', '/portal/empleos', '/job-postings', '/mentorship/directory']) {
+      const { listeners } = loadWorker();
+      const respondWith = jest.fn();
+      listeners.fetch({
+        request: { method: 'GET', url: `https://umsspira.test${path}`, headers: new Headers(), mode: 'navigate' },
+        respondWith,
+      });
+      expect(respondWith).toHaveBeenCalled();
+    }
+  });
+
+  it('secciones principales: una sección que nunca se visitó muestra el aviso sin conexión y no una pantalla vacía', async () => {
+    const html = await pantallaSinConexion('/job-postings');
+    expect(html).toContain('Sin conexión a Internet');
+    expect(html).toContain('Esta pantalla todavía no se guardó en tu dispositivo');
+  });
+
+  it('la pantalla sin conexión permite cerrar sesión y borra también las páginas privadas guardadas', async () => {
+    const html = await pantallaSinConexion('/portal/mensajes');
+    expect(html).toContain("'umsspira.offline.pending-logout'");
+    expect(html).toContain('offline-logout');
+    expect(html).toContain("indexedDB.deleteDatabase('umsspira-offline')");
+    expect(html).toContain("n.indexOf('umsspira-routes') === 0");
   });
 
   it('HU08: las pantallas de Mis QR (/events/catalog/passes y /mis-pases) pasan por el Service Worker', () => {

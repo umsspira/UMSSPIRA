@@ -75,8 +75,6 @@ export function ConnectedNavbar() {
   // undefined = todavía no se sabe (no se muestra ninguna barra de cuenta ni de visitante)
   const [session, setSessionState] = useState<NavbarSession | null | undefined>(cachedSession);
   const [logoutError, setLogoutError] = useState(false);
-  // Sin conexión el menú puede quedar tapado por la pantalla «Sin conexión»: se ofrece un botón propio.
-  const [offline, setOffline] = useState(false);
   // HU-004 CA-07: durante el cierre voluntario, el 401 de /me no debe redirigir por su cuenta.
   const loggingOut = useRef(false);
 
@@ -145,17 +143,6 @@ export function ConnectedNavbar() {
     };
   }, [pathname, auth.accessToken, router, setSession, keepOrGuest]);
 
-  useEffect(() => {
-    const update = () => setOffline(!navigator.onLine);
-    update();
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
-
   const logout = async () => {
     loggingOut.current = true;
     setLogoutError(false);
@@ -190,22 +177,9 @@ export function ConnectedNavbar() {
   // (Iniciar sesión / Registro). La barra por rol solo se ve en el resto del portal.
   const isPublicLanding = pathname === '/portal/institucional' || pathname?.startsWith('/portal/institucional/');
 
-  const showOfflineLogout = offline && !isPublicLanding && Boolean(session);
-
   return (
     <>
       <Navbar session={isPublicLanding ? null : (session ?? null)} loading={!isPublicLanding && session === undefined} onLogout={logout} />
-      {showOfflineLogout && (
-        <button
-          type="button"
-          onClick={logout}
-          aria-label="Cerrar sesión (sin conexión)"
-          data-testid="offline-logout-button"
-          className="fixed bottom-4 left-4 z-[70] min-h-[44px] rounded-full bg-[#1B2632] px-4 text-sm font-semibold text-white shadow-md hover:bg-[#2C3B4D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB162] sm:bottom-6 sm:left-6"
-        >
-          Cerrar sesión
-        </button>
-      )}
       {logoutError && <p role="alert">No se pudo cerrar la sesión. Inténtalo nuevamente.</p>}
     </>
   );

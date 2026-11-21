@@ -1,32 +1,46 @@
 ﻿'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Briefcase, Calendar, ChevronRight, QrCode, Search, Star, Users } from 'lucide-react';
 import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
+import umssBg from '@/shared/assets/images/14sept.webp';
 import { getEventCatalog } from '@/shared/services/events-service';
 
 const ACCESOS_RAPIDOS = [
   {
     href: '/portal/eventos',
     titulo: 'Eventos',
+    Icon: Calendar,
+    iconStyle: 'bg-amber-50 text-amber-600',
     descripcion: 'Participa en los próximos eventos de la comunidad UMSS.',
   },
   {
     href: '/portal/beneficios',
     titulo: 'Beneficios',
+    Icon: Star,
+    iconStyle: 'bg-amber-50 text-amber-600',
     descripcion: 'Descubre los convenios y descuentos para titulados.',
   },
   {
     href: '/portal/empleos',
     titulo: 'Empleos',
+    Icon: Briefcase,
+    iconStyle: 'bg-blue-50 text-blue-600',
     descripcion: 'Encuentra ofertas laborales y oportunidades.',
   },
   {
     href: '/portal/mentorias',
     titulo: 'Mentorías',
+    Icon: Users,
+    iconStyle: 'bg-slate-100 text-slate-700',
     descripcion: 'Conecta con profesionales que pueden guiarte.',
   },
 ];
+
+const normalizar = (texto: string) =>
+  texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 const ZONA_HORARIA = 'America/La_Paz';
 
@@ -71,9 +85,9 @@ function ImagenEvento({ evento }: { evento: EventItem }) {
       <div
         role="img"
         aria-label={`Imagen no disponible para ${evento.title}`}
-        className="flex h-40 w-full items-center justify-center bg-slate-100 text-sm text-slate-500"
+        className="flex h-40 w-full items-center justify-center bg-gradient-to-br from-[#0F172A] to-[#2C3B4D] text-amber-400"
       >
-        Sin imagen
+        <Calendar className="h-12 w-12" aria-hidden="true" />
       </div>
     );
   }
@@ -92,6 +106,7 @@ export default function Home() {
   const enLinea = useEstaEnLinea();
   const [eventos, setEventos] = useState<EventItem[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [consulta, setConsulta] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -117,51 +132,120 @@ export default function Home() {
     };
   }, []);
 
+  const termino = normalizar(consulta.trim());
+  const accesos = useMemo(
+    () => (termino ? ACCESOS_RAPIDOS.filter((a) => normalizar(`${a.titulo} ${a.descripcion}`).includes(termino)) : ACCESOS_RAPIDOS),
+    [termino],
+  );
+  const eventosFiltrados = useMemo(
+    () => (termino ? eventos.filter((e) => normalizar(`${e.title} ${e.location ?? ''}`).includes(termino)) : eventos),
+    [termino, eventos],
+  );
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
       {!enLinea && (
-        <Link
-          href="/mis-pases"
-          data-testid="home-offline-qr-access"
-          className="mb-5 block rounded-2xl bg-[#B44735] px-6 py-5 text-lg font-bold text-white shadow-sm"
-        >
-          Mis códigos QR
-        </Link>
+        <>
+          <p
+            role="status"
+            data-testid="home-offline-notice"
+            className="mb-4 rounded-2xl bg-[#B44735] px-5 py-4 text-sm font-medium text-white shadow-sm"
+          >
+            Estás navegando sin conexión. Algunos contenidos pueden no estar actualizados.
+          </p>
+          <Link
+            href="/mis-pases"
+            data-testid="home-offline-qr-access"
+            className="mb-5 flex items-center gap-3 rounded-2xl bg-[#1B2632] px-5 py-4 text-[#EEE9DF] shadow-md transition-colors hover:bg-[#2C3B4D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB162]"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-bold">Mis códigos QR</span>
+              <span className="block text-xs opacity-85">Tus pases guardados están disponibles sin conexión.</span>
+            </span>
+            <span aria-hidden="true" className="text-xl text-[#FFB162]">›</span>
+          </Link>
+        </>
       )}
 
-      <section className="rounded-3xl bg-[#1B2632] px-6 py-8 text-white md:px-12 md:py-10">
-        <h1 className="font-serif text-4xl font-bold tracking-wide md:text-5xl">
-          UMSS<span className="text-[#FFB162]">PIRA</span>
-        </h1>
-        <p className="mt-3 text-sm text-slate-200 md:text-base">
-          El portal de la comunidad de titulados de la UMSS.
-        </p>
+      <section className="relative overflow-hidden rounded-3xl bg-[#1B2632] px-6 py-8 text-white md:px-12 md:py-12">
+        <div className="absolute inset-0 z-0" aria-hidden="true">
+          <Image src={umssBg} alt="" fill sizes="100vw" className="object-cover object-center" priority />
+          <div className="absolute inset-0 bg-[#0F172A]/60" />
+        </div>
+        <span
+          data-testid="home-connection-status"
+          data-estado={enLinea ? 'en-linea' : 'sin-conexion'}
+          className={`absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider backdrop-blur-md ${
+            enLinea
+              ? 'border-green-500/30 bg-green-500/20 text-green-300'
+              : 'border-red-400/40 bg-red-500/20 text-red-200'
+          }`}
+        >
+          <span aria-hidden="true" className={`h-2 w-2 rounded-full ${enLinea ? 'bg-green-400' : 'bg-red-400'}`} />
+          {enLinea ? 'En línea' : 'Sin conexión'}
+        </span>
+        <div className="relative z-10 max-w-2xl space-y-3 pt-6 sm:pt-0">
+          <h1 className="font-serif text-4xl font-bold tracking-wide md:text-5xl">
+            UMSS<span className="text-[#FFB162]">PIRA</span>
+          </h1>
+          <p className="text-sm text-slate-200 md:text-base">
+            El portal de la comunidad de titulados de la UMSS.
+          </p>
+          <form role="search" onSubmit={(e) => e.preventDefault()} className="relative max-w-xl pt-2">
+            <Search className="pointer-events-none absolute left-4 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            <input
+              type="search"
+              value={consulta}
+              onChange={(e) => setConsulta(e.target.value)}
+              disabled={!enLinea}
+              aria-label="Buscar eventos, beneficios y empleos"
+              placeholder="Busque eventos, beneficios, empleos..."
+              className="min-h-[44px] w-full rounded-xl bg-white py-3 pl-11 pr-4 text-base text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </form>
+        </div>
       </section>
 
       <section
         data-testid="home-primary-actions"
         aria-label="Accesos rápidos"
-        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
       >
-        {ACCESOS_RAPIDOS.map((acceso) => (
+        {accesos.map(({ href, titulo, descripcion, Icon, iconStyle }) => (
           <Link
-            key={acceso.href}
-            href={acceso.href}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+            key={href}
+            href={href}
+            className="flex min-h-[44px] flex-col justify-between gap-4 rounded-2xl border border-[#C9C1B1] bg-[#F5F2EA] p-5 shadow-sm transition-shadow hover:shadow-md"
           >
-            <p className="font-semibold text-[#1B2632]">{acceso.titulo}</p>
-            <p className="mt-1 text-sm text-slate-500">{acceso.descripcion}</p>
+            <span className="flex items-start justify-between">
+              <span aria-hidden="true" className={`flex h-10 w-10 items-center justify-center rounded-xl ${iconStyle}`}>
+                <Icon className="h-5 w-5" />
+              </span>
+              <ChevronRight className="h-5 w-5 text-slate-400" aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block font-bold text-[#1B2632]">{titulo}</span>
+              <span className="mt-1 block text-sm text-slate-500">{descripcion}</span>
+            </span>
           </Link>
         ))}
 
-        {enLinea && (
+        {enLinea && !termino && (
           <Link
             href="/mis-pases"
             data-testid="home-online-qr-access"
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+            className="flex min-h-[44px] flex-col justify-between gap-4 rounded-2xl border border-[#C9C1B1] bg-[#F5F2EA] p-5 shadow-sm transition-shadow hover:shadow-md"
           >
-            <p className="font-semibold text-[#1B2632]">Mis códigos QR</p>
-            <p className="mt-1 text-sm text-slate-500">Accede a tus pases de entrada.</p>
+            <span className="flex items-start justify-between">
+              <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1B2632] text-[#FFB162]">
+                <QrCode className="h-5 w-5" />
+              </span>
+              <ChevronRight className="h-5 w-5 text-slate-400" aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block font-bold text-[#1B2632]">Mis códigos QR</span>
+              <span className="mt-1 block text-sm text-slate-500">Accede a tus pases de entrada.</span>
+            </span>
           </Link>
         )}
       </section>
@@ -171,12 +255,12 @@ export default function Home() {
 
         {cargando && <p className="mt-4 text-sm text-slate-500">Cargando eventos…</p>}
 
-        {!cargando && eventos.length === 0 && (
+        {!cargando && eventosFiltrados.length === 0 && (
           <p className="mt-4 text-sm text-slate-500">No hay eventos próximos por ahora.</p>
         )}
 
         <ul className="mt-4 grid gap-5 md:grid-cols-3">
-          {eventos.map((evento) => (
+          {eventosFiltrados.map((evento) => (
             <li
               key={evento.id}
               className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"

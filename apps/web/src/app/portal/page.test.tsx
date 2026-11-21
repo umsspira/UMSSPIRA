@@ -118,4 +118,17 @@ describe('HU09 CA-02 · acceso destacado a Mis códigos QR sin conexión', () =>
     expect(actionsIndex).toBeGreaterThan(heroIndex);
     expect(actionsIndex).toBeLessThan(upcomingEventsIndex);
   });
+
+  it('muestra En línea / Sin conexión y el aviso solo cuando no hay red', async () => {
+    setOnline(true);
+    const online = render(<Home />);
+    expect(screen.getByTestId('home-connection-status')).toHaveAttribute('data-estado', 'en-linea');
+    expect(screen.queryByTestId('home-offline-notice')).not.toBeInTheDocument();
+    online.unmount();
+
+    setOnline(false);
+    render(<Home />);
+    expect(await screen.findByTestId('home-connection-status')).toHaveAttribute('data-estado', 'sin-conexion');
+    expect(screen.getByTestId('home-offline-notice')).toHaveTextContent('Estás navegando sin conexión');
+  });
 });

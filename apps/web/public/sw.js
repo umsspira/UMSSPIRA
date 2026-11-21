@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.2';
+const VERSION = 'v1.0.3';
 
 const CACHE_NAME = `umsspira-core-portal-${VERSION}`;
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
@@ -24,8 +24,15 @@ function isPrivateRoute(pathname) { return PRIVATE_ROUTE_PREFIXES.some((p) => pa
 // Páginas que se guardan para verse sin conexión (Mis QR, Eventos, Configuración y la pantalla de validación de HU08)
 const OFFLINE_ROUTE_PREFIXES = ['/events/catalog/passes', '/mis-pases', '/portal/eventos', '/portal/configuracion', '/portal/validacion-offline'];
 const OFFLINE_ROOT_ROUTES = ['/events/catalog/passes', '/mis-pases', '/portal/eventos', '/portal/configuracion', '/portal/validacion-offline'];
+// Secciones principales: se guardan SOLO cuando la persona las abre con conexión (no se descargan por adelantado).
+// Sin conexión se abre lo que ya se visitó; lo que no se visitó muestra el aviso «Sin conexión».
+const VISITED_ROUTE_PREFIXES = ['/portal/comunidad', '/portal/beneficios', '/portal/empleos', '/job-postings', '/mentorship', '/my-applications'];
+function isVisitedRoute(pathname) {
+  return pathname === '/portal' || VISITED_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 function isOfflineRoute(pathname) {
   if (OFFLINE_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true;
+  if (isVisitedRoute(pathname)) return true;
   return /\/(passes|pases)(\/|$)/.test(pathname);
 }
 
@@ -500,6 +507,21 @@ function offlineHtml() {
   });
 
   // Cerrar sesión sin conexión (HU07): borra los datos privados de este equipo y deja el cierre pendiente.
+  function clearPrivateCaches() {
+    if (!window.caches) return Promise.resolve();
+    return caches.keys().then(function (names) {
+      return Promise.all(names.filter(function (n) { return n.indexOf('umsspira-routes') === 0 || n.indexOf('umsspira-core-portal') === 0 || n.indexOf('umsspira-static') === 0; }).map(function (n) {
+        return caches.open(n).then(function (c) {
+          return c.keys().then(function (reqs) {
+            return Promise.all(reqs.filter(function (r) {
+              var pth = new URL(r.url).pathname;
+              return n.indexOf('umsspira-routes') === 0 || pth === '/portal' || pth.indexOf('/portal/') === 0;
+            }).map(function (r) { return c['delete'](r); }));
+          });
+        });
+      }));
+    }).catch(function () {});
+  }
   function doLogout(btn) {
     if (btn) btn.disabled = true;
     var finish = function () {
@@ -511,10 +533,13 @@ function offlineHtml() {
       } catch (e) {}
       location.reload();
     };
-    try {
-      var del = indexedDB.deleteDatabase('umsspira-offline');
-      del.onsuccess = finish; del.onerror = finish; del.onblocked = finish;
-    } catch (e) { finish(); }
+    // Se borran páginas privadas guardadas y datos locales antes de recargar.
+    clearPrivateCaches().then(function () {
+      try {
+        var del = indexedDB.deleteDatabase('umsspira-offline');
+        del.onsuccess = finish; del.onerror = finish; del.onblocked = finish;
+      } catch (e) { finish(); }
+    });
   }
   var logoutBtn = document.getElementById('logout');
   if (hasSession) {
@@ -548,6 +573,11 @@ function offlineResponse() {
 }
 
 // --- NAVIGATION HANDLER ---
+// Chrome marca la recarga (F5) con cache 'no-cache' y la recarga forzada (Ctrl+F5) con 'reload'.
+function isHomeReload(request, url) {
+  return (url.pathname === '/portal' || url.pathname === '/portal/') && (request.cache === 'reload' || request.cache === 'no-cache');
+}
+
 async function handleNavigation(event) {
   const request = event.request;
   const url = new URL(request.url);
@@ -567,11 +597,14 @@ async function handleNavigation(event) {
         })());
       }
       if (shouldSync(`route:${url.pathname}`, 5_000)) event.waitUntil(storeRouteHtml(url.pathname));
-    } else if (url.pathname.startsWith('/portal') && shouldSync('all-routes', 60_000)) {
+    }
+    if (url.pathname.startsWith('/portal') && shouldSync('all-routes', 60_000)) {
       event.waitUntil(syncOfflineRoutes());
     }
     return response;
   } catch (e) {
+    // F5 / recargar el inicio sin conexión: se muestra la pantalla «Sin conexión» con los accesos disponibles.
+    if (isHomeReload(request, url)) return offlineResponse();
     if (isOfflineRoute(url.pathname)) {
       const cache = await caches.open(ROUTES_CACHE);
       const cached =
