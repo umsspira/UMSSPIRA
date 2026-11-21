@@ -83,6 +83,14 @@ describe('HU15 · una sola lista para escritorio y móvil', () => {
       expect(item.href).toBe(directHref(item.id, 'titulado') ?? undefined);
     }
   });
+  it('oculta Comunidad a usuarios registrados y conserva Beneficios para visitantes', () => {
+    for (const role of ['titulado', 'empresa', 'administrador'] as const) {
+      const items = primaryNavigation(role, '/portal');
+      expect(items.map(item => item.id)).not.toContain('community');
+      expect(items.map(item => item.id)).toContain('benefits');
+      expect(destinations(role)).toContain('/portal/beneficios');
+    }
+
+    expect(primaryNavigation(null, '/portal/institucional').map(item => item.id)).toContain('community');
+  });
 });
-
-

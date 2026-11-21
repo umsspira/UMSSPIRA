@@ -56,7 +56,7 @@ describe('HU14 · página de respaldo', () => {
     expect(await screen.findByText('AD')).toBeInTheDocument();
     const menu = screen.getByRole('navigation', { name: /navegación principal/i });
     expect(Array.from(menu.querySelectorAll('a')).map(link => link.textContent)).toEqual(
-      ['Inicio', 'Comunidad', 'Directorio', 'Bolsa de trabajo', 'Mentorías', 'Eventos'],
+      ['Inicio', 'Beneficios y convenios', 'Directorio', 'Bolsa de trabajo', 'Mentorías', 'Eventos'],
     );
     expect(screen.getByText('Eventos', { selector: 'a' })).toHaveAttribute('aria-current', 'page');
     expect(screen.queryByTestId('offline-login')).not.toBeInTheDocument();

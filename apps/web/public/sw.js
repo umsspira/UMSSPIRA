@@ -298,7 +298,7 @@ function getHandledUrl(request) {
 // --- PÁGINA SIN CONEXIÓN (HU14) ---
 const OFFLINE_NAV_MEMBER = [
   { label: 'Inicio', href: '/portal', prefixes: [] },
-  { label: 'Comunidad', href: '/portal/comunidad', prefixes: ['/portal/comunidad', '/portal/beneficios'] },
+  { label: 'Beneficios y convenios', href: '/portal/beneficios', prefixes: ['/portal/beneficios'] },
   { label: 'Directorio', href: '/profile', prefixes: ['/profile', '/afinidad'] },
   { label: 'Bolsa de trabajo', href: '/job-postings', prefixes: ['/portal/empleos', '/job-postings'] },
   { label: 'Mentorías', href: '/mentorship', prefixes: ['/portal/mentorias', '/mentorship'] },

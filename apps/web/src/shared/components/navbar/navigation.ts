@@ -17,8 +17,8 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
     { id: 'inst-comunidad', label: 'Comunidad institucional', href: '/portal/institucional?tab=comunidad', guestOnly: true },
     { id: 'inst-carreras', label: 'Carreras', href: '/portal/institucional?tab=carreras', guestOnly: true },
     { id: 'institutional', label: 'Sobre nosotros', href: '/portal/institucional?tab=nosotros', guestOnly: true },
-    { id: 'portal', label: 'Portal de egresados', href: '/portal', roles: signedIn },
-    { id: 'community', label: 'Comunidad de egresados', href: '/portal/comunidad', roles: signedIn },
+  ] },
+  { id: 'benefits', label: 'Beneficios y convenios', items: [
     { id: 'benefits', label: 'Beneficios y convenios', href: '/portal/beneficios', roles: signedIn },
   ] },
   { id: 'directory', label: 'Directorio', items: [
