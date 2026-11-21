@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { PrimaryButton, SecondaryButton } from './mentor-button';
-import { MentorSetupSteps } from './mentor-setup-steps';
+import { MentorOnboardingProgress } from './mentor-onboarding-progress';
 import {
   getMentorAvailability,
   MentorAvailabilityError,
@@ -25,6 +25,12 @@ import {
 } from '../services/mentor-availability-api';
 import { getMentorSchedule, MentorScheduleError, saveMentorSchedule } from '../services/mentor-schedule-api';
 import { isScheduleDirty, type ScheduleSlot } from '../model/mentor-schedule';
+import { getMentorProgressSteps } from '../model/mentor-onboarding-progress';
+import { getMentorOnboarding, type MentorOnboardingState } from '../services/mentor-onboarding-api';
+import {
+  getMentorProfileInformation,
+  type MentorProfileInformationState,
+} from '../services/mentor-profile-info-api';
 import { MentorWeeklySchedule } from './mentor-weekly-schedule';
 
 const options: {
@@ -90,6 +96,11 @@ export function MentorAvailabilityPage() {
   const [forbidden, setForbidden] = useState(false);
   const [savedSchedule, setSavedSchedule] = useState<ScheduleSlot[]>([]);
   const [draftSchedule, setDraftSchedule] = useState<ScheduleSlot[]>([]);
+  const [onboarding, setOnboarding] = useState<MentorOnboardingState | null>(null);
+  const [profileInformation, setProfileInformation] = useState<MentorProfileInformationState | null>(null);
+  const [progressLoading, setProgressLoading] = useState(true);
+  const [progressError, setProgressError] = useState('');
+  const [progressAttempt, setProgressAttempt] = useState(0);
   const busy = useRef(false);
   const statusDirty = selectedStatus !== savedStatus;
   const scheduleDirty = isScheduleDirty(savedSchedule, draftSchedule);
@@ -126,6 +137,32 @@ export function MentorAvailabilityPage() {
   }, [loadAvailability]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setProgressLoading(true);
+    setProgressError('');
+    Promise.all([
+      getMentorOnboarding(controller.signal),
+      getMentorProfileInformation(controller.signal),
+    ])
+      .then(([state, information]) => {
+        if (controller.signal.aborted) return;
+        setOnboarding(state);
+        setProfileInformation(information);
+      })
+      .catch(reason => {
+        if (!controller.signal.aborted) {
+          setProgressError(
+            reason instanceof Error ? reason.message : 'No se pudo cargar el avance de tu perfil.',
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setProgressLoading(false);
+      });
+    return () => controller.abort();
+  }, [progressAttempt]);
+
+  useEffect(() => {
     // Sin estado se enfoca la primera opción; con estado pero sin horarios, el selector de día (HU 6.18).
     if (!loading && window.location.hash === '#first-incomplete' && (!savedStatus || !savedSchedule.length)) {
       document.getElementById('first-incomplete')?.focus();
@@ -158,7 +195,7 @@ export function MentorAvailabilityPage() {
     if (!dirty) return;
     const handleStepClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.mentor-setup-steps a') : null;
+      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.onboarding-progress-steps a') : null;
       if (!link) return;
       event.preventDefault();
       event.stopPropagation();
@@ -241,6 +278,18 @@ export function MentorAvailabilityPage() {
     </div>;
   }
 
+  const progressState = onboarding ? {
+    areas: onboarding.areas,
+    interests: onboarding.interests,
+    availability: {
+      availabilityStatus: savedStatus,
+      schedules: savedSchedule,
+    },
+  } : null;
+  const progressSteps = progressState
+    ? getMentorProgressSteps(progressState, profileInformation)
+    : null;
+
   return <>
     <section className="mentor-availability-card" aria-labelledby="mentor-availability-heading">
       <div className="mentor-availability-intro">
@@ -296,7 +345,18 @@ export function MentorAvailabilityPage() {
 
       {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} firstIncomplete={Boolean(savedStatus) && !savedSchedule.length} />}
 
-      <MentorSetupSteps currentStep={3} completedSteps={savedStatus ? 3 : 2} />
+      {progressSteps ? (
+        <MentorOnboardingProgress currentStep={3} steps={progressSteps} />
+      ) : progressLoading ? (
+        <p role="status" className="onboarding-loading">Cargando el avance de tu perfil…</p>
+      ) : (
+        <div className="onboarding-load-error" role="alert">
+          <p>{progressError || 'No se pudo cargar el avance de tu perfil.'}</p>
+          <SecondaryButton onClick={() => setProgressAttempt(value => value + 1)}>
+            Reintentar
+          </SecondaryButton>
+        </div>
+      )}
 
       <div className="mentor-availability-actions">
         <Link href="/mentorship/profile/interests" className="mentor-availability-back" onClick={event => {

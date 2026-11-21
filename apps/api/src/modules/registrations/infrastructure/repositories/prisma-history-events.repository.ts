@@ -20,10 +20,17 @@ export class PrismaHistoryEventsRepository implements HistoryEventsPort {
     });
   }
 
-  async getEventsByApplication(id_solicitud: string): Promise<HistoryEvent[]> {
+  
+  async getEventsByApplication(
+    id_solicitud: string,
+  ): Promise<HistoryEvent[]> {
     return this.prisma.historialEvento.findMany({
       where: { id_solicitud },
-      orderBy: { creado_en: 'desc' },
+      orderBy: [
+        { creado_en: 'desc' },
+        { id: 'desc' },
+      ],
     });
   }
+
 }
