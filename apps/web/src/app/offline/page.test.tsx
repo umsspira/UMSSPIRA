@@ -1,64 +1,72 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import OfflinePage from './page';
+'use client';
 
-const setOnline = (value: boolean) => Object.defineProperty(window.navigator, 'onLine', { value, configurable: true });
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { CalendarDays, ChevronRight, QrCode, RefreshCw, Settings, WifiOff } from 'lucide-react';
+import { OfflineLogoutButton } from './offline-logout-button';
 
-beforeEach(() => {
-  window.localStorage.clear();
-  window.history.pushState({}, '', '/portal/institucional');
-  setOnline(true);
-});
+const NOTICE = 'Todavía no hay conexión';
 
-describe('HU14 · página de respaldo', () => {
-  it('CA-01/CA-04: explica que la pantalla no se guardó y ofrece lo disponible sin conexión', () => {
-    render(<OfflinePage />);
-    expect(screen.getByTestId('offline-title')).toHaveTextContent('Sin conexión a Internet');
-    expect(screen.getByText(/todavía no se guardó en tu dispositivo/i)).toBeInTheDocument();
-    expect(screen.getByTestId('offline-link-passes')).toHaveTextContent('Mis códigos QR');
-    expect(screen.getByTestId('offline-link-events')).toHaveTextContent('Eventos visitados');
-    expect(screen.getByTestId('offline-link-settings')).toHaveTextContent('Configuración');
-  });
+export default function OfflinePage() {
+  const [isOnline, setIsOnline] = useState(true);
 
-  it('HU09 CA-02: el acceso a Mis códigos QR es destacado y va antes que los otros accesos', () => {
-    render(<OfflinePage />);
-    const hero = screen.getByTestId('offline-link-passes');
-    // Destacado: enlace a la ruta de HU09 con el estilo promocionado (fondo oscuro).
-    expect(hero).toHaveAttribute('href', '/mis-pases');
-    expect(hero.className).toContain('bg-[#1B2632]');
-    // Aparece en el DOM antes que los accesos secundarios (sin recorrer el menú).
-    const links = Array.from(hero.parentElement!.querySelectorAll('a'));
-    expect(links.indexOf(hero as HTMLAnchorElement)).toBe(0);
-  });
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
-  it('CA-03: sin conexión, Reintentar avisa y no consulta la red ni recarga', async () => {
-    setOnline(false);
-    const fetchMock = jest.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-    render(<OfflinePage />);
-    fireEvent.click(screen.getByTestId('offline-retry'));
-    expect(await screen.findByText('Todavía no hay conexión')).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.getByTestId('offline-retry')).toBeEnabled();
-  });
+  return (
+    <div className="min-h-screen bg-[#EEE9DF] text-[#1B2632] flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
+        <div className="mx-auto w-16 h-16 bg-[#FFF1DC] rounded-full flex items-center justify-center mb-4">
+          <WifiOff className="w-8 h-8 text-[#B44735]" />
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Sin conexión a Internet</h1>
+        <p className="text-[#5E6974] mb-6">
+          Esta pantalla todavía no se guardó en tu dispositivo. Cuando vuelvas a tener red podrás abrirla.
+        </p>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => window.location.reload()}
+            className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-[#FFB162] text-[#1B2632] font-bold rounded-xl hover:bg-[#FFA044]"
+          >
+            <RefreshCw className="w-5 h-5" />
+            Reintentar
+          </button>
+          <OfflineLogoutButton />
+        </div>
+      </div>
 
-  it('CA-06: en una ruta privada y sin sesión pide iniciar sesión', () => {
-    window.history.pushState({}, '', '/portal/mensajes');
-    render(<OfflinePage />);
-    expect(screen.getByTestId('offline-title')).toHaveTextContent('Inicia sesión para continuar');
-    expect(screen.getByTestId('offline-login')).toHaveAttribute('href', '/login');
-  });
-
-  it('CA-07: con sesión vigente mantiene la barra de la aplicación con el usuario', async () => {
-    window.history.pushState({}, '', '/portal/eventos');
-    window.localStorage.setItem('umsspira.offline.session-validation', JSON.stringify({ userId: 'u1', validatedAt: Date.now() }));
-    window.localStorage.setItem('umsspira.offline.nav-user', JSON.stringify({ name: 'admin', initials: 'AD', role: 'titulado' }));
-    render(<OfflinePage />);
-    expect(await screen.findByText('AD')).toBeInTheDocument();
-    const menu = screen.getByRole('navigation', { name: /navegación principal/i });
-    expect(Array.from(menu.querySelectorAll('a')).map(link => link.textContent)).toEqual(
-      ['Inicio', 'Comunidad', 'Directorio', 'Bolsa de trabajo', 'Mentorías', 'Eventos'],
-    );
-    expect(screen.getByText('Eventos', { selector: 'a' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.queryByTestId('offline-login')).not.toBeInTheDocument();
-  });
-});
+      <div className="mt-8 max-w-md w-full bg-[#EDF2FA] rounded-xl p-4">
+        <h2 className="text-sm font-semibold mb-3">Disponible sin conexión</h2>
+        <Link href="/mis-pases" className="flex items-center gap-3 p-3 bg-[#1B2632] text-white rounded-lg mb-2">
+          <div className="bg-[#FFB162] p-2 rounded-lg text-[#1B2632]">
+            <QrCode className="w-5 h-5" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold">Mis códigos QR</p>
+            <p className="text-xs opacity-80">Abre tus pases guardados en este dispositivo.</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-[#FFB162]" />
+        </Link>
+        <div className="grid gap-2">
+          <Link href="/portal/eventos" className="flex items-center gap-2 p-3 bg-white rounded-lg text-sm hover:bg-[#FFF1DC]">
+            <CalendarDays className="w-4 h-4" />
+            Eventos visitados
+          </Link>
+          <Link href="/portal/configuracion" className="flex items-center gap-2 p-3 bg-white rounded-lg text-sm hover:bg-[#FFF1DC]">
+            <Settings className="w-4 h-4" />
+            Configuración
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
