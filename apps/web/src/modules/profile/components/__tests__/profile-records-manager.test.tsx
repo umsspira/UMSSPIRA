@@ -41,6 +41,19 @@ describe('ProfileRecordsManager', () => {
     });
   });
 
+  it('«Agregar registros» lleva a la pantalla que existe en /profile/registros/agregar (HU-13)', () => {
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
+
+    expect(screen.getByRole('link', { name: /agregar registros/i })).toHaveAttribute('href', '/profile/registros/agregar');
+  });
+
+  it('el botón dice «Agregar registros», igual que el título de la pantalla a la que lleva (Observación 3)', () => {
+    render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
+
+    expect(screen.getByRole('link', { name: 'Agregar registros' })).toBeInTheDocument();
+    expect(screen.queryByText('Agregar Registros')).not.toBeInTheDocument();
+  });
+
   it('«Volver» es el botón compartido y lleva a Mi perfil (HU-11)', () => {
     render(<ProfileRecordsManager initialRecords={PROFILE_RECORDS_MOCK} />);
 

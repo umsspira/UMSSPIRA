@@ -1622,3 +1622,11 @@ model HistorialEvento {
   @@index([id_solicitud, creado_en(sort: Desc)])
   @@map("historial_evento")
 }
+model RadarDiccionarioVersion {
+  version          String   @id @db.VarChar(50)
+  fingerprint      String   @db.VarChar(64)
+  fecha_aplicacion DateTime @default(now()) @db.Timestamptz(6)
+  descripcion      String?  @db.Text
+
+  @@map("radar_diccionario_version")
+}
