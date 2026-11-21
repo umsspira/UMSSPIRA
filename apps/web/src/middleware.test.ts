@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { middleware } from "./middleware";
+import { config, middleware } from "./middleware";
 
 /**
  * Aislar NextResponse evita depender del runtime Edge en Jest/jsdom.
@@ -180,5 +180,46 @@ describe("BUG-12: enlace antiguo de corrección", () => {
       "http://localhost:3001/login"
     );
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("Observación 2: el perfil exige sesión", () => {
+  const PROFILE_PATHS = [
+    "/profile",
+    "/profile/records",
+    "/profile/completar",
+    "/profile/registros/agregar",
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    respond(200, "titulado");
+  });
+
+  it("el middleware se ejecuta en /profile y en todas sus subrutas", () => {
+    expect(config.matcher).toEqual(expect.arrayContaining(["/profile", "/profile/:path*"]));
+  });
+
+  it.each(PROFILE_PATHS)("sin sesión %s va al login, sin pasar por Completar perfil", async (path) => {
+    const result = observed(await middleware(request(path)));
+
+    expect(result.status).toBe(307);
+    expect(result.destination).toBe("http://localhost:3001/login");
+    expect(result.destination).not.toContain("/profile/completar");
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("con sesión vencida (401) también va al login y borra las cookies", async () => {
+    respond(401);
+    const result = observed(await middleware(request("/profile/records", "token-vencido")));
+
+    expect(result.destination).toBe("http://localhost:3001/login");
+    expect(result.cookies.delete).toHaveBeenCalledWith("umsspira_refresh");
+  });
+
+  it.each(PROFILE_PATHS)("con sesión de titulado %s se muestra normalmente", async (path) => {
+    const result = observed(await middleware(request(path, "token-titulado")));
+
+    expect(result.kind).toBe("next");
   });
 });

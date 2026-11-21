@@ -11,8 +11,8 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
       adapter: new PrismaPg({
         connectionString: config.get('DATABASE_URL', { infer: true }),
         max: 10,
-        connectionTimeoutMillis: 5000,
-        query_timeout: 5000,
+        connectionTimeoutMillis: 10000,
+        query_timeout: 15000,
       }),
     });
   }
