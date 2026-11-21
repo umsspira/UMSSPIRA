@@ -228,6 +228,9 @@ export default function MisVacantesPage() {
               </div>
             </div>
             
+            <Link href="/ayuda/bolsa-de-trabajo?tab=reclutador" className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline underline-offset-4">
+              Ayuda
+            </Link>
             <Link href="/empresa/vacantes/publicar" className="min-h-11 w-full justify-center md:min-h-0 md:w-auto" style={{ padding: '0.65rem 1.25rem', backgroundColor: 'var(--flame)', color: '#fff', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', boxShadow: '0 4px 12px rgba(255,177,98,0.3)', transition: 'all 0.2s' }}>
               <Plus size={18} /> Publicar vacante
             </Link>

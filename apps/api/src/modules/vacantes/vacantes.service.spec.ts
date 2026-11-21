@@ -21,7 +21,14 @@ describe('VacantesService · postulantes (HU-01)', () => {
       usuario: {
         nombre: 'Ana Rojas',
         correo: 'ana.rojas.demo@umsspira.local',
-        titulado: { nombre: 'Ana', apellido: 'Rojas', curriculum_vitae: null },
+        titulado: {
+          nombre: 'Ana',
+          apellido: 'Rojas',
+          curriculum_vitae: null,
+          experiencia_laboral_registros: [],
+          formacion_academica_registros: [],
+          certificacion_registros: [],
+        },
       },
       ...overrides,
     };
@@ -58,6 +65,9 @@ describe('VacantesService · postulantes (HU-01)', () => {
         matchPercentage: 92,
         matchCalculatedAt: '2026-11-01T12:00:00.000Z',
         skills: null,
+        workExperience: [],
+        education: [],
+        certifications: [],
       },
     ]);
   });
@@ -117,7 +127,12 @@ describe('VacantesService · postulantes (HU-01)', () => {
           usuario: {
             nombre: 'Usuario sin perfil',
             correo: 'x@umsspira.local',
-            titulado: { nombre: null, apellido: null, curriculum_vitae: { id: 'cv-1' } },
+            titulado: {
+              ...fila().usuario.titulado,
+              nombre: null,
+              apellido: null,
+              curriculum_vitae: { id: 'cv-1' },
+            },
           },
         }),
       ],
@@ -146,6 +161,351 @@ describe('VacantesService · postulantes (HU-01)', () => {
     await expect(
       servicio.obtenerPostulante(ID_VACANTE, ID_POSTULACION, ID_USUARIO),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('responde 404 al descargar el CV desde una vacante de otra empresa (CA-12)', async () => {
+    const { servicio, prisma } = crearServicio({ vacantesVisibles: 0 });
+
+    await expect(
+      servicio.descargarCvPostulante(ID_VACANTE, ID_POSTULACION, ID_USUARIO),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.postulacion.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('responde 404 al descargar si el postulante no tiene CV', async () => {
+    const { servicio } = crearServicio({
+      detalle: fila({
+        usuario: {
+          nombre: 'Ana Rojas',
+          correo: 'ana.rojas.demo@umsspira.local',
+          titulado: { nombre: 'Ana', apellido: 'Rojas', curriculum_vitae: null },
+        },
+      }),
+    });
+
+    await expect(
+      servicio.descargarCvPostulante(ID_VACANTE, ID_POSTULACION, ID_USUARIO),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  describe('política de datos del postulante (HU-16, T16.1)', () => {
+    const CLAVES_POSTULANTE = [
+      'id',
+      'name',
+      'email',
+      'location',
+      'experienceLevel',
+      'stage',
+      'appliedAt',
+      'hasCv',
+      'cvUrl',
+      'matchPercentage',
+      'matchCalculatedAt',
+      'skills',
+      'workExperience',
+      'education',
+      'certifications',
+    ];
+
+    function filaConHistorial() {
+      const datosInternos = {
+        id: 'registro-interno',
+        id_titulado: 'titulado-interno',
+        fecha_creacion: new Date('2026-11-01T00:00:00.000Z'),
+        campoFuturoNoAutorizado: 'privado',
+      };
+      return fila({
+        ...datosInternos,
+        id: ID_POSTULACION,
+        id_usuario: 'usuario-interno',
+        id_vacante: ID_VACANTE,
+        usuario: {
+          ...fila().usuario,
+          ...datosInternos,
+          telefono: '70000000',
+          fecha_nacimiento: '1995-01-01',
+          direccion: 'Dirección privada',
+          cuenta_acceso: { password_hash: 'hash-privado' },
+          sesiones_acceso: [{ token: 'token-privado' }],
+          postulacion_registros: [{ id: 'otra-postulacion' }],
+          titulado: {
+            ...fila().usuario.titulado,
+            ...datosInternos,
+            ci: '1234567',
+            extension_ci: 'CB',
+            cod_sis: 'codigo-privado',
+            respuesta_encuesta_registros: [{ respuesta: 'respuesta-privada' }],
+            curriculum_vitae: { id: 'cv-interno', ruta: 'ruta-privada' },
+            experiencia_laboral_registros: [
+              {
+                ...datosInternos,
+                cargo: 'Desarrolladora',
+                empresa: 'Empresa actual',
+                fecha_inicio: new Date('2025-03-15T00:00:00.000Z'),
+                fecha_fin: null,
+              },
+              {
+                ...datosInternos,
+                cargo: 'Practicante',
+                empresa: 'Empresa anterior',
+                fecha_inicio: new Date('2023-02-01T00:00:00.000Z'),
+                fecha_fin: new Date('2024-12-31T00:00:00.000Z'),
+              },
+            ],
+            formacion_academica_registros: [
+              {
+                ...datosInternos,
+                titulo: 'Ingeniería de Sistemas',
+                institucion: 'UMSS',
+                anio_egreso: 2024,
+                grado: 'Licenciatura',
+                respaldo_registros: [{ archivo_key: 'respaldo-privado' }],
+              },
+              {
+                ...datosInternos,
+                titulo: 'Formación técnica',
+                institucion: 'Instituto',
+                anio_egreso: 2020,
+                grado: null,
+              },
+            ],
+            certificacion_registros: [
+              {
+                ...datosInternos,
+                nombre: 'TypeScript',
+                entidad_emisora: 'Entidad certificadora',
+                grado: 'Avanzado',
+                anio_emision: 2025,
+                estado_validacion: 'validado',
+                certificacion_respaldo_registros: [{ archivo_key: 'archivo-privado' }],
+                validacion_registros: [{ justificacion: 'justificacion-privada' }],
+              },
+              {
+                ...datosInternos,
+                nombre: 'Bases de datos',
+                entidad_emisora: 'Otra entidad',
+                grado: 'Intermedio',
+                anio_emision: null,
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    async function consultarPostulante(modo: 'listado' | 'detalle', servicio: VacantesService) {
+      if (modo === 'listado') {
+        const [postulante] = await servicio.listarPostulantes(ID_VACANTE, ID_USUARIO);
+        return postulante;
+      }
+      return servicio.obtenerPostulante(ID_VACANTE, ID_POSTULACION, ID_USUARIO);
+    }
+
+    it.each(['listado', 'detalle'] as const)(
+      '%s: publica únicamente las claves autorizadas, incluso si Prisma entrega datos adicionales',
+      async (modo) => {
+        const registro = filaConHistorial();
+        const { servicio } = crearServicio({ filas: [registro], detalle: registro });
+
+        const postulante = await consultarPostulante(modo, servicio);
+
+        expect(Object.keys(postulante).sort()).toEqual([...CLAVES_POSTULANTE].sort());
+        expect(postulante.workExperience).toHaveLength(2);
+        expect(postulante.education).toHaveLength(2);
+        expect(postulante.certifications).toHaveLength(2);
+        for (const experiencia of postulante.workExperience) {
+          expect(Object.keys(experiencia).sort()).toEqual(
+            ['position', 'company', 'startDate', 'endDate'].sort(),
+          );
+        }
+        for (const formacion of postulante.education) {
+          expect(Object.keys(formacion).sort()).toEqual(
+            ['title', 'institution', 'graduationYear', 'level'].sort(),
+          );
+        }
+        for (const certificacion of postulante.certifications) {
+          expect(Object.keys(certificacion).sort()).toEqual(
+            ['name', 'issuer', 'level', 'year'].sort(),
+          );
+        }
+        expect(postulante).toEqual({
+          id: ID_POSTULACION,
+          name: 'Ana Rojas',
+          email: 'ana.rojas.demo@umsspira.local',
+          location: null,
+          experienceLevel: null,
+          stage: 'preseleccionado',
+          appliedAt: '2026-11-02T00:00:00.000Z',
+          hasCv: true,
+          cvUrl: null,
+          matchPercentage: 92,
+          matchCalculatedAt: '2026-11-01T12:00:00.000Z',
+          skills: null,
+          workExperience: [
+            {
+              position: 'Desarrolladora',
+              company: 'Empresa actual',
+              startDate: '2025-03-15',
+              endDate: null,
+            },
+            {
+              position: 'Practicante',
+              company: 'Empresa anterior',
+              startDate: '2023-02-01',
+              endDate: '2024-12-31',
+            },
+          ],
+          education: [
+            {
+              title: 'Ingeniería de Sistemas',
+              institution: 'UMSS',
+              graduationYear: 2024,
+              level: 'Licenciatura',
+            },
+            {
+              title: 'Formación técnica',
+              institution: 'Instituto',
+              graduationYear: 2020,
+              level: null,
+            },
+          ],
+          certifications: [
+            { name: 'TypeScript', issuer: 'Entidad certificadora', level: 'Avanzado', year: 2025 },
+            { name: 'Bases de datos', issuer: 'Otra entidad', level: 'Intermedio', year: null },
+          ],
+        });
+      },
+    );
+
+    it('listado y detalle comparten exactamente la selección mínima, el orden estable y la transformación', async () => {
+      const registro = filaConHistorial();
+      const { servicio, prisma } = crearServicio({ filas: [registro], detalle: registro });
+
+      const listado = await servicio.listarPostulantes(ID_VACANTE, ID_USUARIO);
+      const detalle = await servicio.obtenerPostulante(ID_VACANTE, ID_POSTULACION, ID_USUARIO);
+      const seleccionListado = prisma.postulacion.findMany.mock.calls[0][0].select;
+      const seleccionDetalle = prisma.postulacion.findFirst.mock.calls[0][0].select;
+
+      expect(listado).toEqual([detalle]);
+      expect(seleccionListado).toBe(seleccionDetalle);
+      expect(seleccionListado).toEqual({
+        id: true,
+        estado: true,
+        porcentaje_match: true,
+        fecha_match: true,
+        created_at: true,
+        usuario: {
+          select: {
+            nombre: true,
+            correo: true,
+            titulado: {
+              select: {
+                nombre: true,
+                apellido: true,
+                curriculum_vitae: {
+                  where: { contenido: { not: null } },
+                  select: { id: true },
+                },
+                experiencia_laboral_registros: {
+                  select: { cargo: true, empresa: true, fecha_inicio: true, fecha_fin: true },
+                  orderBy: [{ fecha_inicio: 'desc' }, { id: 'asc' }],
+                },
+                formacion_academica_registros: {
+                  select: { titulo: true, institucion: true, anio_egreso: true, grado: true },
+                  orderBy: [{ anio_egreso: 'desc' }, { id: 'asc' }],
+                },
+                certificacion_registros: {
+                  select: { nombre: true, entidad_emisora: true, grado: true, anio_emision: true },
+                  orderBy: [{ anio_emision: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }],
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it.each(['listado', 'detalle'] as const)(
+      '%s: conserva el alcance del dueño y de los invitados activos',
+      async (modo) => {
+        const { servicio, prisma } = crearServicio();
+
+        await consultarPostulante(modo, servicio);
+
+        expect(prisma.vacante.count).toHaveBeenCalledWith({
+          where: {
+            id: ID_VACANTE,
+            empresa: {
+              OR: [
+                { id_usuario: ID_USUARIO },
+                { empresa_usuario_registros: { some: { id_usuario: ID_USUARIO, estado: 'activo' } } },
+              ],
+            },
+          },
+        });
+      },
+    );
+
+    it.each(['listado', 'detalle'] as const)(
+      '%s: deniega acceso sin consultar postulaciones',
+      async (modo) => {
+        const { servicio, prisma } = crearServicio({ vacantesVisibles: 0 });
+
+        await expect(consultarPostulante(modo, servicio)).rejects.toBeInstanceOf(NotFoundException);
+        expect(prisma.postulacion.findMany).not.toHaveBeenCalled();
+        expect(prisma.postulacion.findFirst).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['listado', 'detalle'] as const)(
+      '%s: devuelve arreglos vacíos cuando no hay registros profesionales',
+      async (modo) => {
+        const { servicio } = crearServicio();
+
+        const postulante = await consultarPostulante(modo, servicio);
+
+        expect(Object.keys(postulante).sort()).toEqual([...CLAVES_POSTULANTE].sort());
+        expect(postulante.workExperience).toEqual([]);
+        expect(postulante.education).toEqual([]);
+        expect(postulante.certifications).toEqual([]);
+      },
+    );
+
+    describe.each(['listado', 'detalle'] as const)('%s: relaciones opcionales', (modo) => {
+      it.each([
+        ['sin usuario', null],
+        ['sin titulado', { nombre: null, correo: null, titulado: null }],
+      ])('%s conserva el contrato y los valores por defecto', async (_caso, usuario) => {
+        const registro = fila({ usuario, estado: null, created_at: null, porcentaje_match: null });
+        const { servicio } = crearServicio({ filas: [registro], detalle: registro });
+
+        const postulante = await consultarPostulante(modo, servicio);
+
+        expect(postulante).toEqual({
+          id: ID_POSTULACION,
+          name: 'Sin nombre',
+          email: '',
+          location: null,
+          experienceLevel: null,
+          stage: 'postulado',
+          appliedAt: null,
+          hasCv: false,
+          cvUrl: null,
+          matchPercentage: null,
+          matchCalculatedAt: null,
+          skills: null,
+          workExperience: [],
+          education: [],
+          certifications: [],
+        });
+      });
+    });
+
+    it('conserva la respuesta de listado vacío cuando no hay postulantes', async () => {
+      const { servicio } = crearServicio({ filas: [] });
+
+      await expect(servicio.listarPostulantes(ID_VACANTE, ID_USUARIO)).resolves.toEqual([]);
+    });
   });
 });
 

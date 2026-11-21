@@ -1,6 +1,11 @@
 import {
   Applicant,
   ApplicantStatus,
+  Certification,
+  Education,
+  EXPERIENCE_LEVELS,
+  ExperienceLevel,
+  WorkExperience,
 } from "../types/applicant";
 import { JOB_POSTING_AFFINITY_BATCH_LIMIT } from "@umsspira/shared-types";
 import type {
@@ -10,6 +15,7 @@ import type {
   JobPostingAffinityResult,
 } from "@umsspira/shared-types";
 import { apiClient, ApiClientError } from "./api-client";
+import { authenticatedFetch } from "./auth-session";
 
 /* ============================================================
    CONFIGURACIÓN
@@ -52,11 +58,19 @@ interface RawApplicant {
   /** Etiqueta ya traducida (solo en los datos de prueba antiguos). */
   status?: Applicant["status"];
   appliedAt?: string | null;
-  hasCv?: boolean;
+  /** HU-16: la API indica si el titulado subió su CV. */
+  hasCv?: boolean | null;
   cvUrl?: string | null;
   matchPercentage?: number | null;
   /** HU-10: fecha del último cálculo guardado (fecha_match). */
   matchCalculatedAt?: string | null;
+  /** HU-16 (CA-07): ubicación y nivel de experiencia del perfil. */
+  location?: string | null;
+  experienceLevel?: string | null;
+  /** HU-16 (CA-07, T16.1): registros del perfil profesional. */
+  workExperience?: unknown;
+  education?: unknown;
+  certifications?: unknown;
 }
 
 /** HU-04: códigos de etapa del backend → etiqueta que muestra la interfaz. */
@@ -84,6 +98,66 @@ function toStatus(raw: RawApplicant): ApplicantStatus {
   return raw.status ?? "Postulado";
 }
 
+function toExperienceLevel(value: unknown): ExperienceLevel | null {
+  return (EXPERIENCE_LEVELS as readonly string[]).includes(String(value))
+    ? (value as ExperienceLevel)
+    : null;
+}
+
+/* HU-16 (CA-07): se aceptan solo los registros bien formados que envía la API. */
+type RawRecord = Record<string, unknown>;
+
+function toRecords(value: unknown): RawRecord[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is RawRecord => typeof item === "object" && item !== null)
+    : [];
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function optionalText(value: unknown): string | null {
+  return text(value) || null;
+}
+
+function optionalYear(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function toWorkExperience(value: unknown): WorkExperience[] {
+  return toRecords(value)
+    .map((r) => ({
+      position: text(r.position),
+      company: text(r.company),
+      startDate: optionalText(r.startDate),
+      endDate: optionalText(r.endDate),
+    }))
+    .filter((r) => r.position || r.company);
+}
+
+function toEducation(value: unknown): Education[] {
+  return toRecords(value)
+    .map((r) => ({
+      title: text(r.title),
+      institution: text(r.institution),
+      graduationYear: optionalYear(r.graduationYear),
+      level: optionalText(r.level),
+    }))
+    .filter((r) => r.title || r.institution);
+}
+
+function toCertifications(value: unknown): Certification[] {
+  return toRecords(value)
+    .map((r) => ({
+      name: text(r.name),
+      issuer: text(r.issuer),
+      level: optionalText(r.level),
+      year: optionalYear(r.year),
+    }))
+    .filter((r) => r.name);
+}
+
 function normalizeApplicant(raw: RawApplicant): Applicant {
   return {
     id: String(raw.id),
@@ -98,6 +172,11 @@ function normalizeApplicant(raw: RawApplicant): Applicant {
       typeof raw.matchPercentage === "number" && Number.isFinite(raw.matchPercentage)
         ? raw.matchPercentage
         : null,
+    location: typeof raw.location === "string" && raw.location.trim() ? raw.location : null,
+    experienceLevel: toExperienceLevel(raw.experienceLevel),
+    workExperience: toWorkExperience(raw.workExperience),
+    education: toEducation(raw.education),
+    certifications: toCertifications(raw.certifications),
     matchStatus: null,
     matchCalculatedAt:
       typeof raw.matchCalculatedAt === "string" && Number.isFinite(Date.parse(raw.matchCalculatedAt))
@@ -449,6 +528,60 @@ export async function getApplicantById(
     throw error;
   }
 }
+
+
+/* ============================================================
+   HU-16 · DESCARGA DEL CV (T16.4)
+   GET /api/v1/vacantes/:idVacante/postulantes/:idPostulacion/cv (T16.2)
+   Se pide con la sesión del reclutador (no es un enlace público).
+   ============================================================ */
+export const CV_DOWNLOAD_ERROR_MESSAGE = "No se pudo descargar el CV. Intente nuevamente";
+
+export class CvDownloadError extends Error {
+  constructor(message = CV_DOWNLOAD_ERROR_MESSAGE) {
+    super(message);
+    this.name = "CvDownloadError";
+  }
+}
+
+/** Nombre del archivo descargado: «CV - <nombre del postulante>.pdf» (CA-09). */
+export function buildCvFileName(applicantName: string): string {
+  const clean = applicantName.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+  return `CV - ${clean || "postulante"}.pdf`;
+}
+
+/** Pide el CV del postulante y lo descarga en el navegador. */
+export async function downloadApplicantCv(
+  vacancyId: string,
+  applicationId: string,
+  applicantName: string
+): Promise<void> {
+  const path = `/api/v1/vacantes/${encodeURIComponent(vacancyId)}/postulantes/${encodeURIComponent(applicationId)}/cv`;
+
+  let response: Response;
+  try {
+    response = await authenticatedFetch(path, { method: "GET" });
+  } catch {
+    throw new CvDownloadError();
+  }
+  if (!response.ok) throw new CvDownloadError();
+
+  const blob = await response.blob().catch(() => null);
+  if (!blob || blob.size === 0) throw new CvDownloadError();
+
+  const url = URL.createObjectURL(
+    blob.type ? blob : new Blob([blob], { type: "application/pdf" })
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = buildCvFileName(applicantName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Se libera más tarde: algunos navegadores cancelan la descarga si se libera en el acto.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 /**
  * HU-04: cambia la etapa de un postulante.
  * Usa apiClient para enviar la sesión (Bearer) igual que el resto de la app;
