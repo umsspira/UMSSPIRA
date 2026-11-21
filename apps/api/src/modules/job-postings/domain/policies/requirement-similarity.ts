@@ -113,10 +113,13 @@ function compareRequirement(
     }
   }
 
-  // 3c) Al menos la mitad de las palabras del requisito (por raíces) aparece en un mismo texto del perfil.
-  const partial = findPartialCoverage(requirementTokens, profile.segments);
-  if (partial !== null) {
-    return result(requirement, partial, 'similar');
+  // 3c) Requisito fuera del diccionario: al menos la mitad de sus palabras (por raíces) aparece en un mismo
+  //     texto del perfil. No se aplica a términos del diccionario: «Machine» solo no es «Machine Learning».
+  if (requirementCanonicals.length === 0) {
+    const partial = findPartialCoverage(requirementTokens, profile.segments);
+    if (partial !== null) {
+      return result(requirement, partial, 'similar');
+    }
   }
 
   return result(requirement, null, 'not-found');

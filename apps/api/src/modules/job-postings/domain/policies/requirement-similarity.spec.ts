@@ -11,7 +11,9 @@ extractor.loadDictionary([
   { canonical: 'javascript', aliases: ['js'] },
   { canonical: 'postgresql', aliases: ['postgres'] },
   { canonical: 'react', aliases: ['reactjs'] },
+  { canonical: 'spring', aliases: [] },
   { canonical: 'spring boot', aliases: [] },
+  { canonical: 'machine learning', aliases: ['ml'] },
   { canonical: 'docker', aliases: [] },
 ]);
 
@@ -63,6 +65,12 @@ describe('compareRequirements (HU-11)', () => {
       percentage: 0,
       comparison: [],
     });
+  });
+
+  it('un término del diccionario no se cumple a medias con una sola de sus palabras', () => {
+    const outcome = compareRequirements(['Machine Learning'], ['Machine', 'Learning'], extractor);
+
+    expect(outcome.comparison[0]?.result).toBe('not-found');
   });
 
   it('no arma n-gramas entre campos distintos del perfil', () => {

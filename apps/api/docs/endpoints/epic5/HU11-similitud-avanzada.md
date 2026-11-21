@@ -28,7 +28,7 @@ Cada campo del perfil se extrae por separado, para no formar n-gramas entre camp
 | Requisito fuera del diccionario cuya frase aparece, por raíces, en un mismo texto del perfil | `exact` | 100 % | «Bases de datos relacionales» ↔ «base de datos relacional» |
 | Parte de las canónicas está en el perfil, o el requisito trae palabras de más | `similar` | 50 % | «React Native» ↔ «React», «Docker Compose» ↔ «Docker» |
 | Una canónica contiene a la otra | `similar` | 50 % | «Spring Boot» ↔ «Spring» |
-| Al menos la mitad de las palabras del requisito (2 o más) aparece en un mismo texto del perfil | `similar` | 50 % | «Pruebas automatizadas end to end» ↔ «pruebas automatizadas con Cypress» |
+| Requisito fuera del diccionario con al menos la mitad de sus palabras (2 o más) en un mismo texto del perfil | `similar` | 50 % | «Pruebas unitarias automatizadas» ↔ «pruebas automatizadas con Cypress». No aplica a términos del diccionario: «Machine» solo no cumple «Machine Learning» |
 | Ninguna de las anteriores | `not-found` | 0 % | «Java» ↔ «JavaScript» |
 
 Porcentaje: suma de pesos ÷ número de requisitos × 100, redondeado a 2 decimales. Los requisitos vacíos se ignoran. Si no queda ninguno, el resultado es `percentage: 0` con `comparison: []`, y la HU-10 decide el estado (`insufficient-requirements`); el motor no inventa porcentajes.
