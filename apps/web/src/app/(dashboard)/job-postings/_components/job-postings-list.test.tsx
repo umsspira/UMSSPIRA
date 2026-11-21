@@ -51,6 +51,16 @@ describe('JobPostingsList', () => {
     });
   });
 
+  it('incluye Ayuda con acceso directo a la guía del titulado (T20.2)', async () => {
+    render(<JobPostingsList />);
+
+    expect(screen.getByRole('link', { name: 'Ayuda' })).toHaveAttribute(
+      'href', '/ayuda/bolsa-de-trabajo?tab=titulado',
+    );
+    expect(await screen.findByText('95% Afinidad')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Buscar vacante' })).toBeInTheDocument();
+  });
+
   it('muestra la afinidad calculada, una descripción breve y el enlace al detalle', async () => {
     render(<JobPostingsList />);
 
