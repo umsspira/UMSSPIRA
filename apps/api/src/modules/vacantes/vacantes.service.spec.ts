@@ -208,6 +208,7 @@ describe('VacantesService · postulantes (HU-01)', () => {
       'cvUrl',
       'matchPercentage',
       'matchCalculatedAt',
+      'matchStatus',
       'skills',
       'workExperience',
       'education',
@@ -347,6 +348,7 @@ describe('VacantesService · postulantes (HU-01)', () => {
           cvUrl: null,
           matchPercentage: 92,
           matchCalculatedAt: '2026-11-01T12:00:00.000Z',
+          matchStatus: 'ready',
           skills: null,
           workExperience: [
             {
@@ -500,6 +502,7 @@ describe('VacantesService · postulantes (HU-01)', () => {
           cvUrl: null,
           matchPercentage: null,
           matchCalculatedAt: null,
+          matchStatus: 'pending',
           skills: null,
           workExperience: [],
           education: [],
@@ -672,7 +675,7 @@ describe('VacantesService · cambio de etapa (HU-04)', () => {
     };
 
     return {
-      servicio: new VacantesService(prisma as never, {} as never, {} as never),
+      servicio: new VacantesService(prisma as never, {} as never, {} as never, {} as never, {} as never),
       prisma,
     };
   }
