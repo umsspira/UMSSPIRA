@@ -924,6 +924,7 @@ model InscripcionEvento {
   asistencia AsistenciaEvento?
   recordatorios RecordatorioEvento[]
 
+  @@index([id_usuario], map: "idx_inscripcion_evento_usuario")
   @@map("inscripcion_evento")
 }
 

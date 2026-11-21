@@ -193,3 +193,25 @@
 .root .noticeSecondary:hover:not(:disabled) { background:#e7e1d7; }
 .root .noticePrimary:disabled, .root .noticeSecondary:disabled { opacity:.6; cursor:not-allowed; }
 .root .noticeFull { width:100%; flex:none; }
+/* HU15 · navegación unificada. Bloque aislado: áreas táctiles de 44 px (CA-06), opción activa visible en el menú móvil (CA-02)
+   y sin desbordes desde 360 px (CA-04). Se puede quitar sin afectar el resto. */
+/* Áreas táctiles de 44 px en todos los anchos (equipos con pantalla táctil incluidos). */
+.root .iconButton, .root .mobileToggle { width:44px; min-width:44px; height:44px; }
+.root .login, .root .register { min-height:44px; }
+.actions { gap:4px; }
+@media(max-width:1260px) {
+  .root .accountTrigger { min-width:44px; min-height:44px; justify-content:center; }
+  .root .mobileSearch { display:none; }
+  .root .mobileActive { color:var(--navbar-accent); font-weight:650; box-shadow:inset 3px 0 0 var(--navbar-accent); padding-left:12px; }
+}
+@media(max-width:600px) {
+  .bar { padding:0 8px 0 14px; }
+  .root .logo { flex:0 1 112px; width:112px; min-width:0; }
+  .logo img { width:112px; height:40px; }
+  .actions { gap:0; padding-left:0; }
+  .root .login { min-height:44px; padding:0 10px; }
+}
+@media(max-width:420px) {
+  .root .searchButton { display:none; }
+  .root .mobileSearch { display:flex; }
+}

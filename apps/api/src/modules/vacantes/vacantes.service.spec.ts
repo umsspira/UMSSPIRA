@@ -532,7 +532,7 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
       postulacion: { findMany: jest.fn().mockResolvedValue(filas) },
       vacante: { findFirst: jest.fn() },
     };
-    return { servicio: new VacantesService(prisma as never, {} as never, {} as never, refresh as never, {} as never), prisma };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never, refresh as never, {} as never), prisma, refresh };
   }
 
   it('filtra por usuario, ordena de más reciente a más antigua y no inventa la afinidad', async () => {
@@ -603,6 +603,34 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
 
     expect(postulacion?.isVacancyAvailable).toBe(true);
     expect(postulacion?.matchPercentage).toBe(0);
+  });
+
+  it('oculta la afinidad desactualizada y respeta la fecha de cierre de la vacante', async () => {
+    const { servicio, refresh } = crearServicio([
+      {
+        id: ID_POSTULACION,
+        created_at: null,
+        porcentaje_match: 80,
+        fecha_match: new Date('2026-01-01T00:00:00.000Z'),
+        vacante: {
+          id: ID_VACANTE,
+          titulo: 'Analista',
+          estado: 'PUBLICADO',
+          fecha_cierre: new Date('2000-01-01T00:00:00.000Z'),
+          empresa: null,
+        },
+      },
+    ]);
+    refresh.forUser.mockResolvedValue(new Map([[ID_POSTULACION, 'pending']]));
+
+    const [postulacion] = await servicio.listarMisPostulaciones(ID_USUARIO);
+
+    expect(postulacion).toMatchObject({
+      matchStatus: 'pending',
+      matchPercentage: null,
+      matchCalculatedAt: null,
+      isVacancyAvailable: false,
+    });
   });
 
   it('permite abrir vacantes cerradas solo cuando el titulado se postuló', async () => {
@@ -762,11 +790,17 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
       $queryRaw: jest.fn().mockResolvedValue([]),
       vacante: {
         update: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Nueva' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Actual' }),
       },
     };
     const prisma = {
       vacante: {
         count: jest.fn().mockResolvedValue(opts.vacantesVisibles ?? 1),
+        // cambiarEstado (HU-14) lee y actualiza la vacante fuera de la transacción.
+        findFirst: jest.fn().mockResolvedValue(
+          opts.vacantesVisibles === 0 ? null : { id: ID_VACANTE, estado: 'PUBLICADO' },
+        ),
+        update: jest.fn().mockResolvedValue({ id: ID_VACANTE, estado: 'PAUSADO' }),
       },
       $transaction: jest.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     };
@@ -803,12 +837,25 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
   it('actualiza solo los campos enviados', async () => {
     const { servicio, tx } = crearServicio();
 
-    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { estado: 'PAUSADA' });
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { titulo: 'Nueva' });
 
     expect(tx.vacante.update).toHaveBeenCalledWith({
       where: { id: ID_VACANTE },
-      data: { estado: 'PAUSADA' },
+      data: { titulo: 'Nueva', fecha_actualizacion: expect.any(Date) },
     });
+  });
+
+  it('cambia el estado con la política única de transiciones (HU-14)', async () => {
+    const { servicio, prisma, tx } = crearServicio();
+
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { estado: 'PAUSADA' });
+
+    expect(prisma.vacante.update).toHaveBeenCalledWith({
+      where: { id: ID_VACANTE },
+      data: { estado: 'PAUSADO', fecha_actualizacion: expect.any(Date) },
+      select: { id: true, estado: true },
+    });
+    expect(tx.vacante.update).not.toHaveBeenCalled();
   });
 
   it('serializa los envíos simultáneos con el bloqueo por vacante dentro de la transacción', async () => {

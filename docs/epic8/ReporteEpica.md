@@ -1,7 +1,9 @@
 # Reporte de la Épica 8 · Offline PWA y Service Worker (Grupo 9)
 
-Corte: rama `epic8` al 14/11/2026 (commit `87f7249f`), comparada contra `dev`.
-Tamaño de lo fusionado: 63 commits, 32 archivos, 2961 líneas agregadas y 389 quitadas. Cero cambios en el backend.
+Corte: rama `epic8` al 14/11/2026 (commit `3f85966b`), comparada contra `dev`.
+Tamaño de lo fusionado en `epic8` respecto a `dev`: 85 commits, 38 archivos, 3481 líneas agregadas y 391 quitadas. Cero cambios en el backend en el Sprint 3.
+
+Este reporte cubre los tres sprints del Grupo 9: Sprint 1 (PWA y portal), Sprint 2 (mensajería) y Sprint 3 (offline).
 
 ## 1. Objetivo
 
@@ -20,7 +22,7 @@ Responsables y horarios según la planificación del líder (jueves 12/11 y vier
 | HU05 | Visualizar estado de conexión | Jorge | Jue 12/11 15:00 a 18:00 | Fusionada | #701 |
 | HU06 | Gestionar actualizaciones del Service Worker | Jorge | Vie 13/11 13:00 a 16:00 | Fusionada | #796 |
 | HU07 | Proteger información almacenada offline | Franz | Jue 12/11 21:00 a 24:00 | Fusionada | #724 |
-| HU08 | Validar el funcionamiento offline en Modo Avión | Mishel | Vie 13/11 16:00 a 19:00 | Pendiente | n/d |
+| HU08 | Validar el funcionamiento offline en Modo Avión | Mishel | Vie 13/11 16:00 a 19:00 | Fusionada | #822 |
 | HU09 | Reducir pasos en las tareas principales | Ivan | n/d | Pendiente | n/d |
 | HU10 | Avisos visuales de carga, confirmación y error | Melani | n/d | Pendiente | n/d |
 | HU11 | Consultas rápidas: índices y carga perezosa | Jose | n/d | Pendiente | n/d |
@@ -32,9 +34,24 @@ Responsables y horarios según la planificación del líder (jueves 12/11 y vier
 | HU17 | Mantener la posición de lectura en las conversaciones | Jose | n/d | Pendiente | n/d |
 | HU18 | Una sección con fallas no bloquea el resto | Franz | n/d | Pendiente | n/d |
 
-Nota: el estado y los PR salen del corte del repositorio indicado arriba. Si HU08 u otra historia se fusionó después de ese corte, actualizar la fila.
+Nota: el estado y los PR salen del corte del repositorio indicado arriba. Si alguna historia se fusiona después de ese corte, actualizar la fila.
 
 ## 3. Qué se implementó
+
+### Sprint 1 · PWA, shell del portal y Service Worker (7 al 17 de octubre)
+
+- **HU1 · Service Worker y caché.** Registro del Service Worker, almacenamiento en caché, caché para móvil y actualización de la caché.
+- **HU2 · Estructura del portal.** Estructura base de la PWA y portal de inicio con las secciones institucional, beneficios, comunidad, empleos, eventos y mentorías.
+- **HU3 · Identidad visual.** Paleta de colores y tipografía, pie de página y colores del portal.
+- **HU4 · Logo y compatibilidad.** El logo lleva al inicio y se verificó la compatibilidad con varios navegadores.
+- **HU5 · Barra de navegación.** Botón de menú, panel lateral, cierre de sesión, responsividad e integración de la barra móvil en el shell de UMSSPIRA.
+
+### Sprint 2 · Mensajería (21 al 29 de octubre)
+
+- **Chat en tiempo real.** Módulo `chat/` del backend y pantalla `/portal/mensajes`: conexión (HU1) y verificación de conexión (HU2), conversación 1 a 1 (HU3), envío (HU4) y recepción en tiempo real (HU5), lista de conversaciones (HU6), historial y mensajes anteriores (HU8, HU9) y mensajes pendientes (HU10).
+- **Barra superior.** Dos correcciones (HU1 y HU2 de navbar) y botón de mensajes.
+
+### Sprint 3 · Offline PWA (12 y 13 de noviembre)
 
 - **HU01 · Service Worker y caché.** `public/sw.js` con cinco cachés (núcleo, estáticos, assets, configuración y rutas), página `/offline` guardada en la instalación, perfiles de dispositivo (escritorio, móvil) que limitan los assets guardados, y rutas privadas que nunca se guardan. Pantalla `/portal/configuracion` con espacio usado, última actualización, versión y botón «Actualizar caché».
 - **HU02 · QR sin conexión.** Los pases se guardan en IndexedDB (`umsspira-offline`, almacén `qr-passes`) por usuario, con botón de guardado en la tarjeta del pase. `/mis-pases` muestra los guardados cuando no hay red.
@@ -43,21 +60,23 @@ Nota: el estado y los PR salen del corte del repositorio indicado arriba. Si HU0
 - **HU05 · Estado de conexión.** En `/portal`: tarjeta de estado, alerta superior sin conexión, etiqueta «En línea / Sin conexión» y aviso al restablecerse.
 - **HU06 · Actualizaciones.** El Service Worker responde `SKIP_WAITING` y `UPDATE_CACHE`; el hook `useServiceWorkerUpdate` avisa de una versión nueva con «Actualizar ahora / Más tarde».
 - **HU07 · Protección de datos.** Sesión válida sin conexión por 7 días como máximo; al cerrar sesión se borran primero los datos privados guardados; si no hay red, el cierre queda pendiente y se revoca al volver.
+- **HU08 · Modo Avión.** Prueba de extremo a extremo `apps/web/e2e/offline-mode-avion.spec.ts` (con `playwright.config.ts`) que valida el uso de la aplicación sin conexión.
 
 ## 4. Lo que no se esperaba
 
 1. **Cambios en código de otras épicas.** Se tocaron `auth-session.ts` y `logout-button.tsx` (Autenticación), `EventPassCard.tsx`, `events-service.ts`, `cancel-registration-action.tsx` y `event-detail-page.tsx` (Eventos), y `useSendMessage.ts` y `portal/mensajes/page.tsx` (Chat). Conviene avisar a esos equipos.
-2. **Cero backend.** No se pidió nada nuevo al servidor; HU12 (modularizar el backend) y HU11 (índices) siguen pendientes.
+2. **Cero backend en el Sprint 3.** No se pidió nada nuevo al servidor. El backend del Grupo 9 es el chat del Sprint 2; su reorganización por casos de uso llegó con el PR #831 (conflictos con `dev`). HU12 (modularizar el backend) y HU11 (índices) siguen sin confirmar.
 3. **El Service Worker se reescribió.** `sw.js` se rehízo en unos 20 commits pequeños; su `VERSION` ahora es `v1.0.0` (en `dev` era `v2`), así que los usuarios con la versión anterior pierden sus cachés viejas al actualizar.
 4. **Dos bases de datos locales y tres detectores de conexión.** IndexedDB `umsspira-offline` y `umsspira-hu04`; `use-online-status.ts` (nuevo), la lógica propia de `/portal` y el `use-network-status.ts` del Grupo 5 hacen casi lo mismo.
 5. **Archivo sin uso.** `public/offline-secciones.html` (390 líneas) no se referencia en ningún lado.
 6. **La página `/offline` ya trae los accesos rápidos de HU14** (Mis QR y Eventos, marcados «HU14 CA-04»), así que parte de HU14 ya existe.
 7. **Archivos generados en el repositorio.** `tsconfig.tsbuildinfo` quedó modificado y se agregó la dependencia de desarrollo `fake-indexeddb` con cambio en `pnpm-lock.yaml`.
 8. **Mensajes de depuración.** `sw.js` y `useServiceWorkerUpdate.ts` dejan `console.log` y `/portal/configuracion` muestra un panel de registros del Service Worker.
+9. **`/admin` del Sprint 1 ya no existe en `epic8`.** La estructura base de administración se creó en el Sprint 1 y después fue retirada del repositorio.
 
-## 5. Rutas de la épica (resumen)
+## 5. Rutas de la épica (resumen del Sprint 3)
 
-Detalle completo en `RutasFrontend.md` y `RutasBackend.md` (misma carpeta).
+Detalle de los tres sprints en `RutasFrontend.md` y `RutasBackend.md` (misma carpeta). Resumen del Sprint 3:
 
 **Frontend** (`apps/web/`)
 
@@ -91,4 +110,4 @@ Detalle completo en `RutasFrontend.md` y `RutasBackend.md` (misma carpeta).
 
 ## 7. Pendiente
 
-HU08 (verificación de principio a fin en Modo Avión) y las mejoras HU09 a HU18, incluidas HU14 y HU15 de Oliver, y HU08 de Mishel. Al fusionarlas, actualizar este reporte y los archivos `RutasFrontend.md` y `RutasBackend.md`.
+Las mejoras HU09 a HU18, incluidas HU14 y HU15 de Oliver. Al fusionarlas, actualizar este reporte y los archivos `RutasFrontend.md` y `RutasBackend.md`.

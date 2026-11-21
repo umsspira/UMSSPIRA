@@ -9,6 +9,13 @@ import {
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../shared/errors/business-rule-error';
+import { isJobPostingAvailable } from '../job-postings/domain/policies/job-posting-availability.policy';
+import {
+  JOB_POSTING_STATUS,
+  PUBLISHED_STATUS_VALUES,
+  canTransitionJobPostingStatus,
+  normalizeJobPostingStatus,
+} from '../job-postings/domain/policies/job-posting-status.policy';
 import { normalizeTechnicalRequirementName } from '../job-postings/domain/policies/normalize-technical-requirement-name';
 import { CalculateJobPostingAffinity } from '../job-postings/application/use-cases/calculate-job-posting-affinity.use-case';
 import { RefreshJobPostingAffinity } from '../job-postings/application/use-cases/refresh-job-posting-affinity.use-case';
@@ -19,14 +26,15 @@ import {
   type JobPostingAffinityDataPort,
 } from '../job-postings/application/ports/job-posting-affinity-data.port';
 
+
 // HU-04: códigos de etapa. El front traduce a etiquetas ("En revisión", etc.).
 export const ETAPAS_POSTULACION = ['postulado', 'en_revision', 'preseleccionado', 'entrevista', 'descartado'] as const;
 export type EtapaPostulacion = (typeof ETAPAS_POSTULACION)[number];
 
-const ESTADOS_VACANTE_DISPONIBLE = ['PUBLICADO', 'PUBLICADA', 'ACTIVA', 'ACTIVO', 'ACTIVE', 'PUBLISHED'];
-
-function vacanteDisponible(estado: string | null): boolean {
-  return ESTADOS_VACANTE_DISPONIBLE.includes(estado?.trim().toUpperCase() ?? '');
+// HU-14: el vocabulario y la regla de disponibilidad viven en job-postings/domain/policies.
+// Una vacante "disponible" es PUBLICADA y sin fecha de cierre vencida (pausada/cerrada => no).
+function vacanteDisponible(estado: string | null, fechaCierre: Date | null = null): boolean {
+  return isJobPostingAvailable(estado, fechaCierre, new Date());
 }
 
 export interface UpdateVacanteData {
@@ -115,10 +123,7 @@ export class VacantesService {
       where: { id: idVacante },
       select: { id: true, estado: true, fecha_cierre: true },
     });
-    const estado = String(vacante?.estado ?? '').trim().toUpperCase();
-    const disponible = ['PUBLICADA', 'PUBLICADO', 'ACTIVA', 'ACTIVO'].includes(estado)
-      && (!vacante?.fecha_cierre || vacante.fecha_cierre.getTime() > Date.now());
-    if (!vacante || !disponible) {
+    if (!vacante || !vacanteDisponible(vacante.estado, vacante.fecha_cierre ?? null)) {
       throw new BusinessRuleError(
         'conflict',
         'JOB_POSTING_UNAVAILABLE',
@@ -136,8 +141,7 @@ export class VacantesService {
       const currentVacancy = await tx.vacante.findUnique({
         where: { id: idVacante }, select: { estado: true, fecha_cierre: true },
       });
-      if (!currentVacancy || !vacanteDisponible(currentVacancy.estado) ||
-        (currentVacancy.fecha_cierre && currentVacancy.fecha_cierre.getTime() <= Date.now())) {
+      if (!currentVacancy || !vacanteDisponible(currentVacancy.estado, currentVacancy.fecha_cierre ?? null)) {
         throw new BusinessRuleError('conflict', 'JOB_POSTING_UNAVAILABLE', 'Esta vacante ya no está disponible');
       }
       const [currentProfiles, currentRequirements] = await Promise.all([
@@ -251,6 +255,7 @@ export class VacantesService {
             id: true,
             titulo: true,
             estado: true,
+            fecha_cierre: true,
             empresa: { select: { razon_social: true } },
           },
         },
@@ -272,7 +277,7 @@ export class VacantesService {
           matchStatus === 'ready' && porcentajeValido ? porcentaje : null,
         matchCalculatedAt: matchStatus === 'ready' && porcentajeValido ? fila.fecha_match?.toISOString() ?? null : null,
         matchStatus,
-        isVacancyAvailable: vacanteDisponible(fila.vacante?.estado ?? null),
+        isVacancyAvailable: vacanteDisponible(fila.vacante?.estado ?? null, fila.vacante?.fecha_cierre ?? null),
       };
     });
   }
@@ -282,7 +287,7 @@ export class VacantesService {
       where: {
         id: idVacante,
         OR: [
-          { estado: { in: ESTADOS_VACANTE_DISPONIBLE } },
+          { estado: { in: [...PUBLISHED_STATUS_VALUES] } },
           { postulacion_registros: { some: { id_usuario: idUsuario } } },
         ],
       },
@@ -293,6 +298,7 @@ export class VacantesService {
         modalidad: true,
         nivel_experiencia: true,
         estado: true,
+        fecha_cierre: true,
         created_at: true,
         empresa: { select: { razon_social: true } },
       },
@@ -310,15 +316,66 @@ export class VacantesService {
       modality: vacante.modalidad,
       experienceLevel: vacante.nivel_experiencia,
       publishedAt: vacante.created_at?.toISOString() ?? null,
-      isAvailable: vacanteDisponible(vacante.estado),
+      isAvailable: vacanteDisponible(vacante.estado, vacante.fecha_cierre ?? null),
     };
   }
 
-  async cerrarVacante(idVacante: string) {
-    return this.prisma.vacante.update({
-      where: { id: idVacante },
-      data: { estado: 'CERRADA' }
+  // HU-14 · Ciclo de vida con permisos --------------------------------------------------
+
+  /**
+   * Devuelve la vacante SOLO si pertenece a una empresa del actor (dueño o usuario
+   * activo invitado). Si no, 404: no se revela si la vacante existe en otra empresa.
+   */
+  private async obtenerVacanteDeMiEmpresa(idVacante: string, idUsuario: string) {
+    const vacante = await this.prisma.vacante.findFirst({
+      where: {
+        id: idVacante,
+        empresa: {
+          OR: [
+            { id_usuario: idUsuario },
+            { empresa_usuario_registros: { some: { id_usuario: idUsuario, estado: 'activo' } } },
+          ],
+        },
+      },
+      select: { id: true, estado: true },
     });
+    if (!vacante) {
+      throw new NotFoundException('Vacante no encontrada');
+    }
+    return vacante;
+  }
+
+  /** Aplica una transición validada por la política única de estados. */
+  private async cambiarEstado(idVacante: string, idUsuario: string, destino: string) {
+    const objetivo = normalizeJobPostingStatus(destino);
+    if (!objetivo) {
+      throw new BadRequestException('Estado inválido');
+    }
+
+    const vacante = await this.obtenerVacanteDeMiEmpresa(idVacante, idUsuario);
+    const actual = normalizeJobPostingStatus(vacante.estado);
+
+    // Idempotente: repetir la misma acción (doble clic, reintento) no falla ni reescribe.
+    if (actual === objetivo) {
+      return { id: vacante.id, estado: objetivo };
+    }
+    if (!actual || !canTransitionJobPostingStatus(actual, objetivo)) {
+      throw new BusinessRuleError(
+        'conflict',
+        'INVALID_JOB_POSTING_STATUS_TRANSITION',
+        `No se puede pasar la vacante de ${actual ?? 'su estado actual'} a ${objetivo}`,
+      );
+    }
+
+    return this.prisma.vacante.update({
+      where: { id: vacante.id },
+      data: { estado: objetivo, fecha_actualizacion: new Date() },
+      select: { id: true, estado: true },
+    });
+  }
+
+  async cerrarVacante(idVacante: string, idUsuario: string) {
+    return this.cambiarEstado(idVacante, idUsuario, JOB_POSTING_STATUS.CLOSED);
   }
 
   async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacanteData) {
@@ -326,35 +383,86 @@ export class VacantesService {
     // cualquier otro recibe 404 sin filtrar si la vacante existe.
     await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
 
-    // Solo se escriben los campos enviados; el resto queda intacto.
+    // El cambio de estado (pausar / reanudar / cerrar) pasa por la política única.
+    if (data.estado !== undefined) {
+      await this.cambiarEstado(idVacante, idUsuario, data.estado);
+    }
     const cambios: Record<string, string> = {};
-    if (data.titulo !== undefined) {cambios['titulo'] = data.titulo;}
-    if (data.modalidad !== undefined) {cambios['modalidad'] = data.modalidad;}
-    if (data.nivel_experiencia !== undefined) {cambios['nivel_experiencia'] = data.nivel_experiencia;}
-    if (data.descripcion_tecnica !== undefined) {cambios['descripcion_tecnica'] = data.descripcion_tecnica;}
-    if (data.estado !== undefined) {cambios['estado'] = data.estado;}
+
+    if (data.titulo !== undefined) {
+      cambios['titulo'] = data.titulo;
+    }
+
+    if (data.modalidad !== undefined) {
+      cambios['modalidad'] = data.modalidad;
+    }
+
+    if (data.nivel_experiencia !== undefined) {
+      cambios['nivel_experiencia'] = data.nivel_experiencia;
+    }
+
+    if (data.descripcion_tecnica !== undefined) {
+      cambios['descripcion_tecnica'] = data.descripcion_tecnica;
+    }
 
     return this.prisma.$transaction(async (tx) => {
-      // Bloqueo por vacante: dos envíos simultáneos (doble clic o reenvío)
-      // se serializan y el resultado es el mismo que con un solo envío.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idVacante}))`;
+      // Bloqueo por vacante: dos envíos simultáneos se serializan.
+      await tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${idVacante}))
+      `;
+
       const actualizada = Object.keys(cambios).length
-        ? await tx.vacante.update({ where: { id: idVacante }, data: cambios })
-        : await tx.vacante.findUniqueOrThrow({ where: { id: idVacante } });
+        ? await tx.vacante.update({
+            where: { id: idVacante },
+            data: {
+              ...cambios,
+              fecha_actualizacion: new Date(),
+            },
+          })
+        : await tx.vacante.findUniqueOrThrow({
+            where: { id: idVacante },
+          });
+
+      // Actualizar requisitos técnicos cuando fueron enviados.
       if (data.requisitosTecnicos !== undefined) {
         const owned = await tx.vacante.findFirst({
-          where: { id: idVacante, empresa: { OR: [
-            { id_usuario: idUsuario },
-            { empresa_usuario_registros: { some: { id_usuario: idUsuario, estado: 'activo' } } },
-          ] } },
+          where: {
+            id: idVacante,
+            empresa: {
+              OR: [
+                { id_usuario: idUsuario },
+                {
+                  empresa_usuario_registros: {
+                    some: {
+                      id_usuario: idUsuario,
+                      estado: 'activo',
+                    },
+                  },
+                },
+              ],
+            },
+          },
           select: { id: true },
         });
-        if (!owned) {throw new NotFoundException('Vacante no encontrada');}
-        await tx.vacanteRequisitoTecnico.deleteMany({ where: { id_vacante: idVacante } });
-        if (data.requisitosTecnicos.length) {await tx.vacanteRequisitoTecnico.createMany({
-          data: data.requisitosTecnicos.map((nombre) => ({ id_vacante: idVacante, nombre, nombre_normalizado: normalizeTechnicalRequirementName(nombre) })),
-          skipDuplicates: true,
-        });}
+
+        if (!owned) {
+          throw new NotFoundException('Vacante no encontrada');
+        }
+
+        await tx.vacanteRequisitoTecnico.deleteMany({
+          where: { id_vacante: idVacante },
+        });
+
+        if (data.requisitosTecnicos.length > 0) {
+          await tx.vacanteRequisitoTecnico.createMany({
+            data: data.requisitosTecnicos.map((nombre) => ({
+              id_vacante: idVacante,
+              nombre,
+              nombre_normalizado: normalizeTechnicalRequirementName(nombre),
+            })),
+            skipDuplicates: true,
+          });
+        }
       }
       // HU-12: el cambio de requisitos se confirma en esta transacción. La siguiente
       // consulta autorizada compara el hash persistido y recalcula solo las postulaciones
@@ -363,23 +471,19 @@ export class VacantesService {
     });
   }
 
-  // NUEVO MÉTODO PARA ELIMINAR
   async eliminarVacante(idVacante: string, idUsuario: string) {
-    const empresa = await this.prisma.empresa.findFirst({
-      where: { id_usuario: idUsuario }
-    });
+    const vacante = await this.obtenerVacanteDeMiEmpresa(idVacante, idUsuario);
 
-    if (!empresa) {throw new Error('Empresa no encontrada');}
+    const postulantes = await this.prisma.postulacion.count({ where: { id_vacante: vacante.id } });
+    if (postulantes > 0) {
+      throw new BusinessRuleError(
+        'conflict',
+        'JOB_POSTING_HAS_APPLICANTS',
+        'La vacante tiene postulantes: ciérrala en lugar de eliminarla',
+      );
+    }
 
-    const vacante = await this.prisma.vacante.findFirst({
-      where: { id: idVacante, id_empresa: empresa.id }
-    });
-
-    if (!vacante) {throw new Error('Vacante no encontrada o sin permiso para eliminarla');}
-
-    return this.prisma.vacante.delete({
-      where: { id: idVacante }
-    });
+    return this.prisma.vacante.delete({ where: { id: vacante.id } });
   }
 
   // HU-04: cambia la etapa de una postulación de una vacante de la empresa del actor.

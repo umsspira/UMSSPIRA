@@ -18,5 +18,19 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
+    // HU09 CA-01: acceso directo desde el ícono de la PWA para abrir los QR
+    // guardados en máximo 2 toques.
+    shortcuts: [
+      {
+        name: 'Mis códigos QR',
+        short_name: 'Mis QR',
+        description: 'Abre los códigos QR guardados en este dispositivo',
+        url: '/mis-pases',
+        icons: [
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        ],
+      },
+    ],
   }
 }

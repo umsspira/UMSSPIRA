@@ -21,12 +21,14 @@ import { authenticatedFetch } from "./auth-session";
    CONFIGURACIÓN
    Los postulantes vienen de la API real de Épica 4
        GET /api/v1/vacantes/:idVacante/postulantes
-   Los datos de prueba de abajo solo se usan en desarrollo o en una
-   demo explícita, poniendo en apps/web/.env.local:
+
+   HU-19: la API real es el comportamiento por defecto. Los datos de prueba
+   de abajo solo se usan si se pide explícitamente en apps/web/.env.local:
        NEXT_PUBLIC_USE_MOCK=true
    ============================================================ */
 const USE_MOCK =
   process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK === "true";
+
 
 // Solo para probar con datos de prueba:
 //   "ok" | "empty" (CA-07) | "error" (CA-08 / CA-09)
@@ -531,6 +533,7 @@ export async function getApplicantById(
   }
 }
 
+
 /* ============================================================
    HU-16 · DESCARGA DEL CV (T16.4)
    GET /api/v1/vacantes/:idVacante/postulantes/:idPostulacion/cv (T16.2)
@@ -610,3 +613,4 @@ export async function updateApplicantStage(
     throw new Error(STAGE_UPDATE_ERROR_MESSAGE);
   }
 }
+

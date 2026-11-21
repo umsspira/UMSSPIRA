@@ -1,5 +1,6 @@
 'use client';
 
+import { normalizeVacancyStatus, VACANCY_STATUS_LABEL } from '@/shared/utils/vacancy-status';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -55,7 +56,7 @@ export default function VacanteDetallePage() {
   if (!vacante) return <EstadoVacio mensaje="Vacante no encontrada" />;
 
   const fechaPublicacion = new Date(vacante.created_at).toLocaleDateString('es-ES');
-  const estadoUI = ['PUBLICADO', 'PUBLICADA', 'ACTIVA'].includes(String(vacante.estado).toUpperCase()) ? 'ACTIVA' : vacante.estado;
+  const estadoUI = normalizeVacancyStatus(vacante.estado);
 
   return (
     <div className="p-4 md:p-8 overflow-x-hidden" style={{ backgroundColor: 'var(--palladian)', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
@@ -154,7 +155,7 @@ export default function VacanteDetallePage() {
                   <Calendar size={18} color="#6b7280" />
                   <div>
                     <p style={{ margin: 0, fontSize: '0.65rem', color: '#6b7280', fontWeight: 700, textTransform: 'uppercase' }}>Fecha de publicación</p>
-                    <p style={{ margin: 0, fontWeight: 700, color: '#111827', fontSize: '0.85rem' }}>{fechaPublicacion} ({estadoUI === 'ACTIVA' ? 'Activa' : estadoUI})</p>
+                    <p style={{ margin: 0, fontWeight: 700, color: '#111827', fontSize: '0.85rem' }}>{fechaPublicacion} ({VACANCY_STATUS_LABEL[estadoUI]})</p>
                   </div>
                 </div>
 
@@ -194,4 +195,4 @@ export default function VacanteDetallePage() {
       </div>
     </div>
   );
-}
+}

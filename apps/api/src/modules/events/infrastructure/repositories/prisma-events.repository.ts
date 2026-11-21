@@ -323,7 +323,22 @@ export class PrismaEventsRepository implements EventsRepository {
   async mine(userId: string): Promise<MyEventRegistration[]> {
     const rows = await this.prisma.inscripcionEvento.findMany({
       where: { id_usuario: userId },
-      include: { evento: true, pase_qr: { select: { id: true } } },
+      select: {
+        id: true,
+        estado: true,
+        fecha_inscripcion: true,
+        pase_qr: { select: { id: true } },
+        evento: {
+          select: {
+            id: true,
+            titulo: true,
+            fecha_inicio: true,
+            fecha_fin: true,
+            ubicacion: true,
+            estado: true,
+          },
+        },
+      },
       orderBy: [{ evento: { fecha_inicio: 'asc' } }, { id: 'asc' }],
     });
     return rows.flatMap((row) => {

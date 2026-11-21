@@ -187,6 +187,16 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
       });
     });
 
+    it('rechaza la postulación si la vacante se cierra durante el cálculo de afinidad', async () => {
+      const { servicio, tx } = crearServicio();
+      tx.vacante.findUnique.mockResolvedValueOnce({ estado: 'CERRADO', fecha_cierre: null });
+
+      await expect(servicio.postular(ID_VACANTE, ID_USUARIO)).rejects.toMatchObject({
+        code: 'JOB_POSTING_UNAVAILABLE',
+      });
+      expect(tx.postulacion.create).not.toHaveBeenCalled();
+    });
+
     it('es idempotente cuando la postulación ya existe', async () => {
       const { servicio, prisma, tx, calculateAffinity } = crearServicio({
         postulacionPrevia: { id: ID_POSTULACION },
