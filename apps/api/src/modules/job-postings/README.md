@@ -113,3 +113,26 @@ Fallo individual (el elemento mantiene su identidad y el resto del batch puede d
 ```
 
 Request inválido responde 400, falta autenticación 401, rol/permiso o recurso fuera de alcance 403 y diccionario NLP no disponible 503. Los errores globales no llevan `data` parcial.
+
+### Comandos de pruebas
+
+```bash
+# Pruebas unitarias de políticas de afinidad
+pnpm --filter api exec jest src/modules/job-postings/domain/policies/
+
+# Pruebas unitarias de casos de uso (CalculateJobPostingAffinity y Batch)
+pnpm --filter api exec jest src/modules/job-postings/application/use-cases/
+
+# Pruebas del endpoint y esquemas HTTP
+pnpm --filter api exec jest src/modules/job-postings/http/
+
+# Pruebas de integración de postulación (idempotencia y persistencia de match)
+pnpm --filter api exec jest src/modules/vacantes/vacantes.postulacion.spec.ts
+
+# Pruebas del cliente y UI web
+pnpm --filter web exec jest src/shared/services/job-posting-affinity.test.ts src/app/\\(dashboard\\)/job-postings/ src/app/portal/empleos/
+
+# Prueba de integración con PostgreSQL real (opt-in; requiere TEST_DATABASE_URL)
+TEST_DATABASE_URL=postgresql://usuario:clave@localhost:5432/postgres pnpm --filter api exec jest test/job-posting-affinity.integration.spec.ts
+```
+
