@@ -422,6 +422,10 @@ model CurriculumVitae {
   id_tipo_archivo String?  @db.Uuid
   ruta            String?  @db.Text
   valido          Boolean?
+  nombre          String?  @db.VarChar(255)
+  contenido       Bytes?   @db.ByteA
+  size_bytes      Int?
+  fecha_subida    DateTime? @db.Timestamptz(6)
   id_titulado     String?  @unique @db.Uuid
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 

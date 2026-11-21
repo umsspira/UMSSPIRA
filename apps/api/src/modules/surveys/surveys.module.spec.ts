@@ -5,6 +5,7 @@ import { ManageSurveysController } from './http/controllers/manage-surveys.contr
 import { SubmitSurveyController } from './http/controllers/submit-survey.controller';
 import { SURVEY_REPOSITORY_PORT } from './infrastructure/providers/surveys.providers';
 import { SurveysModule } from './surveys.module';
+import { UpdateMySurveyController } from './http/controllers/update-my-survey.controller';
 
 describe('SurveysModule', () => {
   it('registra los controladores de encuestas', () => {
@@ -13,6 +14,7 @@ describe('SurveysModule', () => {
       GetSurveyReportController,
       GetMySurveyController,
       ManageSurveysController,
+      UpdateMySurveyController,
     ]);
   });
 

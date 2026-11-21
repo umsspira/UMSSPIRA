@@ -48,6 +48,11 @@ export interface SurveyRepositoryPort {
   save(input: SubmitSurveyInput): Promise<{
     id: string;
   }>;
+  updateOnce(input: SubmitSurveyInput): Promise<{
+  id: string;
+  edicionUsada: boolean;
+  fechaActualizacion: Date | null;
+  }>;
   listManaged(actorId: string, careerIds: readonly string[]): Promise<SurveyAdminRecord[]>;
   createManaged(actorId: string, careerIds: readonly string[], input: SurveyAdminInput): Promise<SurveyAdminRecord>;
   updateManaged(actorId: string, careerIds: readonly string[], id: string, input: SurveyAdminPatch): Promise<SurveyAdminRecord>;

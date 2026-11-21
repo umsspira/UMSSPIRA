@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Info } from 'lucide-react';
 import { ALL, type AccreditationFilters as Filters } from '../hooks/use-accreditation-filters';
 
 export const MESSAGES = {
@@ -133,12 +134,16 @@ export function AccreditationNoDataForPeriod() {
   );
 }
 
-/** Nota sobre el mapa de calor cuando hay un semestre elegido (CA-05). */
+/** Nota sobre el mapa de calor cuando hay un semestre elegido (CA-05): recuadro con el ícono de información, como en el mockup. */
 export function SemesterHeatmapNote({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
-    <p role="note" className="text-sm text-[#5B6470]">
-      {MESSAGES.semesterHeatmapNote}
+    <p
+      role="note"
+      className="flex items-start gap-2 rounded-md border border-[#F4C99A] bg-[#FFF1DF] px-3 py-2 text-sm text-[#7A4E00]"
+    >
+      <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>{MESSAGES.semesterHeatmapNote}</span>
     </p>
   );
 }
