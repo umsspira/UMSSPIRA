@@ -4,6 +4,7 @@ import { KeywordExtractorService } from '../../../nlp/application/services/keywo
 import { NlpDictionaryUnavailableError } from '../../../nlp/domain/errors/nlp-dictionary-unavailable-error';
 import type { JobPostingAffinityExtractorPort } from '../../application/ports/job-posting-affinity-extractor.port';
 import { AffinityDictionaryUnavailableError } from '../../domain/errors/affinity-dictionary-unavailable.error';
+import type { KeywordExtractor } from '../../domain/policies/requirement-similarity';
 
 @Injectable()
 export class NlpJobPostingAffinityAdapter implements JobPostingAffinityExtractorPort {
@@ -12,7 +13,9 @@ export class NlpJobPostingAffinityAdapter implements JobPostingAffinityExtractor
     private readonly extractor: KeywordExtractorService,
   ) {}
 
-  async extractSkills(texts: readonly string[]): Promise<string[]> {
+  // HU-11: el motor recibe el extractor ya cargado para procesar con el mismo diccionario
+  // el perfil (campo por campo) y los requisitos de la vacante
+  async loadExtractor(): Promise<KeywordExtractor> {
     try {
       await this.dictionary.ensureLoaded();
     } catch (error) {
@@ -21,7 +24,6 @@ export class NlpJobPostingAffinityAdapter implements JobPostingAffinityExtractor
       }
       throw error;
     }
-    // NLP segmenta por salto de línea: ningún n-grama cruza campos del perfil.
-    return this.extractor.extract(texts.join('\n')).keywords.map((keyword) => keyword.term);
+    return this.extractor;
   }
 }
