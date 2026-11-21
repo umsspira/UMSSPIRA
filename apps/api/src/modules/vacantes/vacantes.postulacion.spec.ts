@@ -29,7 +29,7 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
     } = {},
   ) {
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue([]),
       postulacion: {
         findFirst: jest.fn().mockResolvedValue(opts.postulacionEnTransaccion ?? null),
         create: jest.fn().mockResolvedValue({ id: ID_POSTULACION }),
@@ -64,7 +64,7 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
         postulada: true,
         yaExistia: false,
       });
-      expect(tx.$queryRaw).toHaveBeenCalled();
+      expect(tx.$executeRaw).toHaveBeenCalled();
       expect(tx.postulacion.create).toHaveBeenCalledWith({
         data: {
           id_usuario: ID_USUARIO,
@@ -172,7 +172,7 @@ describe('VacantesService · postulación a vacantes (HU-03)', () => {
         postulada: true,
         yaExistia: true,
       });
-      expect(tx.$queryRaw).toHaveBeenCalled();
+      expect(tx.$executeRaw).toHaveBeenCalled();
       expect(tx.postulacion.create).not.toHaveBeenCalled();
     });
   });

@@ -16,7 +16,6 @@ import { ReadSignedBackupController } from './http/controllers/read-signed-backu
 import { GetProfessionalDescriptionController } from './http/controllers/get-professional-description.controller';
 import { SaveProfessionalDescriptionController } from './http/controllers/save-professional-description.controller';
 import { CreateProjectController } from './http/controllers/create-project.controller';
-import { ProfilePhotoController } from './http/controllers/profile-photo.controller';
 import { CvController } from './http/controllers/cv.controller';
 
 @Module({
@@ -30,8 +29,7 @@ import { CvController } from './http/controllers/cv.controller';
     // Antes de las rutas :section/:id para que «descripcion-profesional» no se lea como sección
     GetProfessionalDescriptionController,
     SaveProfessionalDescriptionController,
-    // «foto» también va antes de :section/:id
-    ProfilePhotoController,
+    // HU-16 T16.2: «cv» también va antes de :section/:id
     CvController,
     GetProfileRecordController,
     UpdateProfileRecordController,

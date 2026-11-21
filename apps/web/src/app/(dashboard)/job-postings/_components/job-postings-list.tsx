@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import type { AvailableJobPosting, TechnicalRequirement } from '@umsspira/shared-types';
 import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
 import { listAvailableJobPostings } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinityWithSkills, loadTituladoSkills, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
 import { jobPostingDetailRoute } from '@/shared/routes/job-postings';
-import { descriptionWithoutRequirements, mergeTechnicalRequirements } from '@/shared/utils/job-posting-requirements';
+import { descriptionWithoutRequirements } from '@/shared/utils/job-posting-requirements';
 
 type ListState =
   | { status: 'loading' }
@@ -61,14 +61,12 @@ function shortDescription(value: string | null): string {
 }
 
 function requirementsFor(posting: AvailableJobPosting): TechnicalRequirement[] {
-  return mergeTechnicalRequirements(
-    posting.descripcionTecnica,
-    posting.requisitos,
-  );
+  return posting.requisitos;
 }
 
 function affinityBadge(result: VacancyAffinityResult | undefined) {
   if (!result) return { text: 'Calculando…', className: 'border-slate-200 bg-white text-slate-500' };
+  if (result.status === 'insufficient-requirements') return { text: 'Sin requisitos', className: 'border-slate-200 bg-white text-slate-500' };
   if (result.status === 'ready') {
     const color = result.percentage >= 80
       ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
@@ -90,6 +88,8 @@ export function JobPostingsList() {
   const [affinityRetryCount, setAffinityRetryCount] = useState(0);
   const [query, setQuery] = useState('');
   const [modality, setModality] = useState('');
+  const [area, setArea] = useState('');
+  const [city, setCity] = useState('');
   const [sortByAffinity, setSortByAffinity] = useState(true);
 
   useEffect(() => {
@@ -134,11 +134,20 @@ export function JobPostingsList() {
     () => Array.from(new Set(postings.map((posting) => posting.modalidad).filter((item): item is string => Boolean(item)))).sort(),
     [postings],
   );
+  const areas = useMemo(
+    () => Array.from(new Set(postings.map((posting) => posting.areaLaboral).filter((item): item is string => Boolean(item)))).sort(),
+    [postings],
+  );
+  const cities = useMemo(
+    () => Array.from(new Set(postings.map((posting) => posting.ubicacion).filter((item): item is string => Boolean(item)))).sort(),
+    [postings],
+  );
   const filtered = useMemo(() => {
     const needle = normalize(query.trim());
     const matching = postings.filter((posting) => {
-      const matchesQuery = !needle || normalize(`${posting.titulo} ${posting.empresa ?? ''} ${posting.descripcionTecnica ?? ''}`).includes(needle);
-      return matchesQuery && (!modality || posting.modalidad === modality);
+      const matchesQuery = !needle || normalize(`${posting.titulo} ${posting.empresa ?? ''} ${posting.descripcionTecnica ?? ''} ${posting.areaLaboral ?? ''} ${posting.ubicacion ?? ''}`).includes(needle);
+      return matchesQuery && (!modality || posting.modalidad === modality)
+        && (!area || posting.areaLaboral === area) && (!city || posting.ubicacion === city);
     });
     return matching.sort((left, right) => {
       if (sortByAffinity && affinityState.status === 'loaded') {
@@ -162,11 +171,13 @@ export function JobPostingsList() {
 
       return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
     });
-  }, [postings, query, modality, sortByAffinity, affinityState]);
+  }, [postings, query, modality, area, city, sortByAffinity, affinityState]);
 
   const clearFilters = () => {
     setQuery('');
     setModality('');
+    setArea('');
+    setCity('');
   };
 
   return (
@@ -217,7 +228,7 @@ export function JobPostingsList() {
         {state.status === 'loaded' && (
           <>
             <section aria-label="Filtros de vacantes" className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,.94fr)_minmax(0,1.08fr)]">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,2fr)_minmax(130px,.95fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(190px,auto)]">
                 <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 text-slate-400 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100">
                   <Search size={16} aria-hidden="true" />
                   <span className="sr-only">Buscar vacante</span>
@@ -230,10 +241,26 @@ export function JobPostingsList() {
                 </label>
                 <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 text-slate-600">
                   <SlidersHorizontal size={16} aria-hidden="true" />
+                  <span className="sr-only">Filtrar por área laboral</span>
+                  <select aria-label="Filtrar por área laboral" value={area} onChange={(event) => setArea(event.target.value)} className="w-full bg-transparent text-xs outline-none">
+                    <option value="">Todas las áreas</option>
+                    {areas.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </label>
+                <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 text-slate-600">
+                  <SlidersHorizontal size={16} aria-hidden="true" />
                   <span className="sr-only">Filtrar por modalidad</span>
                   <select value={modality} onChange={(event) => setModality(event.target.value)} className="w-full bg-transparent text-xs outline-none">
                     <option value="">Modalidad: Todas</option>
                     {modalities.map((item) => <option key={item} value={item}>{modalityLabel(item)}</option>)}
+                  </select>
+                </label>
+                <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 text-slate-600">
+                  <MapPin size={16} aria-hidden="true" />
+                  <span className="sr-only">Filtrar por ciudad</span>
+                  <select aria-label="Filtrar por ciudad" value={city} onChange={(event) => setCity(event.target.value)} className="w-full bg-transparent text-xs outline-none">
+                    <option value="">Todas las ciudades</option>
+                    {cities.map((item) => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </label>
                 <label className="flex min-h-10 items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 text-xs font-semibold text-orange-950">
@@ -258,7 +285,7 @@ export function JobPostingsList() {
                       : affinityState.status === 'loaded' && affinityState.skillsAvailable
                         ? 'Ordenadas automáticamente según afinidad con tu perfil'
                         : affinityState.status === 'loaded'
-                          ? 'Agrega habilidades a tu perfil para calcular la afinidad'
+                          ? 'Selecciona temas técnicos en Mentorías para calcular la afinidad'
                             : `No se pudo cargar el perfil del titulado: ${affinityState.message}`}
                 </span>
                 {affinityState.status === 'error' && (
@@ -271,11 +298,11 @@ export function JobPostingsList() {
                   </button>
                 )}
                 {affinityState.status === 'loaded' && !affinityState.skillsAvailable && (
-                  <Link href="/profile/completar?seccion=proyectos" className="font-semibold text-orange-800 underline underline-offset-2">
-                    Agrega tus habilidades al perfil
+                  <Link href="/mentorship/onboarding" className="font-semibold text-orange-800 underline underline-offset-2">
+                    Configura temas técnicos en Mentorías
                   </Link>
                 )}
-                {(query || modality) && (
+                {(query || modality || area || city) && (
                   <button type="button" onClick={clearFilters} className="ml-auto inline-flex items-center gap-1 text-slate-500 hover:text-slate-900">
                     <X size={16} aria-hidden="true" /> Limpiar filtros
                   </button>
@@ -327,8 +354,8 @@ export function JobPostingsList() {
                             )}
                           </td>
                           <td className="break-words px-3 py-4 leading-4 text-slate-600">{shortDescription(posting.descripcionTecnica)}</td>
-                          <td className="break-words px-3 py-4 text-slate-600">No especificada</td>
-                          <td className="break-words px-3 py-4 text-slate-600">{modalityLabel(posting.modalidad)}</td>
+                          <td className="break-words px-3 py-4 text-slate-600">{posting.areaLaboral ?? 'No especificada'}</td>
+                          <td className="break-words px-3 py-4 text-slate-600">{modalityLabel(posting.modalidad)}{posting.ubicacion ? ` (${posting.ubicacion})` : ''}</td>
                           <td className="px-3 py-4 text-slate-500">{publishedLabel(posting.fechaPublicacion)}</td>
                           <td className="px-2 py-4 text-right">
                             <Link href={jobPostingDetailRoute(posting.id)} className="inline-flex min-h-8 items-center rounded-md border border-slate-300 px-2 text-[10px] font-medium text-slate-700 transition hover:border-slate-500 hover:bg-slate-50">Ver oferta</Link>

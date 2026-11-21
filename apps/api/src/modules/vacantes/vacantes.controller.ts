@@ -5,8 +5,13 @@ import { RequirePermissions } from '../../shared/http/auth/decorators/require-pe
 import { Roles } from '../../shared/http/auth/decorators/roles.decorator';
 import { ZodValidationPipe } from '../../shared/http/pipes/zod-validation.pipe';
 import type { ActorContext } from '../../shared/security/contexts/actor-context';
-import { VacantesService, UpdateVacanteData } from './vacantes.service';
-import { vacancyIdSchema, type VacancyId } from './vacantes.schemas';
+import { VacantesService } from './vacantes.service';
+import {
+  vacancyIdSchema,
+  updateVacanteSchema,
+  type VacancyId,
+  type UpdateVacanteBody,
+} from './vacantes.schemas';
 
 @Controller('vacantes')
 export class VacantesController {
@@ -112,9 +117,10 @@ export class VacantesController {
   }
 
   @Patch(':id')
+  @RequirePermissions('empresas:self:write')
   async actualizar(
-    @Param('id') id: string,
-    @Body() body: UpdateVacanteData,
+    @Param('id', new ZodValidationPipe(vacancyIdSchema)) id: VacancyId,
+    @Body(new ZodValidationPipe(updateVacanteSchema)) body: UpdateVacanteBody,
     @CurrentActor() actor: ActorContext
   ) {
     return this.vacantesService.actualizarVacante(id, actor.id, body);

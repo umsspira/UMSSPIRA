@@ -60,7 +60,7 @@ describe('AvailableJobPostingsSection', () => {
 
     expect(await screen.findByRole('link', { name: 'Ver oferta' })).toHaveAttribute(
       'href',
-      '/portal/empleos/vacancy-1',
+      '/portal/job-postings/detalle?jobId=vacancy-1',
     );
     expect(listAvailable).toHaveBeenCalledTimes(2);
   });
