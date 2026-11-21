@@ -145,10 +145,13 @@ describe('Catálogo de áreas - copia del equipo N28', () => {
     }
   });
 
-  it('conserva las dos subáreas generales y las dos raíces', () => {
-    expect(areas).toHaveLength(10);
+  it('conserva las áreas del catálogo, incluidas las tres especialidades raíz', () => {
+    expect(areas).toHaveLength(13);
     expect(byId.get(AREA_IDS.technology)).toMatchObject({ nombre: 'Tecnología', padre_id: null });
     expect(byId.get(AREA_IDS.management)).toMatchObject({ nombre: 'Gestión', padre_id: null });
+    expect(byId.get(AREA_IDS.backend)).toMatchObject({ nombre: 'Backend', padre_id: null });
+    expect(byId.get(AREA_IDS.frontend)).toMatchObject({ nombre: 'Frontend', padre_id: null });
+    expect(byId.get(AREA_IDS.databases)).toMatchObject({ nombre: 'Bases de datos', padre_id: null });
     expect(byId.get(AREA_IDS.data)).toMatchObject({ nombre: 'Análisis de datos', padre_id: AREA_IDS.technology });
     expect(byId.get(AREA_IDS.projects)).toMatchObject({ nombre: 'Gestión de proyectos', padre_id: AREA_IDS.management });
   });
