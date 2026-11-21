@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../shared/errors/business-rule-error';
 import { isJobPostingAvailable } from '../job-postings/domain/policies/job-posting-availability.policy';
@@ -505,7 +506,7 @@ async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacant
     }
   }
 
-  // HU-01: forma que espera el front (applicants.ts → normalizeApplicant).
+  // HU-16: listado y detalle comparten la selección mínima de datos autorizados.
   private static readonly SELECT_POSTULANTE = {
     id: true,
     estado: true,
@@ -520,12 +521,43 @@ async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacant
           select: {
             nombre: true,
             apellido: true,
-            curriculum_vitae: { select: { id: true } },
+            // T16.2: la lista no lee los bytes; solo conserva CV con contenido.
+            curriculum_vitae: {
+              where: { contenido: { not: null } },
+              select: { id: true },
+            },
+            experiencia_laboral_registros: {
+              select: {
+                cargo: true,
+                empresa: true,
+                fecha_inicio: true,
+                fecha_fin: true,
+              },
+              orderBy: [{ fecha_inicio: 'desc' }, { id: 'asc' }],
+            },
+            formacion_academica_registros: {
+              select: {
+                titulo: true,
+                institucion: true,
+                anio_egreso: true,
+                grado: true,
+              },
+              orderBy: [{ anio_egreso: 'desc' }, { id: 'asc' }],
+            },
+            certificacion_registros: {
+              select: {
+                nombre: true,
+                entidad_emisora: true,
+                grado: true,
+                anio_emision: true,
+              },
+              orderBy: [{ anio_emision: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }],
+            },
           },
         },
       },
     },
-  } as const;
+  } satisfies Prisma.PostulacionSelect;
 
   private static toPostulante(p: {
     id: string;
@@ -536,7 +568,29 @@ async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacant
     usuario: {
       nombre: string | null;
       correo: string | null;
-      titulado: { nombre: string | null; apellido: string | null; curriculum_vitae: { id: string } | null } | null;
+      titulado: {
+        nombre: string | null;
+        apellido: string | null;
+        curriculum_vitae: { id: string } | null;
+        experiencia_laboral_registros: {
+          cargo: string;
+          empresa: string;
+          fecha_inicio: Date;
+          fecha_fin: Date | null;
+        }[];
+        formacion_academica_registros: {
+          titulo: string;
+          institucion: string;
+          anio_egreso: number;
+          grado: string | null;
+        }[];
+        certificacion_registros: {
+          nombre: string;
+          entidad_emisora: string;
+          grado: string;
+          anio_emision: number | null;
+        }[];
+      } | null;
     } | null;
   }) {
     const titulado = p.usuario?.titulado;
@@ -559,6 +613,24 @@ async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacant
       matchPercentage: matchValido ? match : null,
       matchCalculatedAt: matchValido ? p.fecha_match?.toISOString() ?? null : null,
       skills: null,
+      workExperience: (titulado?.experiencia_laboral_registros ?? []).map((experiencia) => ({
+        position: experiencia.cargo,
+        company: experiencia.empresa,
+        startDate: experiencia.fecha_inicio.toISOString().slice(0, 10),
+        endDate: experiencia.fecha_fin?.toISOString().slice(0, 10) ?? null,
+      })),
+      education: (titulado?.formacion_academica_registros ?? []).map((formacion) => ({
+        title: formacion.titulo,
+        institution: formacion.institucion,
+        graduationYear: formacion.anio_egreso,
+        level: formacion.grado,
+      })),
+      certifications: (titulado?.certificacion_registros ?? []).map((certificacion) => ({
+        name: certificacion.nombre,
+        issuer: certificacion.entidad_emisora,
+        level: certificacion.grado,
+        year: certificacion.anio_emision,
+      })),
     };
   }
 
@@ -582,5 +654,36 @@ async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacant
       throw new NotFoundException('Postulante no encontrado');
     }
     return VacantesService.toPostulante(fila);
+  }
+
+  // T16.4 consume este archivo; la empresa se valida antes de leer el contenido binario.
+  async descargarCvPostulante(idVacante: string, idPostulacion: string, idUsuario: string) {
+    await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
+    const fila = await this.prisma.postulacion.findFirst({
+      where: { id: idPostulacion, id_vacante: idVacante },
+      select: {
+        usuario: {
+          select: {
+            titulado: {
+              select: {
+                curriculum_vitae: {
+                  select: { nombre: true, contenido: true, size_bytes: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const file = fila?.usuario?.titulado?.curriculum_vitae;
+    if (!file?.contenido || !file.size_bytes) {
+      throw new NotFoundException('El postulante aún no subió su CV');
+    }
+    return {
+      name: file.nombre ?? 'cv.pdf',
+      mime: 'application/pdf',
+      bytes: file.contenido,
+      size: file.size_bytes,
+    };
   }
 }

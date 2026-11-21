@@ -1,4 +1,5 @@
-import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { CurrentActor } from '../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../shared/http/auth/decorators/require-permissions.decorator';
 import { Roles } from '../../shared/http/auth/decorators/roles.decorator';
@@ -69,6 +70,29 @@ export class VacantesController {
     @CurrentActor() actor: ActorContext,
   ) {
     return this.vacantesService.obtenerPostulante(idVacante, idPostulacion, actor.id);
+  }
+
+  // HU-16 CA-09/CA-12: T16.4 descarga el CV solo desde una postulación de la empresa autorizada.
+  @Get(':idVacante/postulantes/:idPostulacion/cv')
+  @RequirePermissions('empresas:self:read')
+  async descargarCv(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @Param('idPostulacion', ParseUUIDPipe) idPostulacion: string,
+    @CurrentActor() actor: ActorContext,
+    @Res() response: Response,
+  ): Promise<void> {
+    const file = await this.vacantesService.descargarCvPostulante(
+      idVacante,
+      idPostulacion,
+      actor.id,
+    );
+    response.type(file.mime).setHeader('Content-Length', String(file.size));
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+    );
+    response.setHeader('Cache-Control', 'private, no-cache');
+    response.send(Buffer.from(file.bytes));
   }
   // HU-04: la empresa cambia la etapa de un postulante de SUS vacantes.
   @Patch(':idVacante/postulantes/:idPostulacion/etapa')
