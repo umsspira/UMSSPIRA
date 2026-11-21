@@ -16,6 +16,30 @@ export interface SkillMatch {
   percentage: number;
 }
 
+/** HU-16 (CA-07): registros del perfil profesional que la API envía (T16.1). */
+export interface WorkExperience {
+  position: string;
+  company: string;
+  /** Fecha ISO "AAAA-MM-DD". */
+  startDate: string | null;
+  /** null = trabajo actual. */
+  endDate: string | null;
+}
+
+export interface Education {
+  title: string;
+  institution: string;
+  graduationYear: number | null;
+  level?: string | null;
+}
+
+export interface Certification {
+  name: string;
+  issuer: string;
+  level?: string | null;
+  year: number | null;
+}
+
 export interface Applicant {
   id: string;
   name: string;
@@ -27,6 +51,12 @@ export interface Applicant {
   appliedAt: string | null;
   /** Enlace de descarga del CV, si la API lo envía. */
   cvUrl: string | null;
+  /** HU-16: true si el titulado subió su CV; se descarga con la sesión del reclutador. */
+  hasCv?: boolean;
+  /** HU-16 (CA-07): experiencia laboral, formación académica y certificaciones. */
+  workExperience?: WorkExperience[];
+  education?: Education[];
+  certifications?: Certification[];
   /**
    * Porcentaje devuelto por el motor de coincidencia (Epic 3/5).
    * El frontend NUNCA lo calcula. Si no viene, es null (CA-10).
