@@ -83,5 +83,5 @@ it("presenta la comparación real como lista textual y permite navegar las pesta
   fireEvent.keyDown(tab, { key: "ArrowRight" });
   expect(screen.getByRole("tab", { name: "CV" })).toHaveFocus();
   expect(screen.getByRole("tab", { name: "CV" })).toHaveAttribute("aria-selected", "true");
-  expect(screen.getByRole("tabpanel", { name: "CV" })).toHaveTextContent("CV no disponible");
+  expect(screen.getByRole("tabpanel", { name: "CV" })).toHaveTextContent("El postulante aún no subió su CV");
 });

@@ -351,7 +351,7 @@ export function MatchBreakdownView({
     ) : (
       applicant.hasCv
         ? "El CV está registrado, pero no hay una descarga disponible."
-        : "CV no disponible por el momento."
+        : "El postulante aún no subió su CV"
     )}
   </div>
 )}
