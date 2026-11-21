@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { normalizeVacancyStatus } from '@/shared/utils/vacancy-status';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { 
@@ -57,8 +58,7 @@ export default function EditarVacantePage() {
 
             setDescripcion(encontrada.descripcion_tecnica || '');
             
-            if (['PUBLICADO', 'PUBLICADA', 'ACTIVA'].includes(String(encontrada.estado).toUpperCase())) setEstado('ACTIVA');
-            else setEstado(encontrada.estado);
+            setEstado(normalizeVacancyStatus(encontrada.estado));
           }
         } else {
           setErrorCarga(true);
@@ -253,4 +253,4 @@ export default function EditarVacantePage() {
       </div>
     </div>
   );
-}
+}

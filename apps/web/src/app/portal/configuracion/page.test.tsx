@@ -94,4 +94,7 @@ describe('Configuración PWA', () => {
     expect(screen.getByRole('heading', { name: 'Flujo en Modo Avión' })).toBeInTheDocument();
   });
 });
+<<<<<<< HEAD
 
+=======
+>>>>>>> c1eba0aa97bb678662ac6c48cdda67cce95cf2db

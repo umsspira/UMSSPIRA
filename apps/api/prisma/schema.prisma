@@ -908,6 +908,7 @@ model InscripcionEvento {
   pase_qr PaseQr?
   asistencia AsistenciaEvento?
 
+  @@index([id_usuario], map: "idx_inscripcion_evento_usuario")
   @@map("inscripcion_evento")
 }
 
