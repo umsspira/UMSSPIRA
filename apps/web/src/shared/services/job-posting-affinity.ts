@@ -67,10 +67,11 @@ export async function calculateVacancyAffinity(
 ): Promise<JobPostingAffinityResult> {
   const item = await getVacancyAffinity(vacancyId);
   if (item.error) {
-    const error = new Error(item.error.message);
-    (error as Record<string, unknown>).code = item.error.code;
-    (error as Record<string, unknown>).retryable = item.error.retryable;
-    throw error;
+    // El detalle lee code y retryable del error para decidir si ofrece «Reintentar»
+    throw Object.assign(new Error(item.error.message), {
+      code: item.error.code,
+      retryable: item.error.retryable,
+    });
   }
   return item.result;
 }
