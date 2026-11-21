@@ -42,7 +42,16 @@ describe('HTTP T10.5 affinity batch', () => {
     const module = await Test.createTestingModule({
       controllers: [JobPostingAffinityBatchController],
       providers: [
-        CalculateJobPostingAffinityBatch,
+        // Igual que en jobPostingAffinityProviders: el reloj no es un proveedor de Nest
+        {
+          provide: CalculateJobPostingAffinityBatch,
+          inject: [JOB_POSTING_AFFINITY_DATA, JOB_POSTING_AFFINITY_BATCH_DATA, CalculateJobPostingAffinity],
+          useFactory: (
+            affinityData: typeof data,
+            affinityBatchData: typeof batchData,
+            calculation: typeof calculate,
+          ) => new CalculateJobPostingAffinityBatch(affinityData as never, affinityBatchData as never, calculation as never),
+        },
         { provide: JOB_POSTING_AFFINITY_DATA, useValue: data },
         { provide: JOB_POSTING_AFFINITY_BATCH_DATA, useValue: batchData },
         { provide: CalculateJobPostingAffinity, useValue: calculate },
