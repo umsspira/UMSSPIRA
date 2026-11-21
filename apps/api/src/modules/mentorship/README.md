@@ -1,6 +1,6 @@
 # Directorio y perfil de mentores
 
-Migra participación, información profesional, áreas, intereses, disponibilidad y desactivación administrativa. `POST /api/v1/mentorship/requests` crea solicitudes pendientes y valida que el titulado, el mentor y el horario cumplan las reglas. `GET /api/v1/mentorship/requests` lista solicitudes recibidas del mentor autenticado (página máxima de 20); `GET /api/v1/mentorship/requests/:id` consulta el detalle. `PATCH /api/v1/mentorship/requests/:id/accept` y `PATCH /api/v1/mentorship/requests/:id/reject` responden solicitudes pendientes. La aceptación crea una conexión en la misma transacción y las respuestas encolan correo usando el worker SMTP existente. No requieren cambios de tablas ni migraciones.
+Migra participación, información profesional, áreas, intereses, disponibilidad y desactivación administrativa. `POST /api/v1/mentorship/requests` crea solicitudes pendientes y valida que el titulado, el mentor y el horario cumplan las reglas. `GET /api/v1/mentorship/requests` lista solicitudes recibidas del mentor autenticado (página máxima de 20); `GET /api/v1/mentorship/requests/:id` consulta el detalle. `PATCH /api/v1/mentorship/requests/:id/accept` y `PATCH /api/v1/mentorship/requests/:id/reject` responden solicitudes pendientes. La aceptación crea una conexión en la misma transacción y las respuestas encolan correo usando el worker SMTP existente. `GET /api/v1/mentorship/my-requests` lista el historial del titulado autenticado y `PATCH /api/v1/mentorship/my-requests/:id/cancel` lo cancela. No requieren cambios de tablas ni migraciones.
 
 ## Rutas y acceso
 
@@ -44,3 +44,11 @@ Los [contratos HTTP](../../../docs/endpoints/epic06-grupo06-hu1.6.md) documentan
 - La tabla `mentor_onboarding` tiene `id_mentor` único y `pasos_completados` (`Int[]`); `mentor_area` tiene índice único `(id_mentor, id_area)`.
 
 El frontend vive en `/mentorship/onboarding` (`mentor-onboarding-wizard`) y el inicio `/mentorship` muestra `mentor-entry-card` según el avance. Las secciones del perfil usan `mentor-configuration-gate` para exigir el onboarding completo antes de editar.
+
+## Mis solicitudes del titulado
+
+`GET /api/v1/mentorship/my-requests` devuelve únicamente las solicitudes creadas por el actor (`id_usuario = actor.id`). No exige participación activa como mentor. Sin `estado` devuelve todos los estados; el orden es `fecha_creacion DESC`, `solicitud_fecha DESC`, `id DESC` y la página máxima es 20. La respuesta agrega `counts` por estado para evitar múltiples consultas desde el frontend. El nombre y cargo del mentor salen de su perfil; el cargo es el de la experiencia actual o más reciente.
+
+`PATCH /api/v1/mentorship/my-requests/:id/cancel` cancela solo una solicitud propia en `PENDIENTE`. La transacción vuelve a comprobar existencia y propiedad (404 `SOLICITUD_NO_ENCONTRADA`, sin revelar solicitudes ajenas), ejecuta un `updateMany` condicionado por `id`, `id_usuario` y `estado` y responde 409 `SOLICITUD_NO_PENDIENTE` si otra petición ganó la carrera. La fecha de cancelación queda en `fecha_actualizacion`; `fecha_respuesta` se reserva para la respuesta del mentor. La bandeja del mentor ya consulta `CANCELADO`, por lo que ve el cambio sin endpoint adicional.
+
+El frontend vive en `/mentorship/requests` (`my-requests`) y reutiliza `ConfirmModal` para exigir confirmación. La vista de “enviadas” simulada que existía dentro de solicitudes recibidas fue eliminada: la bandeja `/mentorship/requests/received` solo acepta o rechaza solicitudes recibidas.

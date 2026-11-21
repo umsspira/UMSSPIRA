@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   ApplicationDetail,
   OVERDUE_HOURS,
@@ -18,6 +18,7 @@ import { RejectDialog } from "./reject-dialog";
 import { btnAccent, btnDanger, btnSecondary } from "./review-ui";
 import { ReviewSummaryNotice } from './review-summary-notice';
 import type { BoardDetail } from '../services/applications-board.service';
+import { HistoryTab } from './history-tab';
 
 type Props = {
   open: boolean;
@@ -27,6 +28,7 @@ type Props = {
 };
 
 type ActiveDialog = "approve" | "observe" | "reject" | null;
+type DrawerTab = "details" | "history";
 
 export function ApplicationDrawer({
   open,
@@ -39,6 +41,7 @@ export function ApplicationDrawer({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reviewData, setReviewData] = useState<BoardDetail | null>(null);
+  const [activeTab, setActiveTab] = useState<DrawerTab>("details");
   const drawerRef = useRef<HTMLElement>(null);
 
   // CA-04.3: trae el expediente real y la URL firmada del documento (5 min).
@@ -50,6 +53,7 @@ export function ApplicationDrawer({
     setApplication(null);
     setReviewData(null);
     setActiveDialog(null);
+    setActiveTab("details");
     (async () => {
       const detail = await fetchApplicationDetail(applicationId);
       if (cancelled) return;
@@ -117,6 +121,16 @@ export function ApplicationDrawer({
     setActiveDialog(null);
     onReviewed?.();
     onClose();
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: DrawerTab) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const nextTab = tab === "details" ? "history" : "details";
+    setActiveTab(nextTab);
+    document
+      .getElementById(`application-${nextTab}-tab`)
+      ?.focus();
   }
 
   // Props comunes de los tres modales de dictamen
@@ -191,9 +205,58 @@ export function ApplicationDrawer({
             </p>
           )}
           {application && !isLoading && <>
-            <ReviewSummaryNotice summary={reviewData?.reviewSummary} currentReviewer={reviewData?.currentReviewer}
-              reviewAuthor={reviewData?.reviewAuthor} pending={canReview} />
-            <ApplicationDetail application={application} />
+            <div role="tablist" aria-label="Secciones del expediente" className="mb-5 flex gap-2 border-b border-[#C9C1B1]">
+              <button
+                type="button"
+                id="application-details-tab"
+                role="tab"
+                aria-selected={activeTab === "details"}
+                aria-controls="application-details-panel"
+                onClick={() => setActiveTab("details")}
+                onKeyDown={(event) => handleTabKeyDown(event, "details")}
+                className={`border-b-2 px-4 py-2 text-sm font-semibold ${
+                  activeTab === "details"
+                    ? "border-[#A35139] text-[#A35139]"
+                    : "border-transparent text-[#2C3B4D]"
+                }`}
+              >
+                Expediente
+              </button>
+              <button
+                type="button"
+                id="application-history-tab"
+                role="tab"
+                aria-selected={activeTab === "history"}
+                aria-controls="application-history-panel"
+                onKeyDown={(event) => handleTabKeyDown(event, "history")}
+                onClick={() => setActiveTab("history")}
+                className={`border-b-2 px-4 py-2 text-sm font-semibold ${
+                  activeTab === "history"
+                    ? "border-[#A35139] text-[#A35139]"
+                    : "border-transparent text-[#2C3B4D]"
+                }`}
+              >
+                Historial
+              </button>
+            </div>
+            <div
+              id="application-details-panel"
+              role="tabpanel"
+              aria-labelledby="application-details-tab"
+              hidden={activeTab !== "details"}
+            >
+              <ReviewSummaryNotice summary={reviewData?.reviewSummary} currentReviewer={reviewData?.currentReviewer}
+                reviewAuthor={reviewData?.reviewAuthor} pending={canReview} />
+              <ApplicationDetail application={application} />
+            </div>
+            <div
+              id="application-history-panel"
+              role="tabpanel"
+              aria-labelledby="application-history-tab"
+              hidden={activeTab !== "history"}
+            >
+              <HistoryTab applicationId={application.id} />
+            </div>
           </>}
         </div>
 

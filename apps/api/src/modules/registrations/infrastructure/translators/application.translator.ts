@@ -19,6 +19,7 @@ export function toApplication(row: ApplicationRow): ApplicationDetail {
   const submittedAt = row.fecha_creacion?.toISOString() ?? '';
   return {
     id: row.id,
+    version: row.version_vigente,
     code:
       'TIT-' + submittedAt.slice(0, 4) + '-' + row.id.replaceAll('-', '').slice(0, 6).toUpperCase(),
     fullName: [detail?.nombre, detail?.apellido].filter(Boolean).join(' '),

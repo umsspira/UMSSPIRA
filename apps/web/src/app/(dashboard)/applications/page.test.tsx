@@ -47,6 +47,7 @@ jest.mock('@/modules/applications/frontend/services/applications-board.service',
   fetchApplicationsMetrics: jest.fn(),
   fetchApplicationDetail: jest.fn(),
   fetchDocumentUrl: jest.fn(),
+  fetchApplicationHistory: jest.fn().mockResolvedValue({ ok: true, data: { events: [] } }),
 }));
 
 jest.mock('@/shared/services/auth-session', () => ({

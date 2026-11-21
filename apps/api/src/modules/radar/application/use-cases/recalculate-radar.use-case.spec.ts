@@ -104,9 +104,14 @@ describe('RecalculateRadarUseCase - keywords influyentes y afinidad previa', () 
     extractor.keywords = [{ term: 'javascript', count: 2 }];
     await useCase.execute(GRADUATE, ['javascript javascript'], true);
 
+    extractor.failWithDictionaryError = true;
+    const readWeights = jest.spyOn(areaWeightReader, 'getAreaWeights').mockRejectedValue(
+      new Error('pesos no disponibles'),
+    );
     const unchanged = await useCase.execute(GRADUATE, ['javascript javascript'], true);
 
     expect(unchanged.recalculated).toBe(false);
+    expect(readWeights).not.toHaveBeenCalled();
     expect(repository.saveCalls).toBe(2);
     expect(findArea(unchanged.areas, SOFTWARE)).toMatchObject({
       affinity: 25,

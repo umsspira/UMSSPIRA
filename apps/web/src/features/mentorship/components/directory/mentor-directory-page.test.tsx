@@ -39,7 +39,7 @@ it('conserva la estructura de carga y después muestra datos públicos y enlaces
 
 it('muestra el vacío global sin confundirlo con una búsqueda sin coincidencias', async () => {
   load.mockResolvedValue(page([], 0)); render(<MentorDirectoryPage />);
-  expect(await screen.findByText('Todavía no hay mentores disponibles')).toBeInTheDocument();
+  expect(await screen.findByText('No hay mentores disponibles por el momento')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Volver a Mentorías' })).toHaveAttribute('href', '/mentorship');
   expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
 });
@@ -87,7 +87,7 @@ it('aplica filtros explícitamente, reinicia la paginación y permite limpiar un
   expect(load).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
   expect(await screen.findByText('No encontramos mentores con estos filtros')).toBeInTheDocument();
-  expect(screen.queryByText('Todavía no hay mentores disponibles')).not.toBeInTheDocument();
+  expect(screen.queryByText('No hay mentores disponibles por el momento')).not.toBeInTheDocument();
   expect(load).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 0, areaIds: ['data'] }), expect.any(AbortSignal));
   fireEvent.click(screen.getAllByRole('button', { name: 'Limpiar filtros' })[0]);
   await screen.findByText('Mentor 1');
@@ -146,7 +146,7 @@ it('orienta al inicio de sesión cuando expira el acceso sin confundirlo con vac
   load.mockRejectedValue(new SessionError(401, 'Inicia sesión para continuar'));
   render(<MentorDirectoryPage />);
   expect(await screen.findByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', '/login');
-  expect(screen.queryByText('Todavía no hay mentores disponibles')).not.toBeInTheDocument();
+  expect(screen.queryByText('No hay mentores disponibles por el momento')).not.toBeInTheDocument();
 });
 
 it('mantiene la pantalla consultiva sin acciones de edición ni ordenamiento avanzado', async () => {
