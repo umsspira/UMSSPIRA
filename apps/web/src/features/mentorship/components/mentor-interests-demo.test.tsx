@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MentorInterestsDemo } from './mentor-interests-demo';
 
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+const saveButton = () => screen.getByRole('button', { name: /^Guardar configuración \(\d+\)$/ });
 
 it('conecta las áreas de prueba con los intereses y conserva lo confirmado al volver', async () => {
   render(<MentorInterestsDemo />);
@@ -11,7 +12,7 @@ it('conecta las áreas de prueba con los intereses y conserva lo confirmado al v
   fireEvent.click(screen.getByRole('button', { name: 'Confirmar áreas de prueba' }));
   expect(screen.queryByRole('button', { name: 'PostgreSQL' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Laravel' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
+  fireEvent.click(saveButton());
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' }));
   await screen.findByText(/Intereses guardados correctamente/);
   fireEvent.click(screen.getByRole('button', { name: 'Modificar áreas técnicas' }));
@@ -23,13 +24,13 @@ it('no muestra éxito si falla el guardado y permite reintentar', async () => {
   render(<MentorInterestsDemo />);
   fireEvent.click(screen.getByLabelText('Simular error al guardar'));
   fireEvent.click(screen.getByRole('button', { name: 'Laravel' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
+  fireEvent.click(saveButton());
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron guardar');
   expect(screen.queryByText(/Intereses guardados correctamente/)).not.toBeInTheDocument();
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Seguir editando' }));
   fireEvent.click(screen.getByLabelText('Simular error al guardar'));
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
+  fireEvent.click(saveButton());
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Guardar y continuar' }));
   await screen.findByText(/Intereses guardados correctamente/);
 });
