@@ -1,473 +1,285 @@
-// apps/web/src/app/portal/page.tsx
-'use client';
+﻿'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
-import {
-  Search,
-  Calendar,
-  Briefcase,
-  Star,
-  Users,
-  ChevronRight,
-  Bookmark,
-  MapPin,
-  Clock3,
-  QrCode,
-  Settings,
-  WifiOff,
-  Wifi,
-  AlertTriangle,
-  CheckCircle2,
-  Info,
-} from 'lucide-react';
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { getOfflineQrPasses } from '@/features/event-passes/offline/offline-qr-storage';
+import { getOfflineSessionUserId } from '@/features/event-passes/offline/offline-session';
+import { RESULTADOS_NAVEGADORES, type EstadoNavegador } from './resultados';
 
-import umssBg from '@/shared/assets/images/14sept.webp';
-import { homeSectionsAdapter } from '@/features/home/home-sections-adapter';
-import { SectionUnavailable } from '@/shared/components/section-boundary';
-import { useSectionLoader } from '@/shared/hooks/use-section-loader';
-import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
-import type { EventItem } from '@umsspira/shared-types';
+/** Rutas de Mis QR que el Service Worker guarda para verse sin conexión (public/sw.js). */
+const RUTAS_QR = ['/events/catalog/passes', '/mis-pases'];
+const RUTA_EVENTOS = '/portal/eventos';
+const RUTA_CONFIGURACION = '/portal/configuracion';
 
-const EVENT_TIME_ZONE = 'America/La_Paz';
-
-function getEventDateBadge(startDate: string) {
-  const date = new Date(startDate);
-  if (Number.isNaN(date.getTime())) return { day: '--', month: '---' };
-
-  const parts = new Intl.DateTimeFormat('es-BO', {
-    day: '2-digit',
-    month: 'short',
-    timeZone: EVENT_TIME_ZONE,
-  }).formatToParts(date);
-
-  return {
-    day: parts.find((part) => part.type === 'day')?.value ?? '--',
-    month: (parts.find((part) => part.type === 'month')?.value ?? '---')
-      .replace('.', '')
-      .toLocaleUpperCase('es'),
-  };
+export interface Comprobaciones {
+  guardados: number;
+  sinConexion: boolean;
+  swControla: boolean;
+  swRegistrado: boolean;
+  manifest: boolean;
+  rutaQrGuardada: boolean;
+  rutaEventosGuardada: boolean;
+  rutaConfiguracionGuardada: boolean;
 }
 
-function getEventTimeRange(startDate: string, endDate: string) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return 'Horario no disponible';
+export const INICIAL: Comprobaciones = {
+  guardados: 0,
+  sinConexion: false,
+  swControla: false,
+  swRegistrado: false,
+  manifest: false,
+  rutaQrGuardada: false,
+  rutaEventosGuardada: false,
+  rutaConfiguracionGuardada: false,
+};
+
+/** Todo se comprueba en este dispositivo, sin red: funciona también en Modo Avión. */
+export async function comprobar(): Promise<Comprobaciones> {
+  const resultado: Comprobaciones = { ...INICIAL, sinConexion: !navigator.onLine };
+
+  try {
+    const usuario = getOfflineSessionUserId();
+    if (usuario) resultado.guardados = (await getOfflineQrPasses(usuario)).length;
+  } catch {
+    /* IndexedDB no disponible: se cuenta como sin pases guardados */
   }
 
-  const formatter = new Intl.DateTimeFormat('es-BO', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: EVENT_TIME_ZONE,
-  });
+  if ('serviceWorker' in navigator) {
+    resultado.swControla = navigator.serviceWorker.controller != null;
+    try {
+      resultado.swRegistrado = (await navigator.serviceWorker.getRegistrations()).some(
+        (registro) => registro.active != null,
+      );
+    } catch {
+      /* sin permiso para consultar los registros */
+    }
+  }
 
-  return `${formatter.format(start)} - ${formatter.format(end)}`;
+  try {
+    resultado.manifest = (await fetch('/manifest.webmanifest')).ok;
+  } catch {
+    /* sin red y sin copia guardada del manifiesto */
+  }
+
+  try {
+    if (typeof caches !== 'undefined') {
+      const encontradas = await Promise.all(RUTAS_QR.map((ruta) => caches.match(ruta)));
+      resultado.rutaQrGuardada = encontradas.some(Boolean);
+      resultado.rutaEventosGuardada = Boolean(await caches.match(RUTA_EVENTOS));
+      resultado.rutaConfiguracionGuardada = Boolean(await caches.match(RUTA_CONFIGURACION));
+    }
+  } catch {
+    /* Cache Storage no disponible */
+  }
+
+  return resultado;
 }
 
-function EventCover({ event }: { event: EventItem }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const { day, month } = getEventDateBadge(event.startDate);
+function Marca({ ok, numero }: { ok: boolean; numero: number }) {
+  return ok ? (
+    <span
+      aria-hidden="true"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700"
+    >
+      ✓
+    </span>
+  ) : (
+    <span
+      aria-hidden="true"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-500"
+    >
+      {numero}
+    </span>
+  );
+}
+
+function EstadoTexto({ estado }: { estado: 'aprobado' | 'pendiente' | 'falla' }) {
+  if (estado === 'aprobado') {
+    return <span className="shrink-0 text-sm font-semibold text-emerald-700">✔ Aprobado</span>;
+  }
+  if (estado === 'falla') {
+    return <span className="shrink-0 text-sm font-semibold text-red-700">✖ Falla</span>;
+  }
+  return <span className="shrink-0 text-sm font-semibold text-amber-700">Pendiente</span>;
+}
+
+/** Estado real de lo guardado en este dispositivo; se vuelve a comprobar al cambiar la conexión. */
+export function useComprobaciones() {
+  const [c, setC] = useState<Comprobaciones>(INICIAL);
+
+  const actualizar = useCallback(() => {
+    comprobar()
+      .then(setC)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    actualizar();
+    window.addEventListener('online', actualizar);
+    window.addEventListener('offline', actualizar);
+    return () => {
+      window.removeEventListener('online', actualizar);
+      window.removeEventListener('offline', actualizar);
+    };
+  }, [actualizar]);
+
+  return { c, actualizar };
+}
+
+/** Las dos tarjetas del mockup HU08: se usan en /portal/validacion-offline y dentro de Configuración. */
+export function TarjetasValidacion({ c }: { c: Comprobaciones }) {
+  const pasos = [
+    {
+      titulo: '1. Iniciar sesión y guardar el QR',
+      detalle:
+        c.guardados > 0
+          ? `Con conexión: «Guardar sin conexión» (${c.guardados} guardado${c.guardados === 1 ? '' : 's'})`
+          : 'Con conexión: abre Mis QR y toca «Guardar sin conexión»',
+      ok: c.guardados > 0,
+    },
+    {
+      titulo: '2. Activar el Modo Avión',
+      detalle: c.sinConexion
+        ? 'Sin conexión: aparece la barra de estado'
+        : 'Activa el Modo Avión (o «Offline» en las herramientas del navegador)',
+      ok: c.sinConexion,
+    },
+    {
+      titulo: '3. Abrir o recargar la PWA',
+      detalle:
+        c.sinConexion && c.swControla
+          ? 'El portal carga desde la caché'
+          : 'Con el Modo Avión activo, recarga esta página: debe abrir desde la caché',
+      ok: c.sinConexion && c.swControla,
+    },
+    {
+      titulo: '4. Abrir el pase guardado',
+      detalle: 'Se muestra el código QR y los datos del evento',
+      ok: c.guardados > 0 && c.rutaQrGuardada,
+      enlace: RUTAS_QR[0],
+    },
+  ];
+
+  const auditoria: { etiqueta: string; estado: EstadoNavegador }[] = [
+    {
+      etiqueta: 'Lighthouse: PWA instalable',
+      estado: c.manifest && c.swRegistrado ? 'aprobado' : 'pendiente',
+    },
+    {
+      etiqueta: 'Lighthouse: responde sin conexión',
+      estado: c.swControla ? 'aprobado' : 'pendiente',
+    },
+    {
+      etiqueta: 'Lighthouse: Service Worker registrado',
+      estado: c.swRegistrado ? 'aprobado' : 'pendiente',
+    },
+    ...RESULTADOS_NAVEGADORES.map((r) => ({ etiqueta: r.navegador, estado: r.estado })),
+  ];
 
   return (
-    <div className="relative h-40 bg-[#2C3B4D]">
-      {event.imageUrl && !imageFailed ? (
-        <Image
-          src={event.imageUrl}
-          alt={`Imagen del evento ${event.title}`}
-          fill
-          unoptimized
-          sizes="(min-width: 768px) 33vw, 100vw"
-          className="object-cover"
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <div
-          role="img"
-          aria-label={`Imagen no disponible para ${event.title}`}
-          className="flex h-full items-center justify-center bg-gradient-to-br from-[#0F172A] to-[#2C3B4D] text-amber-400"
-        >
-          <Calendar className="h-12 w-12" aria-hidden="true" />
-        </div>
-      )}
-
-      <div
-        aria-label={`Fecha: ${day} ${month}`}
-        className="absolute bottom-0 left-5 z-10 min-w-14 translate-y-1/2 rounded-xl bg-[#B44735] px-3 py-2 text-center text-white shadow-md"
+    <div className="grid gap-5 md:grid-cols-2">
+      <section
+        aria-labelledby="hu8-flujo"
+        data-testid="hu8-flujo"
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6"
       >
-        <span className="block text-xl font-bold leading-5">{day}</span>
-        <span className="mt-1 block text-xs font-semibold leading-3">{month}</span>
-      </div>
+        <h2 id="hu8-flujo" className="font-serif text-2xl font-bold text-[#1B2632]">
+          Flujo en Modo Avión
+        </h2>
+        <ol className="mt-4 divide-y divide-slate-100">
+          {pasos.map((paso, indice) => (
+            <li
+              key={paso.titulo}
+              data-testid={`hu8-paso-${indice + 1}`}
+              data-estado={paso.ok ? 'ok' : 'pendiente'}
+              className="flex items-center gap-3 py-3.5"
+            >
+              <Marca ok={paso.ok} numero={indice + 1} />
+              <div className="min-w-0">
+                <p className="font-semibold text-[#1B2632]">{paso.titulo}</p>
+                <p className="text-sm text-slate-500">
+                  {paso.detalle}
+                  {paso.enlace && (
+                    <>
+                      {' · '}
+                      <Link
+                        href={paso.enlace}
+                        prefetch={false}
+                        className="font-semibold text-[#B44735] underline"
+                      >
+                        Abrir Mis QR
+                      </Link>
+                    </>
+                  )}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section
+        aria-labelledby="hu8-auditoria"
+        data-testid="hu8-auditoria"
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6"
+      >
+        <h2 id="hu8-auditoria" className="font-serif text-2xl font-bold text-[#1B2632]">
+          Auditoría y navegadores
+        </h2>
+        <ul className="mt-4 divide-y divide-slate-100">
+          {auditoria.map((fila) => (
+            <li
+              key={fila.etiqueta}
+              data-estado={fila.estado}
+              className="flex items-center justify-between gap-3 py-3.5 text-[#1B2632]"
+            >
+              <span>{fila.etiqueta}</span>
+              <EstadoTexto estado={fila.estado} />
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-slate-500">
+          Las filas de Lighthouse se comprueban en este dispositivo; la auditoría oficial y los
+          navegadores se registran siguiendo el guion de la demostración.
+        </p>
+      </section>
     </div>
   );
 }
 
-const quickLinks = [
-  { href: '/portal/eventos', title: 'Eventos', text: 'Participa en los próximos eventos y actividades.', Icon: Calendar, iconStyle: 'bg-amber-50 text-amber-600' },
-  { href: '/portal/empleos', title: 'Bolsa de trabajo', text: 'Encuentra nuevas oportunidades laborales.', Icon: Briefcase, iconStyle: 'bg-blue-50 text-blue-600' },
-  { href: '/portal/beneficios', title: 'Beneficios', text: 'Accede a descuentos y convenios exclusivos.', Icon: Star, iconStyle: 'bg-amber-50 text-amber-600' },
-  { href: '/portal/comunidad', title: 'Comunidad', text: 'Conecta con otros egresados.', Icon: Users, iconStyle: 'bg-slate-100 text-slate-700' },
-];
-
-const normalize = (text: string) =>
-  text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
-const NO_EVENTS: EventItem[] = [];
-
-export default function Home() {
-  const [query, setQuery] = useState('');
-
-  // HU18: la sección de eventos se carga aislada, con límite de 8 s y «Reintentar».
-  const eventsSection = useSectionLoader('home-events', (signal) =>
-    homeSectionsAdapter.loadEvents(signal),
-  );
-  const events = eventsSection.state.status === 'ready' ? eventsSection.state.data : NO_EVENTS;
-  const isLoadingEvents = eventsSection.state.status === 'loading';
-  const eventsError = eventsSection.state.status === 'unavailable';
-  const eventsTimedOut =
-    eventsSection.state.status === 'unavailable' && eventsSection.state.timedOut;
-
-  const [isOnline, setIsOnline] = useState(true);
-  const [showReconnectedToast, setShowReconnectedToast] = useState(false);
-  const [showTemporaryConnected, setShowTemporaryConnected] = useState(false);
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const handleOnline = () => {
-      setIsOnline(true);
-      setShowReconnectedToast(true);
-      setShowTemporaryConnected(true);
-
-      setTimeout(() => {
-        setShowReconnectedToast(false);
-      }, 3000);
-
-      setTimeout(() => {
-        setShowTemporaryConnected(false);
-      }, 3000);
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-      setShowReconnectedToast(false);
-      setShowTemporaryConnected(false);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  const filteredQuickLinks = useMemo(() => {
-    const q = normalize(query.trim());
-    if (!q) return quickLinks;
-    return quickLinks.filter(({ title, text }) =>
-      normalize(`${title} ${text}`).includes(q)
-    );
-  }, [query]);
-
-  const filteredEvents = useMemo(() => {
-    const q = normalize(query.trim());
-    if (!q) return events;
-    return events.filter((ev) =>
-      normalize(`${ev.title} ${ev.description ?? ''} ${ev.location ?? ''} ${formatEventCardSchedule(ev.startDate, ev.endDate)}`).includes(q)
-    );
-  }, [query, events]);
-
-  const term = query.trim();
-  const shouldShowStatusCard = !isOnline || (isOnline && showTemporaryConnected);
-
-  // Acceso principal: Mis códigos QR.
-  // - Sin conexión (HU09 CA-02): se muestra destacado ARRIBA, antes que el resto del contenido.
-  // - Con conexión: queda debajo de los cuadros y arriba de «Próximos eventos».
-  const qrAccess = (
-    <section
-      aria-label="Accesos principales"
-      data-testid="home-primary-actions"
-      className="grid grid-cols-1"
-    >
-      <Link
-        href="/mis-pases"
-        data-testid={isOnline ? 'home-online-qr-access' : 'home-offline-qr-access'}
-        className="group relative flex min-h-[88px] items-center gap-4 overflow-hidden rounded-2xl bg-[#1B2632] px-5 py-5 text-[#EEE9DF] shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#223040] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB162] sm:gap-5 sm:px-7"
-      >
-        {/* Barra de acento */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-[#FFB162]"
-        />
-
-        <span
-          aria-hidden="true"
-          className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FFB162] text-[#1B2632] shadow-md transition-transform duration-200 group-hover:scale-105"
-        >
-          <QrCode className="h-7 w-7" />
-        </span>
-
-        <span className="relative min-w-0 flex-1">
-          <span className="block text-base font-bold tracking-tight text-white sm:text-lg">
-            Mis códigos QR
-          </span>
-          <span className="mt-0.5 block text-xs text-[#EEE9DF]/80 sm:text-sm">
-            {isOnline
-              ? 'Abre tus pases guardados en este dispositivo.'
-              : 'Tus pases guardados están disponibles sin conexión.'}
-          </span>
-        </span>
-
-        <span
-          aria-hidden="true"
-          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFB162]/15 text-[#FFB162] ring-1 ring-[#FFB162]/40 transition-colors duration-200 group-hover:bg-[#FFB162] group-hover:text-[#1B2632]"
-        >
-          <ChevronRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
-        </span>
-      </Link>
-    </section>
-  );
+export default function ValidacionOffline() {
+  const { c } = useComprobaciones();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 w-full space-y-8 font-sans text-slate-900">
-
-      {!isOnline && (
-        <div className="bg-[#B44735] text-white p-4 rounded-xl flex items-center gap-3 shadow-md animate-in slide-in-from-top-2 fade-in duration-300">
-          <AlertTriangle className="w-5 h-5 shrink-0" />
-          <p className="text-sm font-medium">
-            Estás navegando sin conexión. Algunos contenidos pueden no estar actualizados.
-          </p>
-        </div>
-      )}
-
-      {/* Banner principal */}
-      <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <Image
-            src={umssBg}
-            alt="Fondo Institucional UMSS"
-            fill
-            sizes="100vw"
-            className="object-cover object-center"
-            priority
-          />
-          <div className="absolute inset-0 bg-[#0F172A]/60"></div>
-        </div>
-
-<<<<<<< HEAD
-=======
-        {/* Etiqueta de estado en la esquina superior derecha */}
->>>>>>> c1eba0aa97bb678662ac6c48cdda67cce95cf2db
-        <div className={`absolute top-6 right-6 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${
-          isOnline ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
-        }`}>
-          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
-          {isOnline ? 'En línea' : 'Sin conexión'}
-        </div>
-
-        <div className="relative z-10 max-w-2xl space-y-4 pt-8 sm:pt-0">
-          <h3 className="text-sm font-medium text-slate-300">Estado de conexión</h3>
-          <h1 className="text-3xl md:text-5xl font-serif font-bold text-white tracking-tight">
-            UMSS<span className="text-amber-500">PIRA</span>
-          </h1>
-          <p className="text-slate-300 text-sm md:text-base">Tu comunidad, siempre conectada.</p>
-
-          <div className="pt-2">
-            <form role="search" onSubmit={(e) => e.preventDefault()} className="relative max-w-xl">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                <Search className="w-4 h-4" />
-              </span>
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Buscar eventos, beneficios y empleos"
-                placeholder="Busque eventos, beneficios, empleos..."
-                disabled={!isOnline}
-                className={`w-full min-h-[44px] pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm placeholder:text-slate-400 ${!isOnline && 'opacity-50 cursor-not-allowed'}`}
-              />
-            </form>
-          </div>
-        </div>
-      </section>
-
-<<<<<<< HEAD
-      <HomeStatusCards />
-
-=======
-      {/* HU09 CA-02: sin conexión, el acceso destacado va antes que el resto del contenido */}
-      {!isOnline && qrAccess}
-
-      {/* Tarjeta de estado */}
->>>>>>> c1eba0aa97bb678662ac6c48cdda67cce95cf2db
-      {shouldShowStatusCard && (
-        <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
-          {isOnline ? (
-            <>
-              <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6 text-green-600">
-                <Wifi className="w-12 h-12" />
-              </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-3">Conectado a Internet</h2>
-              <p className="text-slate-500 text-base">Todas las funcionalidades están disponibles.</p>
-<<<<<<< HEAD
-              
-=======
-
->>>>>>> c1eba0aa97bb678662ac6c48cdda67cce95cf2db
-              <div className="mt-10 w-full max-w-3xl bg-blue-50/50 border border-blue-100 rounded-xl p-5 flex items-start gap-4 text-left">
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
-                  <Info className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-slate-800">Información</h4>
-                  <p className="text-sm text-slate-600">Tu conexión se mantiene estable.</p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center mb-6 text-red-600">
-                <WifiOff className="w-12 h-12" />
-              </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-3">Sin conexión a Internet</h2>
-              <p className="text-slate-500 text-base max-w-md">
-                Puedes seguir navegando por las secciones guardadas. La barra se oculta sola cuando vuelva la red.
-              </p>
-            </>
-          )}
-        </section>
-      )}
-
-      {term && filteredQuickLinks.length === 0 && filteredEvents.length === 0 && (
-        <p role="status" className="text-center text-sm text-slate-500">
-          No se encontraron resultados para &ldquo;{term}&rdquo;.
-        </p>
-      )}
-
-      {filteredQuickLinks.length > 0 && (
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-          {filteredQuickLinks.map(({ href, title, text, Icon, iconStyle }) => (
-            <Link
-              key={href}
-              href={href}
-              className="h-full min-h-[44px] bg-[#F5F2EA] p-5 rounded-2xl border border-[#C9C1B1] shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
-            >
-              <div className="flex items-start justify-between">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconStyle}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-400" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">{title}</h3>
-                <p className="text-xs text-slate-500 mt-1">{text}</p>
-              </div>
-            </Link>
-          ))}
-        </section>
-      )}
-
-      {/* Con conexión: debajo de los cuadros, arriba de Próximos eventos */}
-      {isOnline && qrAccess}
-
-      <section className="space-y-4 pt-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-serif font-bold text-slate-900">Próximos eventos</h2>
-          <Link
-            href="/portal/eventos"
-            className="min-h-[44px] px-2 text-xs font-semibold text-amber-600 hover:underline flex items-center space-x-1"
-          >
-            <span>Ver todos</span>
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {isLoadingEvents ? (
-          <p role="status" className="text-sm text-slate-500">Cargando eventos publicados…</p>
-        ) : eventsError ? (
-          <SectionUnavailable
-            title="Próximos eventos"
-            timedOut={eventsTimedOut}
-            onRetry={eventsSection.retry}
-          />
-        ) : filteredEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {filteredEvents.slice(0, 3).map((event) => (
-              <article
-                key={event.id}
-                className="overflow-hidden rounded-2xl border border-[#C9C1B1] bg-white shadow-sm transition-shadow hover:shadow-md"
-              >
-                <div className="relative">
-                  <EventCover event={event} />
-                  <span
-                    aria-hidden="true"
-                    className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow"
-                  >
-                    <Bookmark size={19} />
-                  </span>
-                </div>
-                <Link
-                  href={`/portal/eventos/${encodeURIComponent(event.id)}`}
-                  className="block space-y-2 p-5 pt-8 text-slate-700 transition-colors hover:bg-[#FCFAF5]"
-                >
-                  <h3 className="font-bold text-slate-900">{event.title}</h3>
-                  <p className="flex items-center gap-2 text-sm">
-                    <MapPin size={16} className="shrink-0 text-rose-500" aria-hidden="true" />
-                    <span>{event.location || 'Ubicación por definir'}</span>
-                  </p>
-                  <p className="flex items-center gap-2 text-sm">
-                    <Clock3 size={16} className="shrink-0 text-amber-600" aria-hidden="true" />
-                    <span>{getEventTimeRange(event.startDate, event.endDate)}</span>
-                  </p>
-                </Link>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p role="status" className="text-sm text-slate-500">
-            {query.trim()
-              ? 'No hay eventos que coincidan con la búsqueda.'
-              : 'Todavía no hay eventos publicados próximos.'}
-          </p>
-        )}
-      </section>
-
-      {/* Botón de configuración (Movido a la derecha, pero invisible hasta pasar el mouse) */}
-      <Link
-        href="/portal/configuracion"
-        aria-label="Configuración de la PWA"
-        title="Configuración de la PWA"
-        data-testid="portal-config-button"
-        className="group fixed bottom-4 right-4 z-50 flex h-11 items-center overflow-hidden rounded-full bg-transparent px-3 text-transparent shadow-none backdrop-blur-none transition-all duration-200 hover:bg-[#1B2632] hover:text-white hover:shadow-lg focus-visible:bg-[#1B2632] focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 sm:bottom-6 sm:right-6"
-      >
-        <Settings className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <span
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
+      <section className="relative overflow-hidden rounded-3xl bg-[#1B2632] px-6 py-8 text-white md:px-12 md:py-10">
+        <Image
+          src="/images/institucional/inicio-egresados.jpg"
+          alt=""
+          fill
+          priority
+          sizes="(min-width: 1152px) 1152px, 100vw"
+          className="object-cover opacity-40"
+        />
+        <div
           aria-hidden="true"
-          className="max-w-0 overflow-hidden whitespace-nowrap text-sm font-medium opacity-0 transition-all duration-200 group-hover:ml-2 group-hover:max-w-[8rem] group-hover:opacity-100 group-focus-visible:ml-2 group-focus-visible:max-w-[8rem] group-focus-visible:opacity-100"
-        >
-          Configuración
-        </span>
-      </Link>
-
-      {showReconnectedToast && (
-        <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-[#E6F4EA] border border-[#B7E1CD] text-[#137333] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5" />
-            <div>
-              <h4 className="font-bold text-sm">Conexión restablecida</h4>
-              <p className="text-xs opacity-90">Este aviso desaparece en unos segundos.</p>
-            </div>
-          </div>
+          className="absolute inset-0 bg-gradient-to-r from-[#1B2632] via-[#1B2632]/85 to-transparent"
+        />
+        <div className="relative max-w-xl">
+          <p className="text-base text-slate-200">Sprint 3 · Demo de calificación</p>
+          <h1 className="mt-1 font-serif text-4xl font-bold tracking-wide md:text-5xl">
+            UMSS<span className="text-[#FFB162]">PIRA</span>
+          </h1>
+          <p className="mt-3 text-sm text-slate-200 md:text-base">
+            Validación del funcionamiento sin conexión.
+          </p>
         </div>
-      )}
+      </section>
 
+      <div className="mt-5">
+        <TarjetasValidacion c={c} />
+      </div>
     </div>
   );
 }

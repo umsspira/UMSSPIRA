@@ -86,7 +86,9 @@ export class DemoChecklistService {
       const total = await this.prisma.usuario.count({
         where: { rol, estado: 'ACTIVO', cuenta_acceso: { isNot: null } },
       });
-      if (total === 0) faltan.push(rol);
+      if (total === 0) {
+        faltan.push(rol);
+      }
     }
     return faltan.length === 0
       ? { id: 'login-por-rol', estado: 'listo', detalle: 'Hay cuentas activas con acceso para titulado, empresa y administrador.' }
