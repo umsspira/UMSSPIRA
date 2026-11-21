@@ -306,17 +306,17 @@ it('conserva la sesión al cambiar de página: no vuelve a mostrar la barra de v
   expect(screen.queryByText('Visitante')).not.toBeInTheDocument();
 });
 
-it('sin conexión y con sesión aparece un botón propio para cerrar sesión', async () => {
+it('sin conexión se cierra sesión con el botón de la propia barra (sin botones duplicados flotantes)', async () => {
   fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
   render(<ConnectedNavbar />);
   expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
-  expect(screen.queryByTestId('offline-logout-button')).not.toBeInTheDocument();
 
   jest.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
   fireEvent(window, new Event('offline'));
-  const button = await screen.findByTestId('offline-logout-button');
+  expect(screen.queryByTestId('offline-logout-button')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: 'Cerrar sesión' })).toHaveLength(1);
 
-  fireEvent.click(button);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
   await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
   jest.restoreAllMocks();
 });
