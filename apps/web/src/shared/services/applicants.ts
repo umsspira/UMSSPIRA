@@ -5,11 +5,11 @@ import { apiClient, ApiClientError } from "./api-client";
    CONFIGURACIÓN
    HU-01 (Sprint 3): los postulantes vienen de la API real de Épica 4
        GET /api/v1/vacantes/:idVacante/postulantes
-   Para usarla, en apps/web/.env.local pon:
-       NEXT_PUBLIC_USE_MOCK=false
-   Sin esa variable se siguen usando los datos de prueba de abajo.
+   HU-19: la API real es el comportamiento por defecto. Los datos de prueba
+   de abajo solo se usan si se pide explícitamente en apps/web/.env.local:
+       NEXT_PUBLIC_USE_MOCK=true
    ============================================================ */
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 // Solo para probar con datos de prueba:
 //   "ok" | "empty" (CA-07) | "error" (CA-08 / CA-09)

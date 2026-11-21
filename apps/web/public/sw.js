@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.1';
+const VERSION = 'v1.0.2';
 
 const CACHE_NAME = `umsspira-core-portal-${VERSION}`;
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
@@ -364,6 +364,9 @@ function offlineHtml() {
   .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   .tile{display:flex;align-items:center;gap:8px;min-height:44px;padding:10px 14px;border-radius:8px;background:#fff;color:#1B2632;text-decoration:none;font-size:.85rem}
   .tile:hover{background:#FFF1DC}
+  .logout{width:100%;margin-top:12px;border:0;cursor:pointer;text-align:left}
+  .logout[disabled]{opacity:.7;cursor:wait}
+  nav.menu button.out{display:none;align-items:center;min-height:48px;padding:0 4px;border:0;border-bottom:1px solid #2C3B4D;background:transparent;color:#EEE9DF;font-size:.875rem;text-align:left;cursor:pointer}
   .foot{margin-top:22px;text-align:center;font-size:.75rem;color:rgba(44,56,77,.5)}
   @media (max-width:900px){
     .bar{gap:8px;padding:0 14px}
@@ -375,6 +378,7 @@ function offlineHtml() {
     nav.menu a{min-height:48px;padding:0 4px;border-bottom:1px solid #2C3B4D}
     nav.menu a.on:after{display:none}
     nav.menu a.on{box-shadow:inset 3px 0 0 #FFB162;padding-left:12px}
+    nav.menu button.out{display:flex}
     .tiles{grid-template-columns:1fr}
     .wrap{padding:24px 14px 32px}
   }
@@ -399,6 +403,7 @@ function offlineHtml() {
     <a class="btn" id="login" href="/login" hidden>Iniciar sesión</a>
     <button type="button" class="btn" id="retry" data-testid="offline-retry">&#10227; Reintentar</button>
     <p class="notice" id="notice" role="status" aria-live="polite" hidden>Todavía no hay conexión</p>
+    <p class="notice" id="logged-out" role="status" aria-live="polite" hidden>Sesión cerrada. Tus datos privados se borraron de este dispositivo.</p>
     <div class="avail">
       <h2>Disponible sin conexión</h2>
       <!-- HU09 CA-02: acceso destacado a Mis códigos QR sin recorrer el menú. -->
@@ -411,6 +416,7 @@ function offlineHtml() {
         <a class="tile" href="/portal/eventos" data-testid="offline-link-events">&#128197; Eventos visitados</a>
         <a class="tile" href="/portal/configuracion" data-testid="offline-link-settings">&#9881; Configuración</a>
       </div>
+      <button type="button" class="tile logout" id="logout" data-testid="offline-logout" hidden>Cerrar sesión</button>
     </div>
   </section>
   <p class="foot">UMSSPIRA · Tu comunidad, siempre conectada</p>
@@ -492,6 +498,40 @@ function offlineHtml() {
     if (navigator.onLine === false) { done(false); return; }
     fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).then(function () { done(true); }, function () { done(false); });
   });
+
+  // Cerrar sesión sin conexión (HU07): borra los datos privados de este equipo y deja el cierre pendiente.
+  function doLogout(btn) {
+    if (btn) btn.disabled = true;
+    var finish = function () {
+      try {
+        localStorage.setItem('umsspira.offline.pending-logout', '1');
+        localStorage.removeItem('umsspira.offline.session-validation');
+        localStorage.removeItem('umsspira.offline.nav-user');
+        sessionStorage.setItem('umsspira.offline.just-logged-out', '1');
+      } catch (e) {}
+      location.reload();
+    };
+    try {
+      var del = indexedDB.deleteDatabase('umsspira-offline');
+      del.onsuccess = finish; del.onerror = finish; del.onblocked = finish;
+    } catch (e) { finish(); }
+  }
+  var logoutBtn = document.getElementById('logout');
+  if (hasSession) {
+    logoutBtn.hidden = false;
+    logoutBtn.addEventListener('click', function () { doLogout(logoutBtn); });
+    var out = document.createElement('button');
+    out.type = 'button'; out.className = 'out'; out.textContent = 'Cerrar sesión';
+    out.setAttribute('data-testid', 'offline-logout-menu');
+    out.addEventListener('click', function () { doLogout(out); });
+    menu.appendChild(out);
+  }
+  try {
+    if (sessionStorage.getItem('umsspira.offline.just-logged-out') === '1') {
+      sessionStorage.removeItem('umsspira.offline.just-logged-out');
+      document.getElementById('logged-out').hidden = false;
+    }
+  } catch (e) {}
 
   window.addEventListener('online', function () { if (!busy) { busy = true; location.replace(location.href); } }, { once: true });
 })();
@@ -693,3 +733,4 @@ self.addEventListener('message', (event) => {
   const handler = EXT.messages[data.type];
   if (typeof handler === 'function') handler(event);
 });
+

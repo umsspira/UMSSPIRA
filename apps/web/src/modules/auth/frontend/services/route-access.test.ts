@@ -37,6 +37,7 @@ describe("decideAccess", () => {
       "/afinidad/egresado",
       "/afinidad/reclutador",
       "/empresa/postulantes",
+      "/empresa/checklist-pre-demo",
       "/postulantes",
       "/my-applications",
     ])("redirige %s a /login cuando no hay token", (pathname) => {
@@ -94,6 +95,7 @@ describe("decideAccess", () => {
     it.each([
       "/afinidad/reclutador",
       "/empresa/postulantes",
+      "/empresa/checklist-pre-demo",
       "/postulantes",
     ])("permite el acceso a empresa y administrador en %s", (pathname) => {
       expect(decideAccess(pathname, "token-123", "empresa")).toEqual({
@@ -107,6 +109,7 @@ describe("decideAccess", () => {
     it.each([
       "/afinidad/reclutador",
       "/empresa/postulantes",
+      "/empresa/checklist-pre-demo",
       "/postulantes",
     ])("redirige a /portal si entra un titulado en %s", (pathname) => {
       expect(decideAccess(pathname, "token-123", "titulado")).toEqual({
