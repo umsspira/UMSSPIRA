@@ -27,6 +27,16 @@ it('lee el listado del mentor autenticado con estado y límite de 20', async () 
   expect(result).toEqual({ items: [apiRequest], page: 2, pageSize: 20, total: 21, totalPages: 2 });
 });
 
+it('permite pedir cinco solicitudes por página para la bandeja', async () => {
+  (authenticatedFetch as jest.Mock).mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: [apiRequest], pagination: { page: 1, pageSize: 5, total: 9, totalPages: 2 } }),
+  });
+  const result = await listReceivedRequests('PENDIENTE', 1, undefined, 5);
+  expect(authenticatedFetch).toHaveBeenCalledWith('/api/v1/mentorship/requests?estado=PENDIENTE&page=1&pageSize=5', expect.objectContaining({ method: 'GET' }));
+  expect(result).toMatchObject({ pageSize: 5, total: 9, totalPages: 2 });
+});
+
 it('envía PATCH de aceptación y devuelve el estado actualizado', async () => {
   (authenticatedFetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: { ...apiRequest, estado: 'ACEPTADO', fecha_respuesta: '2026-10-21' } }) });
   const result = await respondToReceivedRequest('request-1', 'accept');

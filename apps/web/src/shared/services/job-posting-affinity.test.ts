@@ -1,122 +1,153 @@
-import { obtenerResumenPerfil } from '@/modules/profile/services/perfil-api';
-import { apiFetch } from './api-client';
-import { calculateVacancyAffinity, loadTituladoSkills } from './job-posting-affinity';
-
-jest.mock('@/modules/profile/services/perfil-api', () => ({
-  obtenerResumenPerfil: jest.fn(),
-}));
+import type { JobPostingAffinityBatchItem } from '@umsspira/shared-types';
+import { apiFetch, ApiError } from './api-client';
+import {
+  calculateVacancyAffinity,
+  getVacanciesAffinityBatch,
+  getVacancyAffinity,
+} from './job-posting-affinity';
 
 jest.mock('./api-client', () => ({
   apiFetch: jest.fn(),
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string, public code?: string) {
+      super(message);
+    }
+  },
 }));
 
-const getProfile = jest.mocked(obtenerResumenPerfil);
-const extractKeywords = jest.mocked(apiFetch);
+const mockApiFetch = jest.mocked(apiFetch);
 
-const profile = {
-  header: { id: 'graduate-1', name: 'Titulado', career: 'Sistemas', graduationYear: null },
-  records: {
-    education: [],
-    experience: [],
-    certification: [],
-    project: [{
-      id: 'project-1',
-      ownerId: 'graduate-1',
-      name: 'Portafolio',
-      url: 'https://example.test',
-      description: 'Aplicación web',
-      technologies: 'React, SQL',
-    }],
-  },
-  description: '',
-};
-
-describe('calculateVacancyAffinity', () => {
+describe('job-posting-affinity service client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    getProfile.mockResolvedValue(profile);
-    extractKeywords.mockResolvedValue({
-      keywords: [{ term: 'React', count: 1 }, { term: 'SQL', count: 1 }],
-      unmapped: [],
-    });
   });
 
-  describe('loadTituladoSkills', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-      getProfile.mockResolvedValue(profile);
-      extractKeywords.mockRejectedValue(new Error('NLP no disponible'));
-    });
-
-    it('propaga el fallo de NLP aunque existan tecnologías del portafolio', async () => {
-      await expect(loadTituladoSkills()).rejects.toThrow('NLP no disponible');
-    });
-
-        it('distingue un perfil sin habilidades de un fallo del extractor', async () => {
-      extractKeywords.mockResolvedValue({ keywords: [], unmapped: [] });
-      getProfile.mockResolvedValue({
-        ...profile,
-        records: { ...profile.records, project: [] },
-      });
-
-      await expect(loadTituladoSkills()).resolves.toEqual({
-        status: 'profile-incomplete',
-      });
-    });
+  it('retorna mapa vacío si la lista de IDs está vacía sin llamar a apiFetch', async () => {
+    const result = await getVacanciesAffinityBatch([]);
+    expect(result).toEqual({});
+    expect(mockApiFetch).not.toHaveBeenCalled();
   });
 
-  it('cuenta SQL dentro de PostgreSQL y React dentro de React14 como requisitos cumplidos', async () => {
-    const result = await calculateVacancyAffinity([
-      { id: 'r1', nombre: 'PostgresSQL' },
-      { id: 'r2', nombre: 'React14' },
-    ]);
+  it('consulta afinidad en lote para vacantes con mode: vacancies', async () => {
+    const mockBatchItems: JobPostingAffinityBatchItem[] = [
+      {
+        vacancyId: 'vac-1',
+        result: {
+          status: 'ready',
+          percentage: 85,
+          calculatedAt: '2026-11-20T12:00:00.000Z',
+          comparison: [{ requirement: 'React', matchedSkill: 'React', result: 'exact' }],
+        },
+        error: null,
+      },
+      {
+        vacancyId: 'vac-2',
+        result: {
+          status: 'ready',
+          percentage: 0,
+          calculatedAt: '2026-11-20T12:00:00.000Z',
+          comparison: [{ requirement: 'COBOL', matchedSkill: null, result: 'not-found' }],
+        },
+        error: null,
+      },
+    ];
 
-    expect(result).toMatchObject({
-      status: 'ready',
-      percentage: 100,
-      comparison: [
-        { requirement: 'PostgresSQL', matchedSkill: 'SQL', result: 'similar' },
-        { requirement: 'React14', matchedSkill: 'React', result: 'similar' },
-      ],
+    mockApiFetch.mockResolvedValue(mockBatchItems);
+
+    const result = await getVacanciesAffinityBatch(['vac-1', 'vac-2']);
+
+    expect(mockApiFetch).toHaveBeenCalledWith('/api/v1/affinity/batch', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'vacancies', vacancyIds: ['vac-1', 'vac-2'] }),
     });
-    expect(extractKeywords).toHaveBeenCalledWith(
-      '/api/v1/nlp/extract',
-      expect.objectContaining({ method: 'POST' }),
+    expect(result['vac-1']).toEqual(mockBatchItems[0]);
+    expect(result['vac-2']).toEqual(mockBatchItems[1]);
+  });
+
+  it('divide en solicitudes de máximo 50 cuando hay más de 50 vacantes', async () => {
+    const ids = Array.from({ length: 55 }, (_, i) => `vac-${i + 1}`);
+
+    mockApiFetch.mockImplementation(async (_path, options) => {
+      const parsed = JSON.parse(options?.body as string);
+      return parsed.vacancyIds.map((id: string) => ({
+        vacancyId: id,
+        result: {
+          status: 'ready',
+          percentage: 50,
+          calculatedAt: '2026-11-20T12:00:00.000Z',
+          comparison: [],
+        },
+        error: null,
+      }));
+    });
+
+    const result = await getVacanciesAffinityBatch(ids);
+
+    expect(mockApiFetch).toHaveBeenCalledTimes(2);
+    expect(Object.keys(result)).toHaveLength(55);
+  });
+
+  it('propaga fallo 503 cuando el servicio NLP o diccionario no está disponible', async () => {
+    mockApiFetch.mockRejectedValue(
+      new ApiError(503, 'Diccionario no disponible', 'NLP_DICTIONARY_UNAVAILABLE'),
     );
-  });
 
-  it('calcula el porcentaje por requisitos cumplidos y no por cantidad de habilidades', async () => {
-    const result = await calculateVacancyAffinity([
-      { id: 'r1', nombre: 'PostgresSQL' },
-      { id: 'r2', nombre: 'React14' },
-      { id: 'r3', nombre: 'Python' },
-    ]);
-
-    expect(result).toMatchObject({ status: 'ready', percentage: 67 });
-  });
-
-    it('no devuelve un porcentaje cuando falla el extractor NLP', async () => {
-    extractKeywords.mockRejectedValue(new Error('NLP no disponible'));
-
-    await expect(calculateVacancyAffinity([
-      { id: 'r1', nombre: 'PostgresSQL' },
-      { id: 'r2', nombre: 'React14' },
-    ])).rejects.toThrow('NLP no disponible');
-  });
-
-  it('no calcula 0% cuando la oferta no tiene requisitos identificados', async () => {
-    await expect(calculateVacancyAffinity([])).resolves.toEqual({
-      status: 'insufficient-requirements',
+    await expect(getVacanciesAffinityBatch(['vac-1'])).rejects.toMatchObject({
+      status: 503,
+      code: 'NLP_DICTIONARY_UNAVAILABLE',
     });
-    expect(getProfile).not.toHaveBeenCalled();
   });
 
-  it('solicita completar el perfil cuando no hay habilidades extraídas', async () => {
-    extractKeywords.mockResolvedValue({ keywords: [], unmapped: [] });
-    getProfile.mockResolvedValue({ ...profile, records: { ...profile.records, project: [] } });
+  it('devuelve item individual mediante getVacancyAffinity', async () => {
+    const mockItem: JobPostingAffinityBatchItem = {
+      vacancyId: 'vac-1',
+      result: {
+        status: 'no-requirements',
+        percentage: null,
+        calculatedAt: null,
+        comparison: [],
+      },
+      error: null,
+    };
+    mockApiFetch.mockResolvedValue([mockItem]);
 
-    await expect(calculateVacancyAffinity([{ id: 'r1', nombre: 'React' }])).resolves.toEqual({
-      status: 'profile-incomplete',
+    const item = await getVacancyAffinity('vac-1');
+    expect(item).toEqual(mockItem);
+  });
+
+  it('calculateVacancyAffinity retorna el result si la vacante fue calculada con éxito', async () => {
+    const mockItem: JobPostingAffinityBatchItem = {
+      vacancyId: 'vac-1',
+      result: {
+        status: 'profile-incomplete',
+        percentage: null,
+        calculatedAt: null,
+        comparison: [],
+      },
+      error: null,
+    };
+    mockApiFetch.mockResolvedValue([mockItem]);
+
+    const result = await calculateVacancyAffinity('vac-1');
+    expect(result).toEqual(mockItem.result);
+  });
+
+  it('calculateVacancyAffinity lanza error si la vacante tiene error individual', async () => {
+    const mockItem: JobPostingAffinityBatchItem = {
+      vacancyId: 'vac-1',
+      result: null,
+      error: {
+        code: 'AFFINITY_CALCULATION_FAILED',
+        message: 'No se pudo calcular la afinidad',
+        retryable: true,
+      },
+    };
+    mockApiFetch.mockResolvedValue([mockItem]);
+
+    await expect(calculateVacancyAffinity('vac-1')).rejects.toMatchObject({
+      message: 'No se pudo calcular la afinidad',
+      code: 'AFFINITY_CALCULATION_FAILED',
+      retryable: true,
     });
   });
 });

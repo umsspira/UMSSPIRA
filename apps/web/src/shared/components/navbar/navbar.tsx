@@ -12,6 +12,7 @@ import { NavbarSearch } from './search-dialog';
 import type { NavbarProps } from './types';
 import styles from './navbar.module.css';
 import { MessagesButton } from './messages-button';
+import { getMentorProfile } from '@/features/mentorship/services/mentorship-api';
 const unchangedHref = (href: string) => href;
 
 function NavbarContent({ session, onLogout, currentPath, resolveHref = unchangedHref, onLogin, onSearch, notifications = [], messages = [], accountExtra }: NavbarProps) {
@@ -25,10 +26,45 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
   // 👈 Usamos 'as any' para evitar errores de tipos con 'empresa'
   const isCompany = (role as any) === 'empresa' || pagePath.includes('/companies');
   const currentRole = isCompany ? 'empresa' : role;
+  const [activeMentor, setActiveMentor] = useState(false);
+  const [mentorStatusError, setMentorStatusError] = useState(false);
+  const [mentorStatusRetry, setMentorStatusRetry] = useState(0);
+
+  useEffect(() => {
+    if (currentRole !== 'titulado') {
+      setActiveMentor(false);
+      setMentorStatusError(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    void getMentorProfile(controller.signal)
+      .then(profile => {
+        if (controller.signal.aborted) return;
+        setActiveMentor(profile.isActive);
+        setMentorStatusError(false);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setActiveMentor(false);
+        setMentorStatusError(true);
+      });
+
+    const refreshMentorStatus = () => {
+      setActiveMentor(false);
+      setMentorStatusRetry(value => value + 1);
+    };
+    window.addEventListener('umsspira:mentor-participation-changed', refreshMentorStatus);
+    return () => {
+      controller.abort();
+      window.removeEventListener('umsspira:mentor-participation-changed', refreshMentorStatus);
+    };
+  }, [currentRole, mentorStatusRetry]);
 
   // HU15: una sola lista (Inicio + secciones) alimenta la barra de escritorio y el menú móvil.
   const primary = primaryNavigation(currentRole as any, session ? '/portal' : '/portal/institucional');
   const sections = primary.filter(item => item.id !== 'home');
+
   const accountLinks = visibleLinks(NAVBAR_ACCOUNT_LINKS, currentRole as any);
   const home = session ? '/portal' : '/portal/institucional';
   
@@ -98,6 +134,10 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
   const logout = () => { close(); onLogout(); };
 
   return <header ref={root} className={`${styles.root} ${session ? styles.member : styles.public}`}>
+    {mentorStatusError && <p role="alert">
+      No se pudo verificar tu participación como mentor.{' '}
+      <button type="button" onClick={() => setMentorStatusRetry(value => value + 1)}>Reintentar</button>
+    </p>}
     <div className={styles.bar}>
       <Link href={resolveHref(home)} className={styles.logo} aria-label="UMSSPIRA: ir al inicio" prefetch={false} onClick={close}>
         <Image src="/assets/events/umsspira-logo-desktop.png" alt="UMSSPIRA" width={170} height={56} priority />

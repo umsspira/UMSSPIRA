@@ -21,6 +21,7 @@ function setup() {
     dictamen: { count: jest.fn().mockResolvedValue(1), findFirst: jest.fn().mockResolvedValue(null) },
     $queryRaw: jest.fn().mockResolvedValue([]),
     auditoriaDictamen: { findFirst: jest.fn().mockResolvedValue(null) },
+    correoTramite: { findFirst: jest.fn().mockResolvedValue(null) },
   };
   return { prisma, repository: new PrismaApplicationsRepository(prisma as never) };
 }

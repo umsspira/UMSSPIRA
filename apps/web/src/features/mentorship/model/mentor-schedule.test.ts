@@ -1,8 +1,9 @@
 import {
   addSlot,
-  dayOptionLabel,
   isScheduleDirty,
+  removeDay,
   removeSlot,
+  suggestSlot,
   summarizeSchedule,
   validateNewSlot,
   type ScheduleSlot,
@@ -45,13 +46,11 @@ describe('validateNewSlot', () => {
 });
 
 describe('resumen y cambios', () => {
-  it('resume los días configurados y cuenta las franjas por día', () => {
+  it('resume los días configurados', () => {
     expect(summarizeSchedule([])).toBe('Aún no configuraste días ni horas para tus mentorías.');
     const schedule = addSlot([monday], { weekday: 4, start: '15:00', end: '17:00' });
     expect(summarizeSchedule([monday])).toBe('1 día con horarios: Lun');
     expect(summarizeSchedule(schedule)).toBe('2 días con horarios: Lun, Jue');
-    expect(dayOptionLabel(schedule, 1)).toBe('Lunes (1)');
-    expect(dayOptionLabel(schedule, 2)).toBe('Martes');
   });
 
   it('detecta cambios sin importar el orden y vuelve a limpio al quitar lo agregado', () => {
@@ -60,5 +59,20 @@ describe('resumen y cambios', () => {
     const draft = addSlot([monday], tuesday);
     expect(isScheduleDirty([monday], draft)).toBe(true);
     expect(isScheduleDirty([monday], removeSlot(draft, tuesday))).toBe(false);
+  });
+});
+
+describe('interruptor por día (BUG-010)', () => {
+  it('removeDay quita solo las franjas de ese día', () => {
+    const schedule = addSlot(addSlot([monday], { weekday: 1, start: '15:00', end: '16:00' }), { weekday: 2, start: '18:00', end: '20:00' });
+    expect(removeDay(schedule, 1)).toEqual([{ weekday: 2, start: '18:00', end: '20:00' }]);
+  });
+
+  it('suggestSlot propone 09:00–10:00 o la hora siguiente a la última franja', () => {
+    expect(suggestSlot([], 3)).toEqual({ weekday: 3, start: '09:00', end: '10:00' });
+    expect(suggestSlot([monday], 2)).toEqual({ weekday: 2, start: '09:00', end: '10:00' });
+    expect(suggestSlot([monday], 1)).toEqual({ weekday: 1, start: '10:00', end: '11:00' });
+    const late = [{ weekday: 1, start: '09:00', end: '12:00' }, { weekday: 1, start: '14:00', end: '18:00' }];
+    expect(suggestSlot(late, 1)).toEqual({ weekday: 1, start: '18:00', end: '19:00' });
   });
 });

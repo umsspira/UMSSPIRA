@@ -59,7 +59,19 @@ El orden se valida dentro de la misma transacción que escribe, por lo que un gu
 | `PATCH` | `/api/v1/mentorship/requests/:id/accept` | sesión | Aceptar solicitud. |
 | `PATCH` | `/api/v1/mentorship/requests/:id/reject` | sesión | Rechazar solicitud. |
 
-> Las rutas de solicitudes no declaran `@RequirePermissions`: el caso de uso valida que el actor sea el mentor dueño y re-filtra por alcance en el repositorio.
+#### Mis solicitudes (historial del titulado)
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| `GET` | `/api/v1/mentorship/my-requests?estado=…&page=1&pageSize=20` | `mentores:self:write` + rol `titulado` | Solicitudes creadas por el usuario autenticado. Sin `estado` devuelve todos. Orden: `fecha_creacion DESC`, `solicitud_fecha DESC`, `id DESC`. Incluye `counts` por estado. |
+| `PATCH` | `/api/v1/mentorship/my-requests/:id/cancel` | `mentores:self:write` + rol `titulado` | Cancela una solicitud propia en estado `PENDIENTE`. El mentor la verá como `CANCELADO`. |
+
+- `my-requests` evita la colisión con `GET /requests/:id`. `counts` devuelve `{ TODAS, PENDIENTE, ACEPTADO, RECHAZADO, CANCELADO }`.
+- El cargo del mentor se obtiene de su experiencia laboral actual o más reciente; si no existe, `cargo` es `null`.
+- Una solicitud ajena responde `404 SOLICITUD_NO_ENCONTRADA` (no se revela su existencia). Una solicitud ya procesada responde `409 SOLICITUD_NO_PENDIENTE`.
+- La cancelación usa `updateMany` condicionado por `id`, `id_usuario` y `estado: 'PENDIENTE'`, por lo que dos peticiones simultáneas solo pueden cancelar una vez.
+
+> Las rutas de solicitudes no declaran `@RequirePermissions` para la bandeja del mentor: el caso de uso valida que el actor sea el mentor dueño y re-filtra por alcance en el repositorio. Las rutas de `my-requests` sí exigen `mentores:self:write` y rol `titulado`.
 
 ### 1.4 Resto de operaciones
 
@@ -79,7 +91,7 @@ El orden se valida dentro de la misma transacción que escribe, por lo que un gu
 | `/mentorship/directory` | Directorio de mentores | `mentor-directory-page` |
 | `/mentorship/mentors/[mentorId]` | Perfil del mentor | `mentor-detail-page` |
 | `/mentorship/request/[mentorId]` | Solicitar mentoría | `mentorship-request-flow` |
-| `/mentorship/requests` | Mis solicitudes | placeholder ("próxima versión") |
+| `/mentorship/requests` | Mis solicitudes (historial del titulado) | `my-requests` |
 | `/mentorship/requests/received` | Solicitudes recibidas | `received-requests` |
 | `/mentorship/profile` | Mi perfil de mentor | `mentor-profile` |
 | `/mentorship/profile/information` | Información profesional | `mentor-profile-info-page` |
@@ -93,6 +105,6 @@ El orden se valida dentro de la misma transacción que escribe, por lo que un gu
 
 - **Comunicación**: las pantallas consumen `/api/v1/mentorship/*` a través del proxy `apps/web/src/app/api/v1/[...path]/route.ts` (`apiUrl()`); el namespace `mentorship` ya está en el allowlist `MODULES`. Las mutaciones autenticadas requieren el header `X-CSRF-Token`.
 - **Sesión**: los clientes usan `authenticatedFetch` de `@/shared/services/auth-session`; el directorio exige sesión y nunca consulta la API de forma anónima.
-- **Protección de rutas web**: `/mentorship/:path*` **no** está registrado en el `matcher` de `apps/web/src/middleware.ts` ni en `route-access.ts`, por lo que a nivel de router las páginas son públicas: la exigencia de sesión la impone la API. Para blindarlas como `/surveys` o `/reports` deben registrarse en ambos archivos.
+- **Protección de rutas web**: `/mentorship/requests` y `/mentorship/requests/received` están registradas en `route-access.ts` como rutas de titulado; empresa y administrador son redirigidos. El resto de `/mentorship/*` exige sesión a nivel de API. La API sigue siendo la autoridad final.
 - **Errores comunes**: 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`/`MENTOR_NO_HABILITADO`, 400 `VALIDATION_ERROR`, 404 `MENTOR_NOT_FOUND`, 409 `PASO_PREVIO_INCOMPLETO`, 422 `DATOS_PASO_INVALIDOS` (incluye `fields`). Los cuerpos son estrictos: campos no declarados producen 400.
 - **Referencias**: `apps/api/docs/endpoints/epic6/HUXX.md` (contrato detallado), `apps/api/src/modules/mentorship/README.md` (convenciones del módulo), `packages/shared-types/src/mentor.ts` (tipos compartidos).

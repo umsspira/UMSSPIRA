@@ -1,7 +1,12 @@
 import { ReviewApplicationUseCase } from './review-application.use-case';
 
 const actor = {} as never;
-const detail = { fullName: 'Ana Perez', email: 'ana@umss.edu.bo' };
+const detail = {
+  fullName: 'Ana Perez',
+  email: 'ana@umss.edu.bo',
+  status: 'PENDIENTE',
+  version: 1,
+};
 
 function setup(issueLink: jest.Mock) {
   const repository = {

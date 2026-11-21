@@ -1,153 +1,77 @@
-import { obtenerResumenPerfil } from '@/modules/profile/services/perfil-api';
-import type { ResumenPerfil } from '@/modules/profile/services/perfil-api';
-import type { TechnicalRequirement } from '@umsspira/shared-types';
+import type {
+  JobPostingAffinityBatchError,
+  JobPostingAffinityBatchItem,
+  JobPostingAffinityBatchRequest,
+  JobPostingAffinityComparison,
+  JobPostingAffinityResult,
+} from '@umsspira/shared-types';
+import { JOB_POSTING_AFFINITY_BATCH_LIMIT } from '@umsspira/shared-types';
 import { apiFetch } from './api-client';
-import { normalizeJobPostingTerm } from '@/shared/utils/job-posting-requirements';
 
-const NLP_EXTRACT_ENDPOINT = '/api/v1/nlp/extract';
-const NLP_MAX_TEXT_LENGTH = 5000;
+export type {
+  JobPostingAffinityBatchError,
+  JobPostingAffinityBatchItem,
+  JobPostingAffinityComparison,
+  JobPostingAffinityResult,
+};
 
-interface ExtractedKeyword {
-  term: string;
-  count: number;
-}
-
-interface ExtractedKeywordsResponse {
-  keywords: ExtractedKeyword[];
-}
-
-export type VacancyAffinityResult =
-  | { status: 'profile-incomplete' }
-  | { status: 'insufficient-requirements' }
-  | {
-      status: 'ready';
-      percentage: number;
-      calculatedAt: string;
-      comparison: Array<{
-        requirement: string;
-        matchedSkill: string | null;
-        result: 'exact' | 'similar' | 'not-found';
-      }>;
-    };
-
-export type TituladoSkillsResult =
-  | { status: 'ready'; skills: string[] }
-  | { status: 'profile-incomplete' };
-
-function profileTexts(profile: ResumenPerfil): string[] {
-  const { education, experience, certification, project } = profile.records;
-  return [
-    profile.description,
-    ...education.flatMap((record) => 'title' in record ? [record.title, record.degree] : []),
-    ...experience.flatMap((record) => 'position' in record ? [record.position] : []),
-    ...certification.flatMap((record) => 'issuer' in record ? [record.name, record.degree] : []),
-    ...project.flatMap((record) => 'technologies' in record ? [record.name, record.description, record.technologies ?? ''] : []),
-  ].concat(profile.header.career).map((text) => text.trim()).filter(Boolean);
-}
-
-function textChunks(texts: string[]): string[] {
-  const chunks: string[] = [];
-  let current = '';
-
-  for (const text of texts) {
-    for (let offset = 0; offset < text.length; offset += NLP_MAX_TEXT_LENGTH) {
-      const part = text.slice(offset, offset + NLP_MAX_TEXT_LENGTH);
-      const next = current ? `${current}\n${part}` : part;
-      if (next.length > NLP_MAX_TEXT_LENGTH) {
-        chunks.push(current);
-        current = part;
-      } else {
-        current = next;
-      }
-    }
+/**
+ * Consulta la afinidad de una o varias vacantes mediante el endpoint POST /api/v1/affinity/batch.
+ * Si el conjunto supera los 50 elementos (límite del endpoint), se divide en fragmentos de máximo 50.
+ */
+export async function getVacanciesAffinityBatch(
+  vacancyIds: string[],
+): Promise<Record<string, JobPostingAffinityBatchItem>> {
+  if (vacancyIds.length === 0) return {};
+  const uniqueIds = Array.from(new Set(vacancyIds));
+  const chunks: string[][] = [];
+  for (let i = 0; i < uniqueIds.length; i += JOB_POSTING_AFFINITY_BATCH_LIMIT) {
+    chunks.push(uniqueIds.slice(i, i + JOB_POSTING_AFFINITY_BATCH_LIMIT));
   }
 
-  if (current) chunks.push(current);
-  return chunks;
+  const results: Record<string, JobPostingAffinityBatchItem> = {};
+  for (const chunk of chunks) {
+    const items = await apiFetch<JobPostingAffinityBatchItem[]>('/api/v1/affinity/batch', {
+      method: 'POST',
+      body: JSON.stringify({
+        mode: 'vacancies',
+        vacancyIds: chunk,
+      } satisfies JobPostingAffinityBatchRequest),
+    });
+    for (const item of items ?? []) {
+      results[item.vacancyId] = item;
+    }
+  }
+  return results;
 }
 
-function projectTechnologySkills(profile: ResumenPerfil): string[] {
-  return profile.records.project.flatMap((project) =>
-    ('technologies' in project ? project.technologies ?? '' : '')
-      .split(/[,;\n|]+/).map((technology) => technology.trim()).filter(Boolean),
-  );
+/**
+ * Consulta la afinidad de una vacante individual para la vista de detalle.
+ */
+export async function getVacancyAffinity(
+  vacancyId: string,
+): Promise<JobPostingAffinityBatchItem> {
+  const map = await getVacanciesAffinityBatch([vacancyId]);
+  const item = map[vacancyId];
+  if (!item) {
+    throw new Error('No se recibió resultado de afinidad para la vacante seleccionada');
+  }
+  return item;
 }
 
+/**
+ * Función de conveniencia para la vista de detalle de vacante.
+ */
 export async function calculateVacancyAffinity(
-  requirements: TechnicalRequirement[],
-): Promise<VacancyAffinityResult> {
-  if (requirements.length === 0) return { status: 'insufficient-requirements' };
-
-  const profile = await obtenerResumenPerfil();
-  const texts = profileTexts(profile);
-  const explicitSkills = projectTechnologySkills(profile);
-  const extracted = await Promise.all(
-    textChunks(texts).map((text) =>
-      apiFetch<ExtractedKeywordsResponse>(NLP_EXTRACT_ENDPOINT, {
-        method: 'POST',
-        body: JSON.stringify({ text }),
-      }),
-    ),
-  );
-  const skills = Array.from(new Set([
-    ...extracted.flatMap((result) => result.keywords.map((keyword) => keyword.term)),
-    ...explicitSkills,
-  ])).filter((skill) => normalizeJobPostingTerm(skill).length > 0);
-
-  return calculateVacancyAffinityWithSkills(requirements, skills);
-}
-
-/** Carga el perfil una vez para calcular la afinidad de todas las vacantes del listado. */
-export async function loadTituladoSkills(): Promise<TituladoSkillsResult> {
-  const profile = await obtenerResumenPerfil();
-  const texts = profileTexts(profile);
-  const explicitSkills = projectTechnologySkills(profile);
-  const extracted = await Promise.all(
-    textChunks(texts).map((text) =>
-      apiFetch<ExtractedKeywordsResponse>(NLP_EXTRACT_ENDPOINT, {
-        method: 'POST',
-        body: JSON.stringify({ text }),
-      }),
-    ),
-  );
-  const skills = Array.from(new Set([
-    ...extracted.flatMap((result) => result.keywords.map((keyword) => keyword.term)),
-    ...explicitSkills,
-  ])).filter((skill) => normalizeJobPostingTerm(skill).length > 0);
-
-  return skills.length > 0 ? { status: 'ready', skills } : { status: 'profile-incomplete' };
-}
-
-export function calculateVacancyAffinityWithSkills(
-  requirements: TechnicalRequirement[],
-  skills: string[],
-): VacancyAffinityResult {
-  if (requirements.length === 0) return { status: 'insufficient-requirements' };
-  if (skills.length === 0) return { status: 'profile-incomplete' };
-
-  const comparison = requirements.map(({ nombre }) => {
-    const normalizedRequirement = normalizeJobPostingTerm(nombre);
-    const matchedSkill = skills.find((skill) => {
-      const normalizedSkill = normalizeJobPostingTerm(skill);
-      return normalizedSkill.length >= 3 && normalizedRequirement.includes(normalizedSkill);
-    }) ?? null;
-
-    return {
-      requirement: nombre,
-      matchedSkill,
-      result: matchedSkill
-        ? normalizeJobPostingTerm(matchedSkill) === normalizedRequirement
-          ? 'exact' as const
-          : 'similar' as const
-        : 'not-found' as const,
-    };
-  });
-  const matchedCount = comparison.filter((item) => item.matchedSkill !== null).length;
-
-  return {
-    status: 'ready',
-    percentage: Math.round((matchedCount / requirements.length) * 100),
-    calculatedAt: new Date().toISOString(),
-    comparison,
-  };
+  vacancyId: string,
+): Promise<JobPostingAffinityResult> {
+  const item = await getVacancyAffinity(vacancyId);
+  if (item.error) {
+    const error = Object.assign(new Error(item.error.message), {
+      code: item.error.code,
+      retryable: item.error.retryable,
+    });
+    throw error;
+  }
+  return item.result;
 }

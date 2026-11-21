@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRightIcon, ListChecksIcon } from 'lucide-react';
-import { MentorConfiguration } from './mentor-configuration';
 import { SecondaryButton } from './mentor-button';
 import {
   getMentorOnboarding,
@@ -14,13 +13,20 @@ import {
  * CAF-01/CAF-13: mientras el asistente no termina se muestra un único acceso;
  * las tarjetas de edición aparecen cuando la configuración ya está completa.
  */
-export function MentorConfigurationGate() {
+export function MentorConfigurationGate({ enabled = true }: { enabled?: boolean } = {}) {
   const [state, setState] = useState<MentorOnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (!enabled) {
+      setState(null);
+      setError('');
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     setLoading(true);
     setError('');
@@ -37,47 +43,45 @@ export function MentorConfigurationGate() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, enabled]);
 
-  if (loading) {
+  if (!enabled) {
+    return null;
+  }
+
+  if (loading || (!state && !error)) {
     return <p role="status" className="onboarding-gate-loading">Cargando configuración…</p>;
   }
 
   if (error || !state) {
     return (
-      <section className="active-panel-settings" aria-labelledby="mentor-configuration-title">
-        <h3 id="mentor-configuration-title" className="active-panel-section-title">Configuración del perfil</h3>
-        <div role="alert" className="mentor-api-error">
-          <p>{error || 'No se pudo consultar el avance de tu configuración.'}</p>
-          <SecondaryButton onClick={() => setAttempt((value) => value + 1)}>Reintentar</SecondaryButton>
-        </div>
-      </section>
+      <div role="alert" className="mentor-api-error">
+        <p>{error || 'No se pudo consultar el avance de tu configuración.'}</p>
+        <SecondaryButton onClick={() => setAttempt((value) => value + 1)}>Reintentar</SecondaryButton>
+      </div>
     );
   }
 
   if (state.isComplete) {
-    return <MentorConfiguration />;
+    return null;
   }
 
   const hasProgress = state.completedSteps.length > 0;
   return (
-    <section className="active-panel-settings" aria-labelledby="mentor-configuration-title">
-      <h3 id="mentor-configuration-title" className="active-panel-section-title">Configuración del perfil</h3>
-      <div className="onboarding-gate">
-        <span aria-hidden="true" className="onboarding-gate-icon"><ListChecksIcon /></span>
-        <div>
-          <h4>{hasProgress ? 'Continúa tu configuración' : 'Comienza tu configuración'}</h4>
-          <p>
-            {hasProgress
-              ? `Completaste ${state.completedSteps.length} de ${state.totalSteps} pasos. Retoma el asistente donde lo dejaste.`
-              : 'Completa el asistente de tres pasos: áreas técnicas, intereses y disponibilidad.'}
-          </p>
-        </div>
-        <Link href="/mentorship/onboarding" className="mentor-button mentor-button-primary">
-          {hasProgress ? 'Continuar mi configuración' : 'Comenzar mi configuración'}
-          <ArrowRightIcon className="icon" aria-hidden="true" />
-        </Link>
+    <div className="onboarding-gate">
+      <span aria-hidden="true" className="onboarding-gate-icon"><ListChecksIcon /></span>
+      <div>
+        <h4>{hasProgress ? 'Continúa tu configuración' : 'Comienza tu configuración'}</h4>
+        <p>
+          {hasProgress
+            ? `Completaste ${state.completedSteps.length} de ${state.totalSteps} pasos. Retoma el asistente donde lo dejaste.`
+            : 'Completa el asistente de tres pasos: áreas técnicas, intereses y disponibilidad.'}
+        </p>
       </div>
-    </section>
+      <Link href="/mentorship/onboarding" className="mentor-button mentor-button-primary">
+        {hasProgress ? 'Continuar mi configuración' : 'Comenzar mi configuración'}
+        <ArrowRightIcon className="icon" aria-hidden="true" />
+      </Link>
+    </div>
   );
 }

@@ -4,6 +4,8 @@ import type { OcrAnalysis } from "@umsspira/shared-types";
 import { ocrRequest, ocrQueryErrorMessage } from "../services/ocr-api";
 import { pollOcr } from "../services/ocr-polling";
 import { prioritizeOcr } from "../services/ocr-control";
+import { FindingsTable } from "./findings-table";
+import { EvidenceViewer } from "./evidence-viewer";
 const states = {
   PENDIENTE: "Pendiente",
   EN_CURSO: "En curso",
@@ -17,11 +19,6 @@ const suggestions = {
   RECHAZAR: "Sugerencia: rechazar",
   REVISION_MANUAL: "Lectura completada: requiere revisión manual",
 };
-const findings = {
-  COINCIDE: "Coincide",
-  POSIBLE_DIFERENCIA: "Posible diferencia",
-  NO_COMPROBADO: "No se pudo comprobar",
-};
 export function OcrPanel({
   applicationId,
   documentUrl,
@@ -33,6 +30,7 @@ export function OcrPanel({
 }) {
   const [analyses, setAnalyses] = useState<OcrAnalysis[] | null>(null);
   const [error, setError] = useState("");
+  const [selectedField, setSelectedField] = useState<string | null>(null);
   const [retryError, setRetryError] = useState("");
   const [retrying, setRetrying] = useState(false);
   const lifecycle = useRef<AbortController | null>(null);
@@ -41,6 +39,7 @@ export function OcrPanel({
     lifecycle.current = controller;
     setAnalyses(null);
     setError("");
+    setSelectedField(null);
     setRetryError("");
     setRetrying(false);
     prioritizeOcr(applicationId);
@@ -221,64 +220,24 @@ export function OcrPanel({
             · {current.result.reading.pagesRead}/
             {current.result.reading.totalPages} páginas
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <caption className="sr-only">
-                Comparación entre registro y respaldo
-              </caption>
-              <thead className="bg-[#EEE9DF]">
-                <tr>
-                  {["Campo", "Declarado", "Leído", "Resultado"].map((title) => (
-                    <th key={title} scope="col" className="p-2">
-                      {title}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {current.result.findings.map((finding) => (
-                  <tr
-                    key={finding.field}
-                    className="border-b border-[#EEE9DF] align-top"
-                  >
-                    <th scope="row" className="p-2">
-                      {finding.label}
-                    </th>
-                    <td className="p-2 break-words">
-                      {finding.declared || "Sin dato"}
-                    </td>
-                    <td className="p-2 break-words">
-                      {finding.read || "Sin dato comprobable"}
-                      {finding.evidence && (
-                        <details className="mt-2">
-                          <summary className="cursor-pointer underline">
-                            Evidencia · pág. {finding.evidence.page}
-                          </summary>
-                          <p className="my-1">{finding.evidence.text}</p>
-                          {documentUrl && (
-                            <a
-                              className="underline"
-                              href={`${documentUrl.split("#")[0]}#page=${finding.evidence.page}`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Abrir página del respaldo
-                            </a>
-                          )}
-                        </details>
-                      )}
-                    </td>
-                    <td
-                      className={`p-2 ${finding.status === "POSIBLE_DIFERENCIA" ? "text-[#A35139]" : ""}`}
-                    >
-                      {findings[finding.status]}
-                      <p className="mt-1 text-[10px]">{finding.reason}</p>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {current.result.reading.pagesRead <
+            current.result.reading.totalPages && (
+            <p role="alert" className="mb-2 text-xs text-[#A35139]">
+              Lectura incompleta. Puedes continuar con la revisión manual.
+            </p>
+          )}
+          <FindingsTable
+            findings={current.result.findings}
+            selectedField={selectedField}
+            onSelect={setSelectedField}
+          />
+          <EvidenceViewer
+            finding={
+              current.result.findings.find((f) => f.field === selectedField) ??
+              null
+            }
+            documentUrl={documentUrl}
+          />
         </>
       )}
       {analyses?.some((item) => !item.current) && (

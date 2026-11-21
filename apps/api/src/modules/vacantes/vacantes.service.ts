@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
@@ -13,6 +15,13 @@ import {
   canTransitionJobPostingStatus,
   normalizeJobPostingStatus,
 } from '../job-postings/domain/policies/job-posting-status.policy';
+import { normalizeTechnicalRequirementName } from '../job-postings/domain/policies/normalize-technical-requirement-name';
+import { CalculateJobPostingAffinity } from '../job-postings/application/use-cases/calculate-job-posting-affinity.use-case';
+import {
+  JOB_POSTING_AFFINITY_DATA,
+  type JobPostingAffinityDataPort,
+} from '../job-postings/application/ports/job-posting-affinity-data.port';
+
 
 // HU-04: códigos de etapa. El front traduce a etiquetas ("En revisión", etc.).
 export const ETAPAS_POSTULACION = ['postulado', 'en_revision', 'preseleccionado', 'entrevista', 'descartado'] as const;
@@ -30,11 +39,20 @@ export interface UpdateVacanteData {
   nivel_experiencia?: string;
   descripcion_tecnica?: string;
   estado?: string; // <-- NUEVO: para poder pausar
+  requisitosTecnicos?: string[];
 }
 
 @Injectable()
 export class VacantesService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(VacantesService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CalculateJobPostingAffinity)
+    private readonly calculateAffinity: CalculateJobPostingAffinity,
+    @Inject(JOB_POSTING_AFFINITY_DATA)
+    private readonly affinityData: JobPostingAffinityDataPort,
+  ) {}
 
   async estadoPostulacion(idVacante: string, idUsuario: string) {
     const titulado = await this.prisma.titulado.findFirst({
@@ -106,9 +124,12 @@ export class VacantesService {
       );
     }
 
+    // NLP y lecturas del perfil ocurren antes de abrir la transacción de postulación.
+    const affinity = await this.calculateInitialAffinity(idVacante, idUsuario);
+
     return this.prisma.$transaction(async (tx) => {
       // Bloqueo por par Titulado/Vacante: dos solicitudes simultáneas solo pueden crear una fila.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idUsuario}), hashtext(${idVacante}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${idUsuario}), hashtext(${idVacante}))`;
       const existing = await tx.postulacion.findFirst({
         where: { id_usuario: idUsuario, id_vacante: idVacante },
         select: { id: true },
@@ -123,10 +144,35 @@ export class VacantesService {
           id_vacante: idVacante,
           estado: 'postulado',
           created_at: new Date(),
+          porcentaje_match: affinity?.percentage ?? null,
+          fecha_match: affinity?.calculatedAt ? new Date(affinity.calculatedAt) : null,
         },
       });
       return { postulada: true, yaExistia: false };
     });
+  }
+
+  private async calculateInitialAffinity(idVacante: string, idUsuario: string) {
+    try {
+      const [profiles, vacancies] = await Promise.all([
+        this.affinityData.readProfiles([idUsuario]),
+        this.affinityData.readRequirements([idVacante]),
+      ]);
+      const [calculation] = await this.calculateAffinity.execute({
+        profile: profiles.find((profile) => profile.userId === idUsuario) ?? null,
+        vacancies,
+      });
+      if (calculation?.result.status !== 'ready') {
+        return null;
+      }
+      return {
+        percentage: calculation.result.percentage,
+        calculatedAt: calculation.result.calculatedAt,
+      };
+    } catch {
+      this.logger.warn('No se pudo calcular la afinidad al postular; se guardará sin resultado.');
+      return null;
+    }
   }
 
   async obtenerMisVacantes(idUsuario: string) {
@@ -136,10 +182,16 @@ export class VacantesService {
 
     if (!empresa) {return [];}
 
-    return this.prisma.vacante.findMany({
+    // HU-03: la tarjeta móvil muestra la cantidad de postulantes de cada vacante.
+    const vacantes = await this.prisma.vacante.findMany({
       where: { id_empresa: empresa.id },
-      orderBy: { created_at: 'desc' }
+      orderBy: { created_at: 'desc' },
+      include: { _count: { select: { postulacion_registros: true } } },
     });
+    return vacantes.map(({ _count, ...vacante }) => ({
+      ...vacante,
+      total_postulantes: _count.postulacion_registros,
+    }));
   }
 
   async obtenerVacantePorId(idVacante: string, idUsuario: string) {
@@ -150,7 +202,8 @@ export class VacantesService {
     if (!empresa) {throw new Error('Empresa no encontrada');}
 
     return this.prisma.vacante.findFirst({
-      where: { id: idVacante, id_empresa: empresa.id }
+      where: { id: idVacante, id_empresa: empresa.id },
+      include: { requisito_tecnico_registros: { select: { nombre: true }, orderBy: { nombre: 'asc' } } },
     });
   }
 
@@ -162,6 +215,7 @@ export class VacantesService {
         id: true,
         created_at: true,
         porcentaje_match: true,
+        fecha_match: true,
         vacante: {
           select: {
             id: true,
@@ -176,6 +230,8 @@ export class VacantesService {
 
     return filas.map((fila) => {
       const porcentaje = fila.porcentaje_match === null ? null : Number(fila.porcentaje_match);
+      const porcentajeValido =
+        porcentaje !== null && Number.isInteger(porcentaje) && porcentaje >= 0 && porcentaje <= 100;
       return {
         id: fila.id,
         vacancyId: fila.vacante?.id ?? null,
@@ -183,10 +239,9 @@ export class VacantesService {
         companyName: fila.vacante?.empresa?.razon_social ?? null,
         appliedAt: fila.created_at?.toISOString() ?? null,
         matchPercentage:
-          porcentaje !== null && Number.isFinite(porcentaje) && porcentaje >= 0 && porcentaje <= 100
-            ? porcentaje
-            : null,
-        isVacancyAvailable: vacanteDisponible(fila.vacante?.estado ?? null, fila.vacante?.fecha_cierre ?? null),
+        porcentajeValido ? porcentaje : null,
+        matchCalculatedAt: porcentajeValido ? fila.fecha_match?.toISOString() ?? null : null,
+        isVacancyAvailable: vacanteDisponible(fila.vacante?.estado ?? null),
       };
     });
   }
@@ -287,33 +342,100 @@ export class VacantesService {
     return this.cambiarEstado(idVacante, idUsuario, JOB_POSTING_STATUS.CLOSED);
   }
 
-  async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacanteData) {
-    const vacante = await this.obtenerVacanteDeMiEmpresa(idVacante, idUsuario);
+async actualizarVacante(idVacante: string, idUsuario: string, data: UpdateVacanteData) {
+    // HU-13: el dueño y los miembros activos de la empresa pueden editar;
+    // cualquier otro recibe 404 sin filtrar si la vacante existe.
+    await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
 
     // El cambio de estado (pausar / reanudar / cerrar) pasa por la política única.
     if (data.estado !== undefined) {
-      await this.cambiarEstado(vacante.id, idUsuario, data.estado);
+      await this.cambiarEstado(idVacante, idUsuario, data.estado);
+    }
+    const cambios: Record<string, string> = {};
+  
+    if (data.titulo !== undefined) {
+      cambios['titulo'] = data.titulo;
     }
 
-    const { titulo, modalidad, nivel_experiencia, descripcion_tecnica } = data;
-    const hayCambiosDeContenido = [titulo, modalidad, nivel_experiencia, descripcion_tecnica].some(
-      (valor) => valor !== undefined,
-    );
-    if (!hayCambiosDeContenido) {
-      return this.prisma.vacante.findUniqueOrThrow({ where: { id: vacante.id } });
+    if (data.modalidad !== undefined) {
+      cambios['modalidad'] = data.modalidad;
     }
 
-    return this.prisma.vacante.update({
-      where: { id: vacante.id },
-      data: {
-        titulo,
-        modalidad,
-        nivel_experiencia,
-        descripcion_tecnica,
-        fecha_actualizacion: new Date(),
-      },
+    if (data.nivel_experiencia !== undefined) {
+      cambios['nivel_experiencia'] = data.nivel_experiencia;
+    }
+
+    if (data.descripcion_tecnica !== undefined) {
+      cambios['descripcion_tecnica'] = data.descripcion_tecnica;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Bloqueo por vacante: dos envíos simultáneos se serializan.
+      await tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${idVacante}))
+      `;
+
+      const actualizada = Object.keys(cambios).length
+        ? await tx.vacante.update({
+            where: { id: idVacante },
+            data: {
+              ...cambios,
+              fecha_actualizacion: new Date(),
+            },
+          })
+        : await tx.vacante.findUniqueOrThrow({
+            where: { id: idVacante },
+          });
+
+      // Actualizar requisitos técnicos cuando fueron enviados.
+      if (data.requisitosTecnicos !== undefined) {
+        const owned = await tx.vacante.findFirst({
+          where: {
+            id: idVacante,
+            empresa: {
+              OR: [
+                { id_usuario: idUsuario },
+                {
+                  empresa_usuario_registros: {
+                    some: {
+                      id_usuario: idUsuario,
+                      estado: 'activo',
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          select: { id: true },
+        });
+
+        if (!owned) {
+          throw new NotFoundException('Vacante no encontrada');
+        }
+
+        await tx.vacanteRequisitoTecnico.deleteMany({
+          where: { id_vacante: idVacante },
+        });
+
+        if (data.requisitosTecnicos.length > 0) {
+          await tx.vacanteRequisitoTecnico.createMany({
+            data: data.requisitosTecnicos.map((nombre) => ({
+              id_vacante: idVacante,
+              nombre,
+              nombre_normalizado: normalizeTechnicalRequirementName(nombre),
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      // TODO(HU-12): disparar aquí el recálculo de afinidad de las postulaciones
+      // cuando exista el servicio de matching (HU-10/HU-12, epic7).
+
+      return actualizada;
     });
   }
+
 
   async eliminarVacante(idVacante: string, idUsuario: string) {
     const vacante = await this.obtenerVacanteDeMiEmpresa(idVacante, idUsuario);
@@ -388,6 +510,7 @@ export class VacantesService {
     id: true,
     estado: true,
     porcentaje_match: true,
+    fecha_match: true,
     created_at: true,
     usuario: {
       select: {
@@ -408,6 +531,7 @@ export class VacantesService {
     id: string;
     estado: string | null;
     porcentaje_match: unknown;
+    fecha_match: Date | null;
     created_at: Date | null;
     usuario: {
       nombre: string | null;
@@ -420,6 +544,7 @@ export class VacantesService {
     const match = p.porcentaje_match === null || p.porcentaje_match === undefined
       ? null
       : Number(p.porcentaje_match);
+    const matchValido = match !== null && Number.isInteger(match) && match >= 0 && match <= 100;
     return {
       id: p.id,
       name: nombreCompleto || p.usuario?.nombre || 'Sin nombre',
@@ -431,7 +556,8 @@ export class VacantesService {
       hasCv: Boolean(titulado?.curriculum_vitae),
       cvUrl: null,
       // El porcentaje viene del motor (Épica 3/5); aquí NUNCA se calcula (CA-02, CA-10).
-      matchPercentage: match !== null && Number.isFinite(match) ? match : null,
+      matchPercentage: matchValido ? match : null,
+      matchCalculatedAt: matchValido ? p.fecha_match?.toISOString() ?? null : null,
       skills: null,
     };
   }

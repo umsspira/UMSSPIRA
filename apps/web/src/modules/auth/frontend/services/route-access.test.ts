@@ -181,6 +181,21 @@ describe("HU-004/T4.1: control de acceso a reportes (Admin) y encuestas (Titulad
       redirectTo: ADMIN_HOME,
     });
   });
+
+  it.each(["/mentorship/requests", "/mentorship/requests/received"])(
+    "solo permite el historial de solicitudes al titulado en %s",
+    (pathname) => {
+      expect(decideAccess(pathname, "token", "titulado")).toEqual({ allowed: true });
+      expect(decideAccess(pathname, "token", "administrador")).toEqual({
+        allowed: false,
+        redirectTo: ADMIN_HOME,
+      });
+      expect(decideAccess(pathname, "token", "empresa")).toEqual({
+        allowed: false,
+        redirectTo: COMPANY_HOME,
+      });
+    },
+  );
 });
 describe("E5 HU-004: acceso al listado de vacantes", () => {
   it.each(["/job-postings", "/job-postings/"])(

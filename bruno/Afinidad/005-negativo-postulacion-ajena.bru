@@ -1,0 +1,37 @@
+meta {
+  name: Negativo - Empresa consulta postulación ajena
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/affinity/batch
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "mode": "applicants",
+    "vacancyId": "{{vacancyId}}",
+    "applicationIds": ["{{applicationIdAjena}}"]
+  }
+}
+
+tests {
+  test("Postulación de otra vacante debe provocar 403 global", () {
+    expect(res.status).to.equal(403);
+  });
+}
+
+docs {
+  Ejecutar con accessToken de la empresa propietaria de vacancyId, pero applicationIdAjena debe pertenecer a otra vacante.
+}
