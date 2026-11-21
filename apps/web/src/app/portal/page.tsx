@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 
 import umssBg from '@/shared/assets/images/14sept.webp';
-import { HomeStatusCards } from '@/features/home/home-status-cards';
 import { homeSectionsAdapter } from '@/features/home/home-sections-adapter';
 import { SectionUnavailable } from '@/shared/components/section-boundary';
 import { useSectionLoader } from '@/shared/hooks/use-section-loader';
@@ -205,50 +204,6 @@ export default function Home() {
         </div>
       )}
 
-      <section
-        aria-label="Accesos principales"
-        data-testid="home-primary-actions"
-        className="grid gap-3 sm:grid-cols-2"
-      >
-        <Link
-          href="/mis-pases"
-          data-testid={isOnline ? 'home-online-qr-access' : 'home-offline-qr-access'}
-          className="flex min-h-[60px] items-center gap-3 rounded-2xl bg-[#1B2632] px-5 py-4 text-[#EEE9DF] shadow-md transition-colors hover:bg-[#2C3B4D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB162]"
-        >
-          <span
-            aria-hidden="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFB162] text-[#1B2632]"
-          >
-            <QrCode className="h-5 w-5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-bold">Mis códigos QR</span>
-            <span className="block text-xs opacity-85">
-              {isOnline
-                ? 'Abre tus pases guardados en este dispositivo.'
-                : 'Tus pases guardados están disponibles sin conexión.'}
-            </span>
-          </span>
-          <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-[#FFB162]" aria-hidden="true" />
-        </Link>
-        {isOnline && (
-          <Link
-            href="/portal/eventos"
-            data-testid="home-online-events-access"
-            className="flex min-h-[60px] items-center gap-3 rounded-2xl border border-[#C9C1B1] bg-white px-5 py-4 text-slate-900 shadow-sm transition-colors hover:bg-[#FCFAF5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B44735]"
-          >
-            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-              <Calendar className="h-5 w-5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-bold">Explorar eventos</span>
-              <span className="block text-xs text-slate-600">Encuentra actividades y abre tus pases confirmados.</span>
-            </span>
-            <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
-          </Link>
-        )}
-      </section>
-
       {/* Banner principal */}
       {/* Añadimos relative al section para posicionar la etiqueta */}
       <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
@@ -297,9 +252,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* HU18: cada tarjeta es una sección aislada; si una falla, las demás siguen funcionando */}
-      <HomeStatusCards />
 
       {/* 👇 TARJETA DE ESTADO AGRANDADA 👇 */}
       {shouldShowStatusCard && (
@@ -367,6 +319,50 @@ export default function Home() {
           ))}
         </section>
       )}
+
+      {/* Acceso principal: Mis códigos QR (debajo de los cuadros, arriba de Próximos eventos) */}
+      <section
+        aria-label="Accesos principales"
+        data-testid="home-primary-actions"
+        className="grid grid-cols-1"
+      >
+        <Link
+          href="/mis-pases"
+          data-testid={isOnline ? 'home-online-qr-access' : 'home-offline-qr-access'}
+          className="group relative flex min-h-[88px] items-center gap-4 overflow-hidden rounded-2xl bg-[#1B2632] px-5 py-5 text-[#EEE9DF] shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#223040] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB162] sm:gap-5 sm:px-7"
+        >
+          {/* Barra de acento */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-[#FFB162]"
+          />
+
+          <span
+            aria-hidden="true"
+            className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FFB162] text-[#1B2632] shadow-md transition-transform duration-200 group-hover:scale-105"
+          >
+            <QrCode className="h-7 w-7" />
+          </span>
+
+          <span className="relative min-w-0 flex-1">
+            <span className="block text-base font-bold tracking-tight text-white sm:text-lg">
+              Mis códigos QR
+            </span>
+            <span className="mt-0.5 block text-xs text-[#EEE9DF]/80 sm:text-sm">
+              {isOnline
+                ? 'Abre tus pases guardados en este dispositivo.'
+                : 'Tus pases guardados están disponibles sin conexión.'}
+            </span>
+          </span>
+
+          <span
+            aria-hidden="true"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFB162]/15 text-[#FFB162] ring-1 ring-[#FFB162]/40 transition-colors duration-200 group-hover:bg-[#FFB162] group-hover:text-[#1B2632]"
+          >
+            <ChevronRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </span>
+        </Link>
+      </section>
 
       <section className="space-y-4 pt-2">
         <div className="flex items-center justify-between">
