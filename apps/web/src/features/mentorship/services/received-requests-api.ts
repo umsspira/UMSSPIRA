@@ -13,6 +13,7 @@ export type ReceivedRequest = {
   estado: ReceivedRequestStatus;
   fecha_creacion: string | null;
   fecha_respuesta: string | null;
+  fecha_actualizacion?: string | null;
 };
 export type ReceivedRequestPage = { items: ReceivedRequest[]; page: number; pageSize: number; total: number; totalPages: number };
 
@@ -75,8 +76,8 @@ async function request<T>(path: string, init: RequestInit, parse: (data: unknown
   }
 }
 
-export async function listReceivedRequests(status: ReceivedRequestStatus, page = 1, signal?: AbortSignal): Promise<ReceivedRequestPage> {
-  const query = new URLSearchParams({ estado: status, page: String(page), pageSize: '20' });
+export async function listReceivedRequests(status: ReceivedRequestStatus, page = 1, signal?: AbortSignal, pageSize = 20): Promise<ReceivedRequestPage> {
+  const query = new URLSearchParams({ estado: status, page: String(page), pageSize: String(pageSize) });
   return request(`/api/v1/mentorship/requests?${query}`, { method: 'GET', signal }, (data) => {
     if (!data || typeof data !== 'object') throw new Error('invalid response');
     const envelope = data as { data?: unknown; pagination?: Partial<ReceivedRequestPage>; items?: unknown };
@@ -85,7 +86,7 @@ export async function listReceivedRequests(status: ReceivedRequestStatus, page =
     if (!Array.isArray(items)) throw new Error('invalid items');
     const parsedItems = items.filter(isRequest);
     if (parsedItems.length !== items.length) throw new Error('invalid items');
-    return { items: parsedItems, page: pagination.page ?? page, pageSize: pagination.pageSize ?? 20, total: pagination.total ?? parsedItems.length, totalPages: pagination.totalPages ?? 1 };
+    return { items: parsedItems, page: pagination.page ?? page, pageSize: pagination.pageSize ?? pageSize, total: pagination.total ?? parsedItems.length, totalPages: pagination.totalPages ?? 1 };
   });
 }
 

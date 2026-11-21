@@ -6,6 +6,7 @@ import type { AvailableJobPosting } from '@umsspira/shared-types';
 import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
 import { listAvailableJobPostings } from '@/shared/services/available-job-postings';
+import { jobPostingDetailRoute } from '@/shared/routes/job-postings';
 
 type ListState =
   | { status: 'loading' }
@@ -98,7 +99,7 @@ export function AvailableJobPostingsSection() {
                 </p>
               </div>
               <Link
-                href={`/portal/empleos/${encodeURIComponent(posting.id)}`}
+                href={jobPostingDetailRoute(posting.id)}
                 className="shrink-0 rounded-lg bg-[#0F172A] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Ver oferta

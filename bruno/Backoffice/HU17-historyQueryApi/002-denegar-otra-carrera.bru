@@ -1,0 +1,34 @@
+meta {
+  name: HU17 - Denegar administrador de otra carrera (404)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/applications/{{applicationId}}/history
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{otherCareerAccessToken}}
+}
+
+tests {
+  test("HU17: otra carrera recibe 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+  test("HU17: no filtra datos privados", function () {
+    const data = res.getBody()?.data;
+    expect(data?.events).to.be.undefined;
+    expect(data?.ocr).to.be.undefined;
+  });
+}
+
+docs {
+  applicationId debe ser un expediente REAL de la carrera A.
+  otherCareerAccessToken debe pertenecer a un administrador de carrera B,
+  con solicitudes:read pero SIN permiso para la carrera A.
+  El backend usa scopedApplication y oculta la solicitud con 404.
+  No utilices un UUID inexistente: eso no probaria el aislamiento.
+}

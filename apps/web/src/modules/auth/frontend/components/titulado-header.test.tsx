@@ -1,7 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-import { useProfilePhotoStore } from "@/shared/hooks/use-profile-photo-store";
-
 import { TituladoHeader } from "./titulado-header";
 
 const mockApiClient = jest.fn();
@@ -15,11 +13,6 @@ jest.mock("./logout-button", () => ({
   LogoutButton: () => <button type="button">Cerrar sesión</button>,
 }));
 
-jest.mock("@/shared/services/profile-photo-service", () => ({
-  loadProfilePhoto: jest.fn().mockResolvedValue(null),
-  saveProfilePhoto: jest.fn(),
-}));
-
 jest.mock("@/shared/services/api-client", () => ({
   apiClient: (...args: unknown[]) => mockApiClient(...args),
 }));
@@ -28,7 +21,7 @@ describe("TituladoHeader", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockApiClient.mockResolvedValue({ data: [] });
-    useProfilePhotoStore.setState({ photoUrl: null, status: "ready" });
+    mockPathname = "/profile";
   });
 
   it("lleva al perfil profesional del titulado (Épica 2)", () => {
@@ -107,13 +100,6 @@ describe("TituladoHeader", () => {
     render(<TituladoHeader />);
 
     expect(screen.queryByTestId("profile-photo-badge")).not.toBeInTheDocument();
-  });
-
-  it("con foto guardada la muestra en el encabezado", () => {
-    useProfilePhotoStore.setState({ photoUrl: "blob:foto", status: "ready" });
-    render(<TituladoHeader />);
-
-    expect(screen.getByTestId("profile-photo-badge").querySelector("img")).toHaveAttribute("src", "blob:foto");
   });
 
   it("marca Mentorías con subrayado naranja dentro del módulo", () => {

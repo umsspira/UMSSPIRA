@@ -6,8 +6,32 @@
 .received-tabs button span { color: #90969c; font-size: .65rem; }
 .received-tabs button.is-active { background: #314154; color: #fff; }
 .received-tabs button.is-active span { color: #dbe0e5; }
-.received-list { display: grid; max-width: 51rem; gap: .7rem; }
+.received-list { display: grid; max-width: 72rem; gap: .7rem; }
 .received-card, .received-detail-card, .received-empty { border: 1px solid #e1dbd1; border-radius: .55rem; background: #fff; }
+.received-table-wrap { overflow-x: auto; border: 1px solid #e1dbd1; border-radius: .55rem; background: #fff; }
+.received-table { width: 100%; min-width: 59rem; border-collapse: collapse; table-layout: fixed; text-align: left; font-size: .72rem; }
+.received-table th { padding: .8rem .7rem; background: #faf9f7; color: #515b65; font-size: .66rem; font-weight: 600; white-space: nowrap; }
+.received-table td { border-top: 1px solid #eee9e1; padding: .6rem .7rem; color: #354456; vertical-align: middle; }
+.received-table th:nth-child(1) { width: 22%; }
+.received-table th:nth-child(2) { width: 15%; }
+.received-table th:nth-child(3) { width: 18%; }
+.received-table th:nth-child(4) { width: 14%; }
+.received-table th:nth-child(5) { width: 31%; }
+.received-table .received-person { gap: .55rem; }
+.received-table .received-avatar { width: 2rem; height: 2rem; }
+.received-table .received-person h2 { font-size: .7rem; }
+.received-table .received-person p { font-size: .61rem; }
+.received-table-date-label, .received-table td > strong { display: block; }
+.received-table-date-label { margin-bottom: .15rem; color: #848b91; font-size: .6rem; }
+.received-table td > strong { color: #354456; font-size: .67rem; font-weight: 600; }
+.received-table-message { overflow: hidden; color: #727a82 !important; font-size: .66rem; line-height: 1.4; text-overflow: ellipsis; }
+.received-table-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+.received-table-actions .received-button { min-height: 1.9rem; gap: .25rem; padding: .3rem .45rem; font-size: .63rem; white-space: nowrap; }
+.received-list-footer { display: flex; align-items: center; justify-content: space-between; gap: .8rem; color: #69727b; font-size: .68rem; }
+.received-list-footer > p { margin: 0; }
+.received-pagination { display: flex; align-items: center; gap: .3rem; padding: .5rem 0; }
+.received-pagination button { display: inline-flex; min-width: 2rem; min-height: 2rem; align-items: center; justify-content: center; padding: .35rem; }
+.received-pagination button.is-current { border-color: #314154; background: #314154; color: #fff; }
 .received-card { padding: 1.15rem 1.25rem; }
 .received-card-top, .received-person { display: flex; align-items: center; }
 .received-card-top { justify-content: space-between; gap: 1rem; }
@@ -21,6 +45,7 @@
 .received-status-aceptada { border-color: #b5d8ca; background: #e8f4ee; color: #287b59; }
 .received-status-rechazada { border-color: #edc2bd; background: #fff0ee; color: #ba3c32; }
 .received-status-cancelada { border-color: #d5d0c8; background: #f0ede7; color: #66707a; }
+.received-status-note { display: block; margin-top: .25rem; color: #848b91; font-size: .6rem; white-space: nowrap; }
 .received-datetime { margin: .65rem 0 .45rem; color: #374658; font-size: .72rem; }
 .received-message { max-width: 44rem; margin: 0; color: #68717c; font-size: .74rem; line-height: 1.5; }
 .received-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; margin-top: .75rem; }
@@ -85,8 +110,24 @@
 .sent-mentor strong { font-size: .69rem; }
 .sent-mentor small { margin-top: .1rem; color: #848b91; font-size: .6rem; }
 .sent-table .sent-reason { min-width: 11rem; max-width: 15rem; color: #727a82; font-size: .65rem; line-height: 1.4; }
+.sent-date-label, .sent-date { display: block; white-space: nowrap; }
+.sent-date-label { margin-bottom: .15rem; color: #848b91; font-size: .6rem; }
+.sent-date { color: #354456; font-size: .67rem; font-weight: 600; }
 .sent-cancel { min-height: 1.9rem; padding: .3rem .55rem; border-color: #e7c4b8; color: #a84637; font-size: .65rem; white-space: nowrap; }
 .sent-no-action { color: #abb0b4; font-size: .63rem; white-space: nowrap; }
+.my-requests-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.my-requests-heading p { margin-bottom: 1rem; }
+.my-requests-refresh { flex: 0 0 auto; }
+.my-requests-refresh:disabled { cursor: default; opacity: .55; }
+.my-requests-position { color: #5f6a75; font-size: .68rem; }
+.my-requests-success { margin: 0 0 1rem; border: 1px solid #b5d8ca; border-radius: .45rem; padding: .75rem; background: #e8f4ee; color: #287b59; font-size: .75rem; }
+.my-requests-notice { align-items: flex-start; }
+.my-requests-empty { display: flex; flex-direction: column; align-items: flex-start; max-width: 51rem; }
+.my-requests-link { margin-top: 1rem; width: fit-content; text-decoration: none; }
+@media (max-width: 600px) {
+  .my-requests-heading { flex-direction: column; }
+  .my-requests-refresh { width: 100%; }
+}
 @media (max-width: 600px) {
   .received-page { padding-inline: 1rem; }
   .received-tabs { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -98,4 +139,5 @@
   .received-detail-heading .received-status { margin-left: 0; }
   .received-modal { padding: 1.4rem 1rem; }
   .sent-table { min-width: 42rem; }
+  .received-list-footer { align-items: flex-start; flex-direction: column; }
 }

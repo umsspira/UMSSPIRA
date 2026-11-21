@@ -24,6 +24,7 @@ import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-li
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import { BackButton } from '@/shared/components/back-button';
+import { volverALaPantallaAnterior } from '@/modules/profile/utils/return-to';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
 import { backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
@@ -190,8 +191,13 @@ export function AcordeonPerfil({
             <span className="text-sm font-semibold text-truffle-trouble">
               {completas} de {secciones.length} secciones completas
             </span>
-            {/* Sin returnTo se vuelve a Mi perfil (HU-11) */}
-            <BackButton href="/profile" returnTo={returnTo} ariaLabel={returnTo ? 'Volver' : 'Volver a Mi perfil'} />
+            {/* Con returnTo vuelve a esa pantalla; sin él, a la última visitada. Nunca a /profile:
+                con el perfil vacío /profile reenvía aquí y el botón parecía no hacer nada (Observación 1) */}
+            <BackButton
+              returnTo={returnTo}
+              onClick={returnTo ? undefined : () => volverALaPantallaAnterior(router)}
+              ariaLabel="Volver"
+            />
           </div>
         </div>
         <BarraProgreso completas={completas} total={secciones.length} />

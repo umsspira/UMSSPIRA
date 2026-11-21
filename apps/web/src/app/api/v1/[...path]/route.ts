@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 const MODULES = new Set([
   'auth', 'user', 'companies', 'job-postings', 'registrations', 'applications',
   'email-verification', 'documents', 'perfil', 'events', 'certificates', 'mentorship', 'reports', 'surveys',
-  'nlp', 'radar', 'chat', 'vacantes',
+  'nlp', 'radar', 'chat', 'vacantes', 'affinity',
   'push-subscriptions', 'event-notifications',
 ]);
 

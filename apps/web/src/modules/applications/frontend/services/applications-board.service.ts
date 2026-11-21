@@ -1,3 +1,4 @@
+import type { OcrFinding } from '@umsspira/shared-types';
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { readApiError } from '@/shared/services/api-contract';
 
@@ -38,12 +39,80 @@ export interface BoardDetail extends BoardItem {
   documentName: string;
   documentPath: string | null;
   documentFormat: string;
+  version?: number;
+  reviewNotification?: ReviewNotification | null;
 }
 
 export interface ReviewAuthor { name: string | null; email: string }
+export interface ReviewNotification {
+  eventId: string;
+  status: 'pendiente' | 'enviada' | 'fallida';
+  attempts: number;
+}
 export interface ReviewSummary {
   observations: number; maxObservations: number; rejections: number; maxRejections: number;
   latestObservation: string | null; canObserve: boolean;
+}
+
+export type FindingAction = 'CONFIRMADO' | 'CORREGIDO' | 'NO_VERIFICABLE';
+
+export interface HumanFindingCheck {
+  field: string;
+  action: FindingAction;
+  verifiedValue?: string;
+  reason?: string;
+  author: string;
+  checkedAt: string;
+  version: number;
+}
+
+export interface SaveFindingCheckInput {
+  field: string;
+  action: FindingAction;
+  verifiedValue?: string;
+  reason?: string;
+  author?: string;
+  expectedVersion?: number;
+}
+
+export interface ApplicationHistoryEvent {
+  id: string;
+  version: number;
+  action: string;
+  title: string;
+  description: string | null;
+  actor: {
+    type: string;
+    id: string | null;
+  };
+  occurredAt: string;
+}
+
+export interface ApplicationHistory {
+  applicationId: string;
+  currentVersion: number;
+  ocr: {
+    latestAnalysis: {
+      id: string;
+      version: number;
+      status: string;
+      startedAt: string;
+      completedAt: string | null;
+      error: string | null;
+    } | null;
+    latestResult: {
+      id: string;
+      version: number;
+      isCurrent: boolean;
+      analyzedAt: string | null;
+      suggestion: string;
+      reason: string;
+      comparedData: OcrFinding[];
+      rulesVersion: string;
+    } | null;
+  };
+  eventCount: number;
+  events: ApplicationHistoryEvent[];
 }
 
 export interface BoardPage {
@@ -126,6 +195,12 @@ export function fetchApplicationDetail(id: string): Promise<BoardResult<BoardDet
   return boardFetch<BoardDetail>(`${APPLICATIONS_URL}/${encodeURIComponent(id)}`);
 }
 
+export function fetchApplicationHistory(id: string): Promise<BoardResult<ApplicationHistory>> {
+  return boardFetch<ApplicationHistory>(
+    `${APPLICATIONS_URL}/${encodeURIComponent(id)}/history`,
+  );
+}
+
 // Acceso temporal al adjunto (URL firmada de 5 minutos, CA-04.3).
 export function fetchDocumentUrl(id: string): Promise<BoardResult<{ url: string; expiresIn?: number; requiresAuthentication?: boolean }>> {
   return boardFetch(`${APPLICATIONS_URL}/${encodeURIComponent(id)}/document`);
@@ -142,4 +217,140 @@ export interface BoardMetrics {
 
 export function fetchApplicationsMetrics(): Promise<BoardResult<BoardMetrics>> {
   return boardFetch<BoardMetrics>(`${APPLICATIONS_URL}/metrics`);
+}
+
+// Reintenta el mismo envío sin crear otro dictamen; pasadas 24 h responde expired (CA-14.8).
+export async function retryMailEvent(
+  eventId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const fallback = 'No se pudo reintentar el envío. Intenta nuevamente.';
+  try {
+    const response = await authenticatedFetch(
+      `/api/v1/mail-events/${encodeURIComponent(eventId)}/retry`,
+      { method: 'POST' },
+    );
+    const body = await readJson<{ data?: { status?: string }; status?: string } & ApiErrorBody>(response);
+    if (body?.data?.status === 'expired' || body?.status === 'expired') {
+      return { ok: false, message: 'El plazo de reintento (24 horas) venció.' };
+    }
+    if (!response.ok) return { ok: false, message: toMessage(body, fallback) };
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: error instanceof SessionError ? error.message : fallback };
+  }
+}
+
+const STORAGE_PREFIX = 'umsspira:finding-checks:';
+
+function getLocalFindingChecks(applicationId: string): Record<string, HumanFindingCheck> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${applicationId}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function setLocalFindingChecks(applicationId: string, checks: Record<string, HumanFindingCheck>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(`${STORAGE_PREFIX}${applicationId}`, JSON.stringify(checks));
+  } catch {
+    // ignorar errores de almacenamiento
+  }
+}
+
+// Consulta comprobaciones humanas registradas (CA-14.3).
+export async function fetchFindingChecks(
+  applicationId: string,
+): Promise<BoardResult<HumanFindingCheck[]>> {
+  const url = `${APPLICATIONS_URL}/${encodeURIComponent(applicationId)}/findings-checks`;
+  const result = await boardFetch<HumanFindingCheck[]>(url);
+  if (result.ok) {
+    return result;
+  }
+  const localMap = getLocalFindingChecks(applicationId);
+  return { ok: true, data: Object.values(localMap) };
+}
+
+// Guarda la comprobación humana de un hallazgo con autor, fecha y versión (CA-14.3 y CA-14.7).
+export async function saveFindingCheck(
+  applicationId: string,
+  input: SaveFindingCheckInput,
+  currentVersion?: number,
+): Promise<BoardResult<HumanFindingCheck>> {
+  const version = input.expectedVersion ?? currentVersion ?? 1;
+
+  if (
+    input.expectedVersion !== undefined &&
+    currentVersion !== undefined &&
+    input.expectedVersion !== currentVersion
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      needsLogin: false,
+      message: 'La solicitud cambió; actualiza el expediente.',
+    };
+  }
+
+  const url = `${APPLICATIONS_URL}/${encodeURIComponent(applicationId)}/findings-checks`;
+  const fallback = 'No se pudo guardar la comprobación del hallazgo.';
+  const payload = { ...input, expectedVersion: version };
+
+  try {
+    const response = await authenticatedFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 409) {
+      return {
+        ok: false,
+        status: 409,
+        needsLogin: false,
+        message: 'La solicitud cambió; actualiza el expediente.',
+      };
+    }
+
+    if (response.ok) {
+      const body = await readJson<{ data?: HumanFindingCheck } & ApiErrorBody>(response);
+      if (body?.data) {
+        const local = getLocalFindingChecks(applicationId);
+        local[body.data.field] = body.data;
+        setLocalFindingChecks(applicationId, local);
+        return { ok: true, data: body.data };
+      }
+    }
+    if (response.status !== 404) {
+      const body = await readJson<ApiErrorBody>(response);
+      return {
+        ok: false,
+        status: response.status,
+        needsLogin: response.status === 401,
+        message: toMessage(body, fallback),
+      };
+    }
+  } catch (error) {
+    if (error instanceof SessionError) {
+      return { ok: false, status: error.status, needsLogin: error.status === 401, message: error.message };
+    }
+  }
+
+  const check: HumanFindingCheck = {
+    field: input.field,
+    action: input.action,
+    verifiedValue: input.action === 'CORREGIDO' ? input.verifiedValue : undefined,
+    reason: input.action === 'NO_VERIFICABLE' ? input.reason : undefined,
+    author: input.author || 'Administrador',
+    checkedAt: new Date().toISOString(),
+    version,
+  };
+
+  const local = getLocalFindingChecks(applicationId);
+  local[check.field] = check;
+  setLocalFindingChecks(applicationId, local);
+  return { ok: true, data: check };
 }

@@ -7,6 +7,8 @@ import { Button } from "@/shared/components/button";
 import { FormSelect } from "@/modules/registration/frontend/components/form-select";
 import { useRegistrationStore } from "@/modules/registration/frontend/store";
 import { useDocumentUpload } from "../hooks/use-document-upload";
+import { useImageQuality } from "../hooks/use-image-quality";
+import { QualityWarning } from "./quality-warning";
 import { DOCUMENT_TYPE_OPTIONS, type DocumentType } from "../services";
 import { DOCUMENT_ERROR_MESSAGES } from "../validation/document-file";
 import { DocumentFilePicker } from "./document-file-picker";
@@ -56,7 +58,24 @@ export function DocumentUploadStep() {
     selectFile,
     upload,
   } = useDocumentUpload();
+  const {
+  result: qualityResult,
+  analyze: analyzeQuality,
+  reset: resetQuality,
+} = useImageQuality();
   const isLocked = isValidating || isUploading;
+  useEffect(() => {
+  if (!file) {
+    resetQuality();
+    return;
+  }
+
+  void analyzeQuality(file);
+
+  return () => {
+    resetQuality();
+  };
+}, [file, analyzeQuality, resetQuality]);
   const isSending = isUploading;
   const hasDocument = Boolean(
     file || (storedDocument && tipoDocumento === storedDocument.tipoDocumento),
@@ -269,6 +288,7 @@ export function DocumentUploadStep() {
               disabled={isLocked}
             />
           )}
+          {file && <QualityWarning result={qualityResult} />}
         </div>
 
         <SwornDeclaration
