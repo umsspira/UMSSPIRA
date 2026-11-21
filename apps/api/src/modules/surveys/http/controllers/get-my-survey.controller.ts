@@ -43,6 +43,8 @@ export class GetMySurveyController {
               modalidad: saved.modalidad,
               salario_mensual: saved.salarioMensual,
               tiempo_insercion: saved.tiempoInsercion,
+              // HU-006 CA-07: la web oculta «Editar respuestas» también al volver a entrar
+              edicion_usada: saved.edicionUsada,
             }
           : null,
       },

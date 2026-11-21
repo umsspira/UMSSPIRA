@@ -210,7 +210,12 @@ export function JobPostingsList() {
         </nav>
 
         <header className="mb-5">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bolsa de trabajo</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bolsa de trabajo</h1>
+            <Link href="/ayuda/bolsa-de-trabajo?tab=titulado" className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline underline-offset-4">
+              Ayuda
+            </Link>
+          </div>
           <p className="mt-1 max-w-4xl text-sm leading-5 text-slate-600">
             Explora oportunidades laborales adaptadas a tu perfil académico y profesional con cálculo automático de afinidad.
           </p>
