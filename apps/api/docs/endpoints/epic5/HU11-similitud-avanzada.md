@@ -33,7 +33,9 @@ Cada campo del perfil se extrae por separado, para no formar n-gramas entre camp
 
 Porcentaje: suma de pesos ÷ número de requisitos × 100, redondeado a 2 decimales. Los requisitos vacíos se ignoran. Si no queda ninguno, el resultado es `percentage: 0` con `comparison: []`, y la HU-10 decide el estado (`insufficient-requirements`); el motor no inventa porcentajes.
 
-`comparison[]` trae `requirement`, `matchedSkill`, `result` (`exact`, `similar` o `not-found`, los mismos valores que ya usa la UI) y `weight`.
+Internamente `compareRequirements` devuelve `requirement`, `matchedSkill`, `result` (`exact`, `similar` o `not-found`) y `weight`. La API (`POST /api/v1/affinity/batch`) entrega solo `requirement`, `matchedSkill` y `result`, como fija el contrato de `packages/shared-types`; la ventana «¿Cómo se calcula?» de la HU-20 aplica los mismos pesos (exacta 1, similar 0,5) para explicar el porcentaje.
+
+En pantalla los resultados se llaman igual en todas partes: **Exacta**, **Similar** y **No encontrada** (detalle de la vacante, desglose de la empresa, ventana «¿Cómo se calcula?» y ayuda).
 
 ### Por qué la coincidencia parcial vale 50 %
 
