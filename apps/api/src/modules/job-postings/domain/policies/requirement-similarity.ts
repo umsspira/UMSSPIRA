@@ -48,7 +48,8 @@ interface ProfileSegment {
   stems: string[];
 }
 
-interface ProfileIndex {
+/** Perfil ya procesado por el NLP: se arma una vez y sirve para comparar contra N vacantes. */
+export interface ProfileIndex {
   canonicals: Set<string>;
   segments: ProfileSegment[];
 }
@@ -58,7 +59,14 @@ export function compareRequirements(
   profileTexts: readonly string[],
   extractor: KeywordExtractor,
 ): RequirementSimilarityResult {
-  const profile = buildProfileIndex(profileTexts, extractor);
+  return compareRequirementsWithProfile(requirements, buildProfileIndex(profileTexts, extractor), extractor);
+}
+
+export function compareRequirementsWithProfile(
+  requirements: readonly string[],
+  profile: ProfileIndex,
+  extractor: KeywordExtractor,
+): RequirementSimilarityResult {
   const comparison = requirements
     .map((requirement) => requirement.trim())
     .filter((requirement) => normalizeText(requirement).length > 0)
@@ -125,7 +133,7 @@ function compareRequirement(
   return result(requirement, null, 'not-found');
 }
 
-function buildProfileIndex(texts: readonly string[], extractor: KeywordExtractor): ProfileIndex {
+export function buildProfileIndex(texts: readonly string[], extractor: KeywordExtractor): ProfileIndex {
   const canonicals = new Set<string>();
   const segments: ProfileSegment[] = [];
 

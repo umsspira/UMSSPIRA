@@ -123,7 +123,7 @@ export default function CandidatesPage() {
       setError(false);
       try {
         const vac = await getVacancyById(vacancyId).catch(() => null);
-        const list = await getApplicantsByVacancy(vacancyId, vac?.publishedAt);
+        const list = await getApplicantsByVacancy(vacancyId);
         if (!cancelled) {
           setApplicants(list);
           setVacancy(vac);

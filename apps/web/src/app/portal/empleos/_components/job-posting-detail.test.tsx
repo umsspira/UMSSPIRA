@@ -38,7 +38,12 @@ const posting: AvailableJobPostingDetail = {
 describe('JobPostingDetail', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    calculateAffinity.mockResolvedValue({ status: 'no-requirements', percentage: null, calculatedAt: null, comparison: [] });
+    calculateAffinity.mockResolvedValue({
+      status: 'no-requirements',
+      percentage: null,
+      calculatedAt: null,
+      comparison: [],
+    });
     getMyApplication.mockResolvedValue({ postulada: false });
   });
 

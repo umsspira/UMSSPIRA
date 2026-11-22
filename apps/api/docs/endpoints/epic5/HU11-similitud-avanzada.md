@@ -1,6 +1,6 @@
 # HU-11 · Similitud avanzada del motor de afinidad
 
-> Estado: **provisional**. La regla vive en `apps/api/src/modules/job-postings/domain/policies/requirement-similarity.ts` y la usará el servicio de matching de la HU-10 (`CalculateJobPostingAffinity`) cuando se integre. Esta HU no agrega endpoints ni migraciones.
+> Estado: **integrada con la HU-10.** La regla vive en `apps/api/src/modules/job-postings/domain/policies/requirement-similarity.ts` y la usa `calculateJobPostingAffinity` (motor de `POST /api/v1/affinity/batch`). Esta HU no agrega endpoints ni migraciones.
 
 ## Problema
 
@@ -33,7 +33,9 @@ Cada campo del perfil se extrae por separado, para no formar n-gramas entre camp
 
 Porcentaje: suma de pesos ÷ número de requisitos × 100, redondeado a 2 decimales. Los requisitos vacíos se ignoran. Si no queda ninguno, el resultado es `percentage: 0` con `comparison: []`, y la HU-10 decide el estado (`insufficient-requirements`); el motor no inventa porcentajes.
 
-`comparison[]` trae `requirement`, `matchedSkill`, `result` (`exact`, `similar` o `not-found`, los mismos valores que ya usa la UI) y `weight`.
+Internamente `compareRequirements` devuelve `requirement`, `matchedSkill`, `result` (`exact`, `similar` o `not-found`) y `weight`. La API (`POST /api/v1/affinity/batch`) entrega solo `requirement`, `matchedSkill` y `result`, como fija el contrato de `packages/shared-types`; la ventana «¿Cómo se calcula?» de la HU-20 aplica los mismos pesos (exacta 1, similar 0,5) para explicar el porcentaje.
+
+En pantalla los resultados se llaman igual en todas partes: **Exacta**, **Similar** y **No encontrada** (detalle de la vacante, desglose de la empresa, ventana «¿Cómo se calcula?» y ayuda).
 
 ### Por qué la coincidencia parcial vale 50 %
 
@@ -69,8 +71,13 @@ Siguen funcionando las palabras compuestas («desarrollo de software», «api re
 
 `ALGORITHM_VERSION = 'job-affinity-hu11-v1'`. Cambiar reglas, pesos o el stemmer obliga a subirla. La HU-10 debe guardarla junto al porcentaje (por ejemplo, combinada con la versión del diccionario, como `radar/domain/policies/input-hash.ts`) para recalcular los porcentajes hechos con versiones viejas.
 
-## Pendiente para la integración con la HU-10
+## Integración con la HU-10 (hecha)
 
-- Llamar a `compareRequirements(requisitos, textosDelPerfil, extractor)` desde `CalculateJobPostingAffinity`, con el `KeywordExtractorService` ya cargado por `KeywordDictionaryLoader`.
-- Llevar `weight` y `algorithmVersion` al contrato de `packages/shared-types` que define la HU-10.
-- Retirar la comparación por substring del frontend cuando la HU-10 publique su endpoint.
+- `JobPostingAffinityExtractorPort.loadExtractor()` entrega el `KeywordExtractorService` ya cargado; el adaptador traduce un diccionario caído a `NLP_DICTIONARY_UNAVAILABLE` (503).
+- `CalculateJobPostingAffinity` arma el perfil una vez (`buildProfileIndex`, campo por campo) y lo compara con cada vacante con `compareRequirementsWithProfile`.
+- El contrato de `packages/shared-types` no cambia: `comparison[]` ya admitía `exact`, `similar` y `not-found`, y el porcentaje sigue siendo entero.
+
+## Pendiente para otras HU
+
+- **HU-12 (recálculo):** guardar `ALGORITHM_VERSION` junto a `porcentaje_match` para recalcular lo calculado con versiones viejas.
+- **HU-15 (comparación postulante-vacante):** usar `comparison[]` tal cual; `similar` ya trae `matchedSkill`.
