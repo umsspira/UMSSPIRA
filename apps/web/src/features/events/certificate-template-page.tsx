@@ -280,6 +280,20 @@ export function CertificateTemplatePage() {
               </ol>
             </aside>
           </div>
+{/* 👉 HU18: Acceso a la página independiente de Emisión de Certificados */}
+          <section className="ct-card" style={{ marginTop: '1.5rem' }}>
+            <h2>Emisión de certificados</h2>
+            <p>
+              {activeTemplate
+                ? 'Accede al panel de emisión para generar los certificados digitales en lote para los participantes con asistencia registrada.'
+                : 'Aún no hay una plantilla configurada. Puedes revisar el estado de emisión o configurar un modelo PDF.'}
+            </p>
+            <div className="ct-actions">
+              <Link href={`/events/${id}/certificates/emit`} className="event-button event-button-primary">
+                Ir a emisión de certificados
+              </Link>
+            </div>
+          </section>
         </Shell>
       );
 
@@ -444,7 +458,8 @@ export function CertificateTemplatePage() {
               <p>Se aplicará a las próximas emisiones de este evento.</p>
               <div className="ct-actions">
                 <button type="button" className="event-button event-button-secondary" onClick={() => setView('viewSaved')}>Ver plantilla</button>
-                <Link href="/events" className="event-button event-button-primary">Volver a gestión</Link>
+                <Link href={`/events/${id}/certificates/emit`} className="event-button event-button-primary">Ir a emisión</Link>
+                <Link href="/events" className="event-button event-button-secondary">Volver a gestión</Link>
               </div>
             </section>
             <aside className="ct-card">

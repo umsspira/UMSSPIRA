@@ -27,6 +27,8 @@ import {
 
 const mockPush = jest.fn();
 const mockGetAdminEvents = jest.fn();
+const mockGetEventReminderSettings = jest.fn();
+const mockUpdateEventReminderSettings = jest.fn();
 const mockGetAdminEvent = jest.fn();
 const mockGetAdminDraft = jest.fn();
 const mockUpdateDraftEvent = jest.fn();
@@ -43,6 +45,8 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/shared/services/events-service', () => ({
   getAdminEvents: (...args: unknown[]) => mockGetAdminEvents(...args),
+  getEventReminderSettings: (...args: unknown[]) => mockGetEventReminderSettings(...args),
+  updateEventReminderSettings: (...args: unknown[]) => mockUpdateEventReminderSettings(...args),
   getAdminEvent: (...args: unknown[]) => mockGetAdminEvent(...args),
   getAdminDraft: (...args: unknown[]) => mockGetAdminDraft(...args),
   updateDraftEvent: (...args: unknown[]) => mockUpdateDraftEvent(...args),
@@ -90,6 +94,8 @@ describe('Gestión administrativa de eventos HU1', () => {
   beforeEach(() => {
     mockPush.mockReset();
     mockGetAdminEvents.mockReset();
+    mockGetEventReminderSettings.mockReset();
+    mockUpdateEventReminderSettings.mockReset();
     mockGetAdminDraft.mockReset();
     mockUpdateDraftEvent.mockReset();
     mockPublishDraftEvent.mockReset();
@@ -113,6 +119,25 @@ describe('Gestión administrativa de eventos HU1', () => {
     expect(within(metrics).getByText('1')).toBeInTheDocument();
     expect(within(metrics).getByText('2')).toBeInTheDocument();
     expect(mockGetAdminEvents).toHaveBeenCalledWith('user-1');
+  });
+
+  it('permite guardar una anticipación global para los eventos publicados', async () => {
+    mockGetAdminEvents.mockResolvedValueOnce([]);
+    mockGetEventReminderSettings.mockResolvedValueOnce({ anticipationHours: 24 });
+    mockUpdateEventReminderSettings.mockResolvedValueOnce({ anticipationHours: 48 });
+
+    render(<EventManagementContent userId="user-1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Recordatorios' }));
+
+    const input = await screen.findByRole('spinbutton', { name: 'Anticipación (horas)' });
+    expect(input).toHaveValue(24);
+    fireEvent.change(input, { target: { value: '48' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => {
+      expect(mockUpdateEventReminderSettings).toHaveBeenCalledWith({ anticipationHours: 48 });
+    });
+    expect(await screen.findByText('Configuración guardada.')).toBeInTheDocument();
   });
 
   it('muestra el nombre del creador y la fecha de creación sin exponer su UUID', async () => {
