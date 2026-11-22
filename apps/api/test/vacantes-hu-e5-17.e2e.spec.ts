@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { JOB_POSTING_AFFINITY_DATA } from '../src/modules/job-postings/application/ports/job-posting-affinity-data.port';
 import { CalculateJobPostingAffinity } from '../src/modules/job-postings/application/use-cases/calculate-job-posting-affinity.use-case';
+import { RefreshJobPostingAffinity } from '../src/modules/job-postings/application/use-cases/refresh-job-posting-affinity.use-case';
+import { PrismaJobPostingAffinityDataAdapter } from '../src/modules/job-postings/infrastructure/adapters/prisma-job-posting-affinity-data.adapter';
 import { VacantesController } from '../src/modules/vacantes/vacantes.controller';
 import { VacantesService } from '../src/modules/vacantes/vacantes.service';
 import { ErrorHandlerFilter } from '../src/shared/http/filters/error-handler.filter';
@@ -17,13 +19,17 @@ const profile = {
   perfil_area_registros: [{ descripcion_profesional: 'Analista' }],
 };
 const applications = { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), update: jest.fn() };
-const transaction = { postulacion: applications, $queryRaw: jest.fn(), $executeRaw: jest.fn() };
+const vacancies = { findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn() };
+// HU-12: al postular se vuelve a leer la vacante dentro de la transacción
+const transaction = { postulacion: applications, vacante: vacancies, $queryRaw: jest.fn(), $executeRaw: jest.fn() };
 // Dobles del servicio de afinidad de HU-10: el e2e comprueba el contrato HTTP, no el motor.
 const affinityData = { readProfiles: jest.fn(), readRequirements: jest.fn() };
 const calculateAffinity = { execute: jest.fn() };
+// HU-12: el recálculo automático al listar no es parte de este contrato; sin cambios pendientes
+const refreshAffinity = { forUser: jest.fn(), forVacancy: jest.fn(), forApplication: jest.fn() };
 const db = {
   postulacion: applications, titulado: { findFirst: jest.fn() },
-  vacante: { findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn() }, empresa: { count: jest.fn() },
+  vacante: vacancies, empresa: { count: jest.fn() },
   $transaction: (work: (tx: typeof transaction) => Promise<unknown>) => work(transaction),
 };
 
@@ -38,6 +44,9 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
         { provide: PrismaService, useValue: db },
         { provide: CalculateJobPostingAffinity, useValue: calculateAffinity },
         { provide: JOB_POSTING_AFFINITY_DATA, useValue: affinityData },
+        { provide: RefreshJobPostingAffinity, useValue: refreshAffinity },
+        // Al postular, la lectura del perfil va dentro de la transacción con el mismo adaptador
+        { provide: PrismaJobPostingAffinityDataAdapter, useValue: affinityData },
       ],
     }).compile();
     app = module.createNestApplication();
@@ -58,6 +67,9 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
     affinityData.readProfiles.mockResolvedValue([{ userId: 'usuario-prueba' }]);
     affinityData.readRequirements.mockResolvedValue([]);
     calculateAffinity.execute.mockResolvedValue([]);
+    refreshAffinity.forUser.mockResolvedValue(new Map());
+    refreshAffinity.forVacancy.mockResolvedValue(new Map());
+    refreshAffinity.forApplication.mockResolvedValue(new Map());
   });
 
   it('CA-01 crea una sola fila al repetir la postulación', async () => {
@@ -75,6 +87,12 @@ describe('HU-E5-17 · contratos HTTP de Vacantes', () => {
   it('CA-01 guarda juntos el porcentaje y la fecha de afinidad calculados al postular', async () => {
     const calculatedAt = '2026-11-20T12:00:00.000Z';
     applications.findFirst.mockResolvedValue(null);
+    // HU-12: el porcentaje inicial solo se guarda si el perfil y los requisitos no cambiaron dentro de la transacción
+    affinityData.readProfiles.mockResolvedValue([{
+      userId: 'usuario-prueba', tituladoId: 'titulado-prueba', texts: ['SQL'], description: 'Analista',
+      hasEducation: true, hasExperience: true, hasCertification: true, hasProject: true,
+    }]);
+    affinityData.readRequirements.mockResolvedValue([{ vacancyId: vacancy, requirements: ['SQL', 'Python'] }]);
     calculateAffinity.execute.mockResolvedValue([
       { vacancyId: vacancy, result: { status: 'ready', percentage: 50, calculatedAt, comparison: [] } },
     ]);
