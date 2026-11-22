@@ -8,7 +8,7 @@ export interface DetalleRequisitoAfinidad {
   requirement: string;
   matchedSkill: string | null;
   result: EstadoCoincidencia;
-  /** Aporte normalizado del motor (0 a 1). Es opcional hasta integrar HU-10/HU-11. */
+  /** Aporte normalizado (0 a 1). La API no lo envía: sin él se usan los pesos de la HU-11. */
   weight?: number;
 }
 
@@ -22,10 +22,11 @@ export interface ComoSeCalculaModalProps {
 /** Peso de la coincidencia parcial de la HU-11 (MATCH_WEIGHTS del motor). */
 const PESO_PARCIAL = 0.5;
 
+// Mismas etiquetas que el detalle de la vacante y el desglose de la empresa (HU-11)
 const RESULTADOS: Record<EstadoCoincidencia, { texto: string; estilo: string }> = {
-  exact: { texto: 'Coincide', estilo: 'bg-emerald-50 text-emerald-800' },
-  similar: { texto: 'Coincide parcialmente', estilo: 'bg-amber-50 text-amber-900' },
-  'not-found': { texto: 'No encontrado', estilo: 'bg-stone-100 text-stone-700' },
+  exact: { texto: 'Exacta', estilo: 'bg-emerald-50 text-emerald-800' },
+  similar: { texto: 'Similar', estilo: 'bg-amber-50 text-amber-900' },
+  'not-found': { texto: 'No encontrada', estilo: 'bg-stone-100 text-stone-700' },
 };
 
 function porcentaje(valor: number): string {
