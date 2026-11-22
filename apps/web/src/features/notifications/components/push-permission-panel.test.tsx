@@ -88,8 +88,6 @@ describe('PushPermissionPanel (HU13 - T7 y T8)', () => {
     setupBrowser('granted', true, jest.fn(), fakeSubscription);
     render(<PushPermissionPanel />);
 
-    // Con permiso concedido, se ofrece activar la suscripción primero.
-    fireEvent.click(screen.getByRole('button', { name: /solicitar permiso/i }));
     const boton = await screen.findByRole('button', { name: /desactivar notificaciones/i });
 
     fireEvent.click(boton);

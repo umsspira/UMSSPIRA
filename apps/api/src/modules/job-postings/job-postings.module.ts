@@ -9,6 +9,8 @@ import { NlpModule } from '../nlp/nlp.module';
 import { jobPostingAffinityProviders } from './infrastructure/providers/job-posting-affinity.providers';
 import { CalculateJobPostingAffinity } from './application/use-cases/calculate-job-posting-affinity.use-case';
 import { JOB_POSTING_AFFINITY_DATA } from './application/ports/job-posting-affinity-data.port';
+import { RefreshJobPostingAffinity } from './application/use-cases/refresh-job-posting-affinity.use-case';
+import { PrismaJobPostingAffinityDataAdapter } from './infrastructure/adapters/prisma-job-posting-affinity-data.adapter';
 
 @Module({
   imports: [PrismaModule, NlpModule],
@@ -19,6 +21,6 @@ import { JOB_POSTING_AFFINITY_DATA } from './application/ports/job-posting-affin
     GetAvailableJobPostingController,
   ],
   providers: [...jobPostingsProviders, ...jobPostingAffinityProviders],
-  exports: [CalculateJobPostingAffinity, JOB_POSTING_AFFINITY_DATA],
+  exports: [CalculateJobPostingAffinity, RefreshJobPostingAffinity, JOB_POSTING_AFFINITY_DATA, PrismaJobPostingAffinityDataAdapter],
 })
 export class JobPostingsModule {}

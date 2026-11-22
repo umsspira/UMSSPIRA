@@ -5,7 +5,9 @@ import { notificationsProviders } from './infrastructure/providers/notifications
 import { RegisterPushSubscriptionController } from './http/controllers/register-push-subscription.controller';
 import { UnregisterPushSubscriptionController } from './http/controllers/unregister-push-subscription.controller';
 import { ListPushSubscriptionsController } from './http/controllers/list-push-subscriptions.controller';
+import { EventNotificationsController } from './http/controllers/event-notifications.controller';
 import { PUSH_NOTIFICATIONS } from './application/ports/push-notifications.port';
+import { PushNotificationService } from './application/services/push-notification.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -13,8 +15,9 @@ import { PUSH_NOTIFICATIONS } from './application/ports/push-notifications.port'
     RegisterPushSubscriptionController,
     UnregisterPushSubscriptionController,
     ListPushSubscriptionsController,
+    EventNotificationsController,
   ],
   providers: [...notificationsProviders],
-  exports: [PUSH_NOTIFICATIONS],
+  exports: [PUSH_NOTIFICATIONS, PushNotificationService],
 })
 export class NotificationsModule {}

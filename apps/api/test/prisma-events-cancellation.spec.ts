@@ -32,6 +32,9 @@ describe('PrismaEventsRepository.cancelPublished', () => {
     paseQr: {
       updateMany: jest.fn().mockResolvedValue({ count: 2 }),
     },
+    recordatorioEvento: {
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
   };
 
   const prisma = {
@@ -51,6 +54,7 @@ describe('PrismaEventsRepository.cancelPublished', () => {
     });
     tx.inscripcionEvento.count.mockResolvedValue(3);
     tx.paseQr.updateMany.mockResolvedValue({ count: 2 });
+    tx.recordatorioEvento.updateMany.mockResolvedValue({ count: 0 });
   });
 
   it('cancela el evento e invalida los pases QR vigentes', async () => {
@@ -81,6 +85,18 @@ describe('PrismaEventsRepository.cancelPublished', () => {
         inscripcion: { is: { id_evento: eventId } },
       },
       data: { estado: 'INVALIDADO' },
+    });
+    expect(tx.recordatorioEvento.updateMany).toHaveBeenCalledWith({
+      where: {
+        id_evento: eventId,
+        estado: { in: ['PENDIENTE', 'FALLIDO', 'EN_PROCESO'] },
+      },
+      data: {
+        estado: 'OMITIDO',
+        error: null,
+        reintentar_en: null,
+        procesando_desde: null,
+      },
     });
 
     expect(prisma.$transaction).toHaveBeenCalled();

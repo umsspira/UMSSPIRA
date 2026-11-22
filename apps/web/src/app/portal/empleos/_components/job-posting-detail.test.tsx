@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
 import { ApiError } from '@/shared/services/api-client';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
@@ -156,11 +156,19 @@ describe('JobPostingDetail', () => {
     render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
 
     expect(await screen.findByText('Introducción del puesto.')).toBeInTheDocument();
-    expect(screen.getByText('React')).toBeInTheDocument();
-    expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
-    expect(screen.queryByText(/Conocimientos técnicos requeridos/)).not.toBeInTheDocument();
     expect(await screen.findByText('100%')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver comparación' }));
+    const requirements = screen.getByRole('heading', { name: 'Requisitos técnicos' }).closest('section');
+    expect(requirements).not.toBeNull();
+    expect(within(requirements!).getByText('React')).toBeVisible();
+    expect(within(requirements!).getByText('PostgreSQL')).toBeVisible();
+    expect(screen.queryByText(/Conocimientos técnicos requeridos/)).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Ver comparación' });
+    button.focus();
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(button);
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveTextContent('React Native');
     expect(screen.getByText('Habilidad: React Native')).toBeInTheDocument();
     expect(screen.getByText('Habilidad: PostgreSQL avanzado')).toBeInTheDocument();
   });

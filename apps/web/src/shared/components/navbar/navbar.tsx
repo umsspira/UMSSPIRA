@@ -15,7 +15,7 @@ import { MessagesButton } from './messages-button';
 import { getMentorProfile } from '@/features/mentorship/services/mentorship-api';
 const unchangedHref = (href: string) => href;
 
-function NavbarContent({ session, onLogout, currentPath, resolveHref = unchangedHref, onLogin, onSearch, notifications = [], messages = [], accountExtra }: NavbarProps) {
+function NavbarContent({ session, onLogout, currentPath, resolveHref = unchangedHref, onLogin, onSearch, notifications = [], onNotificationsOpen, notificationsError, onNotificationRead, messages = [], accountExtra }: NavbarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const path = currentPath ?? pathname ?? '';
@@ -114,10 +114,12 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
 
   const toggle = (name: string, button: HTMLButtonElement) => {
     lastTrigger.current = button;
+    if (name === 'notifications' && opened !== name) onNotificationsOpen?.();
     setOpened(value => value === name ? null : name);
   };
   const openWithKeyboard = (name: string, button: HTMLButtonElement) => {
     lastTrigger.current = button;
+    if (name === 'notifications') onNotificationsOpen?.();
     setOpened(name);
     window.requestAnimationFrame(() => document.getElementById(panelId(name))?.querySelector<HTMLAnchorElement>('a')?.focus());
   };
@@ -161,7 +163,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
           <MessagesButton />
           {([{ id: 'notifications', label: 'Notificaciones', Icon: Bell, items: notifications }] as const).map(({ id, label, Icon, items }) => <div className={styles.actionDropdown} key={id}>
            <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={opened === id} aria-controls={panelId(id)} onClick={event => toggle(id, event.currentTarget)}><Icon size={22} strokeWidth={1.8} />{items.some(item => item.unread) && <span className={styles.badge} aria-label="Hay elementos sin leer" />}</button>
-            {opened === id && <div className={styles.activityPopover} id={panelId(id)} onKeyDown={moveFocus}><ActivityPanel kind={id} items={[...items]} resolveHref={resolveHref} onNavigate={close} /></div>}
+            {opened === id && <div className={styles.activityPopover} id={panelId(id)} onKeyDown={moveFocus}><ActivityPanel kind={id} items={[...items]} resolveHref={resolveHref} onNavigate={close} notificationsError={notificationsError} onNotificationRead={onNotificationRead} /></div>}
           </div>)}
           <span className={styles.separator} aria-hidden="true" />
           <div className={styles.actionDropdown}>

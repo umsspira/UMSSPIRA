@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  EVENT_REMINDER_MAX_HOURS,
+  EVENT_REMINDER_MIN_HOURS,
+} from '@umsspira/shared-types';
 import type { CreateEventInput, EventInput } from '../../application/contracts/event-inputs';
 
 export const eventIdSchema = z.uuid();
@@ -52,3 +56,9 @@ export const createEventSchema = baseEventSchema
     status: z.enum(['BORRADOR', 'PUBLICADO']).default('BORRADOR'),
   })
   .transform((value): CreateEventInput => ({ ...toEventInput(value), status: value.status }));
+
+export const reminderSettingsSchema = z.strictObject({
+  anticipationHours: z.number().int()
+    .min(EVENT_REMINDER_MIN_HOURS)
+    .max(EVENT_REMINDER_MAX_HOURS),
+});

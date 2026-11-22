@@ -144,3 +144,12 @@ pnpm --filter web exec jest src/shared/services/job-posting-affinity.test.ts src
 TEST_DATABASE_URL=postgresql://usuario:clave@localhost:5432/postgres pnpm --filter api exec jest test/job-posting-affinity.integration.spec.ts
 ```
 
+## Recálculo persistente HU-12
+
+`RefreshJobPostingAffinity` reutiliza el caso de uso de HU-10 y persiste
+únicamente postulaciones cuyo hash SHA-256 difiere de las entradas actuales.
+Las consultas autorizadas de postulaciones y candidatos activan el recálculo
+lazy; el batch HTTP de HU-10 sigue siendo de solo lectura. La arquitectura,
+concurrencia, migración y límites están en
+`apps/api/docs/endpoints/epic5/HU12-recalculo-automatico.md`.
+

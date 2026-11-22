@@ -22,6 +22,9 @@ export type JobPostingAffinityResult =
       comparison: [];
     };
 
+/** Estado técnico del resultado persistido; no modifica la etapa de postulación. */
+export type JobPostingStoredMatchStatus = JobPostingAffinityResult['status'] | 'pending' | 'error';
+
 /** El servidor resuelve identidad y alcance; no se aceptan textos ni porcentajes. */
 export type JobPostingAffinityBatchRequest =
   | {
