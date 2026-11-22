@@ -1,6 +1,7 @@
 import { getAccessToken } from "@/shared/services/auth-session";
 import { API_BASE_URL } from "../config/api";
 import { Vacancy, VacancyStatus } from "../types/vacancy";
+import { normalizeVacancyStatus, VACANCY_STATUS_LABEL } from "../utils/vacancy-status";
 
 /* Las vacantes SIEMPRE vienen de la API real (no dependen de NEXT_PUBLIC_USE_MOCK,
    que es solo para los postulantes). */
@@ -12,15 +13,9 @@ interface RawVacancy {
   created_at?: string | null;
 }
 
-/** Misma traducción de estados que usa la página "Mis vacantes". */
+/** Misma traducción de estados que usa la página "Mis vacantes" (vocabulario único, HU-14). */
 function normalizeStatus(raw: unknown): VacancyStatus {
-  const estado = String(raw ?? "").toUpperCase().trim();
-  if (["PUBLICADO", "PUBLICADA", "ACTIVA", "ACTIVO", "ACTIVE", "PUBLISHED"].includes(estado)) {
-    return "Activa";
-  }
-  if (["PAUSADO", "PAUSADA", "PAUSED"].includes(estado)) return "Pausada";
-  if (["CERRADO", "CERRADA", "CLOSED"].includes(estado)) return "Cerrada";
-  return "Borrador";
+  return VACANCY_STATUS_LABEL[normalizeVacancyStatus(raw)] as VacancyStatus;
 }
 
 /** Convierte created_at a "aaaa-mm-dd" en hora local (igual que la lista de vacantes). */

@@ -8,6 +8,7 @@ import { GetSurveyReportController } from './http/controllers/get-survey-report.
 import { GetMySurveyController } from './http/controllers/get-my-survey.controller';
 import { ManageSurveysController } from './http/controllers/manage-surveys.controller';
 import { surveysProviders } from './infrastructure/providers/surveys.providers';
+import { UpdateMySurveyController } from './http/controllers/update-my-survey.controller';
 
 @Module({
   imports: [PrismaModule, AccreditationCacheModule, AuthModule],
@@ -16,6 +17,7 @@ import { surveysProviders } from './infrastructure/providers/surveys.providers';
     GetSurveyReportController,
     GetMySurveyController,
     ManageSurveysController,
+    UpdateMySurveyController,
   ],
   providers: [...surveysProviders],
   exports: [...surveysProviders],

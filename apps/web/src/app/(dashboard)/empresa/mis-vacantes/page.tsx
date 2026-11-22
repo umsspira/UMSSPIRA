@@ -8,6 +8,12 @@ import {
   Pause, Play, Trash2, Laptop, Building2, Users, BarChart2, Calendar, Ban, Plus
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
+import {
+  normalizeVacancyStatus,
+  vacancyLifecycleErrorMessage,
+  VACANCY_API_STATUS,
+  VACANCY_STATUS_LABEL,
+} from '@/shared/utils/vacancy-status';
 import { Cargando, EstadoError, EstadoVacio } from '../_components/estado-pantalla';
 
 interface Vacante {
@@ -63,14 +69,10 @@ export default function MisVacantesPage() {
         }
         
         const formateadas = data.map((v: any) => {
-          const estadoRaw = String(v.estado || '').toUpperCase().trim();
           const modalidadRaw = String(v.modalidad || '').toUpperCase().trim();
           const nivelRaw = String(v.nivel_experiencia || '').toUpperCase().trim();
 
-          let estadoUI: 'ACTIVA' | 'PAUSADA' | 'CERRADA' | 'BORRADOR' = 'BORRADOR';
-          if (['PUBLICADO', 'PUBLICADA', 'ACTIVA', 'ACTIVO', 'ACTIVE', 'PUBLISHED'].includes(estadoRaw)) estadoUI = 'ACTIVA';
-          if (['PAUSADO', 'PAUSADA', 'PAUSED'].includes(estadoRaw)) estadoUI = 'PAUSADA';
-          if (['CERRADO', 'CERRADA', 'CLOSED'].includes(estadoRaw)) estadoUI = 'CERRADA';
+          const estadoUI = normalizeVacancyStatus(v.estado);
 
           let modalidadUI = 'Presencial';
           if (['REMOTO', 'REMOTE'].includes(modalidadRaw)) modalidadUI = 'Remoto';
@@ -103,24 +105,28 @@ export default function MisVacantesPage() {
     fetchVacantes();
   }, [reloadKey]);
 
-  // Pausar envía PAUSADA; reanudar vuelve al estado publicado que reconoce el backend.
-  const cambiarEstado = async (vacante: Vacante, pausar: boolean) => {
+  const cambiarEstado = async (vacante: Vacante, estadoApi: string, estadoUI: Vacante['estado'], accion: 'pausar' | 'reanudar') => {
     try {
       const token = getAccessToken();
       const response = await fetch(`/api/v1/vacantes/${vacante.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ estado: pausar ? 'PAUSADA' : 'PUBLICADO' })
+        body: JSON.stringify({ estado: estadoApi })
       });
-      if (!response.ok) throw new Error(pausar ? 'Error al pausar' : 'Error al reanudar');
-      setVacantes((prev) => prev.map((v) => v.id === vacante.id ? { ...v, estado: pausar ? 'PAUSADA' : 'ACTIVA' } : v));
+      if (!response.ok) {
+        alert(vacancyLifecycleErrorMessage(response.status, accion));
+        return;
+      }
+      setVacantes((prev) => prev.map((v) => v.id === vacante.id ? { ...v, estado: estadoUI } : v));
       setMenuAbierto(null);
     } catch (error) {
-      alert(pausar ? "Error al pausar la vacante." : "Error al reanudar la vacante.");
+      console.error(`Error al ${accion} la vacante:`, error);
+      alert(vacancyLifecycleErrorMessage(0, accion));
     }
   };
-  const handlePausar = (vacante: Vacante) => cambiarEstado(vacante, true);
-  const handleReanudar = (vacante: Vacante) => cambiarEstado(vacante, false);
+
+  const handlePausar = (vacante: Vacante) => cambiarEstado(vacante, VACANCY_API_STATUS.PAUSE, 'PAUSADA', 'pausar');
+  const handleReanudar = (vacante: Vacante) => cambiarEstado(vacante, VACANCY_API_STATUS.RESUME, 'ACTIVA', 'reanudar');
 
   const handleConfirmarCierre = async () => {
     if (!vacanteACerrar) return;
@@ -131,11 +137,14 @@ export default function MisVacantesPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Error al cerrar');
+      if (!response.ok) {
+        alert(vacancyLifecycleErrorMessage(response.status, 'cerrar'));
+        return;
+      }
       setVacantes((prev) => prev.map((v) => v.id === vacanteACerrar.id ? { ...v, estado: 'CERRADA' } : v));
       setVacanteACerrar(null);
     } catch (error) {
-      alert("Error al cerrar la vacante en la base de datos.");
+      alert(vacancyLifecycleErrorMessage(0, 'cerrar'));
     } finally {
       setIsCerrando(false);
     }
@@ -150,11 +159,14 @@ export default function MisVacantesPage() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Error al eliminar');
+      if (!response.ok) {
+        alert(vacancyLifecycleErrorMessage(response.status, 'eliminar'));
+        return;
+      }
       setVacantes((prev) => prev.filter((v) => v.id !== vacanteAEliminar.id));
       setVacanteAEliminar(null);
     } catch (error) {
-      alert("Error al eliminar la vacante. Es posible que tenga postulantes asociados.");
+      alert(vacancyLifecycleErrorMessage(0, 'eliminar'));
     } finally {
       setIsEliminando(false);
     }
@@ -216,6 +228,9 @@ export default function MisVacantesPage() {
               </div>
             </div>
             
+            <Link href="/ayuda/bolsa-de-trabajo?tab=reclutador" className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline underline-offset-4">
+              Ayuda
+            </Link>
             <Link href="/empresa/vacantes/publicar" className="min-h-11 w-full justify-center md:min-h-0 md:w-auto" style={{ padding: '0.65rem 1.25rem', backgroundColor: 'var(--flame)', color: '#fff', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', boxShadow: '0 4px 12px rgba(255,177,98,0.3)', transition: 'all 0.2s' }}>
               <Plus size={18} /> Publicar vacante
             </Link>
@@ -345,7 +360,7 @@ export default function MisVacantesPage() {
                     <div>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', backgroundColor: badge.bg, color: badge.color, padding: '0.25rem 0.75rem', borderRadius: '99px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase' }}>
                         <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: badge.dot }}></div>
-                        {vacante.estado}
+                        {VACANCY_STATUS_LABEL[vacante.estado]}
                       </span>
                     </div>
 
@@ -386,8 +401,8 @@ export default function MisVacantesPage() {
                             <button className="min-h-10 md:min-h-0" onClick={() => handlePausar(vacante)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pause size={14} /> Pausar</button>
                           )}
                           
-                          {vacante.estado === 'ACTIVA' && (
-                            <button className="min-h-10 md:min-h-0" onClick={() => { setMenuAbierto(null); setVacanteACerrar(vacante); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: '#fef2f2', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Ban size={14} /> Desactivar</button>
+                          {(vacante.estado === 'ACTIVA' || vacante.estado === 'PAUSADA') && (
+                            <button className="min-h-10 md:min-h-0" onClick={() => { setMenuAbierto(null); setVacanteACerrar(vacante); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: '#fef2f2', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Ban size={14} /> Cerrar</button>
                           )}
                           
                           <button className="min-h-10 md:min-h-0" onClick={() => { setMenuAbierto(null); setVacanteAEliminar(vacante); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Trash2 size={14} /> Eliminar</button>

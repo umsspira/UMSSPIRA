@@ -164,7 +164,7 @@ const handleSaveOffline = async () => {
       passId={pass.id}
       qrToken={isValid ? pass.qrToken : undefined}
       onBack={() => window.location.assign(backHref)}
-      onSaveOffline={isValid && !fromOfflineStorage ? handleSaveOffline : undefined}
+      onSaveOffline={isValid && !fromOfflineStorage && !offline ? handleSaveOffline : undefined}
       isSavedOffline={isSavedOffline}
       isSavingOffline={isSavingOffline}
       saveOfflineMessage={saveOfflineMessage}

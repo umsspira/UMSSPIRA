@@ -22,6 +22,7 @@ const GRADUATE_APPLICATION_ROUTES = ["/my-applications"];
 const RECRUITER_ROUTES = [
   "/afinidad/reclutador",
   "/empresa/postulantes",
+  "/empresa/checklist-pre-demo",
   "/postulantes",
 ];
 

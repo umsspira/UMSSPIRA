@@ -1,51 +1,55 @@
+// apps/web/src/features/chat/components/MessagesOfflineGuard.tsx
+"use client";
 
-'use client';
-
-import { useState } from 'react';
-import { WifiOff, RefreshCw } from 'lucide-react';
-import { useOnlineStatus } from '@/shared/hooks/use-online-status';
+import { useEffect, useState } from "react";
+import { WifiOff, RefreshCw } from "lucide-react";
+import { useOnlineStatus } from "@/shared/hooks/use-online-status";
+import { emitUnreadRefresh } from "../utils/unread-events";
 
 interface MessagesOfflineGuardProps {
   children: React.ReactNode;
 }
 
+/**
+ * CA-07 — Sin conexión no se muestran conversaciones ni mensajes;
+ * aparece literalmente «El chat requiere conexión».
+ */
 export function MessagesOfflineGuard({
   children,
 }: MessagesOfflineGuardProps) {
   const isOnline = useOnlineStatus();
-  const [mensaje, setMensaje] = useState('');
+  const [mensaje, setMensaje] = useState("");
+
+  useEffect(() => {
+    // Al cambiar el estado de conexión, el navbar recalcula sus contadores.
+    emitUnreadRefresh();
+  }, [isOnline]);
 
   const handleRetry = () => {
     if (!navigator.onLine) {
       setMensaje(
-        'Sigues sin conexión. Comprueba tu Internet e inténtalo nuevamente.'
+        "Sigues sin conexión. Comprueba tu Internet e inténtalo nuevamente.",
       );
       return;
     }
-
-    // No recargamos la página.
-    // El hook detecta la reconexión automáticamente.
-    setMensaje('');
+    setMensaje("");
   };
 
   if (!isOnline) {
     return (
       <main className="mx-auto flex min-h-[65vh] max-w-3xl flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="rounded-full bg-amber-100 p-5">
-          <WifiOff
-            className="h-14 w-14 text-amber-600"
-            aria-hidden="true"
-          />
+          <WifiOff className="h-14 w-14 text-amber-600" aria-hidden="true" />
         </div>
 
         <h1 className="text-2xl font-bold text-slate-900">
-          Mensajes no disponibles sin conexión
+          El chat requiere conexión
         </h1>
 
         <p className="max-w-md text-slate-600">
-          Necesitas conexión a Internet para acceder a los mensajes.
-          Las conversaciones y el envío de mensajes no están
-          disponibles mientras estés desconectado.
+          Necesitas conexión a Internet para acceder a los mensajes. Las
+          conversaciones y el envío de mensajes no están disponibles mientras
+          estés desconectado.
         </p>
 
         <button
@@ -53,7 +57,7 @@ export function MessagesOfflineGuard({
           onClick={handleRetry}
           className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition-colors hover:bg-slate-800"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
           Reintentar conexión
         </button>
 

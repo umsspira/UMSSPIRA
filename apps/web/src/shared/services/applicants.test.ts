@@ -291,6 +291,52 @@ describe('servicio de postulantes con la API real (HU-15)', () => {
     );
   });
 
+  it('indica si el postulante subió su CV (HU-16)', async () => {
+    apiClientMock.mockResolvedValueOnce([{ ...raw, hasCv: true }, raw]);
+
+    const [conCv, sinCv] = await service.getApplicantsByVacancy(VACANTE);
+
+    expect(conCv.hasCv).toBe(true);
+    expect(sinCv.hasCv).toBe(false);
+  });
+
+  it('lee experiencia, formación y certificaciones del perfil (HU-16 CA-07)', async () => {
+    apiClientMock.mockResolvedValueOnce({
+      ...raw,
+      workExperience: [
+        { position: 'Desarrolladora backend', company: 'Empresa Andina', startDate: '2024-02-01', endDate: null },
+        { position: '', company: '' },
+      ],
+      education: [
+        { title: 'Licenciatura en Ingeniería de Sistemas', institution: 'UMSS', graduationYear: 2023, level: 'Licenciatura' },
+      ],
+      certifications: [
+        { name: 'AWS Certified Cloud Practitioner', issuer: 'Amazon', level: 'Básico', year: 2025 },
+        'no es un registro',
+      ],
+    });
+
+    const detalle = await service.getApplicantById(VACANTE, raw.id);
+
+    expect(detalle?.workExperience).toEqual([
+      { position: 'Desarrolladora backend', company: 'Empresa Andina', startDate: '2024-02-01', endDate: null },
+    ]);
+    expect(detalle?.education).toEqual([
+      { title: 'Licenciatura en Ingeniería de Sistemas', institution: 'UMSS', graduationYear: 2023, level: 'Licenciatura' },
+    ]);
+    expect(detalle?.certifications).toEqual([
+      { name: 'AWS Certified Cloud Practitioner', issuer: 'Amazon', level: 'Básico', year: 2025 },
+    ]);
+  });
+
+  it('deja listas vacías si la API no envía esos registros', async () => {
+    apiClientMock.mockResolvedValueOnce(raw);
+
+    const detalle = await service.getApplicantById(VACANTE, raw.id);
+
+    expect(detalle).toMatchObject({ workExperience: [], education: [], certifications: [] });
+  });
+
   it('guarda la etapa con apiClient (sesión y CSRF) y el código del backend (HU-04)', async () => {
     apiClientMock.mockResolvedValueOnce({ id: raw.id, estado: 'entrevista' });
 

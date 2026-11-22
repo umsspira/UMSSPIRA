@@ -5,6 +5,7 @@ import {
   type JobModality,
   type JobPosting,
 } from '../../domain/entities/job-posting.entity';
+import { normalizeJobPostingStatus } from '../../domain/policies/job-posting-status.policy';
 
 export const jobPostingSelect = {
   id: true,
@@ -20,6 +21,7 @@ export const jobPostingSelect = {
 type JobPostingRecord = Prisma.VacanteGetPayload<{ select: typeof jobPostingSelect }>;
 
 export function toJobPosting(record: JobPostingRecord): JobPosting {
+  const status = normalizeJobPostingStatus(record.estado);
   if (
     record.id_empresa === null ||
     record.titulo === null ||
@@ -28,7 +30,7 @@ export function toJobPosting(record: JobPostingRecord): JobPosting {
     record.nivel_experiencia === null ||
     record.descripcion_tecnica === null ||
     record.created_at === null ||
-    (record.estado !== 'PUBLICADO' && record.estado !== 'CERRADO')
+    status === null
   ) {
     throw new AppError('INVALID_JOB_POSTING_RECORD', 'La vacante almacenada está incompleta');
   }
@@ -39,7 +41,7 @@ export function toJobPosting(record: JobPostingRecord): JobPosting {
     modality: record.modalidad as JobModality,
     experienceLevel: record.nivel_experiencia,
     technicalDescription: record.descripcion_tecnica,
-    status: record.estado,
+    status,
     createdAt: record.created_at,
   };
 }

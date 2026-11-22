@@ -1,0 +1,28 @@
+meta {
+  name: Subir o reemplazar CV
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{baseUrl}}/api/v1/perfil/cv
+  body: multipartForm
+  auth: bearer
+}
+
+headers {
+  X-CSRF-Token: {{csrfToken}}
+}
+
+body:multipart-form {
+  archivo: @file({{cvFilePath}})
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Usa un accessToken de titulado. Solo acepta PDF de hasta 5 MB.
+  Al repetir la petición se reemplaza el CV anterior.
+}

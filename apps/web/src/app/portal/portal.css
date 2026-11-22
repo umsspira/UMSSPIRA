@@ -1,4 +1,3 @@
-
 .portal-view {
   --umss-navy: #1E3A5F;
   --umss-orange: #E85D3A;
@@ -26,6 +25,12 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+/* "hidden" convierte el contenedor en zona de scroll y rompe el navbar sticky.
+   "clip" recorta igual el desborde horizontal sin romper el sticky. */
+@supports (overflow: clip) {
+  .portal-view { overflow-x: clip; }
 }
 
 .portal-view img, .portal-view svg, .portal-view video { max-width: 100%; height: auto; }
