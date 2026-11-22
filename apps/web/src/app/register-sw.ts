@@ -85,6 +85,16 @@ function listenForForeground(registration: ServiceWorkerRegistration): void {
   });
 }
 
+// Quien abrió la app antes de este cambio tiene un registro con alcance '/portal': se retira para que no compita con el de '/'.
+async function retireLegacyPortalRegistration(): Promise<void> {
+  try {
+    const legacy = await navigator.serviceWorker.getRegistration('/portal');
+    if (legacy && new URL(legacy.scope).pathname === '/portal') await legacy.unregister();
+  } catch {
+    /* si no se puede consultar, el registro nuevo sigue funcionando */
+  }
+}
+
 export async function registerServiceWorker(
   onUpdate?: UpdateHandler,
 ): Promise<ServiceWorkerRegistration | undefined> {
@@ -102,7 +112,11 @@ export async function registerServiceWorker(
   });
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/portal' });
+    // HU08: alcance '/' (antes '/portal'). Mis códigos QR vive en /events/catalog/passes y /mis-pases, fuera de /portal,
+    // y sin este alcance el Service Worker no puede servirlas sin conexión. sw.js solo responde a las rutas que conoce;
+    // el resto de las páginas (inicio, /api, otras épicas) pasan directo a la red.
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    await retireLegacyPortalRegistration();
     listenForUpdates(registration, onUpdate);
     listenForForeground(registration);
     sendDeviceProfile().catch((error) => {

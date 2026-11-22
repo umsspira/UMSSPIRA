@@ -18,6 +18,7 @@ import { RadarModule } from './modules/radar/radar.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { SurveysModule } from './modules/surveys/surveys.module';
 import { VacantesModule } from './modules/vacantes/vacantes.module';
+import { DemoChecklistModule } from './modules/demo-checklist/demo-checklist.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
@@ -41,6 +42,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     ChatModule,
     SurveysModule,
     VacantesModule,
+    DemoChecklistModule,
     NotificationsModule,
   ],
   controllers: [RootController, HealthController],

@@ -52,6 +52,111 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     return saved;
   }
 
+  async updateOnce(data: SubmitSurveyInput) {
+    const survey = await this.findActiveSurveyForGraduate(
+      data.idTitulado,
+      data.idEncuesta || undefined,
+    );
+
+    if (!survey) {
+      throw new BusinessRuleError(
+        'missing',
+        'SURVEY_NOT_ACTIVE',
+        'No existe una encuesta vigente',
+      );
+    }
+
+    const existing =
+      await this.prisma.respuestaEncuesta.findFirst({
+        where: {
+          idEncuesta: survey.id,
+          idTitulado: data.idTitulado,
+        },
+      });
+
+    if (!existing) {
+      throw new BusinessRuleError(
+        'missing',
+        'SURVEY_RESPONSE_NOT_FOUND',
+        'Primero debes enviar la encuesta',
+      );
+    }
+
+    if (existing.edicionUsada) {
+      throw new BusinessRuleError(
+        'conflict',
+        'SURVEY_EDIT_ALREADY_USED',
+        'Ya utilizaste tu única edición',
+      );
+    }
+
+    const today = new Date(
+      new Date().toLocaleDateString('en-CA', {
+        timeZone: 'America/La_Paz',
+      }),
+    );
+
+    const result =
+      await this.prisma.respuestaEncuesta.updateMany({
+        where: {
+          id: existing.id,
+          idTitulado: data.idTitulado,
+          edicionUsada: false,
+          encuesta: {
+            is: {
+              estado: 'PUBLICADA',
+              fecha_inicio: { lte: today },
+              fecha_fin: { gte: today },
+            },
+          },
+        },
+        data: {
+          condicionLaboral: data.condicionLaboral,
+          cargo: data.cargo ?? null,
+          empresa: data.empresa ?? null,
+          area: data.area ?? null,
+          modalidad: data.modalidad ?? null,
+          salarioMensual: data.salarioMensual ?? null,
+          tiempoInsercion: data.tiempoInsercion ?? null,
+          edicionUsada: true,
+          fechaActualizacion: new Date(),
+        },
+      });
+
+    if (result.count !== 1) {
+      throw new BusinessRuleError(
+        'conflict',
+        'SURVEY_EDIT_UNAVAILABLE',
+        'La encuesta ya no permite ediciones',
+      );
+    }
+
+    const updated =
+      await this.prisma.respuestaEncuesta.findUniqueOrThrow({
+        where: { id: existing.id },
+        select: {
+          id: true,
+          edicionUsada: true,
+          fechaActualizacion: true,
+        },
+      });
+    // Invalidar la caché después de una edición exitosa
+    if (this.accreditationCache) {
+      const graduate = await this.prisma.titulado.findUnique({
+        where: { id: data.idTitulado },
+        select: { id_carrera: true },
+      });
+
+      if (graduate?.id_carrera) {
+        await this.accreditationCache
+          .invalidateAccreditationDashboardCache(
+            graduate.id_carrera,
+          );
+      }
+    }
+    return updated;
+  }
+
   async findActiveSurveyByCareer(
     careerId: string,
     surveyId?: string,

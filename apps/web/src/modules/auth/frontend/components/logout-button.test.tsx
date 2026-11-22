@@ -16,11 +16,16 @@ jest.mock('@/shared/services/auth-session', () => ({
   revokeCurrentSession: jest.fn(),
 }));
 
-// Mock único y correcto para offline-session
+// Se conservan las funciones reales de offline-session y solo se sustituyen las que
+// tocan IndexedDB / estado persistente. clearPendingLogout y hasPendingLogout las usa
+// auth-session (setAccessToken, refreshSession, completePendingLogout).
 jest.mock('@/features/event-passes/offline/offline-session', () => ({
+  ...jest.requireActual('@/features/event-passes/offline/offline-session'),
   clearPrivateOfflineData: jest.fn().mockResolvedValue(undefined),
   markPendingLogout: jest.fn(),
   registerValidatedSession: jest.fn(),
+  clearPendingLogout: jest.fn(),
+  hasPendingLogout: jest.fn(() => false),
 }));
 
 // El botón ya no usa el router: hace una navegación completa para limpiar la caché de Next

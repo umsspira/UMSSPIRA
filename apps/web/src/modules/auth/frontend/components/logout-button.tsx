@@ -1,18 +1,21 @@
+
 "use client";
+
+import { useState } from "react";
+
+import { clearAllSurveyDrafts } from "@/modules/surveys/frontend/hooks/use-survey-draft";
+import { clearPrivateOfflineData, markPendingLogout } from "@/features/event-passes/offline/offline-session";
+import { revokeCurrentSession } from "@/shared/services/auth-session";
 
 import { authStore } from "../store";
 import { clearSession } from "../services";
 import { hardRedirect } from "../services/navigation";
-import { useState } from 'react';
-import { revokeCurrentSession } from '@/shared/services/auth-session';
-import { clearAllSurveyDrafts } from '@/modules/surveys/frontend/hooks/use-survey-draft';
-import {
-  clearPrivateOfflineData,
-  markPendingLogout,
-} from '@/features/event-passes/offline/offline-session';
 
 function isOffline(error: unknown): boolean {
-  return (typeof navigator !== 'undefined' && !navigator.onLine) || error instanceof TypeError;
+  return (
+    (typeof navigator !== "undefined" && !navigator.onLine) ||
+    error instanceof TypeError
+  );
 }
 
 export function LogoutButton() {
@@ -25,18 +28,19 @@ export function LogoutButton() {
     setPending(true);
     setError(null);
 
-    // HU07 CA-02: los datos privados se borran primero, con o sin conexión.
+    // HU07 CA-02: eliminar datos privados antes de cerrar la sesión.
     await clearPrivateOfflineData();
 
     try {
       await revokeCurrentSession();
     } catch (revokeError) {
       if (!isOffline(revokeError)) {
-        setError('No se pudo cerrar la sesión. Inténtalo nuevamente.');
+        setError("No se pudo cerrar la sesión. Inténtalo nuevamente.");
         setPending(false);
         return;
       }
-      // Sin conexión: se cierra aquí y el servidor la revoca al volver la red.
+
+      // Sin conexión: impedir el acceso offline hasta revocar en el servidor.
       markPendingLogout();
     }
 

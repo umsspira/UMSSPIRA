@@ -5,6 +5,10 @@ import { authStore } from "../store";
 import { LOGIN_ERROR_MESSAGE } from "../services";
 import { getAccessToken } from "@/shared/services/auth-session";
 import { useAuth } from "./use-auth";
+import {
+  markPendingLogout,
+  hasPendingLogout,
+} from "@/features/event-passes/offline/offline-session";
 
 const mockPush = jest.fn();
 
@@ -75,5 +79,36 @@ describe("useAuth", () => {
     expect(result.current.error).toBe(LOGIN_ERROR_MESSAGE);
     expect(result.current.accessToken).toBeNull();
     expect(mockPush).not.toHaveBeenCalled();
+  });
+  it("elimina el cierre pendiente después de un login exitoso", async () => {
+    markPendingLogout();
+
+    const { result } = renderHook(() => useAuth());
+
+    await act(async () => {
+      await result.current.signIn({
+        email: "titulado@umss.edu.bo",
+        password: "titulado1234",
+      });
+    });
+
+    expect(result.current.status).toBe("authenticated");
+    expect(hasPendingLogout()).toBe(false);
+  });
+
+  it("conserva el cierre pendiente cuando el login falla", async () => {
+    markPendingLogout();
+
+    const { result } = renderHook(() => useAuth());
+
+    await act(async () => {
+      await result.current.signIn({
+        email: "nadie@umss.edu.bo",
+        password: "incorrecta",
+      });
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(hasPendingLogout()).toBe(true);
   });
 });
