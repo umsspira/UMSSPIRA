@@ -5,9 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, FolderOpen, Search, Eye, Pencil, MoreVertical, 
-  Pause, Trash2, Laptop, Building2, Users, BarChart2, Calendar, Ban, Plus
+  Pause, Play, Trash2, Laptop, Building2, Users, BarChart2, Calendar, Ban, Plus
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
+import {
+  normalizeVacancyStatus,
+  vacancyLifecycleErrorMessage,
+  VACANCY_API_STATUS,
+  VACANCY_STATUS_LABEL,
+} from '@/shared/utils/vacancy-status';
 import { Cargando, EstadoError, EstadoVacio } from '../_components/estado-pantalla';
 
 interface Vacante {
@@ -63,14 +69,10 @@ export default function MisVacantesPage() {
         }
         
         const formateadas = data.map((v: any) => {
-          const estadoRaw = String(v.estado || '').toUpperCase().trim();
           const modalidadRaw = String(v.modalidad || '').toUpperCase().trim();
           const nivelRaw = String(v.nivel_experiencia || '').toUpperCase().trim();
 
-          let estadoUI: 'ACTIVA' | 'PAUSADA' | 'CERRADA' | 'BORRADOR' = 'BORRADOR';
-          if (['PUBLICADO', 'PUBLICADA', 'ACTIVA', 'ACTIVO', 'ACTIVE', 'PUBLISHED'].includes(estadoRaw)) estadoUI = 'ACTIVA';
-          if (['PAUSADO', 'PAUSADA', 'PAUSED'].includes(estadoRaw)) estadoUI = 'PAUSADA';
-          if (['CERRADO', 'CERRADA', 'CLOSED'].includes(estadoRaw)) estadoUI = 'CERRADA';
+          const estadoUI = normalizeVacancyStatus(v.estado);
 
           let modalidadUI = 'Presencial';
           if (['REMOTO', 'REMOTE'].includes(modalidadRaw)) modalidadUI = 'Remoto';
@@ -103,21 +105,28 @@ export default function MisVacantesPage() {
     fetchVacantes();
   }, [reloadKey]);
 
-  const handlePausar = async (vacante: Vacante) => {
+  const cambiarEstado = async (vacante: Vacante, estadoApi: string, estadoUI: Vacante['estado'], accion: 'pausar' | 'reanudar') => {
     try {
       const token = getAccessToken();
       const response = await fetch(`/api/v1/vacantes/${vacante.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ estado: 'PAUSADA' })
+        body: JSON.stringify({ estado: estadoApi })
       });
-      if (!response.ok) throw new Error('Error al pausar');
-      setVacantes((prev) => prev.map((v) => v.id === vacante.id ? { ...v, estado: 'PAUSADA' } : v));
+      if (!response.ok) {
+        alert(vacancyLifecycleErrorMessage(response.status, accion));
+        return;
+      }
+      setVacantes((prev) => prev.map((v) => v.id === vacante.id ? { ...v, estado: estadoUI } : v));
       setMenuAbierto(null);
     } catch (error) {
-      alert("Error al pausar la vacante.");
+      console.error(`Error al ${accion} la vacante:`, error);
+      alert(vacancyLifecycleErrorMessage(0, accion));
     }
   };
+
+  const handlePausar = (vacante: Vacante) => cambiarEstado(vacante, VACANCY_API_STATUS.PAUSE, 'PAUSADA', 'pausar');
+  const handleReanudar = (vacante: Vacante) => cambiarEstado(vacante, VACANCY_API_STATUS.RESUME, 'ACTIVA', 'reanudar');
 
   const handleConfirmarCierre = async () => {
     if (!vacanteACerrar) return;
@@ -128,11 +137,14 @@ export default function MisVacantesPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Error al cerrar');
+      if (!response.ok) {
+        alert(vacancyLifecycleErrorMessage(response.status, 'cerrar'));
+        return;
+      }
       setVacantes((prev) => prev.map((v) => v.id === vacanteACerrar.id ? { ...v, estado: 'CERRADA' } : v));
       setVacanteACerrar(null);
     } catch (error) {
-      alert("Error al cerrar la vacante en la base de datos.");
+      alert(vacancyLifecycleErrorMessage(0, 'cerrar'));
     } finally {
       setIsCerrando(false);
     }
@@ -147,11 +159,14 @@ export default function MisVacantesPage() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Error al eliminar');
+      if (!response.ok) {
+        alert(vacancyLifecycleErrorMessage(response.status, 'eliminar'));
+        return;
+      }
       setVacantes((prev) => prev.filter((v) => v.id !== vacanteAEliminar.id));
       setVacanteAEliminar(null);
     } catch (error) {
-      alert("Error al eliminar la vacante. Es posible que tenga postulantes asociados.");
+      alert(vacancyLifecycleErrorMessage(0, 'eliminar'));
     } finally {
       setIsEliminando(false);
     }
@@ -213,6 +228,9 @@ export default function MisVacantesPage() {
               </div>
             </div>
             
+            <Link href="/ayuda/bolsa-de-trabajo?tab=reclutador" className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline underline-offset-4">
+              Ayuda
+            </Link>
             <Link href="/empresa/vacantes/publicar" className="min-h-11 w-full justify-center md:min-h-0 md:w-auto" style={{ padding: '0.65rem 1.25rem', backgroundColor: 'var(--flame)', color: '#fff', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', boxShadow: '0 4px 12px rgba(255,177,98,0.3)', transition: 'all 0.2s' }}>
               <Plus size={18} /> Publicar vacante
             </Link>
@@ -285,7 +303,39 @@ export default function MisVacantesPage() {
                 const badge = getBadgeStyle(vacante.estado);
                 const isLast = index === vacantesFiltradas.length - 1;
                 return (
-                  <div key={vacante.id} className={`relative grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border bg-white p-4 md:grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_120px] md:items-center md:gap-4 md:rounded-none md:border-0 ${!isLast ? 'md:border-b' : 'md:rounded-b-xl'}`} style={{ borderColor: 'var(--oatmeal)', fontSize: '0.875rem', transition: 'background-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fdfbf7'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}>
+                  <div key={vacante.id}>
+                  {/* HU-03 (CA-03 / CA-04): tarjeta móvil según el mockup «Mis Vacantes en tarjetas» */}
+                  <article className="md:hidden rounded-xl border bg-white p-4" style={{ borderColor: 'var(--oatmeal)' }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="min-w-0 font-bold text-[0.95rem] text-[#111827] [overflow-wrap:anywhere]">{vacante.titulo}</h3>
+                      <span className="shrink-0" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', backgroundColor: badge.bg, color: badge.color, padding: '0.2rem 0.6rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase' }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: badge.dot }} aria-hidden="true" />
+                        {vacante.estado}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[0.8rem] font-medium text-[#4b5563]">
+                      {vacante.modalidad} · Publicada {vacante.fecha_publicacion} ·{' '}
+                      <strong className="text-[#111827]">
+                        {vacante.postulantes === null ? 'Postulantes sin dato' : `${vacante.postulantes} ${vacante.postulantes === 1 ? 'postulante' : 'postulantes'}`}
+                      </strong>
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 items-center border-t pt-2 text-sm font-semibold" style={{ borderColor: 'var(--oatmeal)' }}>
+                      <button type="button" onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}/candidatos`)} className="min-h-11 text-left" style={{ color: 'var(--flame)' }}>
+                        Ver postulantes
+                      </button>
+                      <button type="button" onClick={() => handleEditar(vacante.id)} className="min-h-11 text-center text-[#111827]">
+                        Editar
+                      </button>
+                      {vacante.estado === 'ACTIVA' && (
+                        <button type="button" onClick={() => handlePausar(vacante)} className="min-h-11 text-right text-[#111827]">Pausar</button>
+                      )}
+                      {vacante.estado === 'PAUSADA' && (
+                        <button type="button" onClick={() => handleReanudar(vacante)} className="min-h-11 text-right text-[#111827]">Reanudar</button>
+                      )}
+                    </div>
+                  </article>
+
+                  <div className={`relative hidden md:grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border bg-white p-4 md:grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_120px] md:items-center md:gap-4 md:rounded-none md:border-0 ${!isLast ? 'md:border-b' : 'md:rounded-b-xl'}`} style={{ borderColor: 'var(--oatmeal)', fontSize: '0.875rem', transition: 'background-color 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fdfbf7'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}>
                     
                     <div className="absolute right-4 top-4 flex md:static md:items-center md:justify-center">
                       <input type="checkbox" style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--flame)', border: '1px solid #f43f5e', borderRadius: '4px' }} />
@@ -310,7 +360,7 @@ export default function MisVacantesPage() {
                     <div>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', backgroundColor: badge.bg, color: badge.color, padding: '0.25rem 0.75rem', borderRadius: '99px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase' }}>
                         <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: badge.dot }}></div>
-                        {vacante.estado}
+                        {VACANCY_STATUS_LABEL[vacante.estado]}
                       </span>
                     </div>
 
@@ -343,18 +393,23 @@ export default function MisVacantesPage() {
                           
                           <button className="min-h-10 md:min-h-0" onClick={() => router.push(`/empresa/mis-vacantes/${vacante.id}/candidatos`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Users size={14} /> Ver postulantes</button>
 
+                          {vacante.estado === 'PAUSADA' && (
+                            <button className="min-h-10 md:min-h-0" onClick={() => handleReanudar(vacante)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Play size={14} /> Reanudar</button>
+                          )}
+
                           {vacante.estado === 'ACTIVA' && (
                             <button className="min-h-10 md:min-h-0" onClick={() => handlePausar(vacante)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', color: '#111827', borderRadius: '0.4rem', fontWeight: 500 }}><Pause size={14} /> Pausar</button>
                           )}
                           
-                          {vacante.estado === 'ACTIVA' && (
-                            <button className="min-h-10 md:min-h-0" onClick={() => { setMenuAbierto(null); setVacanteACerrar(vacante); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: '#fef2f2', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Ban size={14} /> Desactivar</button>
+                          {(vacante.estado === 'ACTIVA' || vacante.estado === 'PAUSADA') && (
+                            <button className="min-h-10 md:min-h-0" onClick={() => { setMenuAbierto(null); setVacanteACerrar(vacante); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: '#fef2f2', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Ban size={14} /> Cerrar</button>
                           )}
                           
                           <button className="min-h-10 md:min-h-0" onClick={() => { setMenuAbierto(null); setVacanteAEliminar(vacante); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'none', color: '#dc2626', border: 'none', width: '100%', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '0.4rem' }}><Trash2 size={14} /> Eliminar</button>
                         </div>
                       )}
                     </div>
+                  </div>
                   </div>
                 );
               })

@@ -66,4 +66,35 @@ describe('Mis postulaciones (HU-006)', () => {
     await waitFor(() => expect(fetchMyApplicationsMock).toHaveBeenCalledTimes(2));
     expect(await screen.findByText('Aún no te has postulado')).toBeInTheDocument();
   });
+
+  it('distingue pendiente, error y un 0 % válido sin inventar porcentajes', async () => {
+    const base = {
+      vacancyId: null, companyName: 'Empresa Demo', appliedAt: null,
+      isVacancyAvailable: true,
+    };
+    fetchMyApplicationsMock.mockResolvedValue([
+      { ...base, id: '1', vacancyTitle: 'Pendiente', matchPercentage: null, matchStatus: 'pending' },
+      { ...base, id: '2', vacancyTitle: 'Error', matchPercentage: null, matchStatus: 'error' },
+      { ...base, id: '3', vacancyTitle: 'Sin coincidencias', matchPercentage: 0, matchStatus: 'ready' },
+    ]);
+    render(<MyApplicationsPage />);
+    expect(await screen.findByText('Actualización pendiente')).toBeInTheDocument();
+    expect(screen.getByText('No se pudo actualizar')).toBeInTheDocument();
+    expect(screen.getByText('0 %')).toBeInTheDocument();
+  });
+
+  it('actualiza la vista al volver a la pestaña sin recargar la página', async () => {
+    const base = {
+      id: '1', vacancyId: null, vacancyTitle: 'Vacante', companyName: 'Empresa Demo',
+      appliedAt: null, isVacancyAvailable: true,
+    };
+    fetchMyApplicationsMock
+      .mockResolvedValueOnce([{ ...base, matchPercentage: null, matchStatus: 'pending' }])
+      .mockResolvedValueOnce([{ ...base, matchPercentage: 75, matchStatus: 'ready' }]);
+    render(<MyApplicationsPage />);
+    expect(await screen.findByText('Actualización pendiente')).toBeInTheDocument();
+    fireEvent.focus(window);
+    expect(await screen.findByText('75 %', {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(fetchMyApplicationsMock).toHaveBeenCalledTimes(2);
+  });
 });

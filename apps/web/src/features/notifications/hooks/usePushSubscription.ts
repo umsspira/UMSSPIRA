@@ -1,7 +1,7 @@
 // apps/web/src/features/notifications/hooks/usePushSubscription.ts
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PushPermissionState, PushSubscriptionDto } from '@umsspira/shared-types';
 import {
   getVapidPublicKey,
@@ -12,7 +12,7 @@ import {
   urlBase64ToUint8Array,
 } from '@/shared/services/push-subscription';
 
-export type SubscriptionStatus = 'idle' | 'subscribing' | 'subscribed' | 'error';
+export type SubscriptionStatus = 'idle' | 'checking' | 'subscribing' | 'subscribed' | 'error';
 
 export interface PushSubscriptionController {
   status: SubscriptionStatus;
@@ -91,43 +91,56 @@ async function getRegistration(): Promise<ServiceWorkerRegistration> {
 export function usePushSubscription(permission: PushPermissionState): PushSubscriptionController {
   const [status, setStatus] = useState<SubscriptionStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const operationId = useRef(0);
+  const explicitOperation = useRef(false);
 
   const reconcile = useCallback(async () => {
+    if (explicitOperation.current) return;
+    const operation = ++operationId.current;
+    const isCurrent = () => operation === operationId.current && !explicitOperation.current;
+
     if (permission !== 'granted') {
       if (permission === 'denied') {
         try {
           const registration = await getRegistration();
           const subscription = await registration.pushManager.getSubscription();
-          if (subscription) {
+          if (subscription && isCurrent()) {
             await removePushSubscription(subscription.endpoint);
+            if (!isCurrent()) return;
             await subscription.unsubscribe();
           }
         } catch {
           // No se elimina información de otros dispositivos cuando no se puede identificar este endpoint.
         }
       }
-      setStatus((current) => (current === 'idle' ? current : 'idle'));
+      if (isCurrent()) setStatus((current) => (current === 'idle' ? current : 'idle'));
       return;
     }
 
     try {
+      setStatus('checking');
+      setError(null);
       const registration = await getRegistration();
+      if (!isCurrent()) return;
       const local = await registration.pushManager.getSubscription();
+      if (!isCurrent()) return;
       const registered = await listPushSubscriptions();
+      if (!isCurrent()) return;
 
       if (!local) {
-        setStatus((current) => (current === 'idle' ? current : 'idle'));
+        setStatus('idle');
         return;
       }
 
       if (registered.some((subscription) => subscription.endpoint === local.endpoint)) {
-        setStatus((current) => (current === 'subscribed' ? current : 'subscribed'));
+        setStatus('subscribed');
         return;
       }
 
       await savePushSubscription(toSubscriptionInput(local));
-      setStatus((current) => (current === 'subscribed' ? current : 'subscribed'));
+      if (isCurrent()) setStatus('subscribed');
     } catch (cause) {
+      if (!isCurrent()) return;
       setStatus((current) => (current === 'error' ? current : 'error'));
       setError(
         cause instanceof Error
@@ -139,9 +152,19 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
 
   useEffect(() => {
     void reconcile();
-  }, [reconcile]);
+    if (permission !== 'granted' || typeof window === 'undefined') return;
+    const refresh = () => void reconcile();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+    };
+  }, [reconcile, permission]);
 
   const subscribe = useCallback(async (): Promise<PushSubscriptionDto | null> => {
+    const operation = ++operationId.current;
+    explicitOperation.current = true;
     setStatus('subscribing');
     setError(null);
     try {
@@ -170,35 +193,48 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
         }
         throw error;
       }
-      setStatus('subscribed');
+      if (operation === operationId.current) setStatus('subscribed');
       return saved;
     } catch (cause) {
-      setStatus('error');
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'No fue posible activar las notificaciones.',
-      );
+      if (operation === operationId.current) {
+        setStatus('error');
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : 'No fue posible activar las notificaciones.',
+        );
+      }
       return null;
+    } finally {
+      if (operation === operationId.current) explicitOperation.current = false;
     }
   }, []);
 
   const unsubscribe = useCallback(async (): Promise<void> => {
+    const operation = ++operationId.current;
+    explicitOperation.current = true;
     setError(null);
     try {
       const registration = await getRegistration();
+      if (operation !== operationId.current) return;
       const subscription = await registration.pushManager.getSubscription();
+      if (operation !== operationId.current) return;
       if (subscription) {
         await removePushSubscription(subscription.endpoint);
+        if (operation !== operationId.current) return;
         await subscription.unsubscribe();
       }
-      setStatus('idle');
+      if (operation === operationId.current) setStatus('idle');
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'No fue posible desactivar las notificaciones.',
-      );
+      if (operation === operationId.current) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : 'No fue posible desactivar las notificaciones.',
+        );
+      }
+    } finally {
+      if (operation === operationId.current) explicitOperation.current = false;
     }
   }, []);
 

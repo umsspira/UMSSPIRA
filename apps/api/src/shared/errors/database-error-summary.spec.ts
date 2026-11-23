@@ -19,4 +19,28 @@ describe('safe database diagnostics', () => {
       }),
     ).toContain('connection_failure');
   });
+
+  it('classifies adapter-wrapped PostgreSQL errors without exposing driver details', () => {
+    const text = databaseErrorSummary({
+      code: 'P2010',
+      meta: {
+        driverAdapterError: {
+          cause: {
+            originalCode: '23505',
+            message: 'duplicate key for private_event_data',
+          },
+        },
+      },
+    });
+
+    expect(text).toContain('reason=unique_violation');
+    expect(text).toContain('codes=P2010,23505');
+    expect(text).not.toContain('private_event_data');
+    expect(text).not.toContain('duplicate key');
+  });
+
+  it('classifies PostgreSQL datatype mismatches', () => {
+    expect(databaseErrorSummary({ code: 'P2010', meta: { code: '42804' } }))
+      .toContain('reason=datatype_mismatch');
+  });
 });

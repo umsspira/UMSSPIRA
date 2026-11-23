@@ -7,7 +7,10 @@ import type { AvailableJobPosting, TechnicalRequirement } from '@umsspira/shared
 import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
 import { listAvailableJobPostings } from '@/shared/services/available-job-postings';
-import { calculateVacancyAffinityWithSkills, loadTituladoSkills, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
+import {
+  getVacanciesAffinityBatch,
+  type JobPostingAffinityBatchItem,
+} from '@/shared/services/job-posting-affinity';
 import { jobPostingDetailRoute } from '@/shared/routes/job-postings';
 import { descriptionWithoutRequirements } from '@/shared/utils/job-posting-requirements';
 
@@ -18,8 +21,8 @@ type ListState =
 
 type AffinityState =
   | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'loaded'; results: Record<string, VacancyAffinityResult>; skillsAvailable: boolean };
+  | { status: 'error'; message: string; retryable?: boolean }
+  | { status: 'loaded'; results: Record<string, JobPostingAffinityBatchItem>; hasProfileIncomplete: boolean };
 
 function normalize(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
@@ -64,9 +67,18 @@ function requirementsFor(posting: AvailableJobPosting): TechnicalRequirement[] {
   return posting.requisitos;
 }
 
-function affinityBadge(result: VacancyAffinityResult | undefined) {
-  if (!result) return { text: 'Calculando…', className: 'border-slate-200 bg-white text-slate-500' };
-  if (result.status === 'insufficient-requirements') return { text: 'Sin requisitos', className: 'border-slate-200 bg-white text-slate-500' };
+function affinityBadge(item: JobPostingAffinityBatchItem | undefined) {
+  if (!item) return { text: 'Calculando…', className: 'border-slate-200 bg-white text-slate-500' };
+  if (item.error) {
+    return { text: 'Error de cálculo', className: 'border-red-200 bg-red-50 text-red-700' };
+  }
+  const result = item.result;
+  if (result.status === 'no-requirements') {
+    return { text: 'Sin requisitos', className: 'border-slate-200 bg-white text-slate-500' };
+  }
+  if (result.status === 'profile-incomplete') {
+    return { text: 'Sin calcular', className: 'border-slate-200 bg-white text-slate-500' };
+  }
   if (result.status === 'ready') {
     const color = result.percentage >= 80
       ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
@@ -93,8 +105,26 @@ export function JobPostingsList() {
   const [sortByAffinity, setSortByAffinity] = useState(true);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setRetryCount((count) => count + 1), 500);
+    };
+    const interval = setInterval(schedule, 30_000);
+    window.addEventListener('focus', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    return () => {
+      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
-    setState({ status: 'loading' });
+    setState((previous) => previous.status === 'loaded' ? previous : { status: 'loading' });
     listAvailableJobPostings().then(
       (postings) => active && setState({ status: 'loaded', postings }),
       () => active && setState({ status: 'error' }),
@@ -106,22 +136,30 @@ export function JobPostingsList() {
 
   useEffect(() => {
     if (state.status !== 'loaded') return;
+    if (state.postings.length === 0) {
+      setAffinityState({ status: 'loaded', results: {}, hasProfileIncomplete: false });
+      return;
+    }
     let active = true;
     setAffinityState({ status: 'loading' });
-    loadTituladoSkills().then(
-      (profileSkills) => {
+    const ids = state.postings.map((posting) => posting.id);
+    getVacanciesAffinityBatch(ids).then(
+      (results) => {
         if (!active) return;
-        const skills = profileSkills.status === 'ready' ? profileSkills.skills : [];
-        const results = Object.fromEntries(state.postings.map((posting) => [
-          posting.id,
-          calculateVacancyAffinityWithSkills(requirementsFor(posting), skills),
-        ]));
-        setAffinityState({ status: 'loaded', results, skillsAvailable: skills.length > 0 });
+        const hasProfileIncomplete = Object.values(results).some(
+          (item) => item.result?.status === 'profile-incomplete',
+        );
+        setAffinityState({ status: 'loaded', results, hasProfileIncomplete });
       },
-      (error: unknown) => active && setAffinityState({
-        status: 'error',
-        message: error instanceof Error ? error.message : 'No se pudo cargar el perfil del titulado.',
-      }),
+      (error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'No se pudo cargar la afinidad.';
+        setAffinityState({
+          status: 'error',
+          message,
+          retryable: (error as any)?.status === 503 || (error as any)?.retryable !== false,
+        });
+      },
     );
     return () => { active = false; };
   }, [state, affinityRetryCount]);
@@ -153,8 +191,8 @@ export function JobPostingsList() {
       if (sortByAffinity && affinityState.status === 'loaded') {
         const leftResult = affinityState.results[left.id];
         const rightResult = affinityState.results[right.id];
-        const leftScore = leftResult?.status === 'ready' ? leftResult.percentage : -1;
-        const rightScore = rightResult?.status === 'ready' ? rightResult.percentage : -1;
+        const leftScore = leftResult?.result?.status === 'ready' ? leftResult.result.percentage : -1;
+        const rightScore = rightResult?.result?.status === 'ready' ? rightResult.result.percentage : -1;
         if (leftScore !== rightScore) return rightScore - leftScore;
       }
 
@@ -190,7 +228,12 @@ export function JobPostingsList() {
         </nav>
 
         <header className="mb-5">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bolsa de trabajo</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bolsa de trabajo</h1>
+            <Link href="/ayuda/bolsa-de-trabajo?tab=titulado" className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline underline-offset-4">
+              Ayuda
+            </Link>
+          </div>
           <p className="mt-1 max-w-4xl text-sm leading-5 text-slate-600">
             Explora oportunidades laborales adaptadas a tu perfil académico y profesional con cálculo automático de afinidad.
           </p>
@@ -272,16 +315,16 @@ export function JobPostingsList() {
                   {filtered.length} {filtered.length === 1 ? 'vacante encontrada' : 'vacantes encontradas'}
                 </span>
                 <span className="text-slate-400" aria-hidden="true">•</span>
-                <span className={sortByAffinity && affinityState.status === 'loaded' && affinityState.skillsAvailable ? 'text-emerald-700' : 'text-slate-500'}>
+                <span className={sortByAffinity && affinityState.status === 'loaded' && !affinityState.hasProfileIncomplete ? 'text-emerald-700' : 'text-slate-500'}>
                   {!sortByAffinity
                     ? 'Ordenadas por fecha de publicación'
                     : affinityState.status === 'loading'
                       ? 'Calculando afinidad con tu perfil…'
-                      : affinityState.status === 'loaded' && affinityState.skillsAvailable
+                      : affinityState.status === 'loaded' && !affinityState.hasProfileIncomplete
                         ? 'Ordenadas automáticamente según afinidad con tu perfil'
                         : affinityState.status === 'loaded'
-                          ? 'Selecciona temas técnicos en Mentorías para calcular la afinidad'
-                            : `No se pudo cargar el perfil del titulado: ${affinityState.message}`}
+                          ? 'Completa tu perfil profesional para calcular la afinidad'
+                          : `No se pudo cargar el perfil del titulado: ${affinityState.message}`}
                 </span>
                 {affinityState.status === 'error' && (
                   <button
@@ -292,9 +335,9 @@ export function JobPostingsList() {
                     Reintentar afinidad
                   </button>
                 )}
-                {affinityState.status === 'loaded' && !affinityState.skillsAvailable && (
-                  <Link href="/mentorship/onboarding" className="font-semibold text-orange-800 underline underline-offset-2">
-                    Configura temas técnicos en Mentorías
+                {affinityState.status === 'loaded' && affinityState.hasProfileIncomplete && (
+                  <Link href="/profile/completar" className="font-semibold text-orange-800 underline underline-offset-2">
+                    Completar perfil profesional
                   </Link>
                 )}
                 {(query || modality || area || city) && (
@@ -319,9 +362,8 @@ export function JobPostingsList() {
               </section>
             ) : (
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[850px] table-fixed border-collapse text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-600">
+                  <table className="block w-full text-left text-xs md:table md:table-fixed md:border-collapse">
+                    <thead className="sr-only bg-slate-50 text-slate-600 md:not-sr-only md:table-header-group">
                       <tr>
                         <th scope="col" className="w-[13%] px-3 py-3 font-semibold">Vacante</th>
                         <th scope="col" className="w-[10%] px-3 py-3 font-semibold">Empresa</th>
@@ -333,12 +375,13 @@ export function JobPostingsList() {
                         <th scope="col" className="w-[9%] px-3 py-3 text-right font-semibold">Acción</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="block divide-y divide-slate-100 md:table-row-group">
                       {filtered.map((posting) => (
-                        <tr key={posting.id} className="align-middle hover:bg-slate-50/70">
-                          <th scope="row" className="break-words px-3 py-4 font-bold text-slate-900">{posting.titulo}</th>
-                          <td className="break-words px-3 py-4 text-slate-700">{posting.empresa ?? 'Empresa no disponible'}</td>
-                          <td className="border-x border-orange-100 bg-orange-50/30 px-2 py-4">
+                        <tr key={posting.id} className="block min-w-0 p-4 align-middle hover:bg-slate-50/70 md:table-row md:p-0">
+                          <th scope="row" className="block break-words pb-3 text-sm font-bold text-slate-900 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4 md:text-xs">{posting.titulo}</th>
+                          <td className="block break-words py-1 text-slate-700 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Empresa: </span>{posting.empresa ?? 'Empresa no disponible'}</td>
+                          <td className="block py-1 md:table-cell md:border-x md:border-orange-100 md:bg-orange-50/30 md:px-2 md:py-4">
+                            <span className="font-semibold md:hidden">Afinidad: </span>
                             {affinityState.status === 'error' ? (
                               <span className="inline-flex whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">Sin calcular</span>
                             ) : (
@@ -348,18 +391,17 @@ export function JobPostingsList() {
                               })()
                             )}
                           </td>
-                          <td className="break-words px-3 py-4 leading-4 text-slate-600">{shortDescription(posting.descripcionTecnica)}</td>
-                          <td className="break-words px-3 py-4 text-slate-600">{posting.areaLaboral ?? 'No especificada'}</td>
-                          <td className="break-words px-3 py-4 text-slate-600">{modalityLabel(posting.modalidad)}{posting.ubicacion ? ` (${posting.ubicacion})` : ''}</td>
-                          <td className="px-3 py-4 text-slate-500">{publishedLabel(posting.fechaPublicacion)}</td>
-                          <td className="px-2 py-4 text-right">
-                            <Link href={jobPostingDetailRoute(posting.id)} className="inline-flex min-h-8 items-center rounded-md border border-slate-300 px-2 text-[10px] font-medium text-slate-700 transition hover:border-slate-500 hover:bg-slate-50">Ver oferta</Link>
+                          <td className="block break-words py-1 leading-4 text-slate-600 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Descripción breve: </span>{shortDescription(posting.descripcionTecnica)}</td>
+                          <td className="block break-words py-1 text-slate-600 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Área laboral: </span>{posting.areaLaboral ?? 'No especificada'}</td>
+                          <td className="block break-words py-1 text-slate-600 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Modalidad: </span>{modalityLabel(posting.modalidad)}{posting.ubicacion ? ` (${posting.ubicacion})` : ''}</td>
+                          <td className="block py-1 text-slate-500 md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Publicación: </span>{publishedLabel(posting.fechaPublicacion)}</td>
+                          <td className="block pt-3 md:table-cell md:px-2 md:py-4 md:text-right">
+                            <Link href={jobPostingDetailRoute(posting.id)} aria-label={`Ver oferta: ${posting.titulo}`} className="inline-flex min-h-11 items-center rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-500 hover:bg-slate-50 md:min-h-8 md:px-2 md:text-[10px]">Ver oferta</Link>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
               </div>
             )}
           </>

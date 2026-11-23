@@ -1,3 +1,4 @@
+// apps/web/src/features/chat/components/ComposeRequest.tsx
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -34,6 +35,7 @@ export function ComposeRequest({
     clientId: string;
   } | null>(null);
   const sending = useRef(false);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -65,6 +67,7 @@ export function ComposeRequest({
       clearTimeout(timer);
     };
   }, [query, page]);
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!selected || !content.trim() || sending.current) return;
@@ -100,15 +103,12 @@ export function ComposeRequest({
       setBusy(false);
     }
   };
+
   return (
     <section className="flex h-full min-h-0 flex-col overflow-auto p-5">
       <div className="mb-5 flex justify-between">
         <h2 className="text-lg font-semibold">Nuevo mensaje</h2>
-        <button
-          disabled={busy}
-          onClick={onCancel}
-          className="text-sm underline"
-        >
+        <button disabled={busy} onClick={onCancel} className="text-sm underline">
           Cancelar
         </button>
       </div>
@@ -164,10 +164,7 @@ export function ComposeRequest({
           </button>
         )}
       </div>
-      <form
-        onSubmit={(event) => void submit(event)}
-        className="mt-auto space-y-3"
-      >
+      <form onSubmit={(event) => void submit(event)} className="mt-auto space-y-3">
         {selected && (
           <p className="text-sm">
             Para: <strong>{selected.name}</strong>

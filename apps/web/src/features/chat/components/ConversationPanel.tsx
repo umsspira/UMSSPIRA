@@ -1,3 +1,4 @@
+// apps/web/src/features/chat/components/ConversationPanel.tsx
 "use client";
 
 import {
@@ -39,11 +40,21 @@ export function ConversationPanel({
   actorId,
   onBack,
   onChange,
+  onSaveReadingPosition,
+  savedReadingPosition,
 }: {
   conversation: ConversationSummary;
   actorId: string;
   onBack: () => void;
   onChange: () => void;
+  onSaveReadingPosition: (position: {
+    messageId: string;
+    offset: number;
+  }) => void;
+  savedReadingPosition: {
+    messageId: string;
+    offset: number;
+  } | null;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -56,7 +67,15 @@ export function ConversationPanel({
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [olderBusy, setOlderBusy] = useState(false);
-  const [newMessages, setNewMessages] = useState(false);
+  const [newMessages, setNewMessages] = useState(0);
+
+  // CA-04: primer mensaje no leído + separador
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<
+    string | null
+  >(null);
+  const initialUnreadCount = useRef(conversation.unreadCount ?? 0);
+  const initialUnreadApplied = useRef(false);
+
   const pending = useRef<{ content: string; clientId: string } | null>(null);
   const busyRef = useRef(false),
     mounted = useRef(true),
@@ -65,16 +84,20 @@ export function ConversationPanel({
   const history = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const previousScroll = useRef<{ top: number; height: number } | null>(null);
+  const restoringPosition = useRef(false);
+  const restoredPosition = useRef(false);
   const readId = useRef<string | null>(null);
   const accepted = conversation.status === "ACEPTADO";
   const incoming = conversation.requesterId !== actorId;
 
   const refresh = useCallback(async () => {
+    if (savedReadingPosition && !restoredPosition.current) {
+      restoringPosition.current = true;
+    }
     const version = ++loadVersion.current;
     try {
       const page = await getConversationMessagesPage(conversation.id);
       const items = [...page.items];
-      // Recuperar también los mensajes intermedios si el corte duró varias páginas.
       let before = page.nextCursor;
       const previousIds = new Set(known.current.map((message) => message.id));
       const oldestLoadedId = known.current[0]?.id;
@@ -91,12 +114,42 @@ export function ConversationPanel({
         before = older.nextCursor;
       }
       if (!mounted.current || version !== loadVersion.current) return;
-      if (
-        !atBottom.current &&
-        items.some((message) => !previousIds.has(message.id))
-      )
-        setNewMessages(true);
-      if (!known.current.length) setCursor(page.nextCursor);
+      if (!atBottom.current) {
+        const incomingCount = items.filter(
+          (message) =>
+            !previousIds.has(message.id) && message.senderId !== actorId,
+        ).length;
+
+        if (incomingCount > 0) {
+          setNewMessages((count) => count + incomingCount);
+        }
+      }
+      const savedId = savedReadingPosition?.messageId;
+      let nextCursor = before;
+
+      if (savedId && !restoredPosition.current) {
+        while (
+          nextCursor &&
+          !items.some((message) => message.id === savedId)
+        ) {
+          const older = await getConversationMessagesPage(
+            conversation.id,
+            nextCursor,
+          );
+          items.unshift(...older.items);
+          nextCursor = older.nextCursor;
+        }
+
+        if (items.some((message) => message.id === savedId)) {
+          restoringPosition.current = true;
+        } else {
+          restoringPosition.current = false;
+          restoredPosition.current = true;
+        }
+      }
+
+      if (!known.current.length) setCursor(nextCursor);
+
       setMessages((current) => {
         const result = merge(current, items);
         known.current = result;
@@ -113,7 +166,7 @@ export function ConversationPanel({
     } finally {
       if (mounted.current && version === loadVersion.current) setLoading(false);
     }
-  }, [conversation.id]);
+  }, [conversation.id, savedReadingPosition]);
 
   useEffect(() => {
     mounted.current = true;
@@ -146,6 +199,42 @@ export function ConversationPanel({
     };
   }, [conversation.id, refresh]);
 
+  // CA-04: calcula el id del primer no leído tras la carga inicial
+  useEffect(() => {
+    if (initialUnreadApplied.current) return;
+    if (loading) return;
+    if (!messages.length) {
+      initialUnreadApplied.current = true;
+      return;
+    }
+    const count = initialUnreadCount.current;
+    if (count > 0) {
+      const fromServer = (conversation as { firstUnreadMessageId?: string })
+        .firstUnreadMessageId;
+      if (fromServer) {
+        const exists = messages.some((m) => m.id === fromServer);
+        if (exists) setFirstUnreadMessageId(fromServer);
+      } else {
+        const idx = Math.max(0, messages.length - count);
+        setFirstUnreadMessageId(messages[idx]?.id ?? null);
+      }
+    }
+    initialUnreadApplied.current = true;
+  }, [messages, loading, conversation]);
+
+  // CA-04: scroll al primer no leído
+  useLayoutEffect(() => {
+    if (savedReadingPosition && restoredPosition.current) return;
+    if (!firstUnreadMessageId || !history.current) return;
+    const target = history.current.querySelector<HTMLElement>(
+      `[data-message-id="${firstUnreadMessageId}"]`,
+    );
+    if (target) {
+      target.scrollIntoView({ block: "start", behavior: "auto" });
+      atBottom.current = false;
+    }
+  }, [firstUnreadMessageId]);
+
   const lastMessageId = messages.at(-1)?.id;
   useEffect(() => {
     const mark = () => {
@@ -170,14 +259,40 @@ export function ConversationPanel({
   useLayoutEffect(() => {
     const container = history.current;
     if (!container) return;
+
+    // Restaurar primero la posición guardada al regresar.
+    if (restoringPosition.current && savedReadingPosition) {
+      const target = container.querySelector<HTMLElement>(
+        `[data-message-id="${savedReadingPosition.messageId}"]`,
+      );
+
+      if (target) {
+        const currentOffset =
+          target.getBoundingClientRect().top -
+          container.getBoundingClientRect().top;
+
+        container.scrollTop +=
+          currentOffset - savedReadingPosition.offset;
+
+        restoringPosition.current = false;
+        restoredPosition.current = true;
+        atBottom.current = false;
+        return;
+      }
+    }
+
+    if (firstUnreadMessageId) return;
+
     if (previousScroll.current) {
       container.scrollTop =
         previousScroll.current.top +
         container.scrollHeight -
         previousScroll.current.height;
       previousScroll.current = null;
-    } else if (atBottom.current) container.scrollTop = container.scrollHeight;
-  }, [messages]);
+    } else if (atBottom.current) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [messages, firstUnreadMessageId, savedReadingPosition]);
 
   const loadOlder = async () => {
     if (!cursor || olderBusy) return;
@@ -231,6 +346,7 @@ export function ConversationPanel({
       if (mounted.current) setBusy(false);
     }
   };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const content = draft.trim();
@@ -267,13 +383,41 @@ export function ConversationPanel({
       });
     });
   };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-3 border-b border-slate-200 px-4 py-4">
         <button
           aria-label="Volver a conversaciones"
           className="rounded-lg p-2 hover:bg-slate-100 md:hidden"
-          onClick={onBack}
+          onClick={() => {
+            const container = history.current;
+
+            if (container) {
+              const visibleMessages = Array.from(
+                container.querySelectorAll<HTMLElement>("[data-message-id]"),
+              );
+
+              const firstVisible = visibleMessages.find((element) => {
+                const rect = element.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+
+                return rect.bottom > containerRect.top &&
+                  rect.top < containerRect.bottom;
+              });
+
+              if (firstVisible) {
+                onSaveReadingPosition({
+                  messageId: firstVisible.dataset.messageId!,
+                  offset:
+                    firstVisible.getBoundingClientRect().top -
+                    container.getBoundingClientRect().top,
+                });
+              }
+            }
+
+            onBack();
+          }}
         >
           <ArrowLeft size={20} />
         </button>
@@ -289,6 +433,7 @@ export function ConversationPanel({
           {accepted ? "Conversación" : "Solicitud"}
         </span>
       </header>
+
       {!accepted && (
         <section className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-slate-800">
           <p>
@@ -330,6 +475,7 @@ export function ConversationPanel({
           )}
         </section>
       )}
+
       {error && (
         <div
           role="alert"
@@ -341,6 +487,7 @@ export function ConversationPanel({
           </button>
         </div>
       )}
+
       <div
         ref={history}
         role="log"
@@ -355,7 +502,7 @@ export function ConversationPanel({
                 container.scrollTop -
                 container.clientHeight <
               70;
-            if (atBottom.current) setNewMessages(false);
+            if (atBottom.current) setNewMessages(0);
           }
         }}
       >
@@ -378,8 +525,9 @@ export function ConversationPanel({
               Inicio de la conversación
             </p>
           ))}
+
         {messages.map((message, index) => (
-          <div key={message.id}>
+          <div key={message.id} data-message-id={message.id}>
             {shouldShowDaySeparator(
               messages[index - 1]?.sentAt,
               message.sentAt,
@@ -389,6 +537,20 @@ export function ConversationPanel({
                 {formatDayLabel(message.sentAt)}
               </p>
             )}
+
+            {/* CA-04: separador «Mensajes nuevos» */}
+            {message.id === firstUnreadMessageId && (
+              <div
+                role="separator"
+                aria-label="Mensajes nuevos"
+                className="my-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-orange-600"
+              >
+                <hr className="flex-1 border-orange-200" />
+                Mensajes nuevos
+                <hr className="flex-1 border-orange-200" />
+              </div>
+            )}
+
             <article
               className={`flex ${message.senderId === actorId ? "justify-end" : "justify-start"}`}
             >
@@ -496,19 +658,23 @@ export function ConversationPanel({
           </div>
         ))}
       </div>
-      {newMessages && (
+
+      {newMessages > 0 && (
         <button
+          type="button"
           className="bg-orange-100 py-2 text-sm text-orange-900"
           onClick={() => {
             atBottom.current = true;
-            if (history.current)
+            if (history.current) {
               history.current.scrollTop = history.current.scrollHeight;
-            setNewMessages(false);
+            }
+            setNewMessages(0);
           }}
         >
-          Nuevos mensajes · Ir al final
+          Nuevo mensaje ({newMessages}) · Ir al final
         </button>
       )}
+
       {accepted && (
         <form onSubmit={submit} className="border-t bg-white p-3">
           {attachment && (

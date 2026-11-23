@@ -18,6 +18,26 @@ extractor.loadDictionary([
 ]);
 
 describe('compareRequirements (HU-11)', () => {
+  it('las palabras genéricas no impiden la coincidencia exacta: «Experiencia en React» = React', () => {
+    const outcome = compareRequirements(['Experiencia en React', 'Conocimientos de Docker'], ['React y Docker'], extractor);
+
+    expect(outcome.comparison.map(({ result }) => result)).toEqual(['exact', 'exact']);
+    expect(outcome.percentage).toBe(100);
+  });
+
+  it('una palabra extra que sí dice algo sigue siendo parcial: «React con Redux»', () => {
+    const outcome = compareRequirements(['React con Redux'], ['React'], extractor);
+
+    expect(outcome.comparison[0]?.result).toBe('similar');
+  });
+
+  it('solo una palabra genérica en común no es parcial: «Desarrollo móvil» frente a «Desarrollo web»', () => {
+    const outcome = compareRequirements(['Desarrollo móvil'], ['Desarrollo web'], extractor);
+
+    expect(outcome.comparison[0]).toMatchObject({ result: 'not-found', matchedSkill: null });
+    expect(outcome.percentage).toBe(0);
+  });
+
   it('la coincidencia exacta suma el 100 % y pasa por los alias del diccionario', () => {
     const outcome = compareRequirements(['JS', 'Postgres'], ['JavaScript y PostgreSQL'], extractor);
 

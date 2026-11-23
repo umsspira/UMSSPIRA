@@ -7,6 +7,8 @@ import { searchTerms } from '../../domain/policies/application-search.policy';
 import { Injectable } from '@nestjs/common';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { Prisma } from '../../../../generated/prisma/client';
+import { assertInternalNoteForDifferences } from './application-approval-note';
+import { toNotificationStatus } from '../../domain/policies/mail-retry.policy';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { ActorContext } from '../../../../shared/security/contexts/actor-context';
@@ -294,7 +296,15 @@ async find(actor: ActorContext, id: string) {
             : audit.created_at.toISOString(),
       }
     : null;
-
+  // Último correo de dictamen: no incluye los de activación, que no tienen dictamen asociado.
+  const mail = await this.prisma.correoTramite.findFirst({
+    where: { id_solicitud: id, id_dictamen: { not: null } },
+    orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+    select: { id: true, estado: true, intentos: true },
+  });
+  application.reviewNotification = mail
+    ? { eventId: mail.id, status: toNotificationStatus(mail.estado), attempts: mail.intentos }
+    : null;
   return application;
 }
 
@@ -359,7 +369,7 @@ async find(actor: ActorContext, id: string) {
         await tx.$queryRaw`SELECT id FROM solicitud WHERE id = ${id}::uuid FOR UPDATE`;
         const row = await tx.solicitud.findFirst({
           where: scopedApplication(actor, id),
-          select: { estado: true, id_documento_respaldo: true },
+          select: { estado: true, id_documento_respaldo: true, version_vigente: true },
         });
         if (!row) {
           throw new BusinessRuleError(
@@ -381,10 +391,24 @@ async find(actor: ActorContext, id: string) {
             'Esta solicitud ya fue revisada',
           );
         }
+
+        if (input.expectedVersion !== undefined && input.expectedVersion !== row.version_vigente) {
+          throw new BusinessRuleError(
+            'conflict',
+            'VERSION_CONFLICT',
+            'La solicitud cambió; actualiza el expediente antes de confirmar',
+          );
+        }
+
         const approved = input.decision === 'APROBADA';
         if (input.decision === 'OBSERVADA') {
           await assertObservationLimit(tx, id);
         }
+
+        if (approved && !input.note) {
+          await assertInternalNoteForDifferences(tx, id, row.version_vigente);
+        }  
+        
         const requestedMotivos =
           input.decision === 'OBSERVADA'
             ? input.motivos ?? []
@@ -445,6 +469,7 @@ async find(actor: ActorContext, id: string) {
             justificacion: note,
             fecha_creacion: now,
             subsanada: false,
+            version_dictaminada: row.version_vigente,
           },
         });
         if (validatedMotivos.length > 0) {
@@ -470,7 +495,10 @@ async find(actor: ActorContext, id: string) {
           revisorCorreo: actor.email,
           fechaDictamen: now.toISOString(),
           decision: input.decision,
-            },
+          versionDictaminada: row.version_vigente,
+          // Nota de aprobación: solo uso interno, nunca llega al Titulado.
+          ...(approved && input.note ? { notaInterna: input.note } : {}),
+          },
           },
         });
 

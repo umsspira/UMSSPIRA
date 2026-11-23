@@ -15,6 +15,8 @@ import { ApiClientError } from '@/shared/services/api-client';
 import { SessionError } from '@/shared/services/auth-session';
 import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
 import { EventsMobileBottomNav } from './events-mobile-bottom-nav';
+import { PushPermissionPanel } from '@/features/notifications/components/push-permission-panel';
+import reminderStyles from './event-reminder-settings.module.css';
 
 type StatusFilter = 'all' | 'cancelled' | 'finished';
 type Tone = 'active' | 'cancelled' | 'finished';
@@ -138,6 +140,16 @@ export default function MyEventsPage() {
             </Link>
           </nav>
         </header>
+
+        {!isLoading && !loadError ? (
+          <section className={reminderStyles.card} aria-labelledby="event-reminder-title">
+            <div className={reminderStyles.copy}>
+              <h2 id="event-reminder-title">Recordatorios de eventos</h2>
+              <p>Recibe un aviso antes del inicio de cada evento en el que tengas una inscripción confirmada.</p>
+            </div>
+            <PushPermissionPanel includeEventReminders />
+          </section>
+        ) : null}
 
         {conflictNotice && !isLoading && !loadError ? (
           <p className="hu4-cancellation-note" role="status">

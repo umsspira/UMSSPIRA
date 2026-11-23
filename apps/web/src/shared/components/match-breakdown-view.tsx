@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ApplicantStageTimeline } from "./applicant-stage-timeline";
-import { Applicant } from "../types/applicant";
 import {
-  MATCH_UNAVAILABLE_LABEL,
+  ComoSeCalculaModal,
+  type DetalleRequisitoAfinidad,
+} from "@/modules/ayuda/como-se-calcula-modal";
+import { Applicant, Certification, Education, WorkExperience } from "../types/applicant";
+import { downloadApplicantCv } from "../services/applicants";
+import {
   clampForDisplay,
   formatMatch,
   getMatchLevel,
   hasMatch,
-  skillBarColor,
 } from "../utils/match-format";
 import { formatDate, getInitials } from "../utils/format";
 
@@ -63,18 +66,82 @@ function SendIcon() {
   );
 }
 
+export const CV_DOWNLOADING_LABEL = "Descargando…";
+export const PROFILE_FIELD_EMPTY = "Sin registrar";
+
+/* HU-16 (CA-07): textos de la pestaña «Perfil», como en el mockup M5 v1.1 */
+function yearOf(isoDate: string | null): string | null {
+  return isoDate && /^\d{4}/.test(isoDate) ? isoDate.slice(0, 4) : null;
+}
+
+export function formatWorkExperience(item: WorkExperience): string {
+  const start = yearOf(item.startDate);
+  const end = item.endDate ? yearOf(item.endDate) : "Actual";
+  const period = start ? `${start} – ${end ?? "Actual"}` : null;
+  return [item.position, item.company, period].filter(Boolean).join(" · ");
+}
+
+export function formatEducation(item: Education): string {
+  return [item.title, item.institution, item.graduationYear].filter(Boolean).join(" · ");
+}
+
+export function formatCertification(item: Certification): string {
+  return [item.name, item.year].filter(Boolean).join(" · ");
+}
+
+function ProfileList({ items }: { items: string[] }) {
+  if (items.length === 0) return <p className="font-medium text-gray-500">{PROFILE_FIELD_EMPTY}</p>;
+  if (items.length === 1) return <p className="font-medium break-words">{items[0]}</p>;
+  return (
+    <ul className="space-y-1">
+      {items.map((item, index) => (
+        <li key={`${index}-${item}`} className="font-medium break-words">
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export const CV_NOT_UPLOADED_MESSAGE = "El postulante aún no subió su CV";
+
 export function MatchBreakdownView({
   applicant,
+  vacancyId,
   onBack,
+  comparison,
 }: {
   applicant: Applicant;
+  /** Vacante del detalle: se usa para descargar el CV con la sesión del reclutador (HU-16). */
+  vacancyId?: string;
   onBack?: () => void;
+  /** Desglose recibido del motor HU-10; no se infiere desde las barras de habilidades. */
+  comparison?: readonly DetalleRequisitoAfinidad[];
 }) {
+  const tabsId = useId();
   const [activeTab, setActiveTab] = useState<Tab>("coincidencia");
+  const [mostrarCalculo, setMostrarCalculo] = useState(false);
+  const [downloadingCv, setDownloadingCv] = useState(false);
+  const [cvError, setCvError] = useState<string | null>(null);
+
+  // HU-16: el botón se habilita solo si el titulado subió su CV (CA-09, CA-11).
+  const canDownloadCv = Boolean(applicant.hasCv && vacancyId);
+
+  async function handleDownloadCv() {
+    if (!canDownloadCv || !vacancyId || downloadingCv) return;
+    setCvError(null);
+    setDownloadingCv(true);
+    try {
+      await downloadApplicantCv(vacancyId, applicant.id, applicant.name);
+    } catch (error) {
+      setCvError(error instanceof Error ? error.message : "No se pudo descargar el CV. Intente nuevamente");
+    } finally {
+      setDownloadingCv(false);
+    }
+  }
 
   const matchAvailable = hasMatch(applicant.matchPercentage);
   const level = getMatchLevel(applicant.matchPercentage);
-  const skills = applicant.skills ?? [];
 
   return (
     <div className="space-y-6">
@@ -94,30 +161,39 @@ export function MatchBreakdownView({
           )}
 
           <div className="flex w-full flex-col items-stretch gap-3 md:w-auto md:flex-row md:items-start">
-            {/* Texto azul como el mockup (desactivado si no hay CV) */}
-            {applicant.cvUrl ? (
-              <a
-                href={applicant.cvUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="min-h-11 md:min-h-0 justify-center px-5 py-2.5 text-sm font-bold text-blue-700 bg-white border border-[#EEE9DF] rounded-lg hover:bg-gray-50 inline-flex items-center gap-2"
-              >
-                <DownloadIcon />
-                Descargar CV
-              </a>
+            {/* HU-16: «Descargar CV» con la sesión del reclutador; deshabilitado si no hay CV */}
+            {canDownloadCv ? (
+              <div className="flex flex-col items-stretch gap-1 md:items-start">
+                <button
+                  type="button"
+                  onClick={handleDownloadCv}
+                  disabled={downloadingCv}
+                  aria-busy={downloadingCv}
+                  className="min-h-11 md:min-h-0 justify-center px-5 py-2.5 text-sm font-bold text-blue-700 bg-white border border-[#EEE9DF] rounded-lg hover:bg-gray-50 disabled:cursor-wait disabled:opacity-70 inline-flex items-center gap-2"
+                >
+                  <DownloadIcon />
+                  {downloadingCv ? CV_DOWNLOADING_LABEL : "Descargar CV"}
+                </button>
+                {cvError && (
+                  <p role="alert" className="text-xs text-[#B42318] text-center md:text-left">
+                    {cvError}
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="flex flex-col items-stretch gap-1 md:items-start">
                 <button
+                  type="button"
                   disabled
                   aria-describedby="cv-no-disponible"
-                  title="El postulante aún no subió su CV"
+                  title={CV_NOT_UPLOADED_MESSAGE}
                   className="min-h-11 md:min-h-0 justify-center px-5 py-2.5 text-sm font-bold text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed inline-flex items-center gap-2"
                 >
                   <DownloadIcon />
                   Descargar CV
                 </button>
                 <p id="cv-no-disponible" className="text-xs text-gray-500 text-center md:text-left">
-                  El postulante aún no subió su CV
+                  {CV_NOT_UPLOADED_MESSAGE}
                 </p>
               </div>
             )}
@@ -140,14 +216,8 @@ export function MatchBreakdownView({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold text-[#1B2632] break-words [overflow-wrap:anywhere]">{applicant.name}</h2>
-                {applicant.experienceLevel && (
-                  <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                    {applicant.experienceLevel}
-                  </span>
-                )}
               </div>
               <p className="text-sm text-gray-500 break-all">{applicant.email}</p>
-              <p className="text-sm text-gray-500">{applicant.location ?? "Ubicación no registrada"}</p>
               {/* CA-15: en móvil la fecha de postulación se ve sin cambiar de pestaña */}
               <p className="text-sm text-gray-500 md:hidden">Postulado el {formatDate(applicant.appliedAt)}</p>
             </div>
@@ -164,18 +234,53 @@ export function MatchBreakdownView({
               {formatMatch(applicant.matchPercentage)}
             </span>
             <p className="text-[11px] text-gray-500 font-medium">Coincidencia técnica</p>
+            {matchAvailable && (
+              <button
+                type="button"
+                onClick={() => setMostrarCalculo(true)}
+                className="mt-1 min-h-10 text-left text-xs font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500"
+              >
+                ¿Cómo se calcula?
+              </button>
+            )}
           </div>
         </div>
       </div>
 
+      {matchAvailable && (
+        <ComoSeCalculaModal
+          open={mostrarCalculo}
+          onClose={() => setMostrarCalculo(false)}
+          percentage={applicant.matchPercentage as number}
+          // HU-20 T20.1: el desglose real llega con el postulante (HU-15)
+          comparison={comparison ?? applicant.comparison ?? []}
+        />
+      )}
+
       {/* Pestañas */}
-      <div className="flex border-b border-[#EEE9DF]" role="tablist">
-        {TABS.map((tab) => (
+      <div className="flex border-b border-[#EEE9DF]" role="tablist" aria-label="Información del postulante">
+        {TABS.map((tab, index) => (
           <button
             key={tab.id}
+            id={`${tabsId}-tab-${tab.id}`}
+            type="button"
             role="tab"
+            aria-controls={`${tabsId}-panel-${tab.id}`}
             aria-selected={activeTab === tab.id}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(event) => {
+              let next = index;
+              if (event.key === "ArrowRight") next = (index + 1) % TABS.length;
+              else if (event.key === "ArrowLeft") next = (index - 1 + TABS.length) % TABS.length;
+              else if (event.key === "Home") next = 0;
+              else if (event.key === "End") next = TABS.length - 1;
+              else return;
+              event.preventDefault();
+              const nextTab = TABS[next];
+              setActiveTab(nextTab.id);
+              document.getElementById(`${tabsId}-tab-${nextTab.id}`)?.focus();
+            }}
             className={`flex-1 min-h-11 md:min-h-0 px-2 md:px-4 py-2 text-sm font-semibold border-b-2 -mb-px ${
               activeTab === tab.id
                 ? "border-orange-500 text-orange-600"
@@ -188,6 +293,7 @@ export function MatchBreakdownView({
       </div>
 
       {/* Pestaña: Perfil */}
+      <div id={`${tabsId}-panel-perfil`} role="tabpanel" aria-labelledby={`${tabsId}-tab-perfil`} hidden={activeTab !== "perfil"} tabIndex={0}>
       {activeTab === "perfil" && (
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-[#EEE9DF] grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-[#1B2632]">
           <div>
@@ -202,6 +308,19 @@ export function MatchBreakdownView({
             <p className="text-xs text-gray-500">Nivel de experiencia</p>
             <p className="font-medium">{applicant.experienceLevel ?? "No registrado"}</p>
           </div>
+          {/* HU-16 (CA-07 v1.1): pedidos por el PO */}
+          <div>
+            <p className="text-xs text-gray-500">Experiencia laboral</p>
+            <ProfileList items={(applicant.workExperience ?? []).map(formatWorkExperience)} />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Formación académica</p>
+            <ProfileList items={(applicant.education ?? []).map(formatEducation)} />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Certificaciones</p>
+            <ProfileList items={(applicant.certifications ?? []).map(formatCertification)} />
+          </div>
           <div>
             <p className="text-xs text-gray-500">Estado</p>
             <p className="font-medium">{applicant.status}</p>
@@ -212,18 +331,20 @@ export function MatchBreakdownView({
           </div>
         </div>
       )}
+      </div>
 
       {/* Pestaña: Coincidencia técnica (CA-03, CA-04) */}
+      <div id={`${tabsId}-panel-coincidencia`} role="tabpanel" aria-labelledby={`${tabsId}-tab-coincidencia`} hidden={activeTab !== "coincidencia"} tabIndex={0}>
       {activeTab === "coincidencia" && (
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-[#EEE9DF] space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8">
             {/* Dona con el porcentaje general recibido */}
             <div className="flex flex-col items-center justify-center p-2 md:p-6">
               <h3 className="text-sm font-bold text-[#1B2632] mb-4">
                 Resultado de coincidencia técnica
               </h3>
               <div className="relative w-40 h-40 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <svg aria-hidden="true" className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                   <path
                     className="text-gray-200"
                     strokeWidth="3.5"
@@ -261,32 +382,51 @@ export function MatchBreakdownView({
               </div>
             </div>
 
-            {/* Desglose por habilidad (valores tal cual los envía la API) */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-[#1B2632] mb-2">Desglose por habilidades</h3>
-              {skills.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  Desglose por habilidades: {MATCH_UNAVAILABLE_LABEL.toLowerCase()}.
-                </p>
-              ) : (
-                skills.map((s) => (
-                  <div key={s.skill} className="grid grid-cols-[minmax(0,110px)_1fr_44px] items-center gap-3">
-                    <span className="text-xs font-medium text-[#1B2632] break-words [overflow-wrap:anywhere]">{s.skill}</span>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${skillBarColor(s.percentage)}`}
-                        style={{
-                          width: `${hasMatch(s.percentage) ? clampForDisplay(s.percentage) : 0}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-xs font-medium text-[#1B2632] text-right">
-                      {formatMatch(s.percentage)}
-                    </span>
-                  </div>
-                ))
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-[#1B2632]">Comparación por requisito</h3>
+              {applicant.matchCalculatedAt && (
+                <span className="text-xs text-gray-500">
+                  Calculado: {new Date(applicant.matchCalculatedAt).toLocaleString("es-BO")}
+                </span>
               )}
             </div>
+            {applicant.matchError ? (
+              <p role="alert" className="text-sm text-red-700">{applicant.matchError}</p>
+            ) : applicant.comparison.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                {applicant.matchStatus === "profile-incomplete"
+                  ? "No hay suficientes datos del perfil para calcular la comparación."
+                  : applicant.matchStatus === "no-requirements"
+                    ? "La vacante no tiene requisitos técnicos configurados."
+                    : "No hay requisitos técnicos disponibles para comparar."}
+              </p>
+            ) : (
+              <ul className="divide-y divide-[#EEE9DF] rounded-xl border border-[#EEE9DF]">
+                {applicant.comparison.map((item) => (
+                  <li
+                    key={item.requirement}
+                    className="grid grid-cols-1 gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                  >
+                    <span className="text-sm font-medium text-[#1B2632]">{item.requirement}</span>
+                    <span className="text-sm text-gray-600">
+                      {item.matchedSkill ?? "Sin coincidencia"}
+                    </span>
+                    <span className={`text-xs font-bold ${
+                      item.result === "exact"
+                        ? "text-emerald-700"
+                        : item.result === "similar"
+                          ? "text-orange-700"
+                          : "text-gray-500"
+                    }`}>
+                      {item.result === "exact" ? "Exacta" : item.result === "similar" ? "Similar" : "No encontrada"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* Resumen (solo si hay porcentaje recibido) */}
@@ -309,26 +449,32 @@ export function MatchBreakdownView({
           )}
         </div>
       )}
+      </div>
 
       {/* Pestaña: CV */}
+<div id={`${tabsId}-panel-cv`} role="tabpanel" aria-labelledby={`${tabsId}-tab-cv`} hidden={activeTab !== "cv"} tabIndex={0}>
 {activeTab === "cv" && (
   <div className="bg-white rounded-2xl p-8 shadow-sm border border-[#EEE9DF] text-center text-sm text-gray-500">
-    {applicant.cvUrl ? (
-      <a
-        href={applicant.cvUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-semibold text-blue-600 hover:underline"
+    {canDownloadCv ? (
+      <button
+        type="button"
+        onClick={handleDownloadCv}
+        disabled={downloadingCv}
+        className="font-semibold text-blue-600 hover:underline disabled:cursor-wait disabled:opacity-70"
       >
-        Ver CV del postulante
-      </a>
+        {downloadingCv ? CV_DOWNLOADING_LABEL : "Descargar el CV del postulante"}
+      </button>
     ) : (
-      "CV no disponible por el momento."
+      applicant.hasCv
+        ? "El CV está registrado, pero no hay una descarga disponible."
+        : CV_NOT_UPLOADED_MESSAGE
     )}
   </div>
 )}
+</div>
 
 {/* Pestaña: Historial - CA-08 */}
+<div id={`${tabsId}-panel-historial`} role="tabpanel" aria-labelledby={`${tabsId}-tab-historial`} hidden={activeTab !== "historial"} tabIndex={0}>
 {activeTab === "historial" && (
   <div className="space-y-4">
     <ApplicantStageTimeline
@@ -337,6 +483,7 @@ export function MatchBreakdownView({
     />
   </div>
 )}
+</div>
     </div>
   );
 }
