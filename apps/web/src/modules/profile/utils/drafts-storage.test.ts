@@ -90,12 +90,19 @@ describe('Conservación de borradores en el navegador (HU-14, T14.3)', () => {
     expect(loadDrafts(TITULADO)).toEqual([]);
   });
 
-  it('no rompe si el navegador está lleno (QuotaExceededError)', async () => {
+  it('si el navegador está lleno avisa (false) y borra la copia vieja para que no vuelva al recargar', async () => {
+    await saveDrafts([FORMACION], TITULADO);
     const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('Sin espacio', 'QuotaExceededError');
     });
-    await expect(saveDrafts([FORMACION], TITULADO)).resolves.toBeUndefined();
+    await expect(saveDrafts([FORMACION, certificacionCon(null)], TITULADO)).resolves.toBe(false);
     setItem.mockRestore();
+    expect(window.localStorage.getItem(DRAFTS_STORAGE_KEY)).toBeNull();
+    expect(loadDrafts(TITULADO)).toEqual([]);
+  });
+
+  it('cuando se puede guardar devuelve true', async () => {
+    await expect(saveDrafts([FORMACION], TITULADO)).resolves.toBe(true);
   });
 
   it('no rompe si el navegador no deja leer', () => {

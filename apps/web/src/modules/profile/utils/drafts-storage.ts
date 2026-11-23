@@ -76,18 +76,29 @@ export function loadDrafts(ownerId: string): DraftRecord[] {
 // Leer los respaldos es asíncrono: si llega un cambio nuevo mientras tanto, solo se escribe el último
 let lastSave = 0;
 
-/** Guarda los borradores del titulado. Si el navegador no deja (lleno, unos 5 MB, o bloqueado) no se rompe la página. */
-export async function saveDrafts(drafts: DraftRecord[], ownerId: string): Promise<void> {
-  if (!ownerId) return;
+/**
+ * Guarda los borradores del titulado. Devuelve false si el navegador no los pudo conservar (lleno, unos 5 MB,
+ * o bloqueado): en ese caso borra la copia anterior para que al recargar no vuelvan borradores viejos o ya
+ * guardados (se duplicarían al guardar otra vez). La página no se rompe.
+ */
+export async function saveDrafts(drafts: DraftRecord[], ownerId: string): Promise<boolean> {
+  if (!ownerId) return true;
   const key = draftsStorageKey(ownerId);
   const save = ++lastSave;
   try {
     const stored = await Promise.all(drafts.map(toStored));
-    if (save !== lastSave) return;
+    if (save !== lastSave) return true;
     if (stored.length === 0) window.localStorage.removeItem(key);
     else window.localStorage.setItem(key, JSON.stringify(stored));
+    return true;
   } catch {
-    // QuotaExceededError u otro: los borradores siguen en pantalla, solo no se conservan
+    // QuotaExceededError u otro: los borradores siguen en pantalla, pero la copia vieja ya no sirve
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Almacenamiento bloqueado: no hay copia que borrar
+    }
+    return false;
   }
 }
 
@@ -103,6 +114,5 @@ export async function saveIncompleteEntries(ownerId: string, entries: Incomplete
   const kept = loadDrafts(ownerId).filter((draft) => !(draft.isIncomplete && sections.has(draft.section)));
   const stamp = Date.now();
   const added = entries.map((entry, index) => ({ id: `borrador-${stamp + index}`, ...entry, isIncomplete: true }) as DraftRecord);
-  await saveDrafts([...kept, ...added], ownerId);
-  return added.length;
+  return (await saveDrafts([...kept, ...added], ownerId)) ? added.length : 0;
 }

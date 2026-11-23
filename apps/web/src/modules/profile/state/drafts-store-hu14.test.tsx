@@ -81,6 +81,8 @@ describe('DraftsStoreProvider (HU-14)', () => {
     });
     await waitFor(() => expect(setItem).toHaveBeenCalled());
     expect(result.current.drafts).toHaveLength(1);
+    // HU-14: se avisa en pantalla que no se pudieron conservar
+    await waitFor(() => expect(result.current.storageFailed).toBe(true));
     setItem.mockRestore();
   });
 });

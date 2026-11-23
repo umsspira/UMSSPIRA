@@ -46,6 +46,8 @@ type DraftsStore = {
   clearDrafts: () => void;
   // Sube los datos a medias de un apartado como «borrador incompleto»; si ya hay uno en ese apartado, lo reemplaza
   saveIncompleteDraft: <S extends DraftSection>(section: S, data: DraftDataBySection[S]) => void;
+  // HU-14: el navegador no pudo conservar los borradores (por ejemplo, un respaldo muy grande)
+  storageFailed: boolean;
 };
 
 const DraftsStoreContext = createContext<DraftsStore | null>(null);
@@ -90,8 +92,16 @@ export function DraftsStoreProvider({
     setIsRestored(true);
   }, [initialDrafts, isRestored, ownerId]);
 
+  const [storageFailed, setStorageFailed] = useState(false);
   useEffect(() => {
-    if (isRestored) void saveDrafts(drafts, ownerId);
+    if (!isRestored) return;
+    let active = true;
+    void saveDrafts(drafts, ownerId).then((saved) => {
+      if (active) setStorageFailed(!saved);
+    });
+    return () => {
+      active = false;
+    };
   }, [drafts, isRestored, ownerId]);
 
   const addDraft = useCallback(<S extends DraftSection>(section: S, data: DraftDataBySection[S]) => {
@@ -123,8 +133,8 @@ export function DraftsStoreProvider({
   }, []);
 
   const value = useMemo<DraftsStore>(
-    () => ({ drafts, addDraft, updateDraft, removeDraft, clearDrafts, saveIncompleteDraft }),
-    [drafts, addDraft, updateDraft, removeDraft, clearDrafts, saveIncompleteDraft],
+    () => ({ drafts, addDraft, updateDraft, removeDraft, clearDrafts, saveIncompleteDraft, storageFailed }),
+    [drafts, addDraft, updateDraft, removeDraft, clearDrafts, saveIncompleteDraft, storageFailed],
   );
 
   return <DraftsStoreContext.Provider value={value}>{children}</DraftsStoreContext.Provider>;

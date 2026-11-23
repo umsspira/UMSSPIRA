@@ -67,7 +67,7 @@ function DraftSectionCard({ number, title, children }: { number: number; title: 
 function AddRecordsContent() {
   const { records, isLoading, loadError, retryLoad, addEducation, addExperience, addCertification, addProject } =
     useProfileStore();
-  const { drafts, addDraft, updateDraft, removeDraft, saveIncompleteDraft } = useDraftsStore();
+  const { drafts, addDraft, updateDraft, removeDraft, saveIncompleteDraft, storageFailed } = useDraftsStore();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ status: 'idle' });
   const certificationAttempts = useRef(new Map<string, CertificationAttempt>());
   const isSaving = saveStatus.status === 'saving';
@@ -329,6 +329,12 @@ function AddRecordsContent() {
             <p role="note" className="rounded-lg border border-umss-orange/40 bg-umss-cream px-3.5 py-2.5 text-xs text-umss-dark">
               Tus borradores son provisionales y solo se guardan en este navegador
             </p>
+            {storageFailed && (
+              <p role="alert" className="rounded-lg border border-[#A35139]/30 bg-[#FFF0E1] px-3.5 py-2.5 text-xs text-[#A35139]">
+                Este navegador no pudo conservar tus borradores (por ejemplo, por un respaldo muy grande). Siguen aquí
+                mientras no cierres la página: guárdalos con «Guardar perfil profesional».
+              </p>
+            )}
             {drafts.length === 0 ? (
               <p className="text-xs text-blue-fantastic/55">
                 Aún no hay borradores. Llena un apartado y presiona «Guardar en borrador».
