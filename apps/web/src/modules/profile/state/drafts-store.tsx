@@ -67,29 +67,32 @@ function skipRestoredIds(drafts: DraftRecord[]) {
 export function DraftsStoreProvider({
   children,
   initialDrafts,
+  ownerId = '',
 }: {
   children: React.ReactNode;
   // Solo para pruebas; con ellos no se restaura lo guardado en el navegador
   initialDrafts?: DraftRecord[];
+  // Titulado dueño de los borradores: cada uno tiene su propia clave en el navegador (HU-14)
+  ownerId?: string;
 }) {
   const [drafts, setDrafts] = useState<DraftRecord[]>(initialDrafts ?? []);
   // T14.3: hasta restaurar no se guarda, para no pisar lo conservado con la lista vacía del inicio
   const [isRestored, setIsRestored] = useState(false);
 
+  // Se restaura cuando se conoce al titulado (el perfil llega de la API); sin él no se lee ni se guarda nada
   useEffect(() => {
+    if (isRestored || (!initialDrafts && !ownerId)) return;
     if (!initialDrafts) {
-      const saved = loadDrafts();
+      const saved = loadDrafts(ownerId);
       skipRestoredIds(saved);
-      if (saved.length > 0) setDrafts(saved);
+      if (saved.length > 0) setDrafts((current) => [...saved, ...current]);
     }
     setIsRestored(true);
-    // Solo al montar
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialDrafts, isRestored, ownerId]);
 
   useEffect(() => {
-    if (isRestored) void saveDrafts(drafts);
-  }, [drafts, isRestored]);
+    if (isRestored) void saveDrafts(drafts, ownerId);
+  }, [drafts, isRestored, ownerId]);
 
   const addDraft = useCallback(<S extends DraftSection>(section: S, data: DraftDataBySection[S]) => {
     const id = createDraftId();

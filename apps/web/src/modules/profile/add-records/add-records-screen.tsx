@@ -15,7 +15,7 @@ import {
   DraftsStoreProvider,
   useDraftsStore,
 } from '@/modules/profile/state/drafts-store';
-import { useProfileStore } from '@/modules/profile/state/profile-store';
+import { useOptionalProfileStore, useProfileStore } from '@/modules/profile/state/profile-store';
 import type { EducationRecord } from '@/modules/profile/types/profile-record';
 
 import { afterBatchSave } from './after-batch-save';
@@ -39,8 +39,10 @@ function hasData(data: DraftDataBySection[DraftSection]): boolean {
 
 /** Pantalla «Agregar registros» (HU-13): los registros se preparan como borradores y se guardan juntos. */
 export function AddRecordsScreen({ initialDrafts }: { initialDrafts?: DraftRecord[] }) {
+  // Los borradores se conservan por titulado (HU-14): el id llega con el perfil
+  const ownerId = useOptionalProfileStore()?.header?.id ?? '';
   return (
-    <DraftsStoreProvider initialDrafts={initialDrafts}>
+    <DraftsStoreProvider initialDrafts={initialDrafts} ownerId={ownerId}>
       <AddRecordsContent />
     </DraftsStoreProvider>
   );
