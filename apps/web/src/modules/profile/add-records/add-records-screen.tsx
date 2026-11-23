@@ -5,7 +5,7 @@ import { ArrowLeft, Check } from 'lucide-react';
 import Link from 'next/link';
 
 import { FormularioCertificaciones } from '@/modules/profile/completar/certificaciones';
-import { FormularioExperiencia } from '@/modules/profile/completar/experiencia-laboral';
+import { type Experiencia, FormularioExperiencia } from '@/modules/profile/completar/experiencia-laboral';
 import { FormacionAcademicaForm, type FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
 import { FormularioProyectos } from '@/modules/profile/completar/proyectos';
 import {
@@ -16,7 +16,7 @@ import {
   useDraftsStore,
 } from '@/modules/profile/state/drafts-store';
 import { useOptionalProfileStore, useProfileStore } from '@/modules/profile/state/profile-store';
-import type { EducationRecord } from '@/modules/profile/types/profile-record';
+import type { EducationRecord, ExperienceRecord } from '@/modules/profile/types/profile-record';
 
 import { afterBatchSave } from './after-batch-save';
 import { DraftCard } from './draft-card';
@@ -97,6 +97,23 @@ function AddRecordsContent() {
   const hasIncomplete = drafts.some((draft) => draft.isIncomplete);
   // T14.2: datos con los que arranca el formulario nuevo de cada apartado (el borrador incompleto devuelto)
   const [formStart, setFormStart] = useState<Partial<DraftDataBySection>>({});
+
+  // Experiencias ya guardadas y en borrador completo (menos la que se edita): con ellas la casilla
+  // «Actualmente trabajo aquí» se bloquea al llegar a 2 trabajos actuales (HU-21 CA-09)
+  const existingExperience = useMemo<Experiencia[]>(
+    () => [
+      ...(records.experience as ExperienceRecord[]).map((record) => ({
+        empresa: record.company,
+        cargo: record.position,
+        fechaInicio: record.startDate,
+        fechaFin: record.endDate || undefined,
+      })),
+      ...drafts.flatMap((draft) =>
+        draft.section === 'experience' && draft.id !== editingId && !draft.isIncomplete ? [draft.data] : [],
+      ),
+    ],
+    [records.experience, drafts, editingId],
+  );
 
   // Formaciones ya guardadas y en borrador (menos la que se edita): con ellas la regla existente avisa de duplicadas
   const existingEducation = useMemo<FormacionAcademica[]>(
@@ -269,7 +286,8 @@ function AddRecordsContent() {
               <FormularioExperiencia
                 key={formKey('experience')}
                 valoresIniciales={editingDraft?.section === 'experience' ? editingDraft.data : formStart.experience}
-                experiencias={[]}
+                experiencias={existingExperience}
+                mostrarRegistradas={false}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 onAgregar={(experiencia) => saveDraft('experience', experiencia)}
                 onDatosChange={trackForm.experience}
