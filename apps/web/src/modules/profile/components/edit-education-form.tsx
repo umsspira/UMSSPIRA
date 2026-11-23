@@ -200,7 +200,6 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
       <BackupField
         documentName={documentName}
         documentUrl={documentUrl}
-        isVerified={Boolean(documentName) && !isNewDocument}
         onDocumentChange={handleDocumentChange}
         onDocumentRemove={
           isNewDocument && documentName !== (education.backupFile ?? '') ? handleDocumentRemove : undefined

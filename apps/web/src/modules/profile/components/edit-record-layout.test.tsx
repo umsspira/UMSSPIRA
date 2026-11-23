@@ -9,7 +9,7 @@ function jpg(nombre: string, bytes = 1024) {
 
 function renderBackup(onDocumentChange = jest.fn()) {
   const { container } = render(
-    <BackupField documentName="" isVerified={false} onDocumentChange={onDocumentChange} />,
+    <BackupField documentName="" onDocumentChange={onDocumentChange} />,
   );
   const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]'));
   return { inputs, onDocumentChange };
@@ -68,5 +68,13 @@ describe('BackupField · validación del respaldo al editar', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Solo se aceptan archivos PDF o JPG de hasta 5 MB');
     expect(onDocumentChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('BackupField sin etiquetas de validación (HU-21)', () => {
+  it('con un respaldo cargado no muestra «Respaldo verificado» ni «Respaldo en revisión»', () => {
+    render(<BackupField documentName="titulo.pdf" documentUrl="blob:titulo" onDocumentChange={jest.fn()} />);
+    expect(screen.getByRole('link', { name: 'titulo.pdf' })).toBeInTheDocument();
+    expect(screen.queryByText(/Respaldo verificado|Respaldo en revisión/)).not.toBeInTheDocument();
   });
 });

@@ -248,7 +248,6 @@ function EditCertificationFields({ certification }: { certification: Certificati
       <BackupField
         documentName={documentName}
         documentUrl={documentUrl}
-        isVerified={Boolean(documentName) && !isNewDocument && Boolean(certification.backupVerified)}
         onDocumentChange={handleDocumentChange}
         onDocumentRemove={pendingDocument ? handleDocumentRemove : undefined}
         // Un archivo recién elegido aún no está en la API: se sigue abriendo con su enlace local
