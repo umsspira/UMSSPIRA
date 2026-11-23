@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import Link from 'next/link';
 
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { FormularioCertificaciones } from '@/modules/profile/completar/certificaciones';
 import { type Experiencia, FormularioExperiencia } from '@/modules/profile/completar/experiencia-laboral';
 import { FormacionAcademicaForm, type FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
@@ -17,6 +18,7 @@ import {
 } from '@/modules/profile/state/drafts-store';
 import { useOptionalProfileStore, useProfileStore } from '@/modules/profile/state/profile-store';
 import type { EducationRecord, ExperienceRecord } from '@/modules/profile/types/profile-record';
+import { BackButton } from '@/shared/components/back-button';
 
 import { afterBatchSave } from './after-batch-save';
 import { DraftCard } from './draft-card';
@@ -204,14 +206,11 @@ function AddRecordsContent() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* TODO(HU-11): cambiar por el BackButton compartido en la integración */}
-      <Link
-        href={RECORDS_ROUTE}
-        className="inline-flex h-11 w-fit items-center gap-2.5 rounded-[10px] border-[1.5px] border-blue-fantastic bg-white pl-4 pr-5 text-[15px] font-semibold text-blue-fantastic transition hover:bg-palladian"
-      >
-        <ArrowLeft className="h-[18px] w-[18px]" aria-hidden="true" />
-        Volver a Mis registros
-      </Link>
+      {/* Mismo «Volver» y accesos del perfil que las demás pantallas (HU-11) */}
+      <div className="flex flex-col gap-3">
+        <BackButton href={RECORDS_ROUTE} label="Volver a Mis registros" />
+        <ProfileQuickLinks />
+      </div>
 
       <header className="flex flex-col gap-2 rounded-2xl border border-oatmeal bg-white px-5 py-5 md:px-8 md:py-6">
         <p className="text-xs font-semibold uppercase text-truffle-trouble">Perfil profesional</p>
