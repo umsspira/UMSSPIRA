@@ -12,7 +12,7 @@ import { normalizeText, splitSegments } from '../../../nlp/domain/policies/text-
  * Cambiar las reglas o los pesos obliga a subir ALGORITHM_VERSION para invalidar los
  * porcentajes calculados con la versión anterior.
  */
-export const ALGORITHM_VERSION = 'job-affinity-hu11-v1';
+export const ALGORITHM_VERSION = 'job-affinity-hu11-v2';
 
 export type RequirementMatchResult = 'exact' | 'similar' | 'not-found';
 
@@ -25,6 +25,23 @@ export const MATCH_WEIGHTS: Readonly<Record<RequirementMatchResult, number>> = {
 
 /** Fracción mínima de palabras del requisito que deben aparecer en un mismo texto del perfil. */
 export const MIN_PARTIAL_COVERAGE = 0.5;
+
+/**
+ * Palabras de relleno frecuentes en los requisitos que no dicen qué tecnología o área se pide.
+ * No impiden la coincidencia exacta («Experiencia en React» = «React») ni bastan para una parcial
+ * («Desarrollo móvil» no se parece a «Desarrollo web» solo por «desarrollo»).
+ */
+export const GENERIC_REQUIREMENT_WORDS: readonly string[] = [
+  'experiencia', 'conocimiento', 'conocimientos', 'manejo', 'dominio', 'uso', 'desarrollo', 'programacion',
+  'nivel', 'basico', 'intermedio', 'avanzado', 'solido', 'solidos', 'deseable', 'habilidad', 'habilidades',
+  'capacidad', 'anos', 'minimo',
+];
+
+const GENERIC_STEMS = new Set(stemTokens(GENERIC_REQUIREMENT_WORDS.flatMap((word) => normalizeText(word))));
+
+function isGenericWord(word: string): boolean {
+  return stemTokens(normalizeText(word)).every((stem) => GENERIC_STEMS.has(stem));
+}
 
 export interface KeywordExtractor {
   extract(text: string): ExtractionResult;
@@ -98,13 +115,11 @@ function compareRequirement(
   }
 
   // 2) Requisito del diccionario: todas sus canónicas están en el perfil y no le sobran palabras
-  //    desconocidas. "JS" coincide con "JavaScript" y "Postgres" con "PostgreSQL" por los alias.
+  //    desconocidas (las genéricas como «experiencia» no cuentan). "JS" coincide con "JavaScript",
+  //    "Postgres" con "PostgreSQL" por los alias y «Experiencia en React» con «React».
   const found = requirementCanonicals.filter((canonical) => profile.canonicals.has(canonical));
-  if (
-    requirementCanonicals.length > 0 &&
-    found.length === requirementCanonicals.length &&
-    extraction.unmapped.length === 0
-  ) {
+  const extraWords = extraction.unmapped.filter(({ term }) => !isGenericWord(term));
+  if (requirementCanonicals.length > 0 && found.length === requirementCanonicals.length && extraWords.length === 0) {
     return result(requirement, found.join(', '), 'exact');
   }
 
@@ -122,7 +137,8 @@ function compareRequirement(
   }
 
   // 3c) Requisito fuera del diccionario: al menos la mitad de sus palabras (por raíces) aparece en un mismo
-  //     texto del perfil. No se aplica a términos del diccionario: «Machine» solo no es «Machine Learning».
+  //     texto del perfil y una de ellas no es genérica. No se aplica a términos del diccionario: «Machine»
+  //     solo no es «Machine Learning»; tampoco basta «desarrollo» para unir «Desarrollo móvil» y «Desarrollo web».
   if (requirementCanonicals.length === 0) {
     const partial = findPartialCoverage(requirementTokens, profile.segments);
     if (partial !== null) {
@@ -166,7 +182,8 @@ function findPartialCoverage(
     const segmentStems = new Set(segment.stems);
     const hits = new Set(contentStems.filter((stem) => segmentStems.has(stem)));
     const coverage = hits.size / new Set(contentStems).size;
-    if (coverage >= MIN_PARTIAL_COVERAGE && (best === null || coverage > best.coverage)) {
+    const hasSpecificHit = [...hits].some((stem) => !GENERIC_STEMS.has(stem));
+    if (coverage >= MIN_PARTIAL_COVERAGE && hasSpecificHit && (best === null || coverage > best.coverage)) {
       const matched = segment.tokens.filter((_, index) => hits.has(segment.stems[index] ?? ''));
       best = { coverage, matched: [...new Set(matched)] };
     }
