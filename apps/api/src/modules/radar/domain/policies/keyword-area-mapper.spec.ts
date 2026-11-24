@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { RADAR_AREA_IDS } from '../entities/radar-area';
 import { mapKeywordsToRadarAreas } from './keyword-area-mapper';
 
@@ -49,12 +50,38 @@ describe('mapKeywordsToRadarAreas', () => {
     ]);
   });
 
-  it('rechaza un UUID de área desconocido para una keyword reconocida', () => {
-    expect(() =>
-      mapKeywordsToRadarAreas([{ term: 'javascript', count: 1 }], {
-        'unknown-area': [{ term: 'javascript', peso: 5 }],
-      }),
-    ).toThrow('UUID de área no reconocido: unknown-area');
+  it('BUG-RADAR-01: ignora y registra en el log un UUID de área ajeno al radar sin lanzar error ni sumar puntos', () => {
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    const result = mapKeywordsToRadarAreas(
+      [
+        { term: 'postgresql', count: 1 },
+        { term: 'gestion de proyectos', count: 1 },
+      ],
+      {
+        '60000000-0000-4000-8000-000000000018': [{ term: 'postgresql', peso: 4 }],
+        '60000000-0000-4000-8000-000000000005': [{ term: 'gestion de proyectos', peso: 5 }],
+        [RADAR_AREA_IDS['software-development']]: [{ term: 'postgresql', peso: 4 }],
+        [RADAR_AREA_IDS['it-management']]: [{ term: 'gestion de proyectos', peso: 5 }],
+      },
+    );
+
+    expect(result).toEqual([
+      {
+        term: 'postgresql',
+        area: 'software-development',
+        areaId: RADAR_AREA_IDS['software-development'],
+        peso: 4,
+      },
+      {
+        term: 'gestion de proyectos',
+        area: 'it-management',
+        areaId: RADAR_AREA_IDS['it-management'],
+        peso: 5,
+      },
+    ]);
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
   });
 
   it('acepta un catálogo vacío', () => {
