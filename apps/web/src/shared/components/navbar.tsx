@@ -9,7 +9,6 @@ import {
   Calendar,
   Briefcase,
   Star,
-  Users,
   User,
   Bell,
   ChevronDown,
@@ -40,7 +39,6 @@ const navItems = [
   { href: '/portal/institucional?tab=empleos', label: 'Bolsa de trabajo', Icon: Briefcase },
   { href: '/mentorship', label: 'Mentorías', Icon: Award },
   { href: '/portal/beneficios', label: 'Beneficios', Icon: Star },
-  { href: '/portal/institucional?tab=comunidad', label: 'Comunidad', Icon: Users },
 ];
 
 export const Navbar: React.FC<{ eventManagement?: boolean }> = ({

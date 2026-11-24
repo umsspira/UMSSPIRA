@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.3';
+const VERSION = 'v1.0.6';
 
 const CACHE_NAME = `umsspira-core-portal-${VERSION}`;
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
@@ -26,7 +26,7 @@ const OFFLINE_ROUTE_PREFIXES = ['/events/catalog/passes', '/mis-pases', '/portal
 const OFFLINE_ROOT_ROUTES = ['/events/catalog/passes', '/mis-pases', '/portal/eventos', '/portal/configuracion', '/portal/validacion-offline'];
 // Secciones principales: se guardan SOLO cuando la persona las abre con conexión (no se descargan por adelantado).
 // Sin conexión se abre lo que ya se visitó; lo que no se visitó muestra el aviso «Sin conexión».
-const VISITED_ROUTE_PREFIXES = ['/portal/comunidad', '/portal/beneficios', '/portal/empleos', '/job-postings', '/mentorship', '/my-applications'];
+const VISITED_ROUTE_PREFIXES = ['/portal/beneficios', '/portal/empleos', '/job-postings', '/mentorship', '/my-applications'];
 function isVisitedRoute(pathname) {
   return pathname === '/portal' || VISITED_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -305,7 +305,6 @@ function getHandledUrl(request) {
 // --- PÁGINA SIN CONEXIÓN (HU14) ---
 const OFFLINE_NAV_MEMBER = [
   { label: 'Inicio', href: '/portal', prefixes: [] },
-  { label: 'Comunidad', href: '/portal/comunidad', prefixes: ['/portal/comunidad', '/portal/beneficios'] },
   { label: 'Directorio', href: '/profile', prefixes: ['/profile', '/afinidad'] },
   { label: 'Bolsa de trabajo', href: '/job-postings', prefixes: ['/portal/empleos', '/job-postings'] },
   { label: 'Mentorías', href: '/mentorship', prefixes: ['/portal/mentorias', '/mentorship'] },
@@ -313,7 +312,6 @@ const OFFLINE_NAV_MEMBER = [
 ];
 const OFFLINE_NAV_GUEST = [
   { label: 'Inicio', href: '/portal/institucional', prefixes: [] },
-  { label: 'Comunidad', href: '/portal/institucional?tab=comunidad', prefixes: [] },
   { label: 'Bolsa de trabajo', href: '/portal/institucional?tab=empleos', prefixes: [] },
   { label: 'Mentorías', href: '/portal/institucional?tab=mentorias', prefixes: [] },
   { label: 'Eventos', href: '/portal/institucional?tab=eventos', prefixes: [] },
@@ -572,6 +570,12 @@ function offlineResponse() {
   });
 }
 
+// Rutas de navegación que atiende el Service Worker (portal + secciones que se guardan para uso sin conexión).
+const INTERCEPTED_PREFIXES = ['/portal', '/events', '/mis-pases', '/job-postings', '/mentorship', '/my-applications', '/profile', '/afinidad'];
+function isInterceptedRoute(pathname) {
+  return isOfflineRoute(pathname) || INTERCEPTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 // --- NAVIGATION HANDLER ---
 // Chrome marca la recarga (F5) con cache 'no-cache' y la recarga forzada (Ctrl+F5) con 'reload'.
 function isHomeReload(request, url) {
@@ -603,7 +607,7 @@ async function handleNavigation(event) {
     }
     return response;
   } catch (e) {
-    // F5 / recargar el inicio sin conexión: se muestra la pantalla «Sin conexión» con los accesos disponibles.
+    // F5 / recargar el inicio sin conexión: pantalla «Sin conexión a Internet» con los accesos disponibles.
     if (isHomeReload(request, url)) return offlineResponse();
     if (isOfflineRoute(url.pathname)) {
       const cache = await caches.open(ROUTES_CACHE);
@@ -612,6 +616,7 @@ async function handleNavigation(event) {
         (await cache.match(request, { ignoreSearch: true, ignoreVary: true }));
       if (cached) return cleanResponse(cached);
     }
+    // Ruta que nunca se visitó: aviso «Sin conexión a Internet» con accesos a lo guardado (Mis QR, Eventos, Configuración).
     return offlineResponse();
   }
 }
@@ -670,12 +675,13 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     const navUrl = new URL(request.url);
-    const esDelPortal =
+    // Solo pasan por aquí las secciones del portal (el homepage '/', '/me' u otras épicas NO se interceptan).
+    const interceptar =
       navUrl.origin === self.location.origin &&
-      (navUrl.pathname === '/portal' ||
-        navUrl.pathname.startsWith('/portal/') ||
-        isOfflineRoute(navUrl.pathname));
-    if (!esDelPortal) return;
+      !/^\/(api|auth|_next)(\/|$)/.test(navUrl.pathname) &&
+      !/\.[a-z0-9]{2,5}$/i.test(navUrl.pathname) &&
+      isInterceptedRoute(navUrl.pathname);
+    if (!interceptar) return;
     event.respondWith(handleNavigation(event));
     return;
   }
@@ -766,4 +772,3 @@ self.addEventListener('message', (event) => {
   const handler = EXT.messages[data.type];
   if (typeof handler === 'function') handler(event);
 });
-

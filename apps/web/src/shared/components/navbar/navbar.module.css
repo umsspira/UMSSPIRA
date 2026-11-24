@@ -156,3 +156,13 @@
   .root .mobileSearch { display:flex; }
 }
 
+
+/* Menú móvil como panel lateral derecho */
+@keyframes mobileDrawerIn { from { transform:translateX(100%); } to { transform:translateX(0); } }
+@media(max-width:1260px) {
+  .mobileNavigation { position:fixed; top:76px; right:0; left:auto; bottom:0; width:min(340px,86vw); height:calc(100dvh - 76px); max-height:none; overflow-y:auto; overscroll-behavior:contain; border-top:0; border-left:1px solid #83909b36; box-shadow:-10px 0 28px rgba(0,0,0,.35); animation:mobileDrawerIn .22s ease-out; z-index:60; }
+}
+@media(max-width:600px) {
+  .mobileNavigation { top:70px; height:calc(100dvh - 70px); max-height:none; }
+}
+@media(prefers-reduced-motion:reduce) { .mobileNavigation { animation:none; } }
