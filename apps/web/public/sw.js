@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.3';
+const VERSION = 'v1.0.6';
 
 const CACHE_NAME = `umsspira-core-portal-${VERSION}`;
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
@@ -26,7 +26,7 @@ const OFFLINE_ROUTE_PREFIXES = ['/events/catalog/passes', '/mis-pases', '/portal
 const OFFLINE_ROOT_ROUTES = ['/events/catalog/passes', '/mis-pases', '/portal/eventos', '/portal/configuracion', '/portal/validacion-offline'];
 // Secciones principales: se guardan SOLO cuando la persona las abre con conexión (no se descargan por adelantado).
 // Sin conexión se abre lo que ya se visitó; lo que no se visitó muestra el aviso «Sin conexión».
-const VISITED_ROUTE_PREFIXES = ['/portal/comunidad', '/portal/beneficios', '/portal/empleos', '/job-postings', '/mentorship', '/my-applications'];
+const VISITED_ROUTE_PREFIXES = ['/portal/beneficios', '/portal/empleos', '/job-postings', '/mentorship', '/my-applications'];
 function isVisitedRoute(pathname) {
   return pathname === '/portal' || VISITED_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -305,7 +305,6 @@ function getHandledUrl(request) {
 // --- PÁGINA SIN CONEXIÓN (HU14) ---
 const OFFLINE_NAV_MEMBER = [
   { label: 'Inicio', href: '/portal', prefixes: [] },
-  { label: 'Comunidad', href: '/portal/comunidad', prefixes: ['/portal/comunidad', '/portal/beneficios'] },
   { label: 'Directorio', href: '/profile', prefixes: ['/profile', '/afinidad'] },
   { label: 'Bolsa de trabajo', href: '/job-postings', prefixes: ['/portal/empleos', '/job-postings'] },
   { label: 'Mentorías', href: '/mentorship', prefixes: ['/portal/mentorias', '/mentorship'] },
@@ -313,7 +312,6 @@ const OFFLINE_NAV_MEMBER = [
 ];
 const OFFLINE_NAV_GUEST = [
   { label: 'Inicio', href: '/portal/institucional', prefixes: [] },
-  { label: 'Comunidad', href: '/portal/institucional?tab=comunidad', prefixes: [] },
   { label: 'Bolsa de trabajo', href: '/portal/institucional?tab=empleos', prefixes: [] },
   { label: 'Mentorías', href: '/portal/institucional?tab=mentorias', prefixes: [] },
   { label: 'Eventos', href: '/portal/institucional?tab=eventos', prefixes: [] },
@@ -572,6 +570,106 @@ function offlineResponse() {
   });
 }
 
+// --- PANTALLA PARA RUTAS NO VISITADAS ---
+// Barra superior con el logo + aviso «Sin conexión a Internet».
+// «Reintentar»: tras varios intentos fallidos cambia a «Ir al inicio» (lleva al login).
+function unvisitedHtml() {
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sin conexión · UMSSPIRA</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{min-height:100vh;background:#EEE9DF;color:#1B2632;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  [hidden]{display:none!important}
+  .bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;height:64px;padding:0 24px;background:#1B2632;border-bottom:1px solid #2C3B4D}
+  .logo{display:flex;align-items:center;min-height:44px;color:#EEE9DF;font-weight:800;font-size:1.15rem;letter-spacing:.2px}
+  .logo img{display:block;height:40px;width:auto;max-width:150px;object-fit:contain}
+  .logo b{color:#FFB162}
+  main{width:100%;max-width:26rem;margin:0 auto;padding:56px 20px 40px;text-align:center}
+  .icon{width:96px;height:96px;margin:0 auto 20px;border-radius:50%;background:#FFF1DC;display:flex;align-items:center;justify-content:center}
+  .icon svg{width:52px;height:52px}
+  h1{margin:0 0 24px;font-size:1.6rem;line-height:1.25}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;margin:6px;padding:0 28px;border:0;border-radius:999px;font:inherit;font-weight:700;font-size:.95rem;cursor:pointer;text-decoration:none;background:#FFB162;color:#1B2632}
+  .btn:hover{background:#FFA044}
+  .btn[disabled]{opacity:.7;cursor:wait}
+  .notice{margin:14px auto 0;padding:10px 14px;border-radius:10px;background:#FFF1DC;color:#7A4A12;font-size:.85rem;font-weight:600}
+  a:focus-visible,button:focus-visible{outline:2px solid #1B2632;outline-offset:3px}
+  @media (max-width:600px){.bar{padding:0 14px}main{padding-top:40px}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="logo" aria-label="UMSSPIRA">
+    <img src="/assets/events/umsspira-logo-desktop.png" alt="" id="logo-img">
+    <span id="logo-text" hidden>UMSS<b>PIRA</b></span>
+  </div>
+</header>
+<main>
+  <div class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#1B2632" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8a15 15 0 0 0-9.6-3.7M5 12.6a10 10 0 0 1 3.1-1.9M19 12.6a10 10 0 0 0-4.6-2.6M8.5 16.4a5 5 0 0 1 7 0"/>
+      <circle cx="12" cy="19.6" r=".8" fill="#1B2632"/>
+      <path d="M3 3l18 18" stroke="#E0603A"/>
+    </svg>
+  </div>
+  <h1 data-testid="offline-title">Sin conexión a Internet</h1>
+  <button type="button" class="btn" id="retry" data-testid="offline-retry">&#10227; Reintentar</button>
+  <a class="btn" id="home" href="/login" data-testid="offline-home" hidden>Ir al inicio</a>
+  <p class="notice" id="notice" role="status" aria-live="polite" hidden>Todavía no hay conexión</p>
+</main>
+<script>
+(function () {
+  var MAX_ATTEMPTS = 3;
+  var attempts = 0;
+  var retry = document.getElementById('retry');
+  var home = document.getElementById('home');
+  var notice = document.getElementById('notice');
+  var busy = false;
+  var onLogin = location.pathname === '/login' || location.pathname.indexOf('/login/') === 0;
+
+  var img = document.getElementById('logo-img');
+  img.addEventListener('error', function () { img.hidden = true; document.getElementById('logo-text').hidden = false; });
+
+  function reload() { location.replace(location.href); }
+
+  function failed() {
+    attempts++;
+    busy = false;
+    notice.hidden = false;
+    // Tras varios intentos sin red: «Reintentar» pasa a «Ir al inicio» (login). En /login se sigue reintentando.
+    if (attempts >= MAX_ATTEMPTS && !onLogin) {
+      retry.hidden = true;
+      home.hidden = false;
+    } else {
+      retry.disabled = false;
+    }
+  }
+
+  retry.addEventListener('click', function () {
+    if (busy) return;
+    busy = true; retry.disabled = true; notice.hidden = true;
+    if (navigator.onLine === false) { failed(); return; }
+    fetch('/sw.js', { method: 'HEAD', cache: 'no-store' }).then(reload, failed);
+  });
+
+  window.addEventListener('online', function () { if (!busy) { busy = true; reload(); } }, { once: true });
+})();
+</script>
+</body>
+</html>`;
+}
+
+function unvisitedResponse() {
+  return new Response(unvisitedHtml(), {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
 // --- NAVIGATION HANDLER ---
 // Chrome marca la recarga (F5) con cache 'no-cache' y la recarga forzada (Ctrl+F5) con 'reload'.
 function isHomeReload(request, url) {
@@ -603,8 +701,8 @@ async function handleNavigation(event) {
     }
     return response;
   } catch (e) {
-    // F5 / recargar el inicio sin conexión: se muestra la pantalla «Sin conexión» con los accesos disponibles.
-    if (isHomeReload(request, url)) return offlineResponse();
+    // F5 / recargar el inicio sin conexión: solo el aviso «Sin conexión a Internet» (sin accesos).
+    if (isHomeReload(request, url)) return unvisitedResponse();
     if (isOfflineRoute(url.pathname)) {
       const cache = await caches.open(ROUTES_CACHE);
       const cached =
@@ -612,7 +710,8 @@ async function handleNavigation(event) {
         (await cache.match(request, { ignoreSearch: true, ignoreVary: true }));
       if (cached) return cleanResponse(cached);
     }
-    return offlineResponse();
+    // Ruta que nunca se visitó: solo el aviso «Sin conexión a Internet».
+    return unvisitedResponse();
   }
 }
 
@@ -670,12 +769,13 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     const navUrl = new URL(request.url);
-    const esDelPortal =
+    // Toda página de la app pasa por aquí: si no se visitó con internet, sale el aviso «Sin conexión»
+    // (en vez de la pantalla del dinosaurio del navegador).
+    const interceptar =
       navUrl.origin === self.location.origin &&
-      (navUrl.pathname === '/portal' ||
-        navUrl.pathname.startsWith('/portal/') ||
-        isOfflineRoute(navUrl.pathname));
-    if (!esDelPortal) return;
+      !/^\/(api|auth|_next)(\/|$)/.test(navUrl.pathname) &&
+      !/\.[a-z0-9]{2,5}$/i.test(navUrl.pathname);
+    if (!interceptar) return;
     event.respondWith(handleNavigation(event));
     return;
   }
@@ -766,4 +866,3 @@ self.addEventListener('message', (event) => {
   const handler = EXT.messages[data.type];
   if (typeof handler === 'function') handler(event);
 });
-
