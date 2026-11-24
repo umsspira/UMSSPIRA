@@ -1,11 +1,12 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import Link from 'next/link';
 
+import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-links';
 import { FormularioCertificaciones } from '@/modules/profile/completar/certificaciones';
-import { FormularioExperiencia } from '@/modules/profile/completar/experiencia-laboral';
+import { type Experiencia, FormularioExperiencia } from '@/modules/profile/completar/experiencia-laboral';
 import { FormacionAcademicaForm, type FormacionAcademica } from '@/modules/profile/completar/formacion-academica';
 import { FormularioProyectos } from '@/modules/profile/completar/proyectos';
 import {
@@ -15,8 +16,9 @@ import {
   DraftsStoreProvider,
   useDraftsStore,
 } from '@/modules/profile/state/drafts-store';
-import { useProfileStore } from '@/modules/profile/state/profile-store';
-import type { EducationRecord } from '@/modules/profile/types/profile-record';
+import { useOptionalProfileStore, useProfileStore } from '@/modules/profile/state/profile-store';
+import type { EducationRecord, ExperienceRecord } from '@/modules/profile/types/profile-record';
+import { BackButton } from '@/shared/components/back-button';
 
 import { afterBatchSave } from './after-batch-save';
 import { DraftCard } from './draft-card';
@@ -39,8 +41,10 @@ function hasData(data: DraftDataBySection[DraftSection]): boolean {
 
 /** Pantalla «Agregar registros» (HU-13): los registros se preparan como borradores y se guardan juntos. */
 export function AddRecordsScreen({ initialDrafts }: { initialDrafts?: DraftRecord[] }) {
+  // Los borradores se conservan por titulado (HU-14): el id llega con el perfil
+  const ownerId = useOptionalProfileStore()?.header?.id ?? '';
   return (
-    <DraftsStoreProvider initialDrafts={initialDrafts}>
+    <DraftsStoreProvider initialDrafts={initialDrafts} ownerId={ownerId}>
       <AddRecordsContent />
     </DraftsStoreProvider>
   );
@@ -65,7 +69,7 @@ function DraftSectionCard({ number, title, children }: { number: number; title: 
 function AddRecordsContent() {
   const { records, isLoading, loadError, retryLoad, addEducation, addExperience, addCertification, addProject } =
     useProfileStore();
-  const { drafts, addDraft, updateDraft, removeDraft, saveIncompleteDraft } = useDraftsStore();
+  const { drafts, addDraft, updateDraft, removeDraft, saveIncompleteDraft, storageFailed } = useDraftsStore();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ status: 'idle' });
   const certificationAttempts = useRef(new Map<string, CertificationAttempt>());
   const isSaving = saveStatus.status === 'saving';
@@ -95,6 +99,23 @@ function AddRecordsContent() {
   const hasIncomplete = drafts.some((draft) => draft.isIncomplete);
   // T14.2: datos con los que arranca el formulario nuevo de cada apartado (el borrador incompleto devuelto)
   const [formStart, setFormStart] = useState<Partial<DraftDataBySection>>({});
+
+  // Experiencias ya guardadas y en borrador completo (menos la que se edita): con ellas la casilla
+  // «Actualmente trabajo aquí» se bloquea al llegar a 2 trabajos actuales (HU-21 CA-09)
+  const existingExperience = useMemo<Experiencia[]>(
+    () => [
+      ...(records.experience as ExperienceRecord[]).map((record) => ({
+        empresa: record.company,
+        cargo: record.position,
+        fechaInicio: record.startDate,
+        fechaFin: record.endDate || undefined,
+      })),
+      ...drafts.flatMap((draft) =>
+        draft.section === 'experience' && draft.id !== editingId && !draft.isIncomplete ? [draft.data] : [],
+      ),
+    ],
+    [records.experience, drafts, editingId],
+  );
 
   // Formaciones ya guardadas y en borrador (menos la que se edita): con ellas la regla existente avisa de duplicadas
   const existingEducation = useMemo<FormacionAcademica[]>(
@@ -185,14 +206,11 @@ function AddRecordsContent() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* TODO(HU-11): cambiar por el BackButton compartido en la integración */}
-      <Link
-        href={RECORDS_ROUTE}
-        className="inline-flex h-11 w-fit items-center gap-2.5 rounded-[10px] border-[1.5px] border-blue-fantastic bg-white pl-4 pr-5 text-[15px] font-semibold text-blue-fantastic transition hover:bg-palladian"
-      >
-        <ArrowLeft className="h-[18px] w-[18px]" aria-hidden="true" />
-        Volver a Mis registros
-      </Link>
+      {/* Mismo «Volver» y accesos del perfil que las demás pantallas (HU-11) */}
+      <div className="flex flex-col gap-3">
+        <BackButton href={RECORDS_ROUTE} label="Volver a Mis registros" />
+        <ProfileQuickLinks />
+      </div>
 
       <header className="flex flex-col gap-2 rounded-2xl border border-oatmeal bg-white px-5 py-5 md:px-8 md:py-6">
         <p className="text-xs font-semibold uppercase text-truffle-trouble">Perfil profesional</p>
@@ -267,7 +285,8 @@ function AddRecordsContent() {
               <FormularioExperiencia
                 key={formKey('experience')}
                 valoresIniciales={editingDraft?.section === 'experience' ? editingDraft.data : formStart.experience}
-                experiencias={[]}
+                experiencias={existingExperience}
+                mostrarRegistradas={false}
                 textoBoton={DRAFT_BUTTON_TEXT}
                 onAgregar={(experiencia) => saveDraft('experience', experiencia)}
                 onDatosChange={trackForm.experience}
@@ -309,6 +328,12 @@ function AddRecordsContent() {
             <p role="note" className="rounded-lg border border-umss-orange/40 bg-umss-cream px-3.5 py-2.5 text-xs text-umss-dark">
               Tus borradores son provisionales y solo se guardan en este navegador
             </p>
+            {storageFailed && (
+              <p role="alert" className="rounded-lg border border-[#A35139]/30 bg-[#FFF0E1] px-3.5 py-2.5 text-xs text-[#A35139]">
+                Este navegador no pudo conservar tus borradores (por ejemplo, por un respaldo muy grande). Siguen aquí
+                mientras no cierres la página: guárdalos con «Guardar perfil profesional».
+              </p>
+            )}
             {drafts.length === 0 ? (
               <p className="text-xs text-blue-fantastic/55">
                 Aún no hay borradores. Llena un apartado y presiona «Guardar en borrador».

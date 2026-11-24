@@ -10,6 +10,7 @@ import {
   guardarDescripcion,
   obtenerPerfil,
   obtenerResumenPerfil,
+  MENSAJE_RESPALDO_MUY_GRANDE,
   subirRespaldo,
   type PerfilApi,
 } from './perfil-api';
@@ -400,6 +401,16 @@ describe('subirRespaldo', () => {
     xhr.onload?.();
 
     await expect(promesa).rejects.toMatchObject({ status: 400, message: 'Formato no permitido' });
+  });
+
+  it('413 del servidor web (archivo de más de 4,5 MB): mensaje claro aunque la respuesta no sea JSON (HU-18)', async () => {
+    const promesa = subirRespaldo('c-1', archivo());
+    const xhr = XhrFalso.instancia;
+    xhr.status = 413;
+    xhr.responseText = 'Request Entity Too Large FUNCTION_PAYLOAD_TOO_LARGE';
+    xhr.onload?.();
+
+    await expect(promesa).rejects.toMatchObject({ status: 413, message: MENSAJE_RESPALDO_MUY_GRANDE });
   });
 
   it('rechaza con ApiError(0) si no hay conexión', async () => {

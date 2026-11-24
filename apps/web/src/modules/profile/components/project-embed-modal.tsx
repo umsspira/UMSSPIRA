@@ -40,6 +40,26 @@ export function ProjectEmbedModal({ project, onClose }: ProjectEmbedModalProps) 
     return () => window.clearTimeout(timer);
   }, [embedState]);
 
+  // Algunos sitios cargan pero bloquean el iframe y el navegador muestra su propia página de error:
+  // se consulta en el servidor si el sitio lo impide y, si es así, se pasa a la tarjeta del proyecto.
+  useEffect(() => {
+    if (!canTryEmbed(project.url) || typeof fetch !== 'function') return undefined;
+    let active = true;
+    fetch('/api/embed-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: project.url }),
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((result: { embeddable?: boolean | null } | null) => {
+        if (active && result?.embeddable === false) setEmbedState('blocked');
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [project.url]);
+
   // Esc cierra y Tab no sale de la ventana mientras está abierta
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {

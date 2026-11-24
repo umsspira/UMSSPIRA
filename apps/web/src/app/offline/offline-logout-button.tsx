@@ -7,6 +7,7 @@ import { clearSession } from '@/modules/auth/frontend/services/session';
 import { clearAccessToken, revokeCurrentSession, SessionError } from '@/shared/services/auth-session';
 import { clearPrivateOfflineData, isOfflineSessionValid, markPendingLogout } from '@/features/event-passes/offline/offline-session';
 import { clearAllSurveyDrafts } from '@/modules/surveys/frontend/hooks/use-survey-draft';
+import { clearAllProfileDrafts } from '@/modules/profile/utils/drafts-storage';
 
 /** Sin red o con el servidor caído no se puede avisar al servidor: el cierre se hace en este equipo. */
 function cannotReachServer(error: unknown): boolean {
@@ -64,6 +65,7 @@ export function OfflineLogoutButton() {
       clearAccessToken();
     }
     clearAllSurveyDrafts();
+    clearAllProfileDrafts();
     clearSession();
     authStore.reset();
     setBusy(false);

@@ -81,7 +81,7 @@ export function FormularioCertificaciones({
   useEffect(() => onDatosChange?.(datos), [datos, onDatosChange]);
   const fotoRef = useRef<HTMLInputElement>(null);
   const documentoRef = useRef<HTMLInputElement>(null);
-  // Archivo rechazado (no es JPG o supera 5 MB): no se adjunta y se explica junto al campo
+  // Archivo rechazado (no es JPG o supera 4 MB): no se adjunta y se explica junto al campo
   const [errorRespaldo, setErrorRespaldo] = useState<string>();
   // Errores por campo al intentar agregar (T8.3); con alguno no se envía nada a la API
   const [errores, setErrores] = useState<ErroresCertificacion>({});
@@ -139,7 +139,7 @@ export function FormularioCertificaciones({
     setErrorCambio(undefined);
   }
 
-  // Elige otro archivo para la certificación guardada: mismas reglas (PDF o JPG, máximo 5 MB)
+  // Elige otro archivo para la certificación guardada: mismas reglas (PDF o JPG, máximo 4 MB)
   async function cambiarRespaldo(evento: React.ChangeEvent<HTMLInputElement>) {
     const archivo = evento.target.files?.[0];
     evento.target.value = '';

@@ -12,6 +12,7 @@ import { NAVBAR_ROLE_LABEL } from './navigation';
 import { NAVBAR_OFFLINE_USER_KEY } from './offline-user';
 import type { NavbarRole, NavbarSession } from './types';
 import { clearAllSurveyDrafts } from '@/modules/surveys/frontend/hooks/use-survey-draft';
+import { clearAllProfileDrafts } from '@/modules/profile/utils/drafts-storage';
 import { useEventNotifications } from '@/features/notifications/hooks/use-event-notifications';
 import { EventNotificationToast } from './event-notification-toast';
 
@@ -153,6 +154,7 @@ export function ConnectedNavbar() {
     try {
       await revokeCurrentSession();
       clearAllSurveyDrafts();
+      clearAllProfileDrafts();
       clearSession();
       authStore.reset();
       setSession(null);
@@ -166,6 +168,7 @@ export function ConnectedNavbar() {
         await clearPrivateOfflineData();
         clearAccessToken();
         clearAllSurveyDrafts();
+        clearAllProfileDrafts();
         clearSession();
         authStore.reset();
         setSession(null);
