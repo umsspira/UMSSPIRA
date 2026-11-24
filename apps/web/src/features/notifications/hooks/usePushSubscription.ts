@@ -6,6 +6,7 @@ import type { PushPermissionState, PushSubscriptionDto } from '@umsspira/shared-
 import {
   getVapidPublicKey,
   listPushSubscriptions,
+  pushSubscriptionErrorMessage,
   removePushSubscription,
   savePushSubscription,
   toSubscriptionInput,
@@ -142,11 +143,7 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
     } catch (cause) {
       if (!isCurrent()) return;
       setStatus((current) => (current === 'error' ? current : 'error'));
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'No fue posible comprobar el estado de las notificaciones.',
-      );
+      setError(pushSubscriptionErrorMessage(cause, 'No fue posible comprobar el estado de las notificaciones.'));
     }
   }, [permission]);
 
@@ -198,11 +195,7 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
     } catch (cause) {
       if (operation === operationId.current) {
         setStatus('error');
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : 'No fue posible activar las notificaciones.',
-        );
+        setError(pushSubscriptionErrorMessage(cause, 'No fue posible activar las notificaciones.'));
       }
       return null;
     } finally {
@@ -227,11 +220,7 @@ export function usePushSubscription(permission: PushPermissionState): PushSubscr
       if (operation === operationId.current) setStatus('idle');
     } catch (cause) {
       if (operation === operationId.current) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : 'No fue posible desactivar las notificaciones.',
-        );
+        setError(pushSubscriptionErrorMessage(cause, 'No fue posible desactivar las notificaciones.'));
       }
     } finally {
       if (operation === operationId.current) explicitOperation.current = false;

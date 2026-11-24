@@ -35,7 +35,7 @@ Prefijo global de la API: `/api/v1`. Los identificadores `:id`, `:registrationId
 
 HU-12 utiliza los pases obtenidos por el flujo existente y el almacenamiento local de la PWA; no añade un endpoint HTTP de consulta offline.
 
-## Sprint 3 — completadas
+## Asistencia y publicación programada — sprint 3
 
 | Método y ruta | HU | Uso | Acceso |
 | --- | --- | --- | --- |
@@ -43,22 +43,36 @@ HU-12 utiliza los pases obtenidos por el flujo existente y el almacenamiento loc
 | `PATCH /api/v1/events/drafts/:id/schedule` | HU15 | Programar o modificar la fecha de publicación de un borrador. | Gestión de eventos |
 | `PATCH /api/v1/events/drafts/:id/schedule/cancel` | HU15 | Cancelar la programación pendiente. | Gestión de eventos |
 
-## Rutas presentes en el código, pero no entregadas como HU completas
+## Notificaciones y recordatorios — sprint 3
 
-La existencia de estos endpoints no cambia el estado pendiente indicado en [AlcanceEpic7.md](./AlcanceEpic7.md).
+El detalle funcional de las historias está en [ReporteEpica.md](./ReporteEpica.md). Las notificaciones push requieren una suscripción del dispositivo; los avisos también se guardan para consultarlos en la aplicación.
 
-| Método y ruta | HU | Uso | Estado |
+| Método y ruta | HU | Uso | Acceso |
 | --- | --- | --- | --- |
-| `POST /api/v1/push-subscriptions` | HU13 | Registrar o actualizar una suscripción push. | Incompleta |
-| `GET /api/v1/push-subscriptions` | HU13 | Listar suscripciones del usuario autenticado. | Incompleta |
-| `DELETE /api/v1/push-subscriptions` | HU13 | Eliminar una suscripción push. | Incompleta |
-| `GET /api/v1/events/:id/certificate-template` | HU18/HU19 | Consultar la plantilla de certificado del evento. | Parcial/incompleta |
-| `POST /api/v1/events/:id/certificate-template` | HU18/HU19 | Guardar una plantilla de certificado. | Parcial/incompleta |
-| `POST /api/v1/events/:id/certificate-template/confirm` | HU18/HU19 | Confirmar una plantilla de certificado. | Parcial/incompleta |
-| `GET /api/v1/events/:id/certificate-template/file` | HU18/HU19 | Obtener el archivo de la plantilla. | Parcial/incompleta |
+| `POST /api/v1/push-subscriptions` | HU13 | Registrar o actualizar una suscripción push. | Titulado |
+| `GET /api/v1/push-subscriptions` | HU13 | Listar suscripciones del usuario autenticado. | Titulado |
+| `DELETE /api/v1/push-subscriptions` | HU13 | Eliminar una suscripción push. | Titulado |
+| `GET /api/v1/event-notifications` | HU13/HU16 | Listar hasta 30 avisos y 30 recordatorios recientes, identificando cuáles son recordatorios. | Titulado |
+| `PATCH /api/v1/event-notifications/:id/read` | HU13/HU16 | Marcar un aviso propio como leído. | Titulado |
+| `GET /api/v1/events/reminder-settings` | HU16 | Consultar la anticipación de los recordatorios. | Gestión de eventos |
+| `PATCH /api/v1/events/reminder-settings` | HU16 | Actualizar la anticipación de los recordatorios. | Gestión de eventos |
 
-HU16 y HU17 están pendientes según el responsable de Epic 7; este inventario no les atribuye endpoints como entregados.
-Las rutas de certificados aparecen relacionadas con HU18/HU19 en el código, pero el mapeo exacto de cada operación debe confirmarse con sus criterios de aceptación.
+El envío de recordatorios lo ejecuta un worker; no dispone de una ruta HTTP de envío manual en este inventario.
+
+## Certificados — sprint 3
+
+| Método y ruta | HU | Uso | Acceso |
+| --- | --- | --- | --- |
+| `GET /api/v1/events/:id/certificate-template` | HU17 | Consultar la plantilla de certificado del evento. | Gestión de eventos |
+| `POST /api/v1/events/:id/certificate-template` | HU17 | Cargar una plantilla de certificado. | Gestión de eventos |
+| `POST /api/v1/events/:id/certificate-template/confirm` | HU17 | Confirmar una plantilla de certificado. | Gestión de eventos |
+| `GET /api/v1/events/:id/certificate-template/file` | HU17 | Obtener el archivo de la plantilla. | Gestión de eventos |
+| `POST /api/v1/events/:eventId/certificates/generate` | HU18 | Iniciar la generación de certificados. | Gestión de eventos |
+| `GET /api/v1/events/:eventId/certificates/status` | HU18 | Consultar el estado de la generación. | Gestión de eventos |
+| `GET /api/v1/events/:eventId/certificates/summary` | HU18 | Consultar el resumen de emisión. | Gestión de eventos |
+| `GET /api/v1/events/:eventId/certificates/:userId/download` | HU18 | Obtener el certificado de un participante. | Gestión de eventos |
+| `GET /api/v1/certificates/me` | HU19 | Listar certificados propios. | Titulado |
+| `GET /api/v1/certificates/me/:certificateId/download` | HU19 | Descargar un certificado propio. | Titulado |
 
 ## Permisos generales
 
@@ -66,3 +80,4 @@ Las rutas de certificados aparecen relacionadas con HU18/HU19 en el código, per
 - `Titulado` significa que el endpoint requiere autenticación y rol de titulado.
 - La lectura del catálogo y de eventos publicados es pública. La lectura de portadas conserva su autorización para los archivos no publicados.
 - No se incluyen credenciales, tokens ni valores de configuración.
+- Este inventario describe endpoints presentes en el código y no sustituye la validación de QA.

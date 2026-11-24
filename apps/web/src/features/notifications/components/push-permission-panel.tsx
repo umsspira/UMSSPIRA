@@ -105,9 +105,10 @@ export function PushPermissionPanel({ includeEventReminders = false }: { include
         <div className={`${styles.status} ${styles.ok}`}>
           <BellRing size={16} aria-hidden="true" />
           <p>{includeEventReminders
-            ? 'Recibirás avisos de cambios, cancelaciones y recordatorios antes de tus eventos.'
+            ? 'Los avisos del navegador están activados para cambios, cancelaciones y recordatorios de tus eventos.'
             : 'Recibirás avisos de cambios y cancelaciones de tus eventos.'}</p>
         </div>
+        {error && <p role="alert" className={styles.error}>{error}</p>}
         <button type="button" className={styles.secondary} onClick={() => void handleDeactivate()}>
           Desactivar notificaciones
         </button>
@@ -119,6 +120,7 @@ export function PushPermissionPanel({ includeEventReminders = false }: { include
     return (
       <div className={styles.panel}>
         <p className={styles.text}>Los avisos de eventos están desactivados por ahora.</p>
+        {error && <p role="alert" className={styles.error}>{error}</p>}
         <button type="button" className={styles.secondary} onClick={() => void handleActivate()} disabled={busy}>
           Activar avisos
         </button>
@@ -130,7 +132,7 @@ export function PushPermissionPanel({ includeEventReminders = false }: { include
     <div className={styles.panel}>
       <p className={styles.eyebrow}>Ajustes de notificación</p>
       <span className={styles.chip}>Avisos opcionales</span>
-      <h3 className={styles.title}>Activar avisos</h3>
+      <h3 className={styles.title}>Activar avisos del navegador</h3>
       <p className={styles.text}>
         Recibirás avisos cuando cambie o se cancele uno de tus eventos y cuando esté por comenzar.
       </p>

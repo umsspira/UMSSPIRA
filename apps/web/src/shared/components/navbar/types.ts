@@ -36,6 +36,7 @@ export interface NavbarActivity {
   title: string;
   description: string;
   href?: string;
+  isReminder?: boolean;
   unread?: boolean;
   actionLabel?: string;
   createdAt?: string;

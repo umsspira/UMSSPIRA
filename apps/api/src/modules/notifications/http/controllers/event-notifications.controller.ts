@@ -22,6 +22,7 @@ export class EventNotificationsController {
         title: record.title,
         description: record.body,
         href: record.url ?? undefined,
+        isReminder: record.isReminder,
         unread: record.readAt === null,
         createdAt: record.createdAt,
       })),

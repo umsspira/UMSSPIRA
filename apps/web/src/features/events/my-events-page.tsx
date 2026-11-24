@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CircleAlert, Info } from 'lucide-react';
+import { BellRing, CircleAlert, Info } from 'lucide-react';
 import type {
   EventParticipationStatus,
   MyEventRegistrationItem,
@@ -144,8 +144,11 @@ export default function MyEventsPage() {
         {!isLoading && !loadError ? (
           <section className={reminderStyles.card} aria-labelledby="event-reminder-title">
             <div className={reminderStyles.copy}>
-              <h2 id="event-reminder-title">Recordatorios de eventos</h2>
-              <p>Recibe un aviso antes del inicio de cada evento en el que tengas una inscripción confirmada.</p>
+              <div className={reminderStyles.heading}>
+                <span className={reminderStyles.icon}><BellRing size={21} aria-hidden="true" /></span>
+                <h2 id="event-reminder-title">Notificaciones en tu dispositivo</h2>
+              </div>
+              <p>Recibe recordatorios, cambios y cancelaciones de tus eventos en tu celular o computadora.</p>
             </div>
             <PushPermissionPanel includeEventReminders />
           </section>

@@ -1,13 +1,13 @@
 # Epic 7 — rutas frontend
 
-Inventario de rutas de pantalla que existen en el frontend. El estado de cada HU se describe en [AlcanceEpic7.md](./AlcanceEpic7.md). Los segmentos entre corchetes son parámetros dinámicos de Next.js.
+Inventario de rutas de pantalla que existen en el frontend. El alcance se resume en [ReporteEpica.md](./ReporteEpica.md). Los segmentos entre corchetes son parámetros dinámicos de Next.js.
 
 ## Gestión administrativa de eventos
 
 | Ruta | Uso |
 | --- | --- |
 | `/events` | Panel y listado de gestión de eventos. |
-| `/events/create` | Crear un evento como borrador. |
+| `/events/create` | Crear un evento, guardar un borrador, publicarlo o programar su publicación. |
 | `/events/drafts` | Consultar los borradores propios. |
 | `/events/drafts/[id]` | Consultar y editar un borrador y gestionar su publicación. |
 | `/events/[id]` | Consultar la vista administrativa de un evento. |
@@ -35,14 +35,18 @@ Inventario de rutas de pantalla que existen en el frontend. El estado de cada HU
 | `/events/catalog/passes` | Ruta anterior de pases, conservada por compatibilidad. |
 | `/offline` | Pantalla de fallback general del service worker cuando una página no está disponible sin conexión; no reemplaza la vista offline de los pases. |
 
-## Sprint 3 y estado parcial
+## Asistencia, notificaciones y certificados — sprint 3
 
-| Ruta o interfaz | HU | Estado |
+| Ruta o interfaz | HU | Uso |
 | --- | --- | --- |
-| `/events/[id]/scanner` | HU14 | Completada: escaneo y validación de pases para registrar asistencia. |
-| `/events/create`, `/events` y `/events/drafts/[id]` | HU15 | Completada: programar una publicación, modificarla o cancelarla dentro de las pantallas existentes; no tiene una ruta separada. |
-| Panel de permisos/notificaciones del navbar | HU13 | Parcial/incompleta; no es una ruta independiente. |
-| `/events/[id]/certificates` | HU18/HU19 | Hay una pantalla en el código, pero las historias permanecen incompletas según el estado comunicado; confirmar el mapeo exacto de la pantalla. |
-| HU16 y HU17 | HU16/HU17 | Pendientes; no se documentan como rutas entregadas. |
+| Campanita y tarjeta temporal | HU13/HU16 | Mostrar cambios y cancelaciones en la campanita; mostrar avisos nuevos, incluidos recordatorios, en la tarjeta temporal. No tienen ruta independiente. |
+| Panel de notificaciones del navbar y `/portal/eventos/mis-eventos` | HU13/HU16 | Activar o desactivar las notificaciones push del dispositivo. |
+| Panel de recordatorios en `/events` | HU16 | Consultar y modificar la anticipación de los recordatorios. |
+| `/events/[id]/scanner` | HU14 | Escanear y validar pases para registrar asistencia. |
+| `/events/create`, `/events` y `/events/drafts/[id]` | HU15 | Programar una publicación, modificarla o cancelarla dentro de las pantallas existentes. |
+| `/events/[id]/certificates` | HU17 | Consultar, cargar y confirmar la plantilla del certificado. |
+| `/events/[id]/certificates/emit` | HU18 | Consultar el resumen y gestionar la emisión de certificados. |
+| `/mis-certificados` | HU19 | Consultar los certificados propios. |
+| `/mis-certificados/[certificateId]` | HU19 | Consultar el detalle y descargar un certificado propio. |
 
-Las rutas administrativas requieren una sesión con permiso de gestión; las rutas de inscripción y pases están asociadas a la cuenta del titulado. La API valida los permisos efectivos.
+Las rutas administrativas requieren una sesión con permiso de gestión; las rutas de inscripción, pases y certificados propios están asociadas a la cuenta del titulado. La API valida los permisos efectivos. Este inventario describe rutas presentes en el código y no sustituye la validación de QA.

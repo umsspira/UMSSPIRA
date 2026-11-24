@@ -12,12 +12,12 @@ El cliente solicita permiso, crea la suscripción con el Service Worker existent
 
 Eventos publicados notifican exclusivamente a inscripciones `CONFIRMADA` cuando cambia el nombre, fecha/horario, ubicación o descripción; cambios de cupo o portada no generan Push. Las cancelaciones se notifican después de persistirse y de invalidar los pases QR.
 
-Las actualizaciones y cancelaciones también se guardan en `notificacion_evento` para mostrarse en la campanita aunque el proveedor Push rechace una suscripción. `GET /api/v1/event-notifications` devuelve los 30 avisos recientes del titulado autenticado y `PATCH /api/v1/event-notifications/:id/read` marca uno como leído. Aplicar primero la migración `20261117000000_persistir_notificaciones_eventos`.
+Las actualizaciones y cancelaciones también se guardan en `notificacion_evento` para mostrarse en la campanita aunque el proveedor Push rechace una suscripción. `GET /api/v1/event-notifications` devuelve hasta 30 avisos y 30 recordatorios recientes del titulado autenticado y `PATCH /api/v1/event-notifications/:id/read` marca uno como leído.
 
 Cuando el proveedor devuelve HTTP `404` o `410`, se elimina únicamente el endpoint afectado. Un error de entrega nunca revierte una actualización o cancelación de evento.
 
 ## Centro de notificaciones
 
-Los cambios y recordatorios también se guardan en `notificacion_evento`, aunque la persona no tenga Push activado. La campanita consulta `GET /api/v1/event-notifications` (hasta 30 avisos recientes) y marca cada aviso con `PATCH /api/v1/event-notifications/:id/read`. Mientras la sesión está activa, un aviso nuevo aparece además como tarjeta temporal en la esquina inferior derecha. Los reintentos de un recordatorio reutilizan su identificador para no crear tarjetas duplicadas.
+Los cambios y recordatorios también se guardan en `notificacion_evento`, aunque la persona no tenga Push activado. La campanita muestra solo cambios y cancelaciones, no recordatorios. Mientras la sesión está activa, un aviso nuevo, incluido un recordatorio, aparece como tarjeta temporal en la esquina inferior derecha. Los reintentos de un recordatorio reutilizan su identificador para no crear tarjetas duplicadas.
 
 Antes de desplegar, aplica las migraciones de notificaciones de eventos y su clave de idempotencia en coordinación con el responsable de la base de datos.

@@ -1,21 +1,40 @@
 .card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: 24px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 390px);
+  gap: 28px;
+  align-items: center;
   margin: 0 auto 32px;
-  padding: 24px;
+  padding: 28px;
   width: min(1120px, calc(100% - 32px));
   border: 1px solid #d8e2ee;
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 8px 24px rgb(22 46 78 / 6%);
+  box-shadow: 0 12px 30px rgb(22 46 78 / 9%);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: #fff0df;
+  color: #a75416;
 }
 
 .copy h2 {
-  margin: 0 0 8px;
+  margin: 0;
   color: #17365b;
   font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .copy p {

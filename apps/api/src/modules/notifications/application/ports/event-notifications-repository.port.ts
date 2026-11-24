@@ -7,6 +7,7 @@ export interface EventNotificationRecord {
   title: string;
   body: string;
   url: string | null;
+  isReminder: boolean;
   createdAt: Date;
   readAt: Date | null;
 }
