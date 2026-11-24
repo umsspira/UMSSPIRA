@@ -35,6 +35,9 @@ function porcentaje(valor: number): string {
     : 'No disponible';
 }
 
+// Texto de cuando los pesos de la HU-11 no explican el porcentaje recibido
+const SIN_ECUACION = 'Afinidad informada por el motor:';
+
 function detalleCalculo(
   porcentajeRecibido: number,
   comparison: readonly DetalleRequisitoAfinidad[],
@@ -70,7 +73,7 @@ function detalleCalculo(
     return `${exactasTexto} + ${parcialesTexto} de ${total} requisitos = ${porcentaje(porcentajeRecibido)} %`;
   }
 
-  return `Afinidad informada por el motor: ${porcentaje(porcentajeRecibido)} %`;
+  return `${SIN_ECUACION} ${porcentaje(porcentajeRecibido)} %`;
 }
 
 export function ComoSeCalculaModal({
@@ -117,6 +120,7 @@ export function ComoSeCalculaModal({
   }, [open, onClose]);
 
   if (!open) return null;
+  const detalle = detalleCalculo(percentage, comparison);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-6">
@@ -168,9 +172,10 @@ export function ComoSeCalculaModal({
         </div>
 
         <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-          {detalleCalculo(percentage, comparison)}
+          {detalle}
         </p>
-        {comparison.some((item) => item.result === 'similar' && item.weight === undefined) && (
+        {/* La nota solo aparece cuando la ecuación con los pesos de la HU-11 no cuadra con el porcentaje recibido */}
+        {detalle.startsWith(SIN_ECUACION) && comparison.some((item) => item.result === 'similar') && (
           <p className="mt-2 text-xs leading-5 text-slate-600">
             Las coincidencias parciales pueden tener un peso distinto. Se muestra el porcentaje recibido del motor; no se recalcula aquí.
           </p>

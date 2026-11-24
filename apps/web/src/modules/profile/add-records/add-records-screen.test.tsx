@@ -86,6 +86,15 @@ describe('Agregar registros (HU-13)', () => {
     expect(screen.getByRole('link', { name: /volver a mis registros/i })).toHaveAttribute('href', '/profile/records');
   });
 
+  it('HU-11: usa el «Volver» compartido y muestra los accesos a Mi perfil, Mis registros y Mi afinidad', () => {
+    renderScreen();
+    expect(screen.getByRole('link', { name: 'Volver a Mis registros' })).toHaveClass('min-h-[44px]');
+    const accesos = screen.getByRole('navigation', { name: 'Accesos del perfil' });
+    expect(accesos).toHaveTextContent('Mi perfil');
+    expect(accesos).toHaveTextContent('Mis registros');
+    expect(accesos).toHaveTextContent('Mi afinidad');
+  });
+
   it('cada apartado tiene el botón «Guardar en borrador»', () => {
     renderScreen();
     expect(screen.getAllByRole('button', { name: /guardar en borrador/i })).toHaveLength(4);

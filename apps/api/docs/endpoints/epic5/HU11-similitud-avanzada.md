@@ -24,14 +24,16 @@ Cada campo del perfil se extrae por separado, para no formar n-gramas entre camp
 
 | Caso | Resultado | Peso | Ejemplo |
 |---|---|---|---|
-| Todas las canónicas del requisito están en el perfil y al requisito no le sobran palabras desconocidas | `exact` | 100 % | «JS» ↔ «JavaScript», «Postgres» ↔ «PostgreSQL», «Kubernetes» ↔ «k8s» |
+| Todas las canónicas del requisito están en el perfil y al requisito no le sobran palabras desconocidas (las genéricas, como «experiencia» o «conocimientos», no cuentan) | `exact` | 100 % | «JS» ↔ «JavaScript», «Postgres» ↔ «PostgreSQL», «Kubernetes» ↔ «k8s», «Experiencia en React» ↔ «React» |
 | Requisito fuera del diccionario cuya frase aparece, por raíces, en un mismo texto del perfil | `exact` | 100 % | «Bases de datos relacionales» ↔ «base de datos relacional» |
 | Parte de las canónicas está en el perfil, o el requisito trae palabras de más | `similar` | 50 % | «React Native» ↔ «React», «Docker Compose» ↔ «Docker» |
 | Una canónica contiene a la otra | `similar` | 50 % | «Spring Boot» ↔ «Spring» |
-| Requisito fuera del diccionario con al menos la mitad de sus palabras (2 o más) en un mismo texto del perfil | `similar` | 50 % | «Pruebas unitarias automatizadas» ↔ «pruebas automatizadas con Cypress». No aplica a términos del diccionario: «Machine» solo no cumple «Machine Learning» |
+| Requisito fuera del diccionario con al menos la mitad de sus palabras (2 o más) en un mismo texto del perfil, y al menos una de ellas no genérica | `similar` | 50 % | «Pruebas unitarias automatizadas» ↔ «pruebas automatizadas con Cypress». No aplica a términos del diccionario: «Machine» solo no cumple «Machine Learning». «Desarrollo móvil» ↔ «Desarrollo web» no cuenta: solo comparten «desarrollo» |
 | Ninguna de las anteriores | `not-found` | 0 % | «Java» ↔ «JavaScript» |
 
-Porcentaje: suma de pesos ÷ número de requisitos × 100, redondeado a 2 decimales. Los requisitos vacíos se ignoran. Si no queda ninguno, el resultado es `percentage: 0` con `comparison: []`, y la HU-10 decide el estado (`insufficient-requirements`); el motor no inventa porcentajes.
+Porcentaje: suma de pesos ÷ número de requisitos × 100. El motor lo devuelve con 2 decimales y la HU-10 (`calculateJobPostingAffinity`) lo redondea a entero antes de entregarlo, como fija el contrato. Los requisitos vacíos se ignoran. Si no queda ninguno, el resultado es `percentage: 0` con `comparison: []`, y la HU-10 responde el estado `no-requirements` con `percentage: null`; el motor no inventa porcentajes.
+
+Palabras genéricas (`GENERIC_REQUIREMENT_WORDS`): «experiencia», «conocimiento(s)», «manejo», «dominio», «uso», «desarrollo», «programación», «nivel», «básico», «intermedio», «avanzado», «sólido(s)», «deseable», «habilidad(es)», «capacidad», «años» y «mínimo». Dicen cuánto o cómo, no qué tecnología, así que no restan una exacta ni bastan para una parcial.
 
 Internamente `compareRequirements` devuelve `requirement`, `matchedSkill`, `result` (`exact`, `similar` o `not-found`) y `weight`. La API (`POST /api/v1/affinity/batch`) entrega solo `requirement`, `matchedSkill` y `result`, como fija el contrato de `packages/shared-types`; la ventana «¿Cómo se calcula?» de la HU-20 aplica los mismos pesos (exacta 1, similar 0,5) para explicar el porcentaje.
 
@@ -55,7 +57,7 @@ Reglas del stemmer, en orden:
 2. Quita `-ing` y `-ed` en inglés.
 3. Quita la vocal final de género (`a`, `e` u `o`).
 
-No toca tokens de menos de 4 letras ni tokens con símbolos (`sql`, `aws`, `c++`, `c#`, `node.js`), para no juntar tecnologías distintas: «java» y «javascript» siguen siendo distintas.
+No toca tokens de menos de 4 letras ni tokens con símbolos (`sql`, `aws`, `c++`, `c#`, `node.js`), para no juntar tecnologías distintas. «java» sí pasa por la regla 3 y queda como «jav», pero sigue siendo distinta de «javascript», que no cambia.
 
 ## Regresión del anexo B
 
@@ -69,7 +71,7 @@ Siguen funcionando las palabras compuestas («desarrollo de software», «api re
 
 ## Versionado
 
-`ALGORITHM_VERSION = 'job-affinity-hu11-v1'`. Cambiar reglas, pesos o el stemmer obliga a subirla. La HU-10 debe guardarla junto al porcentaje (por ejemplo, combinada con la versión del diccionario, como `radar/domain/policies/input-hash.ts`) para recalcular los porcentajes hechos con versiones viejas.
+`ALGORITHM_VERSION = 'job-affinity-hu11-v2'` (v2: palabras genéricas). Cambiar reglas, pesos o el stemmer obliga a subirla. La HU-10 debe guardarla junto al porcentaje (por ejemplo, combinada con la versión del diccionario, como `radar/domain/policies/input-hash.ts`) para recalcular los porcentajes hechos con versiones viejas.
 
 ## Integración con la HU-10 (hecha)
 

@@ -35,6 +35,8 @@ describe('ComoSeCalculaModal', () => {
     render(<ComoSeCalculaModal open onClose={jest.fn()} percentage={50} comparison={comparison} />);
     expect(screen.getByText('1 exacta + 1 parcial de 3 requisitos = 50 %')).toBeInTheDocument();
     expect(screen.getByText('Similar')).toBeInTheDocument();
+    // La cuenta cuadra: no se muestra la nota de «peso distinto» (HU-11 Épica 5)
+    expect(screen.queryByText(/peso distinto/)).not.toBeInTheDocument();
   });
 
   it('acepta el redondeo a entero de la API en la cuenta con parciales', () => {

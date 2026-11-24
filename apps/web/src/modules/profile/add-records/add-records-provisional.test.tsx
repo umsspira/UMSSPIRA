@@ -5,7 +5,10 @@ import { crearExperiencia, crearFormacion } from '@/modules/profile/services/per
 import type { DraftRecord } from '@/modules/profile/state/drafts-store';
 import { ProfileStoreProvider } from '@/modules/profile/state/profile-store';
 import type { ProfileRecords } from '@/modules/profile/types/profile-record';
-import { DRAFTS_STORAGE_KEY } from '@/modules/profile/utils/drafts-storage';
+import { draftsStorageKey } from '@/modules/profile/utils/drafts-storage';
+
+const TITULADO = { id: 'titulado-1', name: 'María Pérez', career: 'Ingeniería de Sistemas', graduationYear: 2020 };
+const DRAFTS_STORAGE_KEY = draftsStorageKey(TITULADO.id);
 
 import { AddRecordsScreen } from './add-records-screen';
 
@@ -37,7 +40,7 @@ const BORRADORES: DraftRecord[] = [
 function renderScreen() {
   window.localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(BORRADORES));
   render(
-    <ProfileStoreProvider initialRecords={SIN_REGISTROS}>
+    <ProfileStoreProvider initialRecords={SIN_REGISTROS} initialHeader={TITULADO}>
       <AddRecordsScreen />
     </ProfileStoreProvider>,
   );

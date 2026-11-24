@@ -1,7 +1,6 @@
 import { FilePlus2, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
-import { completarSeccionHref } from '@/modules/profile/utils/profile-completeness';
 import type { ProfileRecord, RecordSection } from '@/modules/profile/types/profile-record';
 import { getRecordColumns } from '@/modules/profile/utils/record-columns';
 
@@ -61,27 +60,31 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
   {
         education: {
          id: 'formacion-academica',
+          apartado: 1,
          title: 'Aún no tienes formación académica registrada',
          description: 'Agrega tu formación académica para completar esta sección de tu perfil.',
-         button: 'Agregar formación académica',
+         button: 'Agregar registros',
     },
         experience: {
          id: 'experiencia-laboral',
+          apartado: 2,
          title: 'Aún no tienes experiencia laboral registrada',
          description: 'Agrega tu experiencia laboral para completar esta sección de tu perfil.',
-         button: 'Agregar experiencia',
+         button: 'Agregar registros',
     },
          certification: {
           id: 'certificaciones',
+          apartado: 3,
           title: 'Aún no tienes certificaciones registradas',
           description: 'Agrega tus certificaciones para completar esta sección de tu perfil.',
-          button: 'Agregar certificación',
+          button: 'Agregar registros',
     },
          project: {
           id: 'proyectos',
+          apartado: 4,
           title: 'Aún no tienes proyectos registrados',
           description: 'Agrega tus proyectos o tu portafolio para completar esta sección de tu perfil.',
-          button: 'Agregar proyecto',
+          button: 'Agregar registros',
     },
   } as const
 )[section];
@@ -102,7 +105,8 @@ export function ProfileRecordsTable({ section, records, onDelete }: ProfileRecor
         </div>
 
         <Link
-          href={completarSeccionHref(emptySection.id)}
+          // HU-15 CA: «Agregar registros» lleva a la pantalla de la HU-13, abierta en el apartado de la pestaña
+          href={`/profile/registros/agregar#seccion-${emptySection.apartado}`}
           className="mt-2 inline-flex min-h-11 items-center justify-center rounded-lg bg-burning-flame px-5 py-3 text-sm font-bold text-abyssal-blue transition hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-truffle-trouble"
         >
           {emptySection.button}
