@@ -6,6 +6,7 @@ import { BusinessRuleError } from '../../../../shared/errors/business-rule-error
 import type { StoredFile } from '../../../../shared/files/contracts/uploaded-file';
 import type {
   CvFile,
+  ProfilePhotoFile,
   ProfileRepository,
   SavedCvFile,
 } from '../../application/ports/profile-repository.port';
@@ -535,6 +536,36 @@ export class PrismaProfileRepository implements ProfileRepository {
       size: row.size_bytes,
       uploadedAt: row.fecha_subida,
     };
+  }
+
+  async savePhoto(scope: ProfileScope, file: ProfilePhotoFile): Promise<void> {
+    await this.prisma.$transaction(
+      async (tx) => {
+        await lockGraduate(tx, scope);
+        const data = {
+          mime: file.mime,
+          contenido: new Uint8Array(file.bytes),
+          size_bytes: file.size,
+          fecha_subida: new Date(),
+        };
+        await tx.tituladoFoto.upsert({
+          where: { id_titulado: scope.graduateId },
+          create: { id_titulado: scope.graduateId, ...data },
+          update: data,
+        });
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  async readPhoto(scope: ProfileScope): Promise<ProfilePhotoFile> {
+    const row = await this.prisma.tituladoFoto.findFirst({
+      where: { id_titulado: scope.graduateId, titulado: { id_usuario: scope.userId } },
+    });
+    if (!row) {
+      throw new BusinessRuleError('missing', 'PROFILE_PHOTO_NOT_FOUND', 'Aún no tienes foto de perfil');
+    }
+    return { mime: row.mime, bytes: row.contenido, size: row.size_bytes };
   }
 
   private async loadBackup(where: Prisma.CertificacionRespaldoWhereInput): Promise<StoredFile> {

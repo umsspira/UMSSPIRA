@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { EventNotificationBell } from "@/shared/components/navbar/event-notification-bell";
+import { ProfilePhotoBadge } from "@/shared/components/profile-photo-avatar";
 import { EventNotificationToast } from "@/shared/components/navbar/event-notification-toast";
 import { useEventNotifications } from "@/features/notifications/hooks/use-event-notifications";
 
@@ -59,6 +60,7 @@ export function TituladoHeader() {
             <Link href="/profile" className="text-sm font-medium text-white/90 hover:text-white">
               Mi perfil profesional
             </Link>
+            <ProfilePhotoBadge />
             <EventNotificationBell items={items} error={error} onNotificationRead={markRead} />
             <LogoutButton />
           </nav>
