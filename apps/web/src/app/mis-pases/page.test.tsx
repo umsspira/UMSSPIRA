@@ -118,6 +118,8 @@ it('muestra Guardar nuevo QR en pases vigentes de la pantalla principal', async 
   jest.mocked(getOfflineQrPasses).mockResolvedValue([]);
 
   render(<MyPassesPage />);
+  // El pase sale compacto: primero se toca «Ver QR» para abrirlo.
+  fireEvent.click(await screen.findByRole('button', { name: /Feria laboral.*Ver QR/ }));
   fireEvent.click(await screen.findByRole('button', { name: 'Guardar nuevo QR' }));
 
   await waitFor(() => expect(saveOfflineQrPass).toHaveBeenCalledWith({
