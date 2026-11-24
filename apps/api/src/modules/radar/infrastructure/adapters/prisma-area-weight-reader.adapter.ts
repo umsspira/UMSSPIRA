@@ -4,6 +4,10 @@ import type {
   AreaWeightReaderPort,
   AreaWeightsById,
 } from '../../application/ports/area-weight-reader.port';
+import { RADAR_AREA_IDS } from '../../domain/entities/radar-area';
+
+const VALID_RADAR_AREA_IDS = Object.values(RADAR_AREA_IDS);
+const VALID_RADAR_AREA_ID_SET = new Set<string>(VALID_RADAR_AREA_IDS);
 
 @Injectable()
 export class PrismaAreaWeightReaderAdapter implements AreaWeightReaderPort {
@@ -11,6 +15,9 @@ export class PrismaAreaWeightReaderAdapter implements AreaWeightReaderPort {
 
   async getAreaWeights(): Promise<AreaWeightsById> {
     const rows = await this.prisma.palabraClaveArea.findMany({
+      where: {
+        id_area: { in: VALID_RADAR_AREA_IDS },
+      },
       select: {
         id_area: true,
         peso: true,
@@ -21,6 +28,9 @@ export class PrismaAreaWeightReaderAdapter implements AreaWeightReaderPort {
     const result: AreaWeightsById = {};
 
     for (const row of rows) {
+      if (!VALID_RADAR_AREA_ID_SET.has(row.id_area)) {
+        continue;
+      }
       (result[row.id_area] ??= []).push({
         term: row.palabra_clave.termino_normalizado,
         peso: Number(row.peso),

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { RADAR_AREA_IDS, type RadarArea } from '../entities/radar-area';
 import type { KeywordMatch } from './affinity-calculator';
 
@@ -12,6 +13,7 @@ const AREA_BY_ID = new Map<string, RadarArea>(
   Object.entries(RADAR_AREA_IDS).map(([area, id]) => [id, area as RadarArea]),
 );
 const AREA_ORDER = new Map(Object.keys(RADAR_AREA_IDS).map((area, index) => [area, index]));
+const logger = new Logger('KeywordAreaMapper');
 
 /** Maps extracted canonical keywords to configured area weights inside Radar. */
 export function mapKeywordsToRadarAreas(
@@ -31,7 +33,8 @@ export function mapKeywordsToRadarAreas(
 
       if (term.length > 0 && terms.has(term)) {
         if (!area) {
-          throw new Error(`UUID de área no reconocido: ${areaId}`);
+          logger.warn(`UUID de área ajeno al radar ignorado: ${areaId} (término: ${term})`);
+          continue;
         }
         mapped.push({ term, area, areaId, peso });
       }
