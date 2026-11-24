@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Briefcase, Calendar, ChevronRight, QrCode, Search, Star, Users } from 'lucide-react';
+import { Briefcase, Calendar, ChevronRight, QrCode, Search, Users } from 'lucide-react';
 import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 import umssBg from '@/shared/assets/images/14sept.webp';
 import { getEventCatalog } from '@/shared/services/events-service';
@@ -15,13 +15,6 @@ const ACCESOS_RAPIDOS = [
     Icon: Calendar,
     iconStyle: 'bg-amber-50 text-amber-600',
     descripcion: 'Participa en los próximos eventos de la comunidad UMSS.',
-  },
-  {
-    href: '/portal/beneficios',
-    titulo: 'Beneficios',
-    Icon: Star,
-    iconStyle: 'bg-amber-50 text-amber-600',
-    descripcion: 'Descubre los convenios y descuentos para titulados.',
   },
   {
     href: '/portal/empleos',
@@ -198,8 +191,8 @@ export default function Home() {
               value={consulta}
               onChange={(e) => setConsulta(e.target.value)}
               disabled={!enLinea}
-              aria-label="Buscar eventos, beneficios y empleos"
-              placeholder="Busque eventos, beneficios, empleos..."
+              aria-label="Buscar eventos y empleos"
+              placeholder="Busque eventos, empleos..."
               className="min-h-[44px] w-full rounded-xl bg-white py-3 pl-11 pr-4 text-base text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </form>
@@ -209,7 +202,7 @@ export default function Home() {
       <section
         data-testid="home-primary-actions"
         aria-label="Accesos rápidos"
-        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
+        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         {accesos.map(({ href, titulo, descripcion, Icon, iconStyle }) => (
           <Link
