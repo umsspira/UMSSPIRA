@@ -166,19 +166,19 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
   }, [retry]);
 
   return (
-    <main className="qr-passes-page">
-      <div className="qr-passes-container">
-        <div className="qr-passes-topbar">
-          <header className="qr-passes-heading">
+    <main className="hu2-catalog-page">
+      <div className="hu2-catalog-shell">
+        <header className="hu2-catalog-header">
+          <div className="hu2-catalog-heading">
             <h1>Mis pases QR</h1>
             <p>Tus pases confirmados se guardan para consultarlos incluso sin Internet.</p>
-          </header>
-          <nav className="qr-passes-tabs" aria-label="Navegación de eventos">
+          </div>
+          <nav className="hu2-catalog-tabs" aria-label="Secciones de eventos">
             <Link href="/portal/eventos">Explorar</Link>
             <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
-            <Link href={passesHref} aria-current="page" className="active">Mis pases</Link>
+            <Link href={passesHref} aria-current="page" className="is-active">Mis pases</Link>
           </nav>
-        </div>
+        </header>
 
         {/* HU03: resultado y última actualización de los pases guardados */}
         <OfflineSyncStatus />
@@ -266,12 +266,12 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
         )}
 
         {loadState === 'success' && (
-          <div className="qr-passes-filter-bar">
-            <div role="group" aria-label="Filtrar pases" className="qr-passes-filter-options">
-              <button type="button" aria-pressed={filter === 'all'} className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>TODOS</button>
-              <button type="button" aria-pressed={filter === 'inactive'} className={filter === 'inactive' ? 'active' : ''} onClick={() => setFilter('inactive')}>NO VIGENTES</button>
+          <div className="hu9-filter-bar">
+            <div role="group" aria-label="Filtrar pases" className="hu9-filter-chips">
+              <button type="button" aria-pressed={filter === 'all'} className={`hu9-filter-chip${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>TODOS</button>
+              <button type="button" aria-pressed={filter === 'inactive'} className={`hu9-filter-chip${filter === 'inactive' ? ' is-active' : ''}`} onClick={() => setFilter('inactive')}>NO VIGENTES</button>
             </div>
-            <p>{validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}</p>
+            <p className="hu9-count">{validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}</p>
           </div>
         )}
 
