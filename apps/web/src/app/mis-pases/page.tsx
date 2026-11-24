@@ -7,6 +7,7 @@ import { EventPassCard } from "@/modules/events/components/EventPassCard";
 import { EventPassQrCard } from "@/features/event-passes/event-pass-qr-card";
 import { apiClient } from "@/shared/services/api-client";
 import { QrCode } from "lucide-react";
+import { BackButton } from "@/shared/components/back-button";
 import {
   deleteOfflineQrPass,
   getOfflineQrPasses,
@@ -138,6 +139,15 @@ export default function MyPassesPage() {
       <ConnectedNavbar />
       <div className="events-app min-h-screen p-4 md:p-8">
         <div className="max-w-4xl mx-auto space-y-8">
+          <BackButton
+            label="Atrás"
+            ariaLabel="Volver a la pantalla anterior"
+            onClick={() => {
+              // Vuelve a la pantalla de la que se llegó; si no hay historial, va al portal.
+              if (window.history.length > 1) window.history.back();
+              else window.location.assign('/portal');
+            }}
+          />
           <h1 className="font-bold text-[32px] mb-8">
             Mis códigos QR
           </h1>
