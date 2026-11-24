@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Calendar, Briefcase, Award, Star, User, LogOut } from 'lucide-react';
+import { Menu, X, Home, Calendar, Briefcase, Award, User, LogOut } from 'lucide-react';
 
 // Mismas secciones que el navbar de escritorio
 const sections = [
@@ -11,7 +11,6 @@ const sections = [
   { id: 'eventos', label: 'Eventos', icon: Calendar },
   { id: 'jobs', label: 'Bolsa de trabajo', icon: Briefcase },
   { id: 'mentorias', label: 'Mentorías', icon: Award },
-  { id: 'benefits', label: 'Beneficios', icon: Star },
 ];
 
 interface MobileMenuProps {
