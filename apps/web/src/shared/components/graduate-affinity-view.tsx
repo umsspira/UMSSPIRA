@@ -395,8 +395,8 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         isInitialLoading ? (
           <AffinitySkeleton />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            <div className="lg:col-span-7 bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-oatmeal flex flex-col justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-7 bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-oatmeal flex flex-col">
               <div>
                 <div className="flex items-center justify-between border-b border-palladian pb-4 mb-4">
                   <h3 className="font-bold text-abyssal-blue text-xl">Gráfico de afinidad</h3>
