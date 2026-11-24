@@ -157,7 +157,7 @@ describe('catálogo de eventos', () => {
 
 
     expect(screen.getByRole('link', { name: 'Mis pases' }))
-      .toHaveAttribute('href', '/mis-pases');
+      .toHaveAttribute('href', '/events/catalog/passes');
 
   });
 
