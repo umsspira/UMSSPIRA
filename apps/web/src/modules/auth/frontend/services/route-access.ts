@@ -19,6 +19,7 @@ const TITULADO_MENTOR_ROUTES = [
   "/mentorship/requests",
 ];
 const GRADUATE_APPLICATION_ROUTES = ["/my-applications"];
+const GRADUATE_CERTIFICATE_ROUTES = ["/mis-certificados"];
 const RECRUITER_ROUTES = [
   "/afinidad/reclutador",
   "/empresa/postulantes",
@@ -118,6 +119,13 @@ export function decideAccess(
 
   if (
     GRADUATE_APPLICATION_ROUTES.some((route) => matchesRoute(pathname, route)) &&
+    role !== "titulado"
+  ) {
+    return { allowed: false, redirectTo: homeFor(role) };
+  }
+
+  if (
+    GRADUATE_CERTIFICATE_ROUTES.some((route) => matchesRoute(pathname, route)) &&
     role !== "titulado"
   ) {
     return { allowed: false, redirectTo: homeFor(role) };

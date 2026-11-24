@@ -181,6 +181,41 @@ describe('EventForm HU1', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('avisa cuando título, descripción y ubicación repiten la misma secuencia', () => {
+    const { container } = renderCreateEventPage();
+
+    fillValidForm(container, { title: 'xqz.,xqz.,xqz' });
+    fireEvent.change(screen.getByPlaceholderText('Describe brevemente el evento'), {
+      target: { value: 'zqx.,zqx.,zqx' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Ej. Auditorio Central UMSS'), {
+      target: { value: 'qxz.,qxz.,qxz' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Programar publicación' })[0]);
+
+    expect(screen.getAllByText('Evita repetir la misma secuencia en todo el campo.'))
+      .toHaveLength(3);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('permite siglas, nombres y ubicaciones con puntuación sin repeticiones', () => {
+    const { container } = renderCreateEventPage();
+
+    fillValidForm(container, {
+      title: 'UMSSPIRA: Feria de empleo',
+      location: 'Av. América #123, Edif. A-B',
+    });
+    fireEvent.change(screen.getByPlaceholderText('Describe brevemente el evento'), {
+      target: { value: 'M. Sc. en IA; inscripción abierta.' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Programar publicación' })[0]);
+
+    expect(screen.queryByText('Evita repetir la misma secuencia en todo el campo.'))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Programar publicación' }))
+      .toBeInTheDocument();
+  });
+
   it('acepta 45 caracteres y avisa inmediatamente al intentar superarlos', () => {
     render(<EventForm onSubmit={jest.fn()} />);
     const input = screen.getByPlaceholderText('Ej. Feria de Oportunidades UMSS');

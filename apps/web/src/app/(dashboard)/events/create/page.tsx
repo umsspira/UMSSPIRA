@@ -201,6 +201,7 @@ export default function CreateEventPage() {
           onCancel={() => router.push('/events')}
           onValidationChange={handleValidationChange}
           isSubmitting={isSubmitting}
+          validateRepeatedText
         />
       </div>
     </main>

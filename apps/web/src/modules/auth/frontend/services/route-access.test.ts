@@ -40,6 +40,7 @@ describe("decideAccess", () => {
       "/empresa/checklist-pre-demo",
       "/postulantes",
       "/my-applications",
+      "/mis-certificados",
     ])("redirige %s a /login cuando no hay token", (pathname) => {
       expect(decideAccess(pathname, undefined, undefined)).toEqual({
         allowed: false,
@@ -177,6 +178,19 @@ describe("HU-004/T4.1: control de acceso a reportes (Admin) y encuestas (Titulad
       redirectTo: COMPANY_HOME,
     });
     expect(decideAccess("/my-applications/oferta/id", "token", "administrador")).toEqual({
+      allowed: false,
+      redirectTo: ADMIN_HOME,
+    });
+  });
+
+  it("reserva Mis certificados y sus detalles para el titulado", () => {
+    expect(decideAccess("/mis-certificados", "token", "titulado")).toEqual({ allowed: true });
+    expect(decideAccess("/mis-certificados/certificate-1", "token", "titulado")).toEqual({ allowed: true });
+    expect(decideAccess("/mis-certificados", "token", "empresa")).toEqual({
+      allowed: false,
+      redirectTo: COMPANY_HOME,
+    });
+    expect(decideAccess("/mis-certificados/certificate-1", "token", "administrador")).toEqual({
       allowed: false,
       redirectTo: ADMIN_HOME,
     });
