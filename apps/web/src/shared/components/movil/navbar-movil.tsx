@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Home, Calendar, Briefcase, Star, User, Bell, ChevronDown, Award } from 'lucide-react';
+import { Home, Calendar, Briefcase, User, Bell, ChevronDown, Award } from 'lucide-react';
 
 import logoUmss from '@/shared/assets/images/logoumsspira.jpg';
 
@@ -41,7 +41,6 @@ export const NavbarMovil: React.FC = () => {
     { id: 'eventos', label: 'Eventos', icon: Calendar },
     { id: 'jobs', label: 'Bolsa de trabajo', icon: Briefcase },
     { id: 'mentorias', label: 'Mentorías', icon: Award },
-    { id: 'benefits', label: 'Beneficios', icon: Star },
   ];
 
   return (
