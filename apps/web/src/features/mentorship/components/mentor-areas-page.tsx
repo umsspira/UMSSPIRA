@@ -244,7 +244,7 @@ export function MentorAreasPage() {
 
         {saved && <div role="status" className="mentor-areas-saved"><p>Áreas técnicas actualizadas correctamente</p><p>Áreas guardadas: {areas.filter(area => savedIds.includes(area.id)).map(area => area.nombre).join(', ')}</p></div>}
 
-        <MentorSetupSteps currentStep={1} completedSteps={savedIds.length ? 1 : 0} />
+        <MentorSetupSteps currentStep={1} completedSteps={savedIds.length ? [1] : []} />
 
         <div className="mentor-areas-page-actions">
           <Link href="/mentorship/profile" className="mentor-areas-back">

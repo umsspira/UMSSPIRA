@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../src/generated/prisma/client';
 import { areas, seedTopics, topicos } from '../scripts/seed/catalogs';
+import { AREA_IDS } from '../scripts/seed/demo-ids';
 
 interface Row {
   id: string;
@@ -54,14 +55,14 @@ function database() {
 }
 
 describe('Seed de tópicos HU 6.21', () => {
-  it('define 39 UUID únicos y nombres distintos por padre, sin usar el 017', () => {
-    expect(topicos).toHaveLength(39);
-    expect(new Set(topicos.map((topic) => topic.id)).size).toBe(39);
+  it('define 47 UUID únicos y nombres distintos por padre, sin usar el 017', () => {
+    expect(topicos).toHaveLength(47);
+    expect(new Set(topicos.map((topic) => topic.id)).size).toBe(47);
     expect(
       new Set(topicos.map((topic) => `${topic.padre_id}:${topic.nombre.trim().toLowerCase()}`))
         .size,
-    ).toBe(39);
-    expect(new Set(topicos.map((topic) => topic.padre_id)).size).toBe(7);
+    ).toBe(47);
+    expect(new Set(topicos.map((topic) => topic.padre_id)).size).toBe(10);
     expect(topicos.some((topic) => topic.id === '60000000-0000-4000-8000-000000000017')).toBe(
       false,
     );
@@ -70,11 +71,26 @@ describe('Seed de tópicos HU 6.21', () => {
     }
   });
 
+  it('clasifica las tres especialidades como áreas y sus ejemplos como tópicos propios', () => {
+    const expected = [
+      [AREA_IDS.backend, 'Backend', ['Spring Boot', 'Laravel', 'Golang']],
+      [AREA_IDS.frontend, 'Frontend', ['Accesibilidad web', 'Diseño de interfaces', 'Rendimiento web']],
+      [AREA_IDS.databases, 'Bases de datos', ['Modelado de datos', 'Optimización de consultas']],
+    ] as const;
+    for (const [id, name, names] of expected) {
+      expect(areas.find((area) => area.id === id)).toMatchObject({ nombre: name, padre_id: null });
+      for (const topicName of names) {
+        expect(topicos).toContainEqual(expect.objectContaining({ nombre: topicName, padre_id: id }));
+      }
+      expect(topicos).not.toContainEqual(expect.objectContaining({ nombre: name, padre_id: AREA_IDS.technology }));
+    }
+  });
+
   it('crea los tópicos activos y conserva las áreas y sus jerarquías', async () => {
     const { rows, tx, prisma } = database();
     const original = [...rows.values()];
     await seedTopics(prisma);
-    expect(rows.size).toBe(49);
+    expect(rows.size).toBe(60);
     expect(tx.$executeRawUnsafe).toHaveBeenCalledWith(
       'LOCK TABLE public.area IN SHARE ROW EXCLUSIVE MODE',
     );
@@ -103,7 +119,7 @@ describe('Seed de tópicos HU 6.21', () => {
     const { rows, tx, prisma } = database();
     const original = {
       id: '60000000-0000-4000-8000-000000000800',
-      nombre: '  BACKEND  ',
+      nombre: '  APIS REST  ',
       padre_id: topicos[0].padre_id,
       esta_activo: true,
       fecha_creacion: new Date('2020-01-01'),
@@ -112,7 +128,7 @@ describe('Seed de tópicos HU 6.21', () => {
     await seedTopics(prisma);
     expect(rows.get(original.id)).toEqual(original);
     expect(rows.has(topicos[0].id)).toBe(false);
-    expect(tx.area.createMany.mock.calls[0][0].data).toHaveLength(38);
+    expect(tx.area.createMany.mock.calls[0][0].data).toHaveLength(46);
   });
 
   it.each(['missing', 'inactive', 'child'])(
