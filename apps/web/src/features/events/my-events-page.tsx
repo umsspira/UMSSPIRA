@@ -133,7 +133,7 @@ export default function MyEventsPage() {
             <button type="button" className="is-active" aria-current="page">
               Mis eventos
             </button>
-            <Link href="/mis-pases">
+            <Link href="/events/catalog/passes">
               Mis pases
             </Link>
           </nav>
