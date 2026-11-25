@@ -4,10 +4,18 @@ export interface ManagedSurvey {
   startDate: string | null;
   endDate: string | null;
   status: string | null; // 'BORRADOR' | 'PUBLICADA'
+  careerId: string | null;
+}
+
+/** Carrera asignada al administrador, con el nombre como se muestra en pantalla. */
+export interface AdminCareer {
+  id: string;
+  name: string;
 }
 
 export interface SurveyFormValues {
   title: string;
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
+  careerId?: string; // solo al crear, si el administrador tiene varias carreras
 }
