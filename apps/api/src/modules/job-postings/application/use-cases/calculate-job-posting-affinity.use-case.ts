@@ -2,6 +2,11 @@ import type { JobPostingAffinityResult } from '@umsspira/shared-types';
 import { calculateJobPostingAffinity } from '../../domain/policies/calculate-job-posting-affinity';
 import { isAffinityProfileComplete } from '../../domain/policies/is-affinity-profile-complete';
 import { normalizeTechnicalRequirementName } from '../../domain/policies/normalize-technical-requirement-name';
+import {
+  buildProfileIndex,
+  type KeywordExtractor,
+  type ProfileIndex,
+} from '../../domain/policies/requirement-similarity';
 import type {
   JobPostingAffinityProfile,
   JobPostingAffinityRequirements,
@@ -30,19 +35,21 @@ export class CalculateJobPostingAffinity {
       vacancy.requirements.some((name) => normalizeTechnicalRequirementName(name).length > 0);
     const needsCalculation = input.vacancies.some(hasRequirements);
     const complete = input.profile !== null && isAffinityProfileComplete(input.profile);
-    // Una extracción para todas las vacantes del perfil, sin caché global obsoleta.
-    const skills =
-      needsCalculation && complete && input.profile
-        ? await this.extractor.extractSkills(input.profile.texts)
-        : [];
-    const calculatedAt = needsCalculation && complete ? this.now().toISOString() : '';
+    // Una extracción del perfil para todas sus vacantes, sin caché global obsoleta.
+    // Cada campo se procesa por separado: ningún n-grama cruza campos del perfil (HU-11).
+    let engine: { extractor: KeywordExtractor; profile: ProfileIndex } | null = null;
+    if (needsCalculation && complete && input.profile) {
+      const extractor = await this.extractor.loadExtractor();
+      engine = { extractor, profile: buildProfileIndex(input.profile.texts, extractor) };
+    }
+    const calculatedAt = engine ? this.now().toISOString() : '';
     return input.vacancies.map((vacancy) => ({
       vacancyId: vacancy.vacancyId,
       result: !hasRequirements(vacancy)
         ? { status: 'no-requirements', percentage: null, calculatedAt: null, comparison: [] }
-        : !complete
+        : engine === null
           ? { status: 'profile-incomplete', percentage: null, calculatedAt: null, comparison: [] }
-          : calculateJobPostingAffinity(vacancy.requirements, skills, calculatedAt),
+          : calculateJobPostingAffinity(vacancy.requirements, engine.profile, engine.extractor, calculatedAt),
     }));
   }
 }

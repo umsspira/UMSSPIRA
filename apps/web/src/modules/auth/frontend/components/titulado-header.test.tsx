@@ -1,9 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+import { useProfilePhotoStore } from "@/shared/hooks/use-profile-photo-store";
+
 import { TituladoHeader } from "./titulado-header";
 
 const mockApiClient = jest.fn();
 let mockPathname = "/profile";
+
+jest.mock("@/shared/services/profile-photo-service", () => ({
+  loadProfilePhoto: jest.fn().mockResolvedValue(null),
+  saveProfilePhoto: jest.fn(),
+}));
 
 jest.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -21,6 +28,7 @@ describe("TituladoHeader", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockApiClient.mockResolvedValue({ data: [] });
+    useProfilePhotoStore.setState({ photoUrl: null, status: "ready" });
     mockPathname = "/profile";
   });
 
@@ -28,6 +36,19 @@ describe("TituladoHeader", () => {
     render(<TituladoHeader />);
 
     expect(screen.getByRole("link", { name: "Mi perfil profesional" })).toHaveAttribute("href", "/profile");
+  });
+
+  it("sin foto guardada no agrega ningún avatar", () => {
+    render(<TituladoHeader />);
+
+    expect(screen.queryByTestId("profile-photo-badge")).not.toBeInTheDocument();
+  });
+
+  it("con foto guardada la muestra en el encabezado", () => {
+    useProfilePhotoStore.setState({ photoUrl: "blob:foto", status: "ready" });
+    render(<TituladoHeader />);
+
+    expect(screen.getByTestId("profile-photo-badge").querySelector("img")).toHaveAttribute("src", "blob:foto");
   });
 
   it("muestra el acceso a Mis postulaciones y marca la ruta activa", () => {

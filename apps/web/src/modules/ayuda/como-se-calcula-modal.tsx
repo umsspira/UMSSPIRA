@@ -8,7 +8,7 @@ export interface DetalleRequisitoAfinidad {
   requirement: string;
   matchedSkill: string | null;
   result: EstadoCoincidencia;
-  /** Aporte normalizado del motor (0 a 1). Es opcional hasta integrar HU-10/HU-11. */
+  /** Aporte normalizado (0 a 1). La API no lo envía: sin él se usan los pesos de la HU-11. */
   weight?: number;
 }
 
@@ -22,10 +22,11 @@ export interface ComoSeCalculaModalProps {
 /** Peso de la coincidencia parcial de la HU-11 (MATCH_WEIGHTS del motor). */
 const PESO_PARCIAL = 0.5;
 
+// Mismas etiquetas que el detalle de la vacante y el desglose de la empresa (HU-11)
 const RESULTADOS: Record<EstadoCoincidencia, { texto: string; estilo: string }> = {
-  exact: { texto: 'Coincide', estilo: 'bg-emerald-50 text-emerald-800' },
-  similar: { texto: 'Coincide parcialmente', estilo: 'bg-amber-50 text-amber-900' },
-  'not-found': { texto: 'No encontrado', estilo: 'bg-stone-100 text-stone-700' },
+  exact: { texto: 'Exacta', estilo: 'bg-emerald-50 text-emerald-800' },
+  similar: { texto: 'Similar', estilo: 'bg-amber-50 text-amber-900' },
+  'not-found': { texto: 'No encontrada', estilo: 'bg-stone-100 text-stone-700' },
 };
 
 function porcentaje(valor: number): string {
@@ -33,6 +34,9 @@ function porcentaje(valor: number): string {
     ? new Intl.NumberFormat('es-BO', { maximumFractionDigits: 2 }).format(valor)
     : 'No disponible';
 }
+
+// Texto de cuando los pesos de la HU-11 no explican el porcentaje recibido
+const SIN_ECUACION = 'Afinidad informada por el motor:';
 
 function detalleCalculo(
   porcentajeRecibido: number,
@@ -69,7 +73,7 @@ function detalleCalculo(
     return `${exactasTexto} + ${parcialesTexto} de ${total} requisitos = ${porcentaje(porcentajeRecibido)} %`;
   }
 
-  return `Afinidad informada por el motor: ${porcentaje(porcentajeRecibido)} %`;
+  return `${SIN_ECUACION} ${porcentaje(porcentajeRecibido)} %`;
 }
 
 export function ComoSeCalculaModal({
@@ -116,6 +120,7 @@ export function ComoSeCalculaModal({
   }, [open, onClose]);
 
   if (!open) return null;
+  const detalle = detalleCalculo(percentage, comparison);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-6">
@@ -167,9 +172,10 @@ export function ComoSeCalculaModal({
         </div>
 
         <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-          {detalleCalculo(percentage, comparison)}
+          {detalle}
         </p>
-        {comparison.some((item) => item.result === 'similar' && item.weight === undefined) && (
+        {/* La nota solo aparece cuando la ecuación con los pesos de la HU-11 no cuadra con el porcentaje recibido */}
+        {detalle.startsWith(SIN_ECUACION) && comparison.some((item) => item.result === 'similar') && (
           <p className="mt-2 text-xs leading-5 text-slate-600">
             Las coincidencias parciales pueden tener un peso distinto. Se muestra el porcentaje recibido del motor; no se recalcula aquí.
           </p>

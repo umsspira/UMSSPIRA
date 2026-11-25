@@ -679,6 +679,12 @@ describe('GraduateAffinityView', () => {
     expect(link).toHaveClass('min-h-[44px]', 'text-[15px]');
   });
 
+  it('desde Mi afinidad hay un camino directo a Mis registros (HU-11)', async () => {
+    render(<GraduateAffinityView />);
+
+    expect(await screen.findByRole('link', { name: 'Mis registros' })).toHaveAttribute('href', '/profile/records');
+  });
+
   it('dispara automáticamente el recálculo tras el debounce de 500 ms cuando hasPendingChanges es true', async () => {
     jest.useFakeTimers();
 

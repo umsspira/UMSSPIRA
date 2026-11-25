@@ -45,20 +45,22 @@ export function DeleteRecordModal({
   const Icon = errorCode === 'network' ? WifiOff : errorCode === 'forbidden' ? Lock : Trash2;
 
   return (
+    // Ventana sobre la página: fondo oscuro fijo con su animación y una sola tarjeta (HU-15)
     <div
       className={cn(
-        'w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl',
-         isClosing ? 'profile-modal-content-out' : 'profile-modal-content',
+        'fixed inset-0 z-50 flex items-center justify-center bg-abyssal-blue/50 px-4',
+        isClosing ? 'profile-modal-backdrop-out' : 'profile-modal-backdrop',
       )}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-record-title"
-        className={cn('profile-modal-content w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl transition-all duration-200',
-    isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100',
-         )}
-       >
+        className={cn(
+          'w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-xl',
+          isClosing ? 'profile-modal-content-out' : 'profile-modal-content',
+        )}
+      >
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-truffle-trouble/10 text-truffle-trouble">
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>

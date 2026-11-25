@@ -57,6 +57,7 @@ describe('Cancelación desde Mis eventos', () => {
     expect(await screen.findByText(registration.event.title)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Notificaciones en tu dispositivo' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Mis pases' })).toHaveAttribute('href', '/mis-pases');
+
     expect(screen.getByRole('link', { name: 'Ver pase' })).toHaveAttribute('href', '/mis-pases');
   });
 

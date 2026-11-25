@@ -29,6 +29,7 @@ import {
   type AffinityAreaScore,
 } from '@umsspira/shared-types/src/affinity';
 import { ArrowLeft, Tag } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BackButton } from './back-button';
 
@@ -379,7 +380,16 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           {/* Mismo «Volver» que las pantallas del perfil (HU-11) */}
-          <BackButton href="/profile" label="Volver a mi perfil" className="mb-3" />
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <BackButton href="/profile" label="Volver a mi perfil" />
+            {/* Camino directo a Mis registros desde Mi afinidad (HU-11, T11.4) */}
+            <Link
+              href="/profile/records"
+              className="inline-flex min-h-[44px] items-center rounded-full border border-oatmeal bg-white px-4 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
+            >
+              Mis registros
+            </Link>
+          </div>
           <h1 className="text-[22px] sm:text-[32px] font-bold text-abyssal-blue tracking-tight">
             Tu afinidad profesional
           </h1>
@@ -395,8 +405,8 @@ export const GraduateAffinityView: React.FC<GraduateAffinityViewProps> = ({
         isInitialLoading ? (
           <AffinitySkeleton />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            <div className="lg:col-span-7 bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-oatmeal flex flex-col justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-7 bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-oatmeal flex flex-col">
               <div>
                 <div className="flex items-center justify-between border-b border-palladian pb-4 mb-4">
                   <h3 className="font-bold text-abyssal-blue text-xl">Gráfico de afinidad</h3>

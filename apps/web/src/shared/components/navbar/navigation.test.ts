@@ -136,9 +136,18 @@ describe('HU15 · una sola lista para escritorio y móvil', () => {
     for (const role of [null, 'titulado', 'empresa', 'administrador'] as const) {
       const home = role ? '/portal' : '/portal/institucional';
       const items = primaryNavigation(role, home);
-      expect(items[0]).toEqual({ id: 'home', label: 'Inicio', href: home, items: [] });
-      expect(items.slice(1).map(item => item.id)).toEqual(navigationFor(role).map(section => section.id));
+      const showsHome = role === null || role === 'titulado';
+      if (showsHome) expect(items[0]).toEqual({ id: 'home', label: 'Inicio', href: home, items: [] });
+      else expect(items.map(item => item.id)).not.toContain('home');
+      expect(items.filter(item => item.id !== 'home').map(item => item.id)).toEqual(navigationFor(role).map(section => section.id));
     }
+  });
+
+  it('Inicio solo aparece para visitante y titulado, no para empresa ni administrador', () => {
+    expect(primaryNavigation('titulado', '/portal').map(i => i.label)).toContain('Inicio');
+    expect(primaryNavigation(null, '/portal/institucional').map(i => i.label)).toContain('Inicio');
+    expect(primaryNavigation('empresa', '/portal').map(i => i.label)).not.toContain('Inicio');
+    expect(primaryNavigation('administrador', '/portal').map(i => i.label)).not.toContain('Inicio');
   });
 
   it('CA-01: las reglas de sesión se aplican igual: el visitante no ve opciones de miembro', () => {

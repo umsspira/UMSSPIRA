@@ -1,5 +1,6 @@
 'use client';
 
+import { useKnownRole } from '@/shared/hooks/use-known-role';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { CalendarDays, ChevronRight, QrCode, RefreshCw, Settings, WifiOff } from 'lucide-react';
@@ -10,6 +11,7 @@ const tile =
 
 /** Página de respaldo: se muestra cuando se abre una ruta que no se guardó y no hay conexión. */
 export default function OfflinePage() {
+  const esTitulado = [null, 'titulado'].includes(useKnownRole());
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
@@ -47,7 +49,8 @@ export default function OfflinePage() {
 
         <div className="mt-2 flex w-full flex-col gap-3 rounded-2xl bg-[#EBF0F8] p-4 text-left sm:p-5">
           <h2 className="text-base font-bold text-[#1B2632]">Disponible sin conexión</h2>
-          <Link
+          {esTitulado && (
+<Link
             href="/mis-pases"
             className="flex min-h-[44px] w-full items-center gap-3 rounded-xl bg-[#1B2632] px-4 py-4 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB162]"
           >
@@ -60,6 +63,7 @@ export default function OfflinePage() {
             </span>
             <ChevronRight className="h-5 w-5 text-[#FFB162]" aria-hidden="true" />
           </Link>
+)}
           <div className="grid gap-3 sm:grid-cols-2">
             <Link href="/portal/eventos" className={tile}>
               <CalendarDays className="h-4 w-4" aria-hidden="true" />

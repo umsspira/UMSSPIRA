@@ -11,7 +11,7 @@ describe('VacantesService · ciclo de vida con permisos (HU-14)', () => {
   function crearServicio(vacante: { id: string; estado: string | null } | null, postulantes = 0) {
     // actualizarVacante guarda dentro de una transacción con bloqueo por vacante.
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(0),
       vacante: {
         update: jest.fn().mockResolvedValue(vacante),
         findUniqueOrThrow: jest.fn().mockResolvedValue(vacante),

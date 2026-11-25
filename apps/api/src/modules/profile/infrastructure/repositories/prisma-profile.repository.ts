@@ -6,6 +6,7 @@ import { BusinessRuleError } from '../../../../shared/errors/business-rule-error
 import type { StoredFile } from '../../../../shared/files/contracts/uploaded-file';
 import type {
   CvFile,
+  ProfilePhotoFile,
   ProfileRepository,
   SavedCvFile,
 } from '../../application/ports/profile-repository.port';
@@ -19,6 +20,7 @@ import type {
 } from '../../application/contracts/profile-inputs';
 import type { ProfileSection, ProfileSnapshot } from '../../domain/entities/profile-record';
 import { assertUniqueEducation } from '../../domain/policies/education.policy';
+import { assertCurrentJobsLimit } from '../../domain/policies/current-jobs.policy';
 import { backupKind } from '../../domain/policies/backup-file.policy';
 import {
   toBackup,
@@ -125,6 +127,11 @@ export class PrismaProfileRepository implements ProfileRepository {
     return this.prisma.$transaction(
       async (tx) => {
         await lockGraduate(tx, scope);
+        // HU-21 CA-09: con el titulado bloqueado, se cuentan sus trabajos actuales antes de crear otro
+        assertCurrentJobsLimit(
+          !input.fechaFin,
+          await tx.experienciaLaboral.count({ where: { id_titulado: scope.graduateId, fecha_fin: null } }),
+        );
         return toExperience(
           await tx.experienciaLaboral.create({
             data: {
@@ -264,6 +271,13 @@ export class PrismaProfileRepository implements ProfileRepository {
             if (!(await tx.experienciaLaboral.findFirst({ where, select: { id: true } }))) {
               await rejectProfileRecord(tx.experienciaLaboral.findUnique({ where: { id } }));
             }
+            // HU-21 CA-09: no cuenta el registro que se edita
+            assertCurrentJobsLimit(
+              !change.data.fechaFin,
+              await tx.experienciaLaboral.count({
+                where: { id_titulado: scope.graduateId, fecha_fin: null, NOT: { id } },
+              }),
+            );
             return toExperience(
               await tx.experienciaLaboral.update({
                 where,
@@ -522,6 +536,36 @@ export class PrismaProfileRepository implements ProfileRepository {
       size: row.size_bytes,
       uploadedAt: row.fecha_subida,
     };
+  }
+
+  async savePhoto(scope: ProfileScope, file: ProfilePhotoFile): Promise<void> {
+    await this.prisma.$transaction(
+      async (tx) => {
+        await lockGraduate(tx, scope);
+        const data = {
+          mime: file.mime,
+          contenido: new Uint8Array(file.bytes),
+          size_bytes: file.size,
+          fecha_subida: new Date(),
+        };
+        await tx.tituladoFoto.upsert({
+          where: { id_titulado: scope.graduateId },
+          create: { id_titulado: scope.graduateId, ...data },
+          update: data,
+        });
+      },
+      { timeout: 15000 },
+    );
+  }
+
+  async readPhoto(scope: ProfileScope): Promise<ProfilePhotoFile> {
+    const row = await this.prisma.tituladoFoto.findFirst({
+      where: { id_titulado: scope.graduateId, titulado: { id_usuario: scope.userId } },
+    });
+    if (!row) {
+      throw new BusinessRuleError('missing', 'PROFILE_PHOTO_NOT_FOUND', 'Aún no tienes foto de perfil');
+    }
+    return { mime: row.mime, bytes: row.contenido, size: row.size_bytes };
   }
 
   private async loadBackup(where: Prisma.CertificacionRespaldoWhereInput): Promise<StoredFile> {

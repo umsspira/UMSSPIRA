@@ -22,51 +22,47 @@ describe('HU10: adaptador al NLP real sin base de datos', () => {
     adapter = new NlpJobPostingAffinityAdapter(dictionary, extractor);
   });
 
-  it('una extracción devuelve canónicas, preserva compuestas y no mezcla Java/JavaScript', async () => {
-    const extract = jest.spyOn(extractor, 'extract');
-    await expect(adapter.extractSkills(['JS y Java', 'Machine Learning', 'JS'])).resolves.toEqual([
+  it('entrega el extractor ya cargado: canónicas, compuestas y sin mezclar Java/JavaScript', async () => {
+    const loaded = await adapter.loadExtractor();
+    expect(loaded.extract('JS y Java\nMachine Learning\nJS').keywords.map(({ term }) => term)).toEqual([
       'javascript',
       'java',
       'machine learning',
     ]);
-    expect(extract).toHaveBeenCalledTimes(1);
-    expect(extract).toHaveBeenCalledWith('JS y Java\nMachine Learning\nJS');
   });
 
   it('no forma machine learning entre dos campos separados', async () => {
-    await expect(adapter.extractSkills(['machine', 'learning'])).resolves.toEqual([]);
+    const loaded = await adapter.loadExtractor();
+    expect(loaded.extract('machine\nlearning').keywords).toEqual([]);
   });
 
   it('reutiliza el diccionario ya cargado', async () => {
-    await adapter.extractSkills(['JS']);
-    await adapter.extractSkills(['Java']);
+    await adapter.loadExtractor();
+    await adapter.loadExtractor();
     expect(source.load).toHaveBeenCalledTimes(1);
   });
 
   it('traduce una caída a dependencia 503 y permite reintentar sin devolver habilidades vacías', async () => {
     source.load.mockRejectedValueOnce(new Error('Base no disponible'));
-    const extract = jest.spyOn(extractor, 'extract');
-    await expect(adapter.extractSkills(['JS'])).rejects.toMatchObject({
+    await expect(adapter.loadExtractor()).rejects.toMatchObject({
       code: 'NLP_DICTIONARY_UNAVAILABLE',
     });
-    expect(extract).not.toHaveBeenCalled();
-    await expect(adapter.extractSkills(['JS'])).resolves.toEqual(['javascript']);
+    const loaded = await adapter.loadExtractor();
+    expect(loaded.extract('JS').keywords.map(({ term }) => term)).toEqual(['javascript']);
     expect(source.load).toHaveBeenCalledTimes(2);
     expect(new AffinityDictionaryUnavailableError()).toBeInstanceOf(DependencyUnavailableError);
   });
 
   it('un diccionario vacío también es indisponibilidad, no un 0 % válido', async () => {
     source.load.mockResolvedValue([]);
-    await expect(adapter.extractSkills(['Java'])).rejects.toBeInstanceOf(
+    await expect(adapter.loadExtractor()).rejects.toBeInstanceOf(
       AffinityDictionaryUnavailableError,
     );
   });
 
-  it('no oculta errores inesperados del extractor', async () => {
+  it('no oculta errores inesperados del diccionario', async () => {
     const failure = new Error('Error del motor');
-    jest.spyOn(extractor, 'extract').mockImplementation(() => {
-      throw failure;
-    });
-    await expect(adapter.extractSkills(['Java'])).rejects.toBe(failure);
+    jest.spyOn(dictionary, 'ensureLoaded').mockRejectedValue(failure);
+    await expect(adapter.loadExtractor()).rejects.toBe(failure);
   });
 });

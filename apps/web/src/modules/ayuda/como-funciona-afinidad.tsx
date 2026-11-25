@@ -24,9 +24,9 @@ export function ComoFuncionaAfinidad({ pesoParcial = PESO_PARCIAL_HU11 }: { peso
           {FORMULA_AFINIDAD}
         </p>
         <ul className="mt-3 list-inside list-disc space-y-1 text-sm leading-6 text-slate-700">
-          <li><strong>Coincidencia exacta:</strong> suma el requisito completo.</li>
-          <li><strong>Coincidencia parcial:</strong> suma el {pesoParcial} % del requisito.</li>
-          <li><strong>No encontrado:</strong> no suma al porcentaje.</li>
+          <li><strong>Exacta:</strong> suma el requisito completo, aunque el perfil lo escriba distinto (alias, plural o género).</li>
+          <li><strong>Similar:</strong> coincide en parte (por ejemplo, React frente a React Native) y suma el {pesoParcial} % del requisito.</li>
+          <li><strong>No encontrada:</strong> no suma al porcentaje. Tecnologías distintas no se mezclan: Java no cumple JavaScript.</li>
         </ul>
         <p className="mt-2 text-xs leading-5 text-slate-600">
           El porcentaje se redondea al entero más próximo y es el mismo que ves junto a cada vacante.

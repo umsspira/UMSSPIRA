@@ -27,7 +27,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
   const isCompany = (role as any) === 'empresa' || pagePath.includes('/companies');
   const currentRole = isCompany ? 'empresa' : role;
   const [activeMentor, setActiveMentor] = useState(false);
-  const [mentorStatusError, setMentorStatusError] = useState(false);
+  const [, setMentorStatusError] = useState(false);
   const [mentorStatusRetry, setMentorStatusRetry] = useState(0);
 
   useEffect(() => {
@@ -136,10 +136,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
   const logout = () => { close(); onLogout(); };
 
   return <header ref={root} className={`${styles.root} ${session ? styles.member : styles.public}`}>
-    {mentorStatusError && <p role="alert">
-      No se pudo verificar tu participación como mentor.{' '}
-      <button type="button" onClick={() => setMentorStatusRetry(value => value + 1)}>Reintentar</button>
-    </p>}
+    {/* El aviso «No se pudo verificar tu participación como mentor» se quitó: sin conexión no debe mostrarse y la barra sigue funcionando. */}
     <div className={styles.bar}>
       <Link href={resolveHref(home)} className={styles.logo} aria-label="UMSSPIRA: ir al inicio" prefetch={false} onClick={close}>
         <Image src="/assets/events/umsspira-logo-desktop.png" alt="UMSSPIRA" width={170} height={56} priority />
@@ -158,9 +155,9 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
         })}
       </nav>
       <div className={styles.actions} aria-label="Acciones de cuenta">
-        <button type="button" className={`${styles.iconButton} ${styles.searchButton}`} aria-label="Buscar en la plataforma" onClick={startSearch}><Search size={22} strokeWidth={1.8} /></button>
+        {!session && <button type="button" className={`${styles.iconButton} ${styles.searchButton}`} aria-label="Buscar en la plataforma" onClick={startSearch}><Search size={22} strokeWidth={1.8} /></button>}
                 {session ? <>
-          <MessagesButton />
+          <MessagesButton onOpen={() => setOpened(null)} isOtherMenuOpen={opened !== null || search} />
           {([{ id: 'notifications', label: 'Notificaciones', Icon: Bell, items: notifications }] as const).map(({ id, label, Icon, items }) => <div className={styles.actionDropdown} key={id}>
            <button type="button" className={styles.iconButton} aria-label={label} aria-expanded={opened === id} aria-controls={panelId(id)} onClick={event => toggle(id, event.currentTarget)}><Icon size={22} strokeWidth={1.8} />{items.some(item => item.unread) && <span className={styles.badge} aria-label="Hay elementos sin leer" />}</button>
             {opened === id && <div className={styles.activityPopover} id={panelId(id)} onKeyDown={moveFocus}><ActivityPanel kind={id} items={[...items]} resolveHref={resolveHref} onNavigate={close} notificationsError={notificationsError} onNotificationRead={onNotificationRead} /></div>}
@@ -192,7 +189,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
       </div>
     </div>
     {mobile && <nav className={styles.mobileNavigation} id={panelId('mobile')} aria-label="Navegación móvil" onKeyDown={moveFocus}>
-      <button type="button" className={`${styles.mobileHome} ${styles.mobileSearch}`} onClick={startSearch}><span>Buscar en la plataforma</span><Search size={18} /></button>
+      {!session && <button type="button" className={`${styles.mobileHome} ${styles.mobileSearch}`} onClick={startSearch}><span>Buscar en la plataforma</span><Search size={18} /></button>}
       {primary.map(item => {
         const lit = item.id === 'home' ? homeActive && !sectionOpen : highlighted === item.id;
         if (item.href) {
@@ -203,7 +200,7 @@ function NavbarContent({ session, onLogout, currentPath, resolveHref = unchanged
       })}
       {session ? <div className={styles.mobileAccount}><strong>Mi cuenta</strong><NavbarLinks items={accountLinks} currentPath={fullPath} resolveHref={resolveHref} onNavigate={close} /><button type="button" className={styles.logout} onClick={logout}><LogOut size={16} />Cerrar sesión</button></div> : <div className={styles.mobileAuth}><Link href={resolveHref('/register')} onClick={close} className={styles.register} prefetch={false}>Crear mi cuenta</Link></div>}
     </nav>}
-    <NavbarSearch open={search} onClose={() => setSearch(false)} links={[{ id: 'home', label: 'Inicio', href: home }, ...sections.flatMap(section => section.items), ...accountLinks]} resolveHref={resolveHref} />
+    <NavbarSearch open={search} onClose={() => setSearch(false)} links={[...primary.filter(item => item.id === 'home').map(item => ({ id: 'home', label: 'Inicio', href: home })), ...sections.flatMap(section => section.items), ...accountLinks]} resolveHref={resolveHref} />
   </header>;
 }
 

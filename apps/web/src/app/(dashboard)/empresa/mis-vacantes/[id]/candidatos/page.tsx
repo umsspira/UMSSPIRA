@@ -123,7 +123,7 @@ export default function CandidatesPage() {
       setError(false);
       try {
         const vac = await getVacancyById(vacancyId).catch(() => null);
-        const list = await getApplicantsByVacancy(vacancyId, vac?.publishedAt);
+        const list = await getApplicantsByVacancy(vacancyId);
         if (!cancelled) {
           setApplicants(list);
           setVacancy(vac);
@@ -259,20 +259,19 @@ export default function CandidatesPage() {
       {!loading && !error && applicants.length > 0 && (
         <>
           <div className="bg-white p-5 rounded-xl border border-[#EEE9DF] shadow-sm space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-6 items-end">
+            {/* QA corrida 2 (EXP-01): sin el filtro de nivel (HU-15), dos filtros alineados y "Limpiar filtros" a su lado */}
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] gap-4 md:gap-6 items-end">
               <MatchSlider value={minMatch} onChange={setMinMatch} />
               <div className="space-y-1">
-                <label className="text-sm font-medium text-[#1B2632]">Estado del postulante</label>
-                <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]">
+                <label htmlFor="filtro-estado-postulante" className="text-sm font-medium text-[#1B2632]">Estado del postulante</label>
+                <select id="filtro-estado-postulante" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]">
                   <option value="Todos">Todos</option>
                   {APPLICANT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+              <button type="button" onClick={handleClearFilters} className="min-h-10 w-full md:w-auto px-4 py-2 text-xs font-semibold text-[#1B2632] border border-gray-300 rounded-lg hover:bg-gray-50">Limpiar filtros</button>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-              <input type="text" placeholder="Buscar candidato" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:max-w-md px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]" />
-              <button onClick={handleClearFilters} className="px-4 py-2 text-xs font-semibold text-[#1B2632] border border-gray-300 rounded-lg hover:bg-gray-50">Limpiar filtros</button>
-            </div>
+            <input type="text" aria-label="Buscar candidato" placeholder="Buscar candidato" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:max-w-md px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFB162]" />
           </div>
 
           <div className="space-y-2">

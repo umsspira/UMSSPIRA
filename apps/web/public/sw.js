@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.3';
+const VERSION = 'v1.0.6';
 
 const CACHE_NAME = `umsspira-core-portal-${VERSION}`;
 const STATIC_CACHE = `umsspira-static-${VERSION}`;
@@ -26,7 +26,7 @@ const OFFLINE_ROUTE_PREFIXES = ['/events/catalog/passes', '/mis-pases', '/portal
 const OFFLINE_ROOT_ROUTES = ['/events/catalog/passes', '/mis-pases', '/portal/eventos', '/portal/configuracion', '/portal/validacion-offline'];
 // Secciones principales: se guardan SOLO cuando la persona las abre con conexión (no se descargan por adelantado).
 // Sin conexión se abre lo que ya se visitó; lo que no se visitó muestra el aviso «Sin conexión».
-const VISITED_ROUTE_PREFIXES = ['/portal/comunidad', '/portal/beneficios', '/portal/empleos', '/job-postings', '/mentorship', '/my-applications'];
+const VISITED_ROUTE_PREFIXES = ['/portal/beneficios', '/portal/empleos', '/job-postings', '/mentorship', '/my-applications'];
 function isVisitedRoute(pathname) {
   return pathname === '/portal' || VISITED_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -280,7 +280,8 @@ self.addEventListener('install', (event) => {
 
     await precacheShellAssets(staticCache);
     await syncOfflineRoutes();
-    self.skipWaiting();
+    // HU06: no se activa sola. La versión nueva queda en espera hasta que la persona pulse «Actualizar»
+    // (mensaje SKIP_WAITING). La primera instalación se activa igualmente porque no hay versión anterior.
   })());
 });
 
@@ -305,7 +306,6 @@ function getHandledUrl(request) {
 // --- PÁGINA SIN CONEXIÓN (HU14) ---
 const OFFLINE_NAV_MEMBER = [
   { label: 'Inicio', href: '/portal', prefixes: [] },
-  { label: 'Comunidad', href: '/portal/comunidad', prefixes: ['/portal/comunidad', '/portal/beneficios'] },
   { label: 'Directorio', href: '/profile', prefixes: ['/profile', '/afinidad'] },
   { label: 'Bolsa de trabajo', href: '/job-postings', prefixes: ['/portal/empleos', '/job-postings'] },
   { label: 'Mentorías', href: '/mentorship', prefixes: ['/portal/mentorias', '/mentorship'] },
@@ -313,7 +313,6 @@ const OFFLINE_NAV_MEMBER = [
 ];
 const OFFLINE_NAV_GUEST = [
   { label: 'Inicio', href: '/portal/institucional', prefixes: [] },
-  { label: 'Comunidad', href: '/portal/institucional?tab=comunidad', prefixes: [] },
   { label: 'Bolsa de trabajo', href: '/portal/institucional?tab=empleos', prefixes: [] },
   { label: 'Mentorías', href: '/portal/institucional?tab=mentorias', prefixes: [] },
   { label: 'Eventos', href: '/portal/institucional?tab=eventos', prefixes: [] },
@@ -374,6 +373,13 @@ function offlineHtml() {
   .logout{width:100%;margin-top:12px;border:0;cursor:pointer;text-align:left}
   .logout[disabled]{opacity:.7;cursor:wait}
   nav.menu button.out{display:none;align-items:center;min-height:48px;padding:0 4px;border:0;border-bottom:1px solid #2C3B4D;background:transparent;color:#EEE9DF;font-size:.875rem;text-align:left;cursor:pointer}
+  .evlist{margin-top:22px;padding:16px;border-radius:12px;background:#FFF8EE;text-align:left}
+  .evlist h2{margin:0 0 6px;font-size:.95rem;color:#1B2632}
+  .evlist .evnote{margin:0 0 12px;font-size:.78rem;color:#5E6974}
+  .evlist ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+  .evlist li{padding:12px 14px;border-radius:10px;background:#fff;border:1px solid #E6DFD0}
+  .evlist li strong{display:block;font-size:.92rem;color:#1B2632}
+  .evlist li span{display:block;margin-top:2px;font-size:.8rem;color:#5E6974}
   .foot{margin-top:22px;text-align:center;font-size:.75rem;color:rgba(44,56,77,.5)}
   @media (max-width:900px){
     .bar{gap:8px;padding:0 14px}
@@ -411,6 +417,11 @@ function offlineHtml() {
     <button type="button" class="btn" id="retry" data-testid="offline-retry">&#10227; Reintentar</button>
     <p class="notice" id="notice" role="status" aria-live="polite" hidden>Todavía no hay conexión</p>
     <p class="notice" id="logged-out" role="status" aria-live="polite" hidden>Sesión cerrada. Tus datos privados se borraron de este dispositivo.</p>
+    <div class="evlist" id="events-box" data-testid="offline-events-box" hidden>
+      <h2>Eventos guardados en este dispositivo</h2>
+      <p class="evnote" id="events-note"></p>
+      <ul id="events-ul"></ul>
+    </div>
     <div class="avail">
       <h2>Disponible sin conexión</h2>
       <!-- HU09 CA-02: acceso destacado a Mis códigos QR sin recorrer el menú. -->
@@ -476,6 +487,14 @@ function offlineHtml() {
     acct.appendChild(go);
   }
 
+  // Los QR, eventos guardados y configuración son solo del titulado: empresa y administrador solo ven el aviso de conexión.
+  var notTitulado = hasSession && user && user.role && user.role !== 'titulado';
+  if (notTitulado) {
+    // Empresa y administrador: solo el aviso «Sin conexión a Internet» y Reintentar, sin la caja de accesos.
+    var availBox = document.querySelector('.avail');
+    if (availBox) availBox.hidden = true;
+  }
+
   var img = document.getElementById('logo-img');
   img.addEventListener('error', function () { img.hidden = true; document.getElementById('logo-text').hidden = false; });
 
@@ -536,6 +555,8 @@ function offlineHtml() {
     // Se borran páginas privadas guardadas y datos locales antes de recargar.
     clearPrivateCaches().then(function () {
       try {
+        // Se borran las dos bases de QR: la actual y la que usa el detalle del pase.
+        try { indexedDB.deleteDatabase('umsspira-event-passes'); } catch (e) {}
         var del = indexedDB.deleteDatabase('umsspira-offline');
         del.onsuccess = finish; del.onerror = finish; del.onblocked = finish;
       } catch (e) { finish(); }
@@ -558,6 +579,51 @@ function offlineHtml() {
     }
   } catch (e) {}
 
+  // Eventos sin conexión: si esta pantalla no se guardó, se muestran los eventos que la app guardó la última vez que se abrió con red.
+  function showSavedEvents() {
+    if (!hasSession || notTitulado || !startsWith(path, ['/portal/eventos']) || !window.indexedDB) return;
+    try {
+      var open = indexedDB.open('umsspira-hu04');
+      // Si la base no existía, NO se crea vacía (rompería el guardado posterior del catálogo): se cancela.
+      open.onupgradeneeded = function (e) { try { e.target.transaction.abort(); } catch (err) {} };
+      open.onerror = function () {};
+      open.onsuccess = function () {
+        var db = open.result;
+        try {
+          if (!db.objectStoreNames.contains('public-events')) { db.close(); return; }
+          var get = db.transaction('public-events', 'readonly').objectStore('public-events').get('catalog');
+          get.onsuccess = function () {
+            var rec = get.result;
+            db.close();
+            if (!rec || !rec.events || !rec.events.length) return;
+            var list = document.getElementById('events-ul');
+            var shown = 0;
+            rec.events.forEach(function (ev) {
+              if (!ev || ev.status !== 'PUBLICADO' || shown >= 20) return;
+              shown++;
+              var li = document.createElement('li');
+              var t = document.createElement('strong'); t.textContent = ev.title || 'Evento';
+              li.appendChild(t);
+              var when = '';
+              try { when = new Date(ev.startDate).toLocaleString('es-BO', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) {}
+              if (when) { var d = document.createElement('span'); d.textContent = when; li.appendChild(d); }
+              if (ev.location) { var l = document.createElement('span'); l.textContent = ev.location; li.appendChild(l); }
+              list.appendChild(li);
+            });
+            if (!shown) return;
+            var note = document.getElementById('events-note');
+            try { note.textContent = 'Última actualización: ' + new Date(rec.updatedAt).toLocaleString('es-BO', { dateStyle: 'medium', timeStyle: 'short' }) + ' · Para inscribirte necesitas conexión.'; } catch (e) {}
+            document.getElementById('title').textContent = 'Sin conexión a Internet';
+            document.getElementById('msg').textContent = 'No se pudo abrir la pantalla completa de eventos, pero esto es lo que tienes guardado.';
+            document.getElementById('events-box').hidden = false;
+          };
+          get.onerror = function () { db.close(); };
+        } catch (e) { try { db.close(); } catch (e2) {} }
+      };
+    } catch (e) {}
+  }
+  showSavedEvents();
+
   window.addEventListener('online', function () { if (!busy) { busy = true; location.replace(location.href); } }, { once: true });
 })();
 </script>
@@ -570,6 +636,12 @@ function offlineResponse() {
     status: 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
   });
+}
+
+// Rutas de navegación que atiende el Service Worker (portal + secciones que se guardan para uso sin conexión).
+const INTERCEPTED_PREFIXES = ['/portal', '/events', '/mis-pases', '/job-postings', '/mentorship', '/my-applications', '/profile', '/afinidad'];
+function isInterceptedRoute(pathname) {
+  return isOfflineRoute(pathname) || INTERCEPTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 // --- NAVIGATION HANDLER ---
@@ -603,7 +675,7 @@ async function handleNavigation(event) {
     }
     return response;
   } catch (e) {
-    // F5 / recargar el inicio sin conexión: se muestra la pantalla «Sin conexión» con los accesos disponibles.
+    // F5 / recargar el inicio sin conexión: pantalla «Sin conexión a Internet» con los accesos disponibles.
     if (isHomeReload(request, url)) return offlineResponse();
     if (isOfflineRoute(url.pathname)) {
       const cache = await caches.open(ROUTES_CACHE);
@@ -612,6 +684,7 @@ async function handleNavigation(event) {
         (await cache.match(request, { ignoreSearch: true, ignoreVary: true }));
       if (cached) return cleanResponse(cached);
     }
+    // Ruta que nunca se visitó: aviso «Sin conexión a Internet» con accesos a lo guardado (Mis QR, Eventos, Configuración).
     return offlineResponse();
   }
 }
@@ -670,12 +743,13 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     const navUrl = new URL(request.url);
-    const esDelPortal =
+    // Solo pasan por aquí las secciones del portal (el homepage '/', '/me' u otras épicas NO se interceptan).
+    const interceptar =
       navUrl.origin === self.location.origin &&
-      (navUrl.pathname === '/portal' ||
-        navUrl.pathname.startsWith('/portal/') ||
-        isOfflineRoute(navUrl.pathname));
-    if (!esDelPortal) return;
+      !/^\/(api|auth|_next)(\/|$)/.test(navUrl.pathname) &&
+      !/\.[a-z0-9]{2,5}$/i.test(navUrl.pathname) &&
+      isInterceptedRoute(navUrl.pathname);
+    if (!interceptar) return;
     event.respondWith(handleNavigation(event));
     return;
   }
@@ -766,4 +840,3 @@ self.addEventListener('message', (event) => {
   const handler = EXT.messages[data.type];
   if (typeof handler === 'function') handler(event);
 });
-
