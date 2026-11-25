@@ -1,0 +1,27 @@
+meta {
+  name: Cerrar mi vacante
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/vacantes/{{vacanteId}}/cerrar
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Usa el UUID de una vacante propia en vacanteId y un token de Empresa en accessToken.
+  Cerrar es irreversible. Repetir la llamada es idempotente (200 con estado CERRADO).
+  400 si vacanteId no es un UUID.
+  403 si el actor no tiene el permiso empresas:self:write.
+  404 si la vacante no existe o no es de la empresa del actor.
+}

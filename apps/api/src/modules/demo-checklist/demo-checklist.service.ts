@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
+import { PUBLISHED_STATUS_VALUES } from '../job-postings/domain/policies/job-posting-status.policy';
 
 export type EstadoChequeo = 'listo' | 'revisar' | 'pendiente';
 
@@ -66,9 +67,15 @@ export class DemoChecklistService {
   private async vacantes(): Promise<ChequeoDemo> {
     // Misma lectura que usa /job-postings: incluye la tabla de requisitos técnicos.
     await this.prisma.vacante.findMany({ take: 1, include: { requisito_tecnico_registros: true } });
-    const publicadas = await this.prisma.vacante.count({ where: { estado: { in: ['PUBLICADO', 'PUBLICADA', 'ACTIVA'] } } });
+    // HU-14: los estados "publicada" salen de la política única, no de una lista local.
+    const publicadas = await this.prisma.vacante.count({
+      where: { estado: { in: [...PUBLISHED_STATUS_VALUES] } },
+    });
     const conRequisitos = await this.prisma.vacante.count({
-      where: { estado: { in: ['PUBLICADO', 'PUBLICADA', 'ACTIVA'] }, requisito_tecnico_registros: { some: {} } },
+      where: {
+        estado: { in: [...PUBLISHED_STATUS_VALUES] },
+        requisito_tecnico_registros: { some: {} },
+      },
     });
     if (publicadas === 0) {
       return { id: 'vacantes', estado: 'revisar', detalle: 'La consulta responde, pero no hay vacantes publicadas.' };

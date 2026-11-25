@@ -591,6 +591,48 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
     expect(postulacion?.matchPercentage).toBe(0);
   });
 
+  it('marca como no disponible una vacante publicada con fecha de cierre vencida (HU-14)', async () => {
+    const { servicio } = crearServicio([
+      {
+        id: ID_POSTULACION,
+        created_at: null,
+        porcentaje_match: null,
+        vacante: {
+          id: ID_VACANTE,
+          titulo: 'Analista',
+          estado: 'PUBLICADO',
+          fecha_cierre: new Date('2020-01-01T00:00:00.000Z'),
+          empresa: null,
+        },
+      },
+    ]);
+
+    const [postulacion] = await servicio.listarMisPostulaciones(ID_USUARIO);
+
+    expect(postulacion?.isVacancyAvailable).toBe(false);
+  });
+
+  it('mantiene disponible una vacante publicada con fecha de cierre futura (HU-14)', async () => {
+    const { servicio } = crearServicio([
+      {
+        id: ID_POSTULACION,
+        created_at: null,
+        porcentaje_match: null,
+        vacante: {
+          id: ID_VACANTE,
+          titulo: 'Analista',
+          estado: 'PUBLICADO',
+          fecha_cierre: new Date('2099-01-01T00:00:00.000Z'),
+          empresa: null,
+        },
+      },
+    ]);
+
+    const [postulacion] = await servicio.listarMisPostulaciones(ID_USUARIO);
+
+    expect(postulacion?.isVacancyAvailable).toBe(true);
+  });
+
   it('permite abrir vacantes cerradas solo cuando el titulado se postuló', async () => {
     const vacante = {
       id: ID_VACANTE,
@@ -745,7 +787,7 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
 
   function crearServicio(opts: { vacantesVisibles?: number } = {}) {
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(0),
       vacante: {
         update: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Nueva' }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Actual' }),
@@ -822,8 +864,8 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
     await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { titulo: 'Nueva' });
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
-    const orden = tx.$queryRaw.mock.invocationCallOrder[0];
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    const orden = tx.$executeRaw.mock.invocationCallOrder[0];
     const actualizacion = tx.vacante.update.mock.invocationCallOrder[0];
     expect(orden).toBeLessThan(actualizacion);
   });
