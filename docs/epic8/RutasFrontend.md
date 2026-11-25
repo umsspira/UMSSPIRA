@@ -167,3 +167,5 @@ Rutas que el SW puede dejar abrir sin conexión (`OFFLINE_ALLOWED_ROUTES`): `/po
 - S3-HU09, S3-HU10, S3-HU13, S3-HU16, S3-HU17 y S3-HU18: completar según se fusionen.
 - E5-HU14 y E5-HU19: confirmar la ubicación exacta de `/empresa/mis-vacantes` y de «mis postulaciones».
 - Verificar con una búsqueda en el repo que cada ruta de este archivo existe: `find apps/web/src/app -name "page.tsx"`.
+   
+   
