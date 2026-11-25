@@ -559,6 +559,18 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
           },
         });
 
+        // El bloqueo de la solicitud y el retorno para PENDIENTE evitan
+        // registrar dos reenvíos al reintentar la misma entrega.
+        await tx.historialEvento.create({
+          data: {
+            id_solicitud: applicationId,
+            version,
+            accion: 'REENVIO',
+            tipo_actor: 'TITULADO',
+            detalle: 'Solicitud corregida y reenviada para revisión',
+          },
+        });
+
         return {
           id: applicationId,
           estado: 'PENDIENTE',

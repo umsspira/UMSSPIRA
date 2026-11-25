@@ -77,7 +77,7 @@ export interface SaveFindingCheckInput {
 
 export interface ApplicationHistoryEvent {
   id: string;
-  version: number;
+  version: number | null;
   action: string;
   title: string;
   description: string | null;
