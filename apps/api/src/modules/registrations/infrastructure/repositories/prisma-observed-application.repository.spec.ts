@@ -79,6 +79,7 @@ describe('PrismaObservedApplicationRepository', () => {
         update: jest.fn().mockResolvedValue({ id: 'doc-1' }),
         create: jest.fn().mockResolvedValue({ id: 'new-doc-1' }),
       },
+      historialEvento: { create: jest.fn().mockResolvedValue({ id: "event-1" }) },
       tokenSubsanacion: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
@@ -620,6 +621,11 @@ describe('PrismaObservedApplicationRepository', () => {
         { expectedVersion: 2 },
       );
 
+      expect(tx.historialEvento.create).toHaveBeenCalledTimes(1);
+      expect(tx.historialEvento.create).toHaveBeenCalledWith({ data: {
+        id_solicitud: applicationId, version: 2, accion: 'REENVIO', tipo_actor: 'TITULADO',
+        detalle: 'Solicitud corregida y reenviada para revisión',
+      } });
       expect(response.estado).toBe('PENDIENTE');
       expect(response.version).toBe(2);
 
@@ -662,6 +668,28 @@ describe('PrismaObservedApplicationRepository', () => {
           usado: true,
         },
       });
+    });
+
+    it('un reintento posterior al reenvío no registra otro evento', async () => {
+      const application = { id: applicationId, estado: 'OBSERVADA', version_vigente: 2,
+        detalle_solicitud: mockDetail, id_documento_respaldo: 'doc-1' };
+      const { repository, tx } = createRepo({ application });
+      await repository.submitCorrection(applicationId, { expectedVersion: 2 });
+      tx.solicitud.findUnique.mockResolvedValue({ ...application, estado: 'PENDIENTE' });
+      await repository.submitCorrection(applicationId, { expectedVersion: 2 });
+      expect(tx.historialEvento.create).toHaveBeenCalledTimes(1);
+      expect(tx.solicitud.update).toHaveBeenCalledTimes(1);
+      expect(tx.$queryRaw.mock.calls[0][0].join('')).toContain('FOR UPDATE');
+    });
+
+    it('propaga un fallo al registrar el evento para abortar la transacción', async () => {
+      const { repository, tx } = createRepo({ application: {
+        id: applicationId, estado: 'OBSERVADA', version_vigente: 2,
+        detalle_solicitud: mockDetail, id_documento_respaldo: 'doc-1',
+      } });
+      tx.historialEvento.create.mockRejectedValue(new Error('Error de persistencia'));
+      await expect(repository.submitCorrection(applicationId, { expectedVersion: 2 }))
+        .rejects.toThrow('Error de persistencia');
     });
 
     it('conserva el evento de reemplazo al reenviar la solicitud', async () => {
@@ -723,6 +751,7 @@ describe('PrismaObservedApplicationRepository', () => {
         const response = await repository.submitCorrection(applicationId, { expectedVersion: 2 });
         expect(response.estado).toBe(estado);
         expect(tx.solicitud.update).not.toHaveBeenCalled();
+        expect(tx.historialEvento.create).not.toHaveBeenCalled();
       }
     });
 
