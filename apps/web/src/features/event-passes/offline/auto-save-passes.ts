@@ -18,7 +18,7 @@ export function markPassRemovedFromDevice(userId: string, passId: string): void 
   try {
     const list = new Set(readRemoved(userId));
     list.add(passId);
-    window.localStorage.setItem(REMOVED_KEY_PREFIX + userId, JSON.stringify([...list]));
+    window.localStorage.setItem(REMOVED_KEY_PREFIX + userId, JSON.stringify(Array.from(list)));
   } catch {
     // Sin almacenamiento: el pase podría guardarse otra vez, no es grave.
   }
