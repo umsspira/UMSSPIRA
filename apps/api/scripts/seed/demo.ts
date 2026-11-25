@@ -42,12 +42,22 @@ async function seedDemo(): Promise<void> {
       await step.run(prisma);
     }
     console.info('Demostración preparada. Los registros existentes conservaron sus datos.');
+  } catch (error: unknown) {
+    // --- INICIO DE LA MODIFICACIÓN PARA VER EL ERROR REAL ---
+    console.error('\n❌ ==========================================');
+    console.error('❌ ERROR REAL CAPTURADO EN EL SEED');
+    console.error('❌ ==========================================');
+    console.dir(error, { depth: null }); // Esto imprimirá TODO el objeto de error
+    console.error('==========================================\n');
+    throw error;
+    // --- FIN DE LA MODIFICACIÓN ---
   } finally {
     await prisma.$disconnect();
   }
 }
 
 void seedDemo().catch((error: unknown) => {
+  // Dejamos el catch original por si acaso, pero el error real ya se imprimió arriba
   const message =
     error instanceof Error && error.message.startsWith('El seed de demostración')
       ? error.message

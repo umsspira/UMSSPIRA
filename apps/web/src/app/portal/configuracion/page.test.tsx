@@ -55,7 +55,7 @@ describe('Configuración PWA', () => {
     render(<ConfiguracionPage />);
     await waitFor(() => expect(screen.getByTestId('config-estado')).toHaveAttribute('data-guardado', 'ok'));
     expect(screen.getByTestId('config-estado')).toHaveAttribute('data-modo', 'sin-conexion');
-    expect(screen.getByTestId('config-estado-titulo')).toHaveTextContent('Sin conexión');
+    expect(screen.getByTestId('config-estado-titulo')).toHaveTextContent('Sin señal');
     expect(screen.getByText(/No hubo ningún error/i)).toBeInTheDocument();
   });
 

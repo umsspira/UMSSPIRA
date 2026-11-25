@@ -1,12 +1,18 @@
 ﻿'use client';
 
+import { useKnownRole } from '@/shared/hooks/use-known-role';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Briefcase, Calendar, ChevronRight, QrCode, Search, Star, Users } from 'lucide-react';
+import { Briefcase, Calendar, ChevronRight, QrCode, Search, Users, WifiOff } from 'lucide-react';
 import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 import umssBg from '@/shared/assets/images/14sept.webp';
+import { useRealConnection } from '@/shared/hooks/use-real-connection';
+import { CONNECTION_MODE_LABEL, useConnectionMode } from '@/shared/hooks/use-connection-mode';
 import { getEventCatalog } from '@/shared/services/events-service';
+import { SectionUnavailable } from '@/shared/components/section-boundary';
+import { logSectionFailure } from '@/shared/services/section-failure-log';
+import { SectionTimeoutError, withTimeout } from '@/shared/utils/with-timeout';
 
 const ACCESOS_RAPIDOS = [
   {
@@ -15,13 +21,6 @@ const ACCESOS_RAPIDOS = [
     Icon: Calendar,
     iconStyle: 'bg-amber-50 text-amber-600',
     descripcion: 'Participa en los próximos eventos de la comunidad UMSS.',
-  },
-  {
-    href: '/portal/beneficios',
-    titulo: 'Beneficios',
-    Icon: Star,
-    iconStyle: 'bg-amber-50 text-amber-600',
-    descripcion: 'Descubre los convenios y descuentos para titulados.',
   },
   {
     href: '/portal/empleos',
@@ -63,20 +62,7 @@ function formatearHora(iso: string): string {
 }
 
 function useEstaEnLinea(): boolean {
-  const [enLinea, setEnLinea] = useState(true);
-
-  useEffect(() => {
-    const actualizar = () => setEnLinea(navigator.onLine);
-    actualizar();
-    window.addEventListener('online', actualizar);
-    window.addEventListener('offline', actualizar);
-    return () => {
-      window.removeEventListener('online', actualizar);
-      window.removeEventListener('offline', actualizar);
-    };
-  }, []);
-
-  return enLinea;
+  return useRealConnection();
 }
 
 function ImagenEvento({ evento }: { evento: EventItem }) {
@@ -103,15 +89,22 @@ function ImagenEvento({ evento }: { evento: EventItem }) {
 }
 
 export default function Home() {
+  const esTitulado = [null, 'titulado'].includes(useKnownRole());
   const enLinea = useEstaEnLinea();
+  const modoConexion = useConnectionMode();
   const [eventos, setEventos] = useState<EventItem[]>([]);
   const [cargando, setCargando] = useState(true);
   const [consulta, setConsulta] = useState('');
+  // HU18: si la sección de eventos falla o tarda más de 8 s, solo ella muestra «Reintentar».
+  const [eventosFallo, setEventosFallo] = useState<'no' | 'error' | 'tiempo'>('no');
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
     let activo = true;
+    setCargando(true);
+    setEventosFallo('no');
 
-    getEventCatalog()
+    withTimeout(() => getEventCatalog())
       .then((catalogo) => {
         if (!activo) return;
         const publicados = catalogo
@@ -120,8 +113,14 @@ export default function Home() {
           .slice(0, 3);
         setEventos(publicados);
       })
-      .catch(() => {
-        if (activo) setEventos([]);
+      .catch((error: unknown) => {
+        if (!activo) return;
+        setEventos([]);
+        logSectionFailure('home-events', error instanceof SectionTimeoutError ? 'timeout' : 'error', error);
+        // Sin conexión el aviso general del inicio ya lo explica: no se duplica.
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          setEventosFallo(error instanceof SectionTimeoutError ? 'tiempo' : 'error');
+        }
       })
       .finally(() => {
         if (activo) setCargando(false);
@@ -130,7 +129,7 @@ export default function Home() {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [intento]);
 
   const termino = normalizar(consulta.trim());
   const accesos = useMemo(
@@ -153,7 +152,8 @@ export default function Home() {
           >
             Estás navegando sin conexión. Algunos contenidos pueden no estar actualizados.
           </p>
-          <Link
+          {esTitulado && (
+<Link
             href="/mis-pases"
             data-testid="home-offline-qr-access"
             className="mb-5 flex items-center gap-3 rounded-2xl bg-[#1B2632] px-5 py-4 text-[#EEE9DF] shadow-md transition-colors hover:bg-[#2C3B4D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB162]"
@@ -164,6 +164,7 @@ export default function Home() {
             </span>
             <span aria-hidden="true" className="text-xl text-[#FFB162]">›</span>
           </Link>
+)}
         </>
       )}
 
@@ -182,7 +183,7 @@ export default function Home() {
           }`}
         >
           <span aria-hidden="true" className={`h-2 w-2 rounded-full ${enLinea ? 'bg-green-400' : 'bg-red-400'}`} />
-          {enLinea ? 'En línea' : 'Sin conexión'}
+          {CONNECTION_MODE_LABEL[modoConexion]}
         </span>
         <div className="relative z-10 max-w-2xl space-y-3 pt-6 sm:pt-0">
           <h1 className="font-serif text-4xl font-bold tracking-wide md:text-5xl">
@@ -198,8 +199,8 @@ export default function Home() {
               value={consulta}
               onChange={(e) => setConsulta(e.target.value)}
               disabled={!enLinea}
-              aria-label="Buscar eventos, beneficios y empleos"
-              placeholder="Busque eventos, beneficios, empleos..."
+              aria-label="Buscar eventos y empleos"
+              placeholder="Busque eventos, empleos..."
               className="min-h-[44px] w-full rounded-xl bg-white py-3 pl-11 pr-4 text-base text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </form>
@@ -209,7 +210,7 @@ export default function Home() {
       <section
         data-testid="home-primary-actions"
         aria-label="Accesos rápidos"
-        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
+        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         {accesos.map(({ href, titulo, descripcion, Icon, iconStyle }) => (
           <Link
@@ -230,8 +231,8 @@ export default function Home() {
           </Link>
         ))}
 
-        {enLinea && !termino && (
-          <Link
+        {enLinea && !termino && esTitulado && (
+<Link
             href="/mis-pases"
             data-testid="home-online-qr-access"
             className="flex min-h-[44px] flex-col justify-between gap-4 rounded-2xl border border-[#C9C1B1] bg-[#F5F2EA] p-5 shadow-sm transition-shadow hover:shadow-md"
@@ -255,7 +256,32 @@ export default function Home() {
 
         {cargando && <p className="mt-4 text-sm text-slate-500">Cargando eventos…</p>}
 
-        {!cargando && eventosFiltrados.length === 0 && (
+        {!cargando && enLinea && eventosFallo !== 'no' && (
+          <div className="mt-4" data-testid="home-events-unavailable">
+            <SectionUnavailable
+              title="Próximos eventos"
+              timedOut={eventosFallo === 'tiempo'}
+              onRetry={() => setIntento((valor) => valor + 1)}
+            />
+          </div>
+        )}
+
+        {!cargando && !enLinea && eventosFiltrados.length === 0 && (
+          <div
+            data-testid="home-offline-card"
+            className="mt-4 flex flex-col items-center rounded-2xl bg-white px-6 py-12 text-center shadow-sm"
+          >
+            <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <WifiOff className="h-8 w-8" />
+            </span>
+            <h3 className="mt-5 text-2xl font-bold text-[#1B2632]">Sin conexión a Internet</h3>
+            <p className="mt-2 max-w-md text-sm text-slate-500">
+              Puedes seguir navegando por las secciones guardadas. La barra se oculta sola cuando vuelva la red.
+            </p>
+          </div>
+        )}
+
+        {!cargando && enLinea && eventosFallo === 'no' && eventosFiltrados.length === 0 && (
           <p className="mt-4 text-sm text-slate-500">No hay eventos próximos por ahora.</p>
         )}
 

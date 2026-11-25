@@ -129,7 +129,9 @@ export const postulacionesE4: Prisma.PostulacionCreateManyInput[] = [
     id_vacante: E4_VACANCY_WITH_APPLICANTS,
     porcentaje_match: match,
     estado: etapa,
-    created_at: new Date(Date.UTC(2026, 10, 2 + (i % 9))),
+    // CORRECCIÓN: Se agrega fecha_match. Si match es null, ambas fechas son null.
+    created_at: match === null ? null : new Date(Date.UTC(2026, 10, 2 + (i % 9))),
+    fecha_match: match === null ? null : new Date(Date.UTC(2026, 10, 2 + (i % 9))),
   })),
   // El titulado demo también se postula, para probar con su cuenta.
   {
@@ -139,12 +141,17 @@ export const postulacionesE4: Prisma.PostulacionCreateManyInput[] = [
     porcentaje_match: 79,
     estado: 'postulado',
     created_at: new Date('2026-11-10T15:00:00Z'),
+    fecha_match: new Date('2026-11-10T15:00:00Z'), // Agregado también aquí
   },
 ];
+
 export async function seedEpic4(prisma: PrismaClient): Promise<void> {
+  // 1. Primero crear empresas (si hay)
   if (empresas.length > 0) {
     await prisma.empresa.createMany({ data: empresas, skipDuplicates: true });
   }
+
+  // 2. Crear relaciones empresa-usuario (a partir de empresas existentes)
   const propietarios = await prisma.empresa.findMany({
     where: { id_usuario: { not: null } },
     select: { id: true, id_usuario: true },
@@ -160,13 +167,23 @@ export async function seedEpic4(prisma: PrismaClient): Promise<void> {
       skipDuplicates: true,
     });
   }
+
+  // 3. Crear datos relacionados con la empresa (teléfonos, direcciones, sectores)
   await prisma.telefonoEmpresa.createMany({ data: telefonos, skipDuplicates: true });
   await prisma.direccionEmpresa.createMany({ data: direcciones, skipDuplicates: true });
   await prisma.sectorEmpresa.createMany({ data: sectores, skipDuplicates: true });
+
+  // 4. Crear vacantes (ya existe la empresa)
   await prisma.vacante.createMany({ data: vacantesE4, skipDuplicates: true });
+
+  // 5. Crear usuarios y titulados postulantes
   await prisma.usuario.createMany({ data: usuariosPostulantes, skipDuplicates: true });
   await prisma.titulado.createMany({ data: tituladosPostulantes, skipDuplicates: true });
+
+  // 6. Crear postulaciones (dependen de usuarios y vacantes)
   await prisma.postulacion.createMany({ data: postulacionesE4, skipDuplicates: true });
+
+  // 7. Finalmente, requerimientos y habilidades
   if (requerimientos.length > 0) {
     await prisma.requerimientoLaboral.createMany({ data: requerimientos, skipDuplicates: true });
   }

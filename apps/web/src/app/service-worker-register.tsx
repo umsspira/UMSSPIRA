@@ -9,6 +9,7 @@ type UpdatePhase = 'idle' | 'loading' | 'error';
 export default function ServiceWorkerRegister() {
   const [apply, setApply] = useState<(() => void) | null>(null);
   const [phase, setPhase] = useState<UpdatePhase>('idle');
+  const [postponed, setPostponed] = useState(false);
 
   useEffect(() => {
     registerServiceWorker((applyUpdate) => setApply(() => applyUpdate));
@@ -21,7 +22,8 @@ export default function ServiceWorkerRegister() {
     return () => clearTimeout(timeoutId);
   }, [phase]);
 
-  if (!apply) return null;
+  // HU06 CA-03/04: «Más tarde» oculta el aviso; la versión sigue en espera y vuelve a avisar en la próxima visita.
+  if (!apply || postponed) return null;
 
   const handleApply = () => {
     if (phase === 'loading') return;
@@ -37,12 +39,20 @@ export default function ServiceWorkerRegister() {
           className="flex items-center justify-between gap-3 rounded-xl bg-slate-900 p-4 text-white"
         >
           <span className="text-sm">Hay una versión nueva disponible.</span>
-          <button
-            onClick={handleApply}
-            className="min-h-[44px] rounded-lg bg-amber-500 px-4 text-sm font-semibold text-slate-900"
-          >
-            Actualizar
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => setPostponed(true)}
+              className="min-h-[44px] rounded-lg border border-slate-500 px-3 text-sm font-semibold text-white"
+            >
+              Más tarde
+            </button>
+            <button
+              onClick={handleApply}
+              className="min-h-[44px] rounded-lg bg-amber-500 px-4 text-sm font-semibold text-slate-900"
+            >
+              Actualizar
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,5 +1,7 @@
 ﻿'use client';
 
+import { useKnownRole } from '@/shared/hooks/use-known-role';
+import { useRealConnection } from '@/shared/hooks/use-real-connection';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
@@ -10,11 +12,6 @@ const ACCESOS_RAPIDOS = [
     href: '/portal/eventos',
     titulo: 'Eventos',
     descripcion: 'Participa en los próximos eventos de la comunidad UMSS.',
-  },
-  {
-    href: '/portal/beneficios',
-    titulo: 'Beneficios',
-    descripcion: 'Descubre los convenios y descuentos para titulados.',
   },
   {
     href: '/portal/empleos',
@@ -49,20 +46,7 @@ function formatearHora(iso: string): string {
 }
 
 function useEstaEnLinea(): boolean {
-  const [enLinea, setEnLinea] = useState(true);
-
-  useEffect(() => {
-    const actualizar = () => setEnLinea(navigator.onLine);
-    actualizar();
-    window.addEventListener('online', actualizar);
-    window.addEventListener('offline', actualizar);
-    return () => {
-      window.removeEventListener('online', actualizar);
-      window.removeEventListener('offline', actualizar);
-    };
-  }, []);
-
-  return enLinea;
+  return useRealConnection();
 }
 
 function ImagenEvento({ evento }: { evento: EventItem }) {
@@ -89,6 +73,7 @@ function ImagenEvento({ evento }: { evento: EventItem }) {
 }
 
 export default function Home() {
+  const esTitulado = [null, 'titulado'].includes(useKnownRole());
   const enLinea = useEstaEnLinea();
   const [eventos, setEventos] = useState<EventItem[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -119,8 +104,8 @@ export default function Home() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      {!enLinea && (
-        <Link
+      {!enLinea && esTitulado && (
+<Link
           href="/mis-pases"
           data-testid="home-offline-qr-access"
           className="mb-5 block rounded-2xl bg-[#B44735] px-6 py-5 text-lg font-bold text-white shadow-sm"
@@ -141,7 +126,7 @@ export default function Home() {
       <section
         data-testid="home-primary-actions"
         aria-label="Accesos rápidos"
-        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
       >
         {ACCESOS_RAPIDOS.map((acceso) => (
           <Link
@@ -154,8 +139,8 @@ export default function Home() {
           </Link>
         ))}
 
-        {enLinea && (
-          <Link
+        {enLinea && esTitulado && (
+<Link
             href="/mis-pases"
             data-testid="home-online-qr-access"
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"

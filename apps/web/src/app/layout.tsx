@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { PortalSettingsShortcut } from "@/shared/components/portal-settings-shortcut";
+import { ConnectionStatusBanner } from "@/shared/components/connection-status-banner";
 import { PendingLogoutCompleter } from "@/shared/components/pending-logout-completer";
 
 const playfairDisplay = localFont({
@@ -54,6 +55,7 @@ export default function RootLayout({
         {children}
         <PortalSettingsShortcut />
         <PendingLogoutCompleter />
+        <ConnectionStatusBanner />
       </body>
     </html>
   );
