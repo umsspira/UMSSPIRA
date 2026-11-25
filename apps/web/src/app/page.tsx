@@ -61,7 +61,7 @@ export default function Home() {
                 </span>
                 <input 
                   type="text" 
-                  placeholder="Busque eventos, empleos..." 
+                  placeholder="Busque eventos, empleos..."
                   className="w-full pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 shadow-sm placeholder:text-slate-400 font-sans transition-all"
                 />
               </div>
