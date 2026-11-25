@@ -42,6 +42,7 @@ export class ManageSurveysController {
         startDate: body.startDate,
         endDate: body.endDate,
         format: body.format,
+        ...(body.careerId ? { careerId: body.careerId } : {}),
       }),
     };
   }

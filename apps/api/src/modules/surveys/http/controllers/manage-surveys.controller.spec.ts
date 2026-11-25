@@ -64,6 +64,23 @@ describe('ManageSurveysController', () => {
     expect(repository.createManaged).toHaveBeenCalledWith('admin-1', [careerId], body);
   });
 
+  it('pasa la carrera elegida cuando el administrador tiene varias', async () => {
+    const body = {
+      title: 'Encuesta 2026',
+      startDate: new Date('2026-11-01'),
+      endDate: new Date('2026-11-30'),
+      careerId,
+    };
+
+    await controller.create(adminActor, body);
+
+    expect(repository.createManaged).toHaveBeenCalledWith(
+      'admin-1',
+      [careerId],
+      expect.objectContaining({ careerId }),
+    );
+  });
+
   it('actualiza solo los campos enviados', async () => {
     const result = await controller.update(adminActor, surveyId, { title: 'Nuevo título' });
 
