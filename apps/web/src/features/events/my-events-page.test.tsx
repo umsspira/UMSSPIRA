@@ -47,6 +47,7 @@ describe('Cancelación desde Mis eventos', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    window.history.replaceState({}, '', '/');
     jest.mocked(getMyEventRegistrations).mockResolvedValue([registration]);
     jest.mocked(cancelEventRegistration).mockResolvedValue(undefined);
   });
@@ -54,7 +55,10 @@ describe('Cancelación desde Mis eventos', () => {
   it('conecta Mis pases y Ver pase con la pantalla existente solo para pases vigentes', async () => {
     render(<MyEventsPage />);
     expect(await screen.findByText(registration.event.title)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Mis pases' })).toHaveAttribute('href', '/events/catalog/passes');
+
+    expect(screen.getByRole('heading', { name: 'Recordatorios de eventos' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mis pases' })).toHaveAttribute('href', '/mis-pases');
+
     expect(screen.getByRole('link', { name: 'Ver pase' })).toHaveAttribute('href', '/mis-pases');
   });
 

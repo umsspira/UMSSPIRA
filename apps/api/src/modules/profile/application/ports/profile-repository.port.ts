@@ -50,6 +50,15 @@ export interface ProfileRepository {
   // T16.3 consume el metadata del CV desde el resumen; T16.4 consume el archivo con acceso validado.
   saveCv(scope: ProfileScope, file: CvFile): Promise<SavedCvFile>;
   readCv(scope: ProfileScope): Promise<CvFile>;
+  // Foto de perfil del titulado (HU-16): una sola por titulado, se reemplaza al subir otra
+  savePhoto(scope: ProfileScope, file: ProfilePhotoFile): Promise<void>;
+  readPhoto(scope: ProfileScope): Promise<ProfilePhotoFile>;
+}
+
+export interface ProfilePhotoFile {
+  mime: string;
+  bytes: Uint8Array;
+  size: number;
 }
 
 export interface CvFile {

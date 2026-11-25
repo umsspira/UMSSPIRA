@@ -4,9 +4,6 @@ jest.mock('./api-client', () => {
   return { ...actual, apiClient: jest.fn() };
 });
 
-// USE_MOCK se lee al cargar el módulo: se fija antes de importarlo.
-const originalUseMock = process.env.NEXT_PUBLIC_USE_MOCK;
-process.env.NEXT_PUBLIC_USE_MOCK = 'false';
 const { apiClient, ApiClientError } = require('./api-client') as typeof import('./api-client');
 const service = require('./applicants') as typeof import('./applicants');
 
@@ -24,10 +21,6 @@ const raw = {
 
 describe('servicio de postulantes con la API real (HU-15)', () => {
   const apiClientMock = apiClient as unknown as jest.Mock;
-
-  afterAll(() => {
-    process.env.NEXT_PUBLIC_USE_MOCK = originalUseMock;
-  });
 
   beforeEach(() => apiClientMock.mockReset());
 
@@ -298,6 +291,19 @@ describe('servicio de postulantes con la API real (HU-15)', () => {
     );
   });
 
+  it('conserva los estados técnicos de HU-12 y distingue 0 % de pendiente', async () => {
+    apiClientMock.mockResolvedValueOnce([
+      { ...raw, id: '1', matchPercentage: 0, matchStatus: 'ready' },
+      { ...raw, id: '2', matchPercentage: null, matchStatus: 'pending' },
+      { ...raw, id: '3', matchPercentage: null, matchStatus: 'error' },
+    ]);
+    const list = await service.getApplicantsByVacancy(VACANTE);
+    expect(list.map(({ matchPercentage, matchStatus }) => ({ matchPercentage, matchStatus }))).toEqual([
+      { matchPercentage: 0, matchStatus: 'ready' },
+      { matchPercentage: null, matchStatus: 'pending' },
+      { matchPercentage: null, matchStatus: 'error' },
+    ]);
+  });
   it('indica si el postulante subió su CV (HU-16)', async () => {
     apiClientMock.mockResolvedValueOnce([{ ...raw, hasCv: true }, raw]);
 

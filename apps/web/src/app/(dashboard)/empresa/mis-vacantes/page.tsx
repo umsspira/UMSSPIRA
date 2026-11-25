@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, FolderOpen, Search, Eye, Pencil, MoreVertical, 
-  Pause, Play, Trash2, Laptop, Building2, Users, BarChart2, Calendar, Ban, Plus
+  Pause, Play, Trash2, Laptop, Building2, Users, BarChart2, Calendar, Ban, Plus, HelpCircle
 } from 'lucide-react';
 import { ClipboardCheck } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
@@ -229,8 +229,10 @@ export default function MisVacantesPage() {
               </div>
             </div>
             
-            <Link href="/ayuda/bolsa-de-trabajo?tab=reclutador" className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline underline-offset-4">
-              Ayuda
+            {/* QA corrida 2 (EXP-03): "Ayuda" como acción secundaria junto a "Publicar vacante" */}
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center md:w-auto">
+            <Link href="/ayuda/bolsa-de-trabajo?tab=reclutador" className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-[#111827] hover:bg-gray-50 md:min-h-0 md:py-[0.6rem]">
+              <HelpCircle size={16} aria-hidden="true" /> Ayuda
             </Link>
             <Link href="/empresa/checklist-pre-demo" data-testid="enlace-checklist-pre-demo" className="inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold text-[#111827] hover:bg-[#fdfbf7]" style={{ borderColor: 'var(--oatmeal)' }}>
               <ClipboardCheck size={16} aria-hidden="true" /> Checklist pre-demo
@@ -238,6 +240,7 @@ export default function MisVacantesPage() {
             <Link href="/empresa/vacantes/publicar" className="min-h-11 w-full justify-center md:min-h-0 md:w-auto" style={{ padding: '0.65rem 1.25rem', backgroundColor: 'var(--flame)', color: '#fff', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', boxShadow: '0 4px 12px rgba(255,177,98,0.3)', transition: 'all 0.2s' }}>
               <Plus size={18} /> Publicar vacante
             </Link>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-4 md:gap-6 mb-6 md:mb-8">

@@ -18,6 +18,9 @@ import {
 } from '../job-postings/domain/policies/job-posting-status.policy';
 import { normalizeTechnicalRequirementName } from '../job-postings/domain/policies/normalize-technical-requirement-name';
 import { CalculateJobPostingAffinity } from '../job-postings/application/use-cases/calculate-job-posting-affinity.use-case';
+import { RefreshJobPostingAffinity } from '../job-postings/application/use-cases/refresh-job-posting-affinity.use-case';
+import { jobPostingAffinityInputHash } from '../job-postings/domain/policies/job-posting-affinity-input-hash';
+import { PrismaJobPostingAffinityDataAdapter } from '../job-postings/infrastructure/adapters/prisma-job-posting-affinity-data.adapter';
 import {
   JOB_POSTING_AFFINITY_DATA,
   type JobPostingAffinityDataPort,
@@ -53,6 +56,9 @@ export class VacantesService {
     private readonly calculateAffinity: CalculateJobPostingAffinity,
     @Inject(JOB_POSTING_AFFINITY_DATA)
     private readonly affinityData: JobPostingAffinityDataPort,
+    @Inject(RefreshJobPostingAffinity)
+    private readonly refreshAffinity: RefreshJobPostingAffinity,
+    private readonly transactionalAffinityData: PrismaJobPostingAffinityDataAdapter,
   ) {}
 
   async estadoPostulacion(idVacante: string, idUsuario: string) {
@@ -129,6 +135,22 @@ export class VacantesService {
     const affinity = await this.calculateInitialAffinity(idVacante, idUsuario);
 
     return this.prisma.$transaction(async (tx) => {
+      // Serializa la comprobación final con escrituras del perfil y de requisitos.
+      await tx.$queryRaw`SELECT id FROM titulado WHERE id_usuario = ${idUsuario}::uuid FOR UPDATE`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${idVacante}))`;
+      const currentVacancy = await tx.vacante.findUnique({
+        where: { id: idVacante }, select: { estado: true, fecha_cierre: true },
+      });
+      if (!currentVacancy || !vacanteDisponible(currentVacancy.estado, currentVacancy.fecha_cierre ?? null)) {
+        throw new BusinessRuleError('conflict', 'JOB_POSTING_UNAVAILABLE', 'Esta vacante ya no está disponible');
+      }
+      const [currentProfiles, currentRequirements] = await Promise.all([
+        this.transactionalAffinityData.readProfiles([idUsuario], tx),
+        this.transactionalAffinityData.readRequirements([idVacante], tx),
+      ]);
+      const currentHash = currentRequirements[0]
+        ? jobPostingAffinityInputHash(currentProfiles[0] ?? null, currentRequirements[0]) : null;
+      const initial = affinity && currentHash === affinity.hash ? affinity : null;
       // Bloqueo por par Titulado/Vacante: dos solicitudes simultáneas solo pueden crear una fila.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${idUsuario}), hashtext(${idVacante}))`;
       const existing = await tx.postulacion.findFirst({
@@ -145,8 +167,10 @@ export class VacantesService {
           id_vacante: idVacante,
           estado: 'postulado',
           created_at: new Date(),
-          porcentaje_match: affinity?.percentage ?? null,
-          fecha_match: affinity?.calculatedAt ? new Date(affinity.calculatedAt) : null,
+          porcentaje_match: initial?.percentage ?? null,
+          fecha_match: initial?.calculatedAt ? new Date(initial.calculatedAt) : null,
+          hash_entrada: initial?.hash ?? null,
+          estado_match: initial?.status ?? null,
         },
       });
       return { postulada: true, yaExistia: false };
@@ -159,16 +183,24 @@ export class VacantesService {
         this.affinityData.readProfiles([idUsuario]),
         this.affinityData.readRequirements([idVacante]),
       ]);
+      const profile = profiles.find((item) => item.userId === idUsuario) ?? null;
+      const vacancy = vacancies.find((item) => item.vacancyId === idVacante);
+      if (!vacancy) {return null;}
       const [calculation] = await this.calculateAffinity.execute({
-        profile: profiles.find((profile) => profile.userId === idUsuario) ?? null,
+        profile,
         vacancies,
       });
-      if (calculation?.result.status !== 'ready') {
-        return null;
+      if (!calculation) {return null;}
+      if (calculation.result.status === 'ready' &&
+        (!Number.isInteger(calculation.result.percentage) || calculation.result.percentage < 0 ||
+        calculation.result.percentage > 100 || Number.isNaN(Date.parse(calculation.result.calculatedAt)))) {
+        throw new Error('Resultado de afinidad fuera de contrato');
       }
       return {
         percentage: calculation.result.percentage,
         calculatedAt: calculation.result.calculatedAt,
+        status: calculation.result.status,
+        hash: jobPostingAffinityInputHash(profile, vacancy),
       };
     } catch {
       this.logger.warn('No se pudo calcular la afinidad al postular; se guardará sin resultado.');
@@ -209,6 +241,7 @@ export class VacantesService {
   }
 
   async listarMisPostulaciones(idUsuario: string) {
+    const refreshed = await this.refreshAffinity.forUser(idUsuario);
     const filas = await this.prisma.postulacion.findMany({
       where: { id_usuario: idUsuario },
       orderBy: [{ created_at: { sort: 'desc', nulls: 'last' } }, { id: 'asc' }],
@@ -230,6 +263,7 @@ export class VacantesService {
     });
 
     return filas.map((fila) => {
+      const matchStatus = refreshed.get(fila.id) ?? 'pending';
       const porcentaje = fila.porcentaje_match === null ? null : Number(fila.porcentaje_match);
       const porcentajeValido =
         porcentaje !== null && Number.isInteger(porcentaje) && porcentaje >= 0 && porcentaje <= 100;
@@ -240,12 +274,11 @@ export class VacantesService {
         companyName: fila.vacante?.empresa?.razon_social ?? null,
         appliedAt: fila.created_at?.toISOString() ?? null,
         matchPercentage:
-        porcentajeValido ? porcentaje : null,
-        matchCalculatedAt: porcentajeValido ? fila.fecha_match?.toISOString() ?? null : null,
-        isVacancyAvailable: vacanteDisponible(
-          fila.vacante?.estado ?? null,
-          fila.vacante?.fecha_cierre ?? null,
-        ),
+
+        matchStatus === 'ready' && porcentajeValido ? porcentaje : null,
+        matchCalculatedAt: matchStatus === 'ready' && porcentajeValido ? fila.fecha_match?.toISOString() ?? null : null,
+        matchStatus,
+        isVacancyAvailable: vacanteDisponible(fila.vacante?.estado ?? null, fila.vacante?.fecha_cierre ?? null),
       };
     });
   }
@@ -356,7 +389,7 @@ export class VacantesService {
       await this.cambiarEstado(idVacante, idUsuario, data.estado);
     }
     const cambios: Record<string, string> = {};
-  
+
     if (data.titulo !== undefined) {
       cambios['titulo'] = data.titulo;
     }
@@ -431,10 +464,9 @@ export class VacantesService {
           });
         }
       }
-
-      // TODO(HU-12): disparar aquí el recálculo de afinidad de las postulaciones
-      // cuando exista el servicio de matching (HU-10/HU-12, epic7).
-
+      // HU-12: el cambio de requisitos se confirma en esta transacción. La siguiente
+      // consulta autorizada compara el hash persistido y recalcula solo las postulaciones
+      // de esta vacante. Pausar/cerrar no modifica el porcentaje histórico.
       return actualizada;
     });
   }
@@ -593,7 +625,7 @@ export class VacantesService {
         }[];
       } | null;
     } | null;
-  }) {
+  }, matchStatus: string = 'pending') {
     const titulado = p.usuario?.titulado;
     const nombreCompleto = [titulado?.nombre, titulado?.apellido].filter(Boolean).join(' ');
     const match = p.porcentaje_match === null || p.porcentaje_match === undefined
@@ -611,8 +643,9 @@ export class VacantesService {
       hasCv: Boolean(titulado?.curriculum_vitae),
       cvUrl: null,
       // El porcentaje viene del motor (Épica 3/5); aquí NUNCA se calcula (CA-02, CA-10).
-      matchPercentage: matchValido ? match : null,
-      matchCalculatedAt: matchValido ? p.fecha_match?.toISOString() ?? null : null,
+      matchPercentage: matchStatus === 'ready' && matchValido ? match : null,
+      matchCalculatedAt: matchStatus === 'ready' && matchValido ? p.fecha_match?.toISOString() ?? null : null,
+      matchStatus,
       skills: null,
       workExperience: (titulado?.experiencia_laboral_registros ?? []).map((experiencia) => ({
         position: experiencia.cargo,
@@ -637,16 +670,18 @@ export class VacantesService {
 
   async listarPostulantes(idVacante: string, idUsuario: string) {
     await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
+    const refreshed = await this.refreshAffinity.forVacancy(idVacante, idUsuario);
     const filas = await this.prisma.postulacion.findMany({
       where: { id_vacante: idVacante },
       orderBy: [{ porcentaje_match: { sort: 'desc', nulls: 'last' } }, { created_at: 'asc' }],
       select: VacantesService.SELECT_POSTULANTE,
     });
-    return filas.map((fila) => VacantesService.toPostulante(fila));
+    return filas.map((fila) => VacantesService.toPostulante(fila, refreshed.get(fila.id)));
   }
 
   async obtenerPostulante(idVacante: string, idPostulacion: string, idUsuario: string) {
     await this.verificarVacanteDeMiEmpresa(idVacante, idUsuario);
+    const refreshed = await this.refreshAffinity.forApplication(idVacante, idUsuario, idPostulacion);
     const fila = await this.prisma.postulacion.findFirst({
       where: { id: idPostulacion, id_vacante: idVacante },
       select: VacantesService.SELECT_POSTULANTE,
@@ -654,7 +689,7 @@ export class VacantesService {
     if (!fila) {
       throw new NotFoundException('Postulante no encontrado');
     }
-    return VacantesService.toPostulante(fila);
+    return VacantesService.toPostulante(fila, refreshed.get(fila.id));
   }
 
   // T16.4 consume este archivo; la empresa se valida antes de leer el contenido binario.

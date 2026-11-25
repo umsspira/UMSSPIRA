@@ -35,7 +35,7 @@ describe('VacantesService · ciclo de vida con permisos (HU-14)', () => {
       },
       postulacion: { count: jest.fn().mockResolvedValue(postulantes) },
     };
-    return { servicio: new VacantesService(prisma as never, {} as never, {} as never), prisma };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never, {} as never, {} as never), prisma };
   }
 
   describe('cerrarVacante', () => {

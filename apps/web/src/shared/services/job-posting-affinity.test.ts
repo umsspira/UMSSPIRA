@@ -87,6 +87,19 @@ describe('job-posting-affinity service client', () => {
     expect(Object.keys(result)).toHaveLength(55);
   });
 
+  it('envía 50 vacantes en una sola solicitud de afinidad', async () => {
+    const ids = Array.from({ length: 50 }, (_, index) => `vac-${index}`);
+    mockApiFetch.mockResolvedValue([]);
+
+    await getVacanciesAffinityBatch(ids);
+
+    expect(mockApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockApiFetch).toHaveBeenCalledWith('/api/v1/affinity/batch', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'vacancies', vacancyIds: ids }),
+    });
+  });
+
   it('propaga fallo 503 cuando el servicio NLP o diccionario no está disponible', async () => {
     mockApiFetch.mockRejectedValue(
       new ApiError(503, 'Diccionario no disponible', 'NLP_DICTIONARY_UNAVAILABLE'),

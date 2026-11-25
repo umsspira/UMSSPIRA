@@ -5,11 +5,11 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import { CvUploadError, NO_CV, getMyCvUrl, loadCv, uploadCv, type CvInfo } from './cv-service';
 import { QueDatosVeEmpresaModal } from './que-datos-ve-empresa-modal';
 
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 
 export const CV_MESSAGES = {
   notPdf: 'El CV debe ser un archivo PDF',
-  tooBig: 'El archivo supera el tamaño máximo de 5 MB',
+  tooBig: 'El archivo supera el tamaño máximo de 4 MB',
   success: 'Tu CV se subió correctamente',
   failure: 'No se pudo subir el CV. Inténtalo nuevamente.',
   viewFailure: 'No se pudo abrir el CV. Inténtalo nuevamente.',
@@ -127,7 +127,7 @@ export function CvSection() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-abyssal-blue">Currículum (CV)</h2>
-          <p className="mt-1 text-sm text-abyssal-blue/70">Formato PDF, hasta 5 MB</p>
+          <p className="mt-1 text-sm text-abyssal-blue/70">Formato PDF, hasta 4 MB</p>
         </div>
         <button
           type="button"

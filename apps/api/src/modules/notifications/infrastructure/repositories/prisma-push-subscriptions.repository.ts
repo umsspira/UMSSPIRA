@@ -140,6 +140,7 @@ export class PrismaPushSubscriptionsRepository
         llave_secreta: { not: null },
       },
       select: {
+        id: true,
         url_push: true,
         llave_publica: true,
         llave_secreta: true,
@@ -150,7 +151,12 @@ export class PrismaPushSubscriptionsRepository
       if (!row.url_push || !row.llave_publica || !row.llave_secreta) {
         return [];
       }
-      return [{ endpoint: row.url_push, p256dh: row.llave_publica, auth: row.llave_secreta }];
+      return [{
+        deviceId: row.id,
+        endpoint: row.url_push,
+        p256dh: row.llave_publica,
+        auth: row.llave_secreta,
+      }];
     });
   }
 

@@ -1,0 +1,34 @@
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 24px;
+  align-items: start;
+  margin: 0 auto 32px;
+  padding: 24px;
+  width: min(1120px, calc(100% - 32px));
+  border: 1px solid #d8e2ee;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(22 46 78 / 6%);
+}
+
+.copy h2 {
+  margin: 0 0 8px;
+  color: #17365b;
+  font-size: 1.15rem;
+}
+
+.copy p {
+  margin: 0;
+  max-width: 560px;
+  color: #536579;
+  line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 18px;
+  }
+}

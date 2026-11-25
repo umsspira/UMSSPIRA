@@ -12,7 +12,7 @@ jest.mock('web-push', () => ({
 }));
 
 const mockedWebPush = webpush as jest.Mocked<typeof webpush>;
-const subscription = { endpoint: 'https://push.test/endpoint', p256dh: 'key', auth: 'auth' };
+const subscription = { deviceId: 'device-1', endpoint: 'https://push.test/endpoint', p256dh: 'key', auth: 'auth' };
 
 describe('WebPushAdapter', () => {
   // Estas pruebas construyen el ConfigService con su propio objeto; se aísla

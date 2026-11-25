@@ -3,6 +3,7 @@ import { Navbar } from '@/shared/components/navbar';
 import Image from 'next/image';
 import { Search, Calendar, Briefcase, Users, ChevronRight, Bookmark } from 'lucide-react';
 
+
 // Importamos tu imagen de fondo principal
 import umssBg from '@/shared/assets/images/14sept.webp';
 
