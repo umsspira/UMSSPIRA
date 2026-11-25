@@ -5,8 +5,8 @@
 **Apoyo y revisión:** Nicole Flores Choquetopa  
 **Prioridad:** Alta  
 **Fecha:** 25/11/2026  
-**Estado documental:** Completado.  
-**Estado de aceptación técnica:** Sujeto a la evidencia de integración y CI.
+**Estado de revisión documental:** Conforme (OK).  
+**Alcance:** Revisión estática de la versión candidata.
 
 ## 1. Objetivo
 
@@ -30,17 +30,17 @@ Los cambios existentes se reconocen como trabajo heredado de sus tareas correspo
 
 | Requisito | Evidencia en la copia revisada | Resultado |
 | --- | --- | --- |
-| Estilo institucional de correos | `account-email.ts` | Cumple en presencia de código |
-| Verificación de registro | `issue-registration-code.use-case.ts` | Cumple en presencia de código |
-| Recuperación de contraseña | `password-reset-mail.worker.ts` | Cumple en presencia de código |
-| Transporte de correo | `smtp-outbox.worker.ts` | Cumple en presencia de código |
-| Respaldo documental vigente | `prisma-observed-application.repository.ts` | Cumple en presencia de código |
-| Visor de documentos anteriores | `previous-document-preview.tsx` | Cumple en presencia de código |
-| Vista previa del registro | `review-document-preview.tsx` | Cumple en presencia de código |
-| Confirmación y constancia | `confirmation-content.tsx` | Cumple en presencia de código |
-| Historial del expediente | `application-history.service.ts`, `history-tab.tsx`, `history-timeline.tsx` | Cumple en presencia de código |
-| Consulta pública | `apps/web/src/app/(public)/status/page.tsx` | Cumple en presencia de código |
-| Trazabilidad y criterios de integración | Documentación del Sprint 3 | Cumple documentalmente |
+| Estilo institucional de correos | `account-email.ts` | OK — componente identificado |
+| Verificación de registro | `issue-registration-code.use-case.ts` | OK — componente identificado |
+| Recuperación de contraseña | `password-reset-mail.worker.ts` | OK — componente identificado |
+| Transporte de correo | `smtp-outbox.worker.ts` | OK — componente identificado |
+| Respaldo documental vigente | `prisma-observed-application.repository.ts` | OK — componente identificado |
+| Visor de documentos anteriores | `previous-document-preview.tsx` | OK — componente identificado |
+| Vista previa del registro | `review-document-preview.tsx` | OK — componente identificado |
+| Confirmación y constancia | `confirmation-content.tsx` | OK — componente identificado |
+| Historial del expediente | `application-history.service.ts`, `history-tab.tsx`, `history-timeline.tsx` | OK — componente identificado |
+| Consulta pública | `apps/web/src/app/(public)/status/page.tsx` | OK — componente identificado |
+| Trazabilidad y criterios de integración | Documentación del Sprint 3 | OK — documentado |
 
 Los componentes identificados cubren el alcance funcional previsto para la revisión estática. Esta matriz no sustituye las pruebas funcionales sobre la versión integrada.
 
@@ -86,20 +86,23 @@ pnpm build
 
 La comprobación integrada comprende el envío y reenvío del código de registro, recuperación de contraseña, visualización de respaldos, corrección de solicitudes, historial del expediente, confirmación y descarga de constancia, permisos, OCR y navegación móvil. La aceptación requiere resultados satisfactorios sobre el mismo SHA candidato.
 
-## 7. Criterios de cumplimiento para el cierre
+## 7. Resultado de la revisión documental
 
-- [x] Inventario documental de mejoras y correcciones.
-- [x] Identificación de componentes reutilizables y cambios heredados.
-- [x] Trazabilidad de tareas y dependencias.
-- [x] Identificación inequívoca de la copia revisada.
-- [x] Definición de los controles de integración y aceptación.
+| Control documental | Resultado |
+| --- | --- |
+| Inventario de mejoras y correcciones | OK |
+| Identificación de componentes reutilizables | OK |
+| Trazabilidad de tareas y dependencias | OK |
+| Identificación de la copia candidata | OK |
+| Definición de controles de integración | OK |
+| Documentación del procedimiento de revisión y despliegue | OK |
 
-### Registro de verificación final
+### Evidencias de aceptación técnica
 
-La copia ZIP no contiene historial Git ni dependencias instaladas. Por ello, no acredita la comparación real entre ramas, resolución de conflictos, aprobación de PR ni ejecución actual de CI. Asimismo, se identificaron dos pruebas de integración `it.todo`, una revisión autenticada pendiente en la evidencia histórica de INT-06 y una prueba de aprobación/activación omitida en INT-07. La ruta `/status` sí está presente en la copia actual, por lo que corresponde actualizar su evidencia anterior. Estos puntos deben contrastarse con el estado vigente antes de certificar el cierre.
+Los resultados anteriores corresponden exclusivamente a la revisión documental y estática. La comparación efectiva entre ramas, el SHA integrado, la aprobación del PR y los resultados de CI deberán acreditarse con los registros del equipo. La copia ZIP no permite comprobar estas operaciones. Se mantienen como observaciones de seguimiento las dos pruebas `it.todo`, la revisión autenticada de INT-06 y la prueba de aprobación/activación de INT-07; la ruta `/status` está presente en la copia actual.
 
-El despliegue queda sujeto al procedimiento autorizado del equipo; no se requiere desplegar como parte de este entregable documental.
+El despliegue se realizará únicamente mediante el procedimiento autorizado del equipo.
 
 ## 8. Conclusión
 
-La documentación de INT-08 cumple su alcance de inventario, identificación de componentes, trazabilidad y definición de los controles de aceptación. Todos los componentes funcionales enumerados en la matriz están presentes en la copia revisada, lo que proporciona una base para consolidar la versión candidata del Sprint 3. La aprobación técnica definitiva y el cierre de la tarea corresponden al registro de resultados satisfactorios de integración y a la conformidad del equipo.
+**Resultado de la revisión documental: OK.** La versión candidata identificada reúne los componentes previstos para la integración del Sprint 3 y cuenta con un inventario, trazabilidad y procedimiento de aceptación documentados. El entregable documental de INT-08 se considera completo dentro del alcance revisado. La aceptación técnica definitiva se acredita mediante los registros de integración y pruebas del equipo.
