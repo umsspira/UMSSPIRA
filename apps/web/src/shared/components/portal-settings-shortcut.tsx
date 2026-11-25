@@ -5,7 +5,19 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { useAuthStore } from '@/modules/auth/frontend/store';
+import { NAVBAR_OFFLINE_USER_KEY } from '@/shared/components/navbar/offline-user';
 import { isOfflineSessionValid } from '@/features/event-passes/offline/offline-session';
+
+/** Rol de la sesión: el de la sesión en memoria o, sin ella (recarga sin conexión), el último usuario recordado. */
+function rolConocido(role: string | null | undefined): string | null {
+  if (role) return role;
+  try {
+    const raw = window.localStorage.getItem(NAVBAR_OFFLINE_USER_KEY);
+    return raw ? ((JSON.parse(raw) as { role?: string }).role ?? null) : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Pantallas donde nunca se muestra, aunque haya sesión (la propia configuración y el acceso). */
 const HIDDEN_PATHS = ['/portal/configuracion', '/portal/institucional', '/login', '/register'];
@@ -43,6 +55,9 @@ export function PortalSettingsShortcut() {
   }, [auth.accessToken, pathname]);
 
   if (!hasSession) return null;
+  // La configuración PWA es solo del titulado: empresa y administrador no ven este botón.
+  const role = rolConocido((auth as { role?: string | null }).role);
+  if (role === 'empresa' || role === 'administrador') return null;
   if (HIDDEN_PATHS.some((path) => pathname === path || pathname?.startsWith(`${path}/`))) return null;
 
   return (
