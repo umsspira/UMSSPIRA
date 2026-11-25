@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navbar } from '@/shared/components/navbar';
 import Image from 'next/image';
-import { Search, Calendar, Briefcase, Star, Users, ChevronRight, Bookmark } from 'lucide-react';
+import { Search, Calendar, Briefcase, Users, ChevronRight, Bookmark } from 'lucide-react';
 
 
 // Importamos tu imagen de fondo principal
@@ -61,7 +61,7 @@ export default function Home() {
                 </span>
                 <input 
                   type="text" 
-                  placeholder="Busque eventos, beneficios, empleos..." 
+                  placeholder="Busque eventos, empleos..."
                   className="w-full pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 shadow-sm placeholder:text-slate-400 font-sans transition-all"
                 />
               </div>
@@ -70,7 +70,7 @@ export default function Home() {
         </section>
 
         {/* Tarjetas de Navegación Rápida (4 Tarjetas Superiores Fluidas) */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           
           {/* Tarjeta 1: Eventos */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4 cursor-pointer group">
@@ -97,20 +97,6 @@ export default function Home() {
             <div>
               <h3 className="font-bold text-slate-900 text-base font-sans">Bolsa de trabajo</h3>
               <p className="text-xs text-slate-500 mt-1 font-sans">Encuentra nuevas oportunidades laborales.</p>
-            </div>
-          </div>
-
-          {/* Tarjeta 3: Beneficios */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4 cursor-pointer group">
-            <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
-                <Star className="w-5 h-5" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-base font-sans">Beneficios</h3>
-              <p className="text-xs text-slate-500 mt-1 font-sans">Accede a descuentos y convenios exclusivos.</p>
             </div>
           </div>
 

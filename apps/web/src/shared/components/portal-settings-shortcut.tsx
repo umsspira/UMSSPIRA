@@ -5,10 +5,22 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { useAuthStore } from '@/modules/auth/frontend/store';
+import { NAVBAR_OFFLINE_USER_KEY } from '@/shared/components/navbar/offline-user';
 import { isOfflineSessionValid } from '@/features/event-passes/offline/offline-session';
 
+/** Rol de la sesión: el de la sesión en memoria o, sin ella (recarga sin conexión), el último usuario recordado. */
+function rolConocido(role: string | null | undefined): string | null {
+  if (role) return role;
+  try {
+    const raw = window.localStorage.getItem(NAVBAR_OFFLINE_USER_KEY);
+    return raw ? ((JSON.parse(raw) as { role?: string }).role ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Pantallas donde nunca se muestra, aunque haya sesión (la propia configuración y el acceso). */
-const HIDDEN_PATHS = ['/portal/configuracion', '/login', '/register'];
+const HIDDEN_PATHS = ['/portal/configuracion', '/portal/institucional', '/login', '/register'];
 
 /**
  * Acceso a la configuración PWA. Solo aparece con una sesión iniciada (en línea) o con una sesión
@@ -20,7 +32,9 @@ export function PortalSettingsShortcut() {
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    const update = () => setHasSession(Boolean(auth.accessToken) || isOfflineSessionValid());
+    // En línea solo cuenta la sesión real; la marca offline guardada solo vale cuando no hay red
+    // (así un visitante con una marca vieja no ve el botón).
+    const update = () => setHasSession(Boolean(auth.accessToken) || (!navigator.onLine && isOfflineSessionValid()));
     update();
     // El cierre de sesión borra la marca offline y avisa con este evento.
     window.addEventListener('umsspira:session-cleared', update);
@@ -41,6 +55,9 @@ export function PortalSettingsShortcut() {
   }, [auth.accessToken, pathname]);
 
   if (!hasSession) return null;
+  // La configuración PWA es solo del titulado: empresa y administrador no ven este botón.
+  const role = rolConocido((auth as { role?: string | null }).role);
+  if (role === 'empresa' || role === 'administrador') return null;
   if (HIDDEN_PATHS.some((path) => pathname === path || pathname?.startsWith(`${path}/`))) return null;
 
   return (

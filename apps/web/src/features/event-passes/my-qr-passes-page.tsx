@@ -8,23 +8,25 @@ import {
   Info,
   LoaderCircle,
   RefreshCw,
-  WifiOff,
 } from 'lucide-react';
 import type { EventPassDto } from '@umsspira/shared-types';
 import { ApiClientError } from '@/shared/services/api-client';
 import { SessionError } from '@/shared/services/auth-session';
 import { authStore } from '@/modules/auth/frontend/store';
 import { getMyEventPasses } from './event-passes-service';
+import { ActionNotice } from '@/shared/components/action-notice';
 import {
+  deleteOfflineQrPass,
   getOfflineQrPasses,
   type OfflineQrPass,
 } from './offline/offline-qr-storage';
 import { getOfflineSessionUserId } from './offline/offline-session';
+import { autoSaveLoadedPasses, markPassRemovedFromDevice } from './offline/auto-save-passes';
 import { OfflineSyncStatus } from './offline/offline-sync-status';
 import { EventsMobileBottomNav } from '@/features/events/events-mobile-bottom-nav';
 
 type LoadState = 'loading' | 'success' | 'error';
-type PassSource = 'server' | 'offline';
+type PassSource = 'server' | 'offline' | 'degraded';
 type PassFilter = 'all' | 'inactive';
 
 /** Convierte un pase guardado en el dispositivo al formato que usa la tarjeta. */
@@ -58,6 +60,17 @@ async function loadSavedPasses(): Promise<EventPassDto[]> {
   return saved.map(toEventPassDto);
 }
 
+/** Ids de los pases que ya están guardados en este dispositivo para la sesión actual. */
+async function getSavedIds(): Promise<Set<string>> {
+  try {
+    const userId = getOfflineSessionUserId();
+    if (!userId) return new Set();
+    return new Set((await getOfflineQrPasses(userId)).map((pass) => pass.id));
+  } catch {
+    return new Set();
+  }
+}
+
 function isValidPass(pass: EventPassDto): boolean {
   return pass.status === 'ACTIVO' && pass.isValidForAccess;
 }
@@ -78,12 +91,37 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
   const [retryCount, setRetryCount] = useState(0);
   const hasLoaded = useRef(false);
   const [filter, setFilter] = useState<PassFilter>('all');
+  // HU02 CA-02/CA-07: ids de los pases guardados en este dispositivo.
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const validCount = passes.filter(isValidPass).length;
   const visiblePasses = filter === 'inactive' ? passes.filter((pass) => !isValidPass(pass)) : passes;
 
   const retry = useCallback(() => {
     setRetryCount((value) => value + 1);
   }, []);
+
+  // HU02 CA-07: quita el QR solo de este dispositivo; sigue disponible en la cuenta.
+  const removeFromDevice = useCallback(async (pass: EventPassDto) => {
+    const userId = getOfflineSessionUserId();
+    if (!userId) return;
+    const confirmed = window.confirm(
+      `¿Eliminar de este dispositivo el QR de ${pass.eventDetails?.name || 'este evento'}? Seguirá disponible en tu cuenta.`,
+    );
+    if (!confirmed) return;
+    try {
+      await deleteOfflineQrPass(pass.id, userId);
+      markPassRemovedFromDevice(userId, pass.id);
+      setSavedIds((previous) => {
+        const next = new Set(previous);
+        next.delete(pass.id);
+        return next;
+      });
+      // Sin conexión la lista sale solo de lo guardado: el pase eliminado ya no debe verse.
+      setPasses((previous) => (source !== 'server' ? previous.filter((item) => item.id !== pass.id) : previous));
+    } catch (error) {
+      console.error('No se pudo eliminar el QR de este dispositivo:', error);
+    }
+  }, [source]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -113,6 +151,10 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
         setSource('server');
         setLoadState('success');
         hasLoaded.current = true;
+        // Los QR que cargaron con conexión quedan guardados solos para verlos sin Internet.
+        const sessionUserId = getOfflineSessionUserId();
+        const autoSave = sessionUserId ? autoSaveLoadedPasses(sessionUserId, result).catch(() => []) : Promise.resolve([]);
+        void autoSave.then(() => getSavedIds()).then((ids) => { if (!controller.signal.aborted) setSavedIds(ids); });
       } catch (error) {
         if (controller.signal.aborted) return;
 
@@ -121,7 +163,10 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
 
         // Sin conexión (o fallo de red): se muestran los pases guardados.
         // Si el servidor respondió con un error (ej. sesión rechazada) no se usan.
-        const isNetworkFailure = !navigator.onLine || !isServerError;
+        // HU13 CA-02: si un servicio no responde (error 5xx) con conexión, también se muestra lo guardado.
+        const serverStatus = error instanceof ApiClientError || error instanceof SessionError ? error.status : undefined;
+        const isServiceDown = isServerError && typeof serverStatus === 'number' && serverStatus >= 500;
+        const isNetworkFailure = !navigator.onLine || !isServerError || isServiceDown;
 
         if (isNetworkFailure) {
           try {
@@ -131,7 +176,8 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
 
             if (saved.length > 0) {
               setPasses(saved);
-              setSource('offline');
+              setSavedIds(new Set(saved.map((pass) => pass.id)));
+              setSource(!navigator.onLine || !isServerError ? 'offline' : 'degraded');
               setLoadState('success');
               hasLoaded.current = true;
               return;
@@ -166,32 +212,41 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
   }, [retry]);
 
   return (
-    <main className="qr-passes-page">
-      <div className="qr-passes-container">
-        <div className="qr-passes-topbar">
-          <header className="qr-passes-heading">
+    <main className="hu2-catalog-page">
+      <div className="hu2-catalog-shell">
+        <header className="hu2-catalog-header">
+          <div className="hu2-catalog-heading">
             <h1>Mis pases QR</h1>
             <p>Tus pases confirmados se guardan para consultarlos incluso sin Internet.</p>
-          </header>
-          <nav className="qr-passes-tabs" aria-label="Navegación de eventos">
+          </div>
+          <nav className="hu2-catalog-tabs" aria-label="Secciones de eventos">
             <Link href="/portal/eventos">Explorar</Link>
             <Link href="/portal/eventos/mis-eventos">Mis eventos</Link>
-            <Link href={passesHref} aria-current="page" className="active">Mis pases</Link>
+            <Link href={passesHref} aria-current="page" className="is-active">Mis pases</Link>
           </nav>
-        </div>
+        </header>
 
         {/* HU03: resultado y última actualización de los pases guardados */}
         <OfflineSyncStatus />
 
         {/* Aviso cuando se muestran los pases guardados en el dispositivo */}
         {loadState === 'success' && source === 'offline' && (
-          <p
-            role="status"
-            className="mx-auto mb-6 flex w-full max-w-4xl items-center gap-2 rounded-xl border border-oatmeal bg-white p-4 font-sans text-[14px] text-abyssal-blue"
-          >
-            <WifiOff size={18} aria-hidden="true" />
-            Sin conexión: se muestran los pases guardados en este dispositivo.
-          </p>
+          <ActionNotice
+            state="offline"
+            message="Sin conexión: se muestran los pases guardados en este dispositivo."
+            className="mx-auto mb-6 max-w-4xl bg-white"
+          />
+        )}
+
+        {/* HU13 CA-02: un servicio no responde pero lo guardado se sigue mostrando */}
+        {loadState === 'success' && source === 'degraded' && (
+          <div data-testid="pases-servicios-no-responden">
+            <ActionNotice
+              state="offline"
+              message="Algunos servicios no responden. Mostrando lo guardado en tu dispositivo."
+              className="mx-auto mb-6 max-w-4xl bg-white"
+            />
+          </div>
         )}
 
         {/* Estado de carga */}
@@ -266,12 +321,12 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
         )}
 
         {loadState === 'success' && (
-          <div className="qr-passes-filter-bar">
-            <div role="group" aria-label="Filtrar pases" className="qr-passes-filter-options">
-              <button type="button" aria-pressed={filter === 'all'} className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>TODOS</button>
-              <button type="button" aria-pressed={filter === 'inactive'} className={filter === 'inactive' ? 'active' : ''} onClick={() => setFilter('inactive')}>NO VIGENTES</button>
+          <div className="hu9-filter-bar">
+            <div role="group" aria-label="Filtrar pases" className="hu9-filter-chips">
+              <button type="button" aria-pressed={filter === 'all'} className={`hu9-filter-chip${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>TODOS</button>
+              <button type="button" aria-pressed={filter === 'inactive'} className={`hu9-filter-chip${filter === 'inactive' ? ' is-active' : ''}`} onClick={() => setFilter('inactive')}>NO VIGENTES</button>
             </div>
-            <p>{validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}</p>
+            <p className="hu9-count">{validCount} {validCount === 1 ? 'pase vigente' : 'pases vigentes'}</p>
           </div>
         )}
 
@@ -319,10 +374,26 @@ export default function MyQrPassesPage({ passesHref = '/events/catalog/passes' }
                       <div className="qr-passes-list-copy">
                         <h2>{pass.eventDetails?.name || 'Evento sin nombre'}</h2>
                         <span className={`qr-passes-list-status${valid ? '' : ' is-inactive'}`}>{valid ? 'VÁLIDO' : pass.status === 'VENCIDO' ? 'VENCIDO' : 'PASE INVALIDADO'}</span>
+                        {savedIds.has(pass.id) && (
+                          <span data-testid="pass-offline-badge" className="qr-passes-list-status" style={{ marginLeft: 8 }}>
+                            Disponible offline
+                          </span>
+                        )}
                         <p>{valid ? `${passSchedule(pass)} · ${pass.eventDetails?.location || 'Ubicación no disponible'}` : 'El pase asociado ya no es válido para acceso.'}</p>
                         <Link className="qr-passes-open" href={`/mis-pases/${encodeURIComponent(pass.id)}${passesHref === '/events/catalog/passes' ? '?from=catalog' : ''}`}>
                           {valid ? 'Abrir pase' : 'Ver detalle'}
                         </Link>
+                        {savedIds.has(pass.id) && (
+                          <button
+                            type="button"
+                            data-testid="pass-remove-from-device"
+                            onClick={() => void removeFromDevice(pass)}
+                            className="mt-2 block min-h-11 text-sm font-semibold underline"
+                            style={{ color: '#a35139' }}
+                          >
+                            Eliminar de este dispositivo
+                          </button>
+                        )}
                       </div>
                     </article>
                   );

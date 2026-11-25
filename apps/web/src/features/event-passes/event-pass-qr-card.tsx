@@ -6,6 +6,7 @@ import type { EventPassDto } from '@umsspira/shared-types';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { saveOfflineQrPass } from './offline/offline-qr-storage';
+import { unmarkPassRemoved } from './offline/auto-save-passes';
 import { EventPassCard } from '@/modules/events/components/EventPassCard';
 import { OFFLINE_PASS_INVALID_MESSAGE } from './offline/offline-sync';
 
@@ -87,6 +88,7 @@ const handleSaveOffline = async () => {
       },
     });
 
+    unmarkPassRemoved(pass.userId, pass.id);
     setIsSavedOffline(true);
     setSaveOfflineMessage('Tu pase QR se guardó en este dispositivo.');
   } catch (error) {

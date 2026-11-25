@@ -121,7 +121,7 @@ export function TarjetasValidacion({ c }: { c: Comprobaciones }) {
       titulo: '4. Abrir el pase guardado',
       detalle: 'Se muestra el código QR y los datos del evento',
       ok: c.guardados > 0 && c.rutaQrGuardada,
-      enlace: RUTAS_QR[0],
+      enlace: '/mis-pases',
     },
   ];
 
@@ -189,4 +189,3 @@ export default function ValidacionOffline() {
     </div>
   );
 }
-

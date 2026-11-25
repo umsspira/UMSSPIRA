@@ -153,7 +153,9 @@ export const postulacionesHu19: Prisma.PostulacionCreateManyInput[] = postulacio
     id_vacante: idVacante,
     porcentaje_match: match,
     estado,
+    // CORRECCIÓN: La fecha de creación siempre se asigna, pero fecha_match solo si hay match
     created_at: new Date(Date.UTC(2026, 10, 14 + (i % 5), 15)),
+    fecha_match: match === null ? null : new Date(Date.UTC(2026, 10, 14 + (i % 5), 15)),
   }),
 );
 

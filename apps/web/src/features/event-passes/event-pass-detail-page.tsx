@@ -224,7 +224,7 @@ export default function EventPassDetailPage({ passId, backHref }: { passId: stri
         {state === 'offline-unavailable' && (
           <section role="alert" className="hu12-state-card hu12-state-unsaved">
             <span className="hu12-state-badge">SIN CONEXIÓN</span>
-            <h2>Pase no guardado</h2>
+            <h2>Este pase requiere conexión</h2>
             <p>
               Ahora mismo no podemos abrir el código QR.
               Conéctate a Internet y abre tu pase una vez para guardarlo en este dispositivo.

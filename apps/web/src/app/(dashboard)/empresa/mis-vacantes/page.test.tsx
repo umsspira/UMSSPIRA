@@ -29,6 +29,8 @@ describe('Mis vacantes · enlace Ayuda (T20.2)', () => {
       'href', '/ayuda/bolsa-de-trabajo?tab=reclutador',
     );
     expect(screen.getByRole('link', { name: 'Publicar vacante' })).toHaveAttribute('href', '/empresa/vacantes/publicar');
+    // HU-19: acceso al checklist pre-demo desde Mis vacantes.
+    expect(screen.getByRole('link', { name: /Checklist pre-demo/ })).toHaveAttribute('href', '/empresa/checklist-pre-demo');
     const search = screen.getByPlaceholderText('Buscar por título...');
     fireEvent.change(search, { target: { value: 'Desarrollador' } });
     // La vacante puede aparecer en la tabla y en su tarjeta móvil: basta con que esté visible.

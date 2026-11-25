@@ -274,7 +274,8 @@ export class VacantesService {
         companyName: fila.vacante?.empresa?.razon_social ?? null,
         appliedAt: fila.created_at?.toISOString() ?? null,
         matchPercentage:
-          matchStatus === 'ready' && porcentajeValido ? porcentaje : null,
+
+        matchStatus === 'ready' && porcentajeValido ? porcentaje : null,
         matchCalculatedAt: matchStatus === 'ready' && porcentajeValido ? fila.fecha_match?.toISOString() ?? null : null,
         matchStatus,
         isVacancyAvailable: vacanteDisponible(fila.vacante?.estado ?? null, fila.vacante?.fecha_cierre ?? null),
@@ -407,9 +408,8 @@ export class VacantesService {
 
     return this.prisma.$transaction(async (tx) => {
       // Bloqueo por vacante: dos envíos simultáneos se serializan.
-      await tx.$queryRaw`
-        SELECT pg_advisory_xact_lock(hashtext(${idVacante}))
-      `;
+      // pg_advisory_xact_lock devuelve void: con $queryRaw Prisma falla (P2010), por eso $executeRaw.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${idVacante}))`;
 
       const actualizada = Object.keys(cambios).length
         ? await tx.vacante.update({
