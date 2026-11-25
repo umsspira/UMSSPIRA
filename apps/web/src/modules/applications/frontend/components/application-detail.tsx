@@ -73,15 +73,16 @@ function Field({
 
 type Props = {
   application: Application;
+  history?: ReactNode;
 };
 
-export function ApplicationDetail({ application }: Props) {
+export function ApplicationDetail({ application, history }: Props) {
   const hours = hoursSince(application.submittedAt);
   const overdue = hours > OVERDUE_HOURS;
   const validated = application.checklist.filter((i) => i.checked).length;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid items-start gap-6 lg:grid-cols-2">
       {/* Columna izquierda: información declarada */}
       <section className="space-y-4">
         <div>
@@ -182,41 +183,44 @@ export function ApplicationDetail({ application }: Props) {
       </section>
 
       {/* Columna derecha: documento adjunto */}
-      <section className="flex flex-col rounded-2xl bg-[#1B2632] p-4 text-white">
-        <div className="mb-3">
-          <p className="text-[11px] font-medium leading-4 text-[#C9C1B1]">
-            Documento digitalizado
-          </p>
-          <p className="text-[14px] font-semibold leading-5">
-            {application.documentName}
-          </p>
-        </div>
+      <div className="min-w-0 space-y-4">
+        <section className="flex flex-col rounded-2xl bg-[#1B2632] p-4 text-white">
+          <div className="mb-3">
+            <p className="text-[11px] font-medium leading-4 text-[#C9C1B1]">
+              Documento digitalizado
+            </p>
+            <p className="text-[14px] font-semibold leading-5">
+              {application.documentName}
+            </p>
+          </div>
 
-        <div className="flex min-h-[260px] flex-1 items-center justify-center overflow-hidden rounded-lg bg-white text-center text-sm text-[#1B2632]">
-          {!application.documentUrl ? (
-            <p role="alert" className="p-6">No se pudo obtener el documento. Cierra y vuelve a abrir el expediente para reintentar.</p>
-          ) : /^(image\/(png|jpeg)|png|jpe?g)$/i.test(application.documentFormat ?? '') || /\.(png|jpe?g)$/i.test(application.documentName) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- URL temporal del documento privado del expediente.
-            <img src={application.documentUrl} alt={`Documento adjunto: ${application.documentName}`}
-              className="max-h-[600px] w-full object-contain" />
-          ) : (
-            <object data={application.documentUrl} type="application/pdf"
-              aria-label={`Documento adjunto: ${application.documentName}`}
-              className="h-[600px] w-full">
-              <p className="p-6">Tu navegador no pudo mostrar el PDF aquí. Puedes abrirlo con el botón inferior.</p>
-            </object>
-          )}
-        </div>
+          <div className="flex min-h-[260px] flex-1 items-center justify-center overflow-hidden rounded-lg bg-white text-center text-sm text-[#1B2632]">
+            {!application.documentUrl ? (
+              <p role="alert" className="p-6">No se pudo obtener el documento. Cierra y vuelve a abrir el expediente para reintentar.</p>
+            ) : /^(image\/(png|jpeg)|png|jpe?g)$/i.test(application.documentFormat ?? '') || /\.(png|jpe?g)$/i.test(application.documentName) ? (
+              // eslint-disable-next-line @next/next/no-img-element -- URL temporal del documento privado del expediente.
+              <img src={application.documentUrl} alt={`Documento adjunto: ${application.documentName}`}
+                className="max-h-[600px] w-full object-contain" />
+            ) : (
+              <object data={application.documentUrl} type="application/pdf"
+                aria-label={`Documento adjunto: ${application.documentName}`}
+                className="h-[600px] w-full">
+                <p className="p-6">Tu navegador no pudo mostrar el PDF aquí. Puedes abrirlo con el botón inferior.</p>
+              </object>
+            )}
+          </div>
 
-        {application.documentUrl && <a
-          href={application.documentUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex h-11 items-center justify-center rounded-lg bg-[#FFB162] px-6 text-[14px] font-bold text-[#1B2632]"
-        >
-          Abrir documento en otra pestaña
-        </a>}
-      </section>
+          {application.documentUrl && <a
+            href={application.documentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex h-11 items-center justify-center rounded-lg bg-[#FFB162] px-6 text-[14px] font-bold text-[#1B2632]"
+          >
+            Abrir documento en otra pestaña
+          </a>}
+        </section>
+        {history}
+      </div>
     </div>
   );
 }
