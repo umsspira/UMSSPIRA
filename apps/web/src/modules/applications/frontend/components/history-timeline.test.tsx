@@ -20,7 +20,7 @@ describe("HistoryTimeline", () => {
           {
             id: "send",
             version: 2,
-            action: "ENVIO",
+            action: "REENVIO",
             title: "Solicitud corregida y reenviada",
             description: "Corrección reenviada para revisión.",
             actor: { type: "TITULADO", id: null },
@@ -56,6 +56,16 @@ describe("HistoryTimeline", () => {
     expect(screen.getByText(/Versión 2 · Sistema/)).toBeInTheDocument();
     expect(screen.getByText(/Versión 2 · Administrador/)).toBeInTheDocument();
     expect(screen.getAllByRole("time")).toHaveLength(4);
+    expect(screen.getAllByRole("time")[0]).toHaveTextContent(
+      new Date(at).toLocaleString("es-BO", { timeZone: "America/La_Paz" }),
+    );
+    expect(screen.getAllByRole("time")[0]).toHaveTextContent("8:00:00");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+  it("no inventa versiones para dictámenes antiguos", () => {
+    render(<HistoryTimeline events={[{ id: "old", version: null, action: "DICTAMEN",
+      title: "Dictamen", description: "Administrador observó la solicitud",
+      actor: { type: "ADMINISTRADOR", id: null }, occurredAt: at }]} />);
+    expect(screen.getByText(/Versión no registrada/)).toBeVisible();
   });
 });
