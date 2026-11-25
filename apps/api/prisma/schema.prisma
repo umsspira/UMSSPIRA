@@ -55,6 +55,7 @@ model Usuario {
   inscripcion_evento_registros        InscripcionEvento[]        @relation("inscripcion_evento_id_usuario_usuario")
   usuario_solicitud_registros         UsuarioSolicitud[]         @relation("usuario_solicitud_id_usuario_usuario")
   notificacion_registros              Notificacion[]             @relation("notificacion_id_usuario_usuario")
+  notificaciones_evento                NotificacionEvento[]
   dispositivo_registros               Dispositivo[]              @relation("dispositivo_usuario_id_usuario")
   conversacion_registros              Conversacion[]             @relation("conversacion_creado_por_usuario")
   participante_conversacion_registros ParticipanteConversacion[] @relation("participante_conversacion_usuario_id_usuario")
@@ -66,7 +67,8 @@ model Usuario {
   password_reset_evento_registros     PasswordResetEvento[]
   empresa_invitaciones_creadas        EmpresaInvitacion[] @relation("empresa_invitacion_creado_por")
   empresa_usuario_registros           EmpresaUsuario[]    @relation("empresa_usuario_id_usuario")
-
+  certificados                        Certificado[]
+  
   @@map("usuario")
 }
 
@@ -420,6 +422,10 @@ model CurriculumVitae {
   id_tipo_archivo String?  @db.Uuid
   ruta            String?  @db.Text
   valido          Boolean?
+  nombre          String?  @db.VarChar(255)
+  contenido       Bytes?   @db.ByteA
+  size_bytes      Int?
+  fecha_subida    DateTime? @db.Timestamptz(6)
   id_titulado     String?  @unique @db.Uuid
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
@@ -785,6 +791,11 @@ model Postulacion {
   id_vacante       String?   @db.Uuid
   porcentaje_match Int?
   fecha_match      DateTime? @db.Timestamptz(6)
+  hash_entrada     String?   @db.VarChar(64)
+  estado_match     String?   @db.VarChar(24)
+  hash_en_calculo  String?   @db.VarChar(64)
+  reclamo_match_id String?   @db.Uuid
+  reclamo_match_hasta DateTime? @db.Timestamptz(6)
   estado           String?   @db.VarChar
   created_at       DateTime? @db.Timestamp(6)
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -810,6 +821,7 @@ model Evento {
   fecha_fin       DateTime?      @db.Timestamptz(6)
   cupo_maximo     Int?           @db.Integer
   ubicacion       String?        @db.VarChar
+  anticipacion_recordatorio_horas Int @default(24) @db.SmallInt
   estado          String?        @db.VarChar
   imagen_url      String?        @db.Text
   fecha_creacion  DateTime?      @db.Timestamptz(6)
@@ -817,8 +829,10 @@ model Evento {
 
   usuario                      Usuario?            @relation("evento_id_usuario_usuario", fields: [id_usuario], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "evento_id_usuario_fkey")
   inscripcion_evento_registros InscripcionEvento[] @relation("inscripcion_evento_id_evento_evento")
+  recordatorios_evento         RecordatorioEvento[]
   plantillas_certificado       PlantillaCertificadoEvento[]
-
+  certificados                 Certificado[]
+  notificaciones               NotificacionEvento[]
   @@index([estado_programacion, fecha_publicacion_programada], map: "evento_publicacion_programada_idx")
   @@map("evento")
 }
@@ -908,7 +922,9 @@ model InscripcionEvento {
   usuario Usuario? @relation("inscripcion_evento_id_usuario_usuario", fields: [id_usuario], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "inscripcion_evento_id_usuario_fkey")
   pase_qr PaseQr?
   asistencia AsistenciaEvento?
+  recordatorios RecordatorioEvento[]
 
+  @@index([id_usuario], map: "idx_inscripcion_evento_usuario")
   @@map("inscripcion_evento")
 }
 
@@ -1294,6 +1310,27 @@ model Notificacion {
   @@map("notificacion")
 }
 
+model NotificacionEvento {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario     String    @db.Uuid
+  id_evento      String?   @db.Uuid
+  id_recordatorio String?   @db.Uuid
+  titulo         String    @db.VarChar(160)
+  cuerpo         String    @db.Text
+  url            String?   @db.Text
+  leida_en       DateTime? @db.Timestamptz(6)
+  fecha_creacion DateTime  @default(now()) @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [id_usuario], references: [usuario_id], onDelete: Cascade, onUpdate: Cascade)
+  evento  Evento? @relation(fields: [id_evento], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  recordatorio RecordatorioEvento? @relation(fields: [id_recordatorio], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "notificacion_evento_recordatorio_fkey")
+
+  @@unique([id_recordatorio, id_usuario], map: "notificacion_evento_recordatorio_usuario_key")
+  @@index([id_usuario, fecha_creacion(sort: Desc)])
+  @@index([id_usuario, leida_en, fecha_creacion(sort: Desc)])
+  @@map("notificacion_evento")
+}
+
 model Dispositivo {
   usuario_id          String?   @db.Uuid
   url_push            String?   @db.Text
@@ -1306,8 +1343,56 @@ model Dispositivo {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   usuario Usuario? @relation("dispositivo_usuario_id_usuario", fields: [usuario_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "dispositivo_usuario_id_fkey")
+  recordatorio_entregas RecordatorioEntrega[]
 
   @@map("dispositivo")
+}
+
+model RecordatorioEvento {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_inscripcion   String    @db.Uuid
+  id_evento        String    @db.Uuid
+  programado_para  DateTime  @db.Timestamptz(6)
+  estado           String    @default("PENDIENTE") @db.VarChar(20)
+  intentos         Int       @default(0)
+  error            String?   @db.Text
+  enviado_en       DateTime? @db.Timestamptz(6)
+  reintentar_en    DateTime? @db.Timestamptz(6)
+  procesando_desde DateTime? @db.Timestamptz(6)
+  reprogramado     Boolean   @default(false)
+
+  inscripcion    InscripcionEvento     @relation(fields: [id_inscripcion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  evento         Evento                @relation(fields: [id_evento], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  entregas       RecordatorioEntrega[]
+  notificaciones NotificacionEvento[]
+
+  @@unique([id_inscripcion, programado_para], map: "recordatorio_evento_inscripcion_programado_key")
+  @@index([estado, programado_para], map: "recordatorio_evento_estado_programado_idx")
+  @@map("recordatorio_evento")
+}
+
+model ConfiguracionRecordatorios {
+  id                 Int      @id @default(1)
+  anticipacion_horas Int      @default(24)
+  actualizada_en     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("configuracion_recordatorios")
+}
+
+model RecordatorioEntrega {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_recordatorio String    @db.Uuid
+  id_dispositivo  String    @db.Uuid
+  estado          String    @db.VarChar(20)
+  intentos        Int       @default(1)
+  error           String?   @db.Text
+  enviado_en      DateTime? @db.Timestamptz(6)
+
+  recordatorio RecordatorioEvento @relation(fields: [id_recordatorio], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  dispositivo  Dispositivo        @relation(fields: [id_dispositivo], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([id_recordatorio, id_dispositivo], map: "recordatorio_entrega_recordatorio_dispositivo_key")
+  @@map("recordatorio_entrega")
 }
 
 model Conversacion {
@@ -1622,6 +1707,20 @@ model HistorialEvento {
   @@index([id_solicitud, creado_en(sort: Desc)])
   @@map("historial_evento")
 }
+model Certificado {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_evento      String   @db.Uuid
+  id_usuario     String   @db.Uuid
+  contenido      Bytes    @db.ByteA
+  fecha_emision  DateTime @default(now()) @db.Timestamptz(6)
+
+  evento         Evento   @relation(fields: [id_evento], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario        Usuario  @relation(fields: [id_usuario], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id_evento, id_usuario], map: "certificado_unico_por_usuario_evento")
+  @@map("certificado")
+}
+
 model RadarDiccionarioVersion {
   version          String   @id @db.VarChar(50)
   fingerprint      String   @db.VarChar(64)

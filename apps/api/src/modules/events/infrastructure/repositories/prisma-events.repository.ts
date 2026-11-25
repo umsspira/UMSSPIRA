@@ -24,6 +24,19 @@ import type {
 import { buildOccupation } from '../../domain/policies/event-occupation.policy';
 import type { MyEventRegistration } from '../../domain/entities/my-event-registration';
 
+async function executeReminderQuery<Result>(
+  operation: 'PublishedEventReminderUpdateError' | 'PublishedEventReminderInsertError',
+  query: () => Promise<Result>,
+): Promise<Result> {
+  try {
+    return await query();
+  } catch (cause) {
+    const error = new Error('No se pudo reprogramar el recordatorio del evento', { cause });
+    error.name = operation;
+    throw error;
+  }
+}
+
 @Injectable()
 export class PrismaEventsRepository implements EventsRepository {
   private readonly logger = new Logger(PrismaEventsRepository.name);
@@ -143,6 +156,58 @@ export class PrismaEventsRepository implements EventsRepository {
         data: this.eventData(input),
         include: eventInclude,
       });
+      if (current.fecha_inicio?.getTime() !== updated.fecha_inicio?.getTime()) {
+        const settings = await tx.configuracionRecordatorios.findUniqueOrThrow({
+          where: { id: 1 },
+          select: { anticipacion_horas: true },
+        });
+        await executeReminderQuery('PublishedEventReminderUpdateError', () => tx.$executeRaw`
+            UPDATE recordatorio_evento r
+            SET programado_para = updated_event.fecha_inicio
+                  - make_interval(hours => ${settings.anticipacion_horas}::integer),
+                reprogramado = true,
+                estado = 'PENDIENTE',
+                error = NULL,
+                reintentar_en = NULL,
+                procesando_desde = NULL
+            FROM evento updated_event
+            WHERE updated_event.id = ${id}::uuid
+              AND updated_event.id = r.id_evento
+              AND r.estado IN ('PENDIENTE', 'FALLIDO', 'EN_PROCESO', 'OMITIDO')
+              AND r.programado_para <> updated_event.fecha_inicio
+                    - make_interval(hours => ${settings.anticipacion_horas}::integer)
+              AND EXISTS (
+                SELECT 1
+                FROM inscripcion_evento i
+                WHERE i.id = r.id_inscripcion
+                  AND i.estado = 'CONFIRMADA'
+              )
+          `);
+        if (updated.fecha_inicio && updated.fecha_inicio > new Date()) {
+          await executeReminderQuery('PublishedEventReminderInsertError', () => tx.$executeRaw`
+              INSERT INTO recordatorio_evento (id_inscripcion, id_evento, programado_para, reprogramado)
+              SELECT i.id,
+                     updated_event.id,
+                     updated_event.fecha_inicio
+                       - make_interval(hours => ${settings.anticipacion_horas}::integer),
+                     true
+              FROM inscripcion_evento i
+              JOIN evento updated_event ON updated_event.id = i.id_evento
+              WHERE updated_event.id = ${id}::uuid
+                AND updated_event.fecha_inicio > CURRENT_TIMESTAMP
+                AND updated_event.fecha_fin > CURRENT_TIMESTAMP
+                AND i.estado = 'CONFIRMADA'
+                AND i.id_usuario IS NOT NULL
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM recordatorio_evento r
+                  WHERE r.id_inscripcion = i.id
+                    AND r.estado IN ('PENDIENTE', 'FALLIDO', 'EN_PROCESO', 'ENVIADO', 'SIN_SUSCRIPCION')
+                )
+              ON CONFLICT (id_inscripcion, programado_para) DO NOTHING
+            `);
+        }
+      }
       if (input.coverId !== undefined && current.id_portada && current.id_portada !== input.coverId) {
         await tx.portadaEvento.deleteMany({
           where: { id: current.id_portada, id_usuario: ownerId, evento: { is: null } },
@@ -258,7 +323,22 @@ export class PrismaEventsRepository implements EventsRepository {
   async mine(userId: string): Promise<MyEventRegistration[]> {
     const rows = await this.prisma.inscripcionEvento.findMany({
       where: { id_usuario: userId },
-      include: { evento: true, pase_qr: { select: { id: true } } },
+      select: {
+        id: true,
+        estado: true,
+        fecha_inscripcion: true,
+        pase_qr: { select: { id: true } },
+        evento: {
+          select: {
+            id: true,
+            titulo: true,
+            fecha_inicio: true,
+            fecha_fin: true,
+            ubicacion: true,
+            estado: true,
+          },
+        },
+      },
       orderBy: [{ evento: { fecha_inicio: 'asc' } }, { id: 'asc' }],
     });
     return rows.flatMap((row) => {
@@ -307,6 +387,7 @@ export class PrismaEventsRepository implements EventsRepository {
               archivado: true,
               estado: true,
               fecha_fin: true,
+              fecha_inicio: true,
               cupo_maximo: true,
             },
           });
@@ -356,6 +437,22 @@ export class PrismaEventsRepository implements EventsRepository {
               estado: 'CONFIRMADA',
             },
           });
+          if (event.fecha_inicio && event.fecha_inicio > new Date()) {
+            const settings = await tx.configuracionRecordatorios.findUniqueOrThrow({
+              where: { id: 1 },
+              select: { anticipacion_horas: true },
+            });
+            await tx.recordatorioEvento.create({
+              data: {
+                id_inscripcion: registration.id,
+                id_evento: eventId,
+                programado_para: new Date(
+                  event.fecha_inicio.getTime()
+                    - settings.anticipacion_horas * 60 * 60 * 1000,
+                ),
+              },
+            });
+          }
           return {
             id: registration.id,
             eventId,
@@ -402,6 +499,18 @@ export class PrismaEventsRepository implements EventsRepository {
             'La inscripción ya no está disponible para cancelación',
           );
         }
+        await tx.recordatorioEvento.updateMany({
+          where: {
+            id_inscripcion: registrationId,
+            estado: { in: ['PENDIENTE', 'FALLIDO', 'EN_PROCESO'] },
+          },
+          data: {
+            estado: 'OMITIDO',
+            error: null,
+            reintentar_en: null,
+            procesando_desde: null,
+          },
+        });
         await tx.paseQr.updateMany({
           where: { id_inscripcion: registrationId },
           data: { estado: 'INVALIDADO' },
@@ -572,6 +681,18 @@ export class PrismaEventsRepository implements EventsRepository {
             inscripcion: { is: { id_evento: id } },
           },
           data: { estado: 'INVALIDADO' },
+        });
+        await tx.recordatorioEvento.updateMany({
+          where: {
+            id_evento: id,
+            estado: { in: ['PENDIENTE', 'FALLIDO', 'EN_PROCESO'] },
+          },
+          data: {
+            estado: 'OMITIDO',
+            error: null,
+            reintentar_en: null,
+            procesando_desde: null,
+          },
         });
 
         return {

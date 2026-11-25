@@ -4,9 +4,6 @@ jest.mock('./api-client', () => {
   return { ...actual, apiClient: jest.fn() };
 });
 
-// USE_MOCK se lee al cargar el módulo: se fija antes de importarlo.
-const originalUseMock = process.env.NEXT_PUBLIC_USE_MOCK;
-process.env.NEXT_PUBLIC_USE_MOCK = 'false';
 const { apiClient, ApiClientError } = require('./api-client') as typeof import('./api-client');
 const service = require('./applicants') as typeof import('./applicants');
 
@@ -24,10 +21,6 @@ const raw = {
 
 describe('servicio de postulantes con la API real (HU-15)', () => {
   const apiClientMock = apiClient as unknown as jest.Mock;
-
-  afterAll(() => {
-    process.env.NEXT_PUBLIC_USE_MOCK = originalUseMock;
-  });
 
   beforeEach(() => apiClientMock.mockReset());
 
@@ -296,6 +289,65 @@ describe('servicio de postulantes con la API real (HU-15)', () => {
       `/api/v1/vacantes/${VACANTE}/postulantes/${raw.id}`,
       { method: 'GET', authenticated: true },
     );
+  });
+
+  it('conserva los estados técnicos de HU-12 y distingue 0 % de pendiente', async () => {
+    apiClientMock.mockResolvedValueOnce([
+      { ...raw, id: '1', matchPercentage: 0, matchStatus: 'ready' },
+      { ...raw, id: '2', matchPercentage: null, matchStatus: 'pending' },
+      { ...raw, id: '3', matchPercentage: null, matchStatus: 'error' },
+    ]);
+    const list = await service.getApplicantsByVacancy(VACANTE);
+    expect(list.map(({ matchPercentage, matchStatus }) => ({ matchPercentage, matchStatus }))).toEqual([
+      { matchPercentage: 0, matchStatus: 'ready' },
+      { matchPercentage: null, matchStatus: 'pending' },
+      { matchPercentage: null, matchStatus: 'error' },
+    ]);
+  });
+  it('indica si el postulante subió su CV (HU-16)', async () => {
+    apiClientMock.mockResolvedValueOnce([{ ...raw, hasCv: true }, raw]);
+
+    const [conCv, sinCv] = await service.getApplicantsByVacancy(VACANTE);
+
+    expect(conCv.hasCv).toBe(true);
+    expect(sinCv.hasCv).toBe(false);
+  });
+
+  it('lee experiencia, formación y certificaciones del perfil (HU-16 CA-07)', async () => {
+    apiClientMock.mockResolvedValueOnce({
+      ...raw,
+      workExperience: [
+        { position: 'Desarrolladora backend', company: 'Empresa Andina', startDate: '2024-02-01', endDate: null },
+        { position: '', company: '' },
+      ],
+      education: [
+        { title: 'Licenciatura en Ingeniería de Sistemas', institution: 'UMSS', graduationYear: 2023, level: 'Licenciatura' },
+      ],
+      certifications: [
+        { name: 'AWS Certified Cloud Practitioner', issuer: 'Amazon', level: 'Básico', year: 2025 },
+        'no es un registro',
+      ],
+    });
+
+    const detalle = await service.getApplicantById(VACANTE, raw.id);
+
+    expect(detalle?.workExperience).toEqual([
+      { position: 'Desarrolladora backend', company: 'Empresa Andina', startDate: '2024-02-01', endDate: null },
+    ]);
+    expect(detalle?.education).toEqual([
+      { title: 'Licenciatura en Ingeniería de Sistemas', institution: 'UMSS', graduationYear: 2023, level: 'Licenciatura' },
+    ]);
+    expect(detalle?.certifications).toEqual([
+      { name: 'AWS Certified Cloud Practitioner', issuer: 'Amazon', level: 'Básico', year: 2025 },
+    ]);
+  });
+
+  it('deja listas vacías si la API no envía esos registros', async () => {
+    apiClientMock.mockResolvedValueOnce(raw);
+
+    const detalle = await service.getApplicantById(VACANTE, raw.id);
+
+    expect(detalle).toMatchObject({ workExperience: [], education: [], certifications: [] });
   });
 
   it('guarda la etapa con apiClient (sesión y CSRF) y el código del backend (HU-04)', async () => {

@@ -1,4 +1,4 @@
-# [epicXX-grupoXX-huXXX] [Nombre de la HU]
+# epic5-grupo5-hu001 · Publicación de vacantes de empresa
 
 **Épica:** Estudios de Vacantes · **Prefijo:** `/api/v1/job-postings`  
 **Éxito:** `{ "data": ... }`  

@@ -45,3 +45,23 @@ describe('ProfessionalDescription', () => {
     expect(screen.getByRole('button', { name: 'Leer más' })).toBeInTheDocument();
   });
 });
+
+describe('«Leer más» según las líneas que ocupa en pantalla (HU-21)', () => {
+  function simularAlto(scroll: number, visible: number) {
+    jest.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(scroll);
+    jest.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(visible);
+  }
+  afterEach(() => jest.restoreAllMocks());
+
+  it('un texto corto que en pantalla pasa de 3 líneas muestra «Leer más»', () => {
+    simularAlto(120, 66);
+    render(<ProfessionalDescription description="Texto corto en una columna angosta." />);
+    expect(screen.getByRole('button', { name: 'Leer más' })).toBeInTheDocument();
+  });
+
+  it('un texto largo que cabe en 3 líneas (pantalla ancha) no muestra «Leer más»', () => {
+    simularAlto(66, 66);
+    render(<ProfessionalDescription description={'a '.repeat(LARGO_DESCRIPCION_RECORTADA)} />);
+    expect(screen.queryByRole('button', { name: 'Leer más' })).not.toBeInTheDocument();
+  });
+});

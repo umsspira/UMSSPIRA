@@ -21,6 +21,7 @@ import { GetAccreditationDashboardUseCase } from '../../application/use-cases/ge
 import { ExportAccreditationPdfUseCase } from '../../application/use-cases/export-accreditation-pdf.use-case';
 import {
   ACCREDITATION_PDF_WRITER,
+  ACCREDITATION_EXCEL_WRITER,
   ACCREDITATION_REPORT_READER,
   type AccreditationReportReader,
   type AccreditationReportWriter,
@@ -31,6 +32,8 @@ import {
 } from '../../application/ports/accreditation-cache.port';
 import { AccreditationReportDataReader } from '../repositories/accreditation-report.reader';
 import { AccreditationPdfWriter } from '../exporters/accreditation-pdf.writer';
+import { AccreditationExcelWriter } from '../exporters/accreditation-excel.writer';
+import { ExportAccreditationExcelUseCase } from '../../application/use-cases/export-accreditation-excel.use-case';
 
 export const reportsProviders: Provider[] = [
   PrismaReportRepository,
@@ -77,6 +80,13 @@ export const reportsProviders: Provider[] = [
   },
   { provide: ACCREDITATION_REPORT_READER, useClass: AccreditationReportDataReader },
   { provide: ACCREDITATION_PDF_WRITER, useClass: AccreditationPdfWriter },
+  { provide: ACCREDITATION_EXCEL_WRITER, useClass: AccreditationExcelWriter },
+  {
+    provide: ExportAccreditationExcelUseCase,
+    inject: [ACCREDITATION_REPORT_READER, ACCREDITATION_EXCEL_WRITER],
+    useFactory: (reader: AccreditationReportReader, writer: AccreditationReportWriter) =>
+      new ExportAccreditationExcelUseCase(reader, writer),
+  },
   {
     provide: ExportAccreditationPdfUseCase,
     inject: [ACCREDITATION_REPORT_READER, ACCREDITATION_PDF_WRITER],

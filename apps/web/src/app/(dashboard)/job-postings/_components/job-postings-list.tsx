@@ -105,8 +105,26 @@ export function JobPostingsList() {
   const [sortByAffinity, setSortByAffinity] = useState(true);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setRetryCount((count) => count + 1), 500);
+    };
+    const interval = setInterval(schedule, 30_000);
+    window.addEventListener('focus', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    return () => {
+      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
-    setState({ status: 'loading' });
+    setState((previous) => previous.status === 'loaded' ? previous : { status: 'loading' });
     listAvailableJobPostings().then(
       (postings) => active && setState({ status: 'loaded', postings }),
       () => active && setState({ status: 'error' }),
@@ -210,7 +228,12 @@ export function JobPostingsList() {
         </nav>
 
         <header className="mb-5">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bolsa de trabajo</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bolsa de trabajo</h1>
+            <Link href="/ayuda/bolsa-de-trabajo?tab=titulado" className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline underline-offset-4">
+              Ayuda
+            </Link>
+          </div>
           <p className="mt-1 max-w-4xl text-sm leading-5 text-slate-600">
             Explora oportunidades laborales adaptadas a tu perfil académico y profesional con cálculo automático de afinidad.
           </p>
@@ -339,9 +362,8 @@ export function JobPostingsList() {
               </section>
             ) : (
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[850px] table-fixed border-collapse text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-600">
+                  <table className="block w-full text-left text-xs md:table md:table-fixed md:border-collapse">
+                    <thead className="sr-only bg-slate-50 text-slate-600 md:not-sr-only md:table-header-group">
                       <tr>
                         <th scope="col" className="w-[13%] px-3 py-3 font-semibold">Vacante</th>
                         <th scope="col" className="w-[10%] px-3 py-3 font-semibold">Empresa</th>
@@ -353,12 +375,13 @@ export function JobPostingsList() {
                         <th scope="col" className="w-[9%] px-3 py-3 text-right font-semibold">Acción</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="block divide-y divide-slate-100 md:table-row-group">
                       {filtered.map((posting) => (
-                        <tr key={posting.id} className="align-middle hover:bg-slate-50/70">
-                          <th scope="row" className="break-words px-3 py-4 font-bold text-slate-900">{posting.titulo}</th>
-                          <td className="break-words px-3 py-4 text-slate-700">{posting.empresa ?? 'Empresa no disponible'}</td>
-                          <td className="border-x border-orange-100 bg-orange-50/30 px-2 py-4">
+                        <tr key={posting.id} className="block min-w-0 p-4 align-middle hover:bg-slate-50/70 md:table-row md:p-0">
+                          <th scope="row" className="block break-words pb-3 text-sm font-bold text-slate-900 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4 md:text-xs">{posting.titulo}</th>
+                          <td className="block break-words py-1 text-slate-700 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Empresa: </span>{posting.empresa ?? 'Empresa no disponible'}</td>
+                          <td className="block py-1 md:table-cell md:border-x md:border-orange-100 md:bg-orange-50/30 md:px-2 md:py-4">
+                            <span className="font-semibold md:hidden">Afinidad: </span>
                             {affinityState.status === 'error' ? (
                               <span className="inline-flex whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">Sin calcular</span>
                             ) : (
@@ -368,18 +391,17 @@ export function JobPostingsList() {
                               })()
                             )}
                           </td>
-                          <td className="break-words px-3 py-4 leading-4 text-slate-600">{shortDescription(posting.descripcionTecnica)}</td>
-                          <td className="break-words px-3 py-4 text-slate-600">{posting.areaLaboral ?? 'No especificada'}</td>
-                          <td className="break-words px-3 py-4 text-slate-600">{modalityLabel(posting.modalidad)}{posting.ubicacion ? ` (${posting.ubicacion})` : ''}</td>
-                          <td className="px-3 py-4 text-slate-500">{publishedLabel(posting.fechaPublicacion)}</td>
-                          <td className="px-2 py-4 text-right">
-                            <Link href={jobPostingDetailRoute(posting.id)} className="inline-flex min-h-8 items-center rounded-md border border-slate-300 px-2 text-[10px] font-medium text-slate-700 transition hover:border-slate-500 hover:bg-slate-50">Ver oferta</Link>
+                          <td className="block break-words py-1 leading-4 text-slate-600 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Descripción breve: </span>{shortDescription(posting.descripcionTecnica)}</td>
+                          <td className="block break-words py-1 text-slate-600 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Área laboral: </span>{posting.areaLaboral ?? 'No especificada'}</td>
+                          <td className="block break-words py-1 text-slate-600 [overflow-wrap:anywhere] md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Modalidad: </span>{modalityLabel(posting.modalidad)}{posting.ubicacion ? ` (${posting.ubicacion})` : ''}</td>
+                          <td className="block py-1 text-slate-500 md:table-cell md:px-3 md:py-4"><span className="font-semibold md:hidden">Publicación: </span>{publishedLabel(posting.fechaPublicacion)}</td>
+                          <td className="block pt-3 md:table-cell md:px-2 md:py-4 md:text-right">
+                            <Link href={jobPostingDetailRoute(posting.id)} aria-label={`Ver oferta: ${posting.titulo}`} className="inline-flex min-h-11 items-center rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-500 hover:bg-slate-50 md:min-h-8 md:px-2 md:text-[10px]">Ver oferta</Link>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
               </div>
             )}
           </>

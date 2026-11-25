@@ -1,4 +1,5 @@
-import { authenticatedFetch, clearAccessToken, getAccessToken, setAccessToken } from './auth-session';
+import { authenticatedFetch, clearAccessToken, completePendingLogout, getAccessToken, refreshSession, setAccessToken } from './auth-session';
+import { hasPendingLogout, markPendingLogout } from '@/features/event-passes/offline/offline-session';
 
 beforeEach(() => {
   clearAccessToken();
@@ -91,4 +92,80 @@ it('no intenta una mutación con cookies cuando falta la protección CSRF', asyn
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+describe('cierre de sesión hecho sin conexión (HU07)', () => {
+  const originalFetch = global.fetch;
+  const setOnline = (value: boolean) => Object.defineProperty(window.navigator, 'onLine', { value, configurable: true });
+  const llamadas = (mock: jest.Mock) => mock.mock.calls.map(([url]) => String(url));
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    document.cookie = 'umsspira_csrf=csrf-de-prueba; path=/';
+    setOnline(true);
+  });
+  afterEach(() => {
+    document.cookie = 'umsspira_csrf=; path=/; max-age=0';
+    global.fetch = originalFetch;
+    window.localStorage.clear();
+    clearAccessToken();
+  });
+
+  it('mientras el cierre está pendiente no se renueva la sesión (no reaparece al recargar)', async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    markPendingLogout();
+
+    await expect(refreshSession()).rejects.toMatchObject({ status: 401 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('al volver la red revoca la sesión en el servidor y deja de estar pendiente', async () => {
+    const fetchMock = jest.fn(async (url: string) => (
+      String(url).endsWith('/auth/refresh') ? { ok: true, status: 200, json: async () => ({ data: { accessToken: 'renovado' } }) } : { ok: true, status: 200 }
+    ));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    markPendingLogout();
+
+    await expect(completePendingLogout()).resolves.toBe(true);
+
+    expect(llamadas(fetchMock as unknown as jest.Mock)).toContain('/api/v1/auth/logout');
+    expect(hasPendingLogout()).toBe(false);
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it('sin red no hace nada y el cierre sigue pendiente', async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    markPendingLogout();
+    setOnline(false);
+
+    await expect(completePendingLogout()).resolves.toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(hasPendingLogout()).toBe(true);
+  });
+
+  it('si el servidor falla (500) el cierre sigue pendiente para reintentar', async () => {
+    global.fetch = jest.fn(async (url: string) => (
+      String(url).endsWith('/auth/refresh') ? { ok: true, status: 200, json: async () => ({ data: { accessToken: 'renovado' } }) } : { ok: false, status: 500 }
+    )) as unknown as typeof fetch;
+    markPendingLogout();
+
+    await expect(completePendingLogout()).resolves.toBe(false);
+    expect(hasPendingLogout()).toBe(true);
+  });
+
+  it('si la sesión ya no existe en el servidor (401) se da por cerrada', async () => {
+    global.fetch = jest.fn(async () => ({ ok: false, status: 401, json: async () => ({}) })) as unknown as typeof fetch;
+    markPendingLogout();
+
+    await expect(completePendingLogout()).resolves.toBe(true);
+    expect(hasPendingLogout()).toBe(false);
+  });
+
+  it('un inicio de sesión nuevo anula el cierre pendiente', () => {
+    markPendingLogout();
+    setAccessToken('token-nuevo');
+    expect(hasPendingLogout()).toBe(false);
+  });
 });

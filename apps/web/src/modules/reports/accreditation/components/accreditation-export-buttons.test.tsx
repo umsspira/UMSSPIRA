@@ -87,3 +87,14 @@ test('ante una falla muestra «No se pudo generar el archivo. Intente nuevamente
   );
   expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled();
 });
+
+test('después de descargar el archivo muestra un mensaje de confirmación', async () => {
+  mockRequest.mockResolvedValue(file);
+  render(<AccreditationExportButtons filters={filters} hasData />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Exportar PDF' }));
+
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'El archivo se descargó correctamente',
+  );
+});

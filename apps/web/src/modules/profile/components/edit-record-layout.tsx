@@ -109,7 +109,6 @@ type BackupFieldProps = {
   documentName: string;
   // Dirección del propio archivo; sin ella el nombre se muestra sin enlace (E2.2)
   documentUrl?: string;
-  isVerified: boolean;
   onDocumentChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   // Deshace la foto elegida que todavía no se guardó y vuelve al respaldo guardado; sin él no se muestra «Quitar imagen»
   onDocumentRemove?: () => void;
@@ -117,11 +116,10 @@ type BackupFieldProps = {
   onViewBackup?: () => void;
 };
 
-// Respaldo documental con estado, enlace al archivo y botones para subir foto o documento
+// Respaldo documental con enlace al archivo y botones para subir foto o documento
 export function BackupField({
   documentName,
   documentUrl,
-  isVerified,
   onDocumentChange,
   onDocumentRemove,
   onViewBackup,
@@ -150,13 +148,7 @@ export function BackupField({
 
       {documentName && (
         <div className="flex flex-wrap items-center gap-2.5">
-          <span
-            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-              isVerified ? 'bg-[#2C7A4D] text-white' : 'bg-[#FFF3CD] text-[#664D03]'
-            }`}
-          >
-            {isVerified ? 'Respaldo verificado' : 'Respaldo en revisión'}
-          </span>
+          {/* HU-21: sin etiquetas de validación («Respaldo verificado / en revisión»): no hay forma de verificar */}
           {documentUrl ? (
             <a href={documentUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-medium text-truffle-trouble underline">
               {documentName}

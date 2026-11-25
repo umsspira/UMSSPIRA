@@ -1,4 +1,5 @@
-import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Body, ParseUUIDPipe, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { CurrentActor } from '../../shared/http/auth/decorators/current-actor.decorator';
 import { RequirePermissions } from '../../shared/http/auth/decorators/require-permissions.decorator';
 import { Roles } from '../../shared/http/auth/decorators/roles.decorator';
@@ -70,6 +71,29 @@ export class VacantesController {
   ) {
     return this.vacantesService.obtenerPostulante(idVacante, idPostulacion, actor.id);
   }
+
+  // HU-16 CA-09/CA-12: T16.4 descarga el CV solo desde una postulación de la empresa autorizada.
+  @Get(':idVacante/postulantes/:idPostulacion/cv')
+  @RequirePermissions('empresas:self:read')
+  async descargarCv(
+    @Param('idVacante', ParseUUIDPipe) idVacante: string,
+    @Param('idPostulacion', ParseUUIDPipe) idPostulacion: string,
+    @CurrentActor() actor: ActorContext,
+    @Res() response: Response,
+  ): Promise<void> {
+    const file = await this.vacantesService.descargarCvPostulante(
+      idVacante,
+      idPostulacion,
+      actor.id,
+    );
+    response.type(file.mime).setHeader('Content-Length', String(file.size));
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+    );
+    response.setHeader('Cache-Control', 'private, no-cache');
+    response.send(Buffer.from(file.bytes));
+  }
   // HU-04: la empresa cambia la etapa de un postulante de SUS vacantes.
   @Patch(':idVacante/postulantes/:idPostulacion/etapa')
   @RequirePermissions('empresas:self:write')
@@ -87,23 +111,35 @@ export class VacantesController {
     return this.vacantesService.obtenerVacantePorId(id, actor.id);
   }
 
+  // HU-14: cerrar exige permiso de escritura Y que la vacante sea de la empresa del actor
+  // (el servicio responde 404 si es ajena). Antes cualquier usuario autenticado podía cerrar cualquiera.
   @Patch(':id/cerrar')
-  async cerrar(@Param('id') id: string) {
-    return this.vacantesService.cerrarVacante(id);
+  @RequirePermissions('empresas:self:write')
+  async cerrar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.cerrarVacante(id, actor.id);
   }
 
   @Patch(':id')
   @RequirePermissions('empresas:self:write')
   async actualizar(
+
     @Param('id', new ZodValidationPipe(vacancyIdSchema)) id: VacancyId,
     @Body(new ZodValidationPipe(updateVacanteSchema)) body: UpdateVacanteBody,
+
     @CurrentActor() actor: ActorContext
   ) {
     return this.vacantesService.actualizarVacante(id, actor.id, body);
   }
 
   @Delete(':id')
-  async eliminar(@Param('id') id: string, @CurrentActor() actor: ActorContext) {
+  @RequirePermissions('empresas:self:write')
+  async eliminar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
     return this.vacantesService.eliminarVacante(id, actor.id);
   }
 }

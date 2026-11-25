@@ -7,6 +7,7 @@ import type { NavbarProps } from './types';
 import { SESSION_EXPIRED_EVENT } from '@/modules/auth/frontend/services/session-expired';
 
 // --- Mocks ---
+const mockApiClient = jest.fn();
 const push = jest.fn();
 const replace = jest.fn();
 const refresh = jest.fn();
@@ -28,10 +29,16 @@ jest.mock('@/shared/services/auth-session', () => ({
   authenticatedFetch: jest.fn(),
   revokeCurrentSession: jest.fn(),
 }));
-jest.mock('@/shared/services/api-client', () => ({ getToken: jest.fn(), clearToken: jest.fn() }));
+jest.mock('@/shared/services/api-client', () => ({
+  apiClient: (...args: unknown[]) => mockApiClient(...args),
+  getToken: jest.fn(),
+  clearToken: jest.fn(),
+}));
 jest.mock('@/modules/auth/frontend/store', () => ({ useAuthStore: () => ({ accessToken: null }), authStore: { reset: jest.fn() } }));
-jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout }: NavbarProps) => <header>
+jest.mock('./navbar', () => ({ Navbar: ({ session, onLogout, notifications = [], notificationsError }: NavbarProps) => <header>
   <span>{session ? `${session.name}: ${session.role}` : 'Visitante'}</span>
+  {notifications.map(item => <span key={item.id}>{item.title}: {item.description}</span>)}
+  {notificationsError && <p role="alert">{notificationsError}</p>}
   {!session && <><span>Iniciar sesión</span><span>Registro</span></>}
   <button onClick={onLogout}>Cerrar sesión</button>
 </header> }));
@@ -45,6 +52,7 @@ beforeEach(() => {
   window.localStorage.clear();
   mockPathname = '/mentorship/directory';
   jest.clearAllMocks();
+  mockApiClient.mockResolvedValue({ data: [] });
   sessionStorage.clear();
   fetchMock.mockReset();
   fetchMock.mockRejectedValue(new SessionError(401, 'Inicia sesión'));
@@ -70,6 +78,31 @@ it('restaura el rol de empresa validado mediante el cliente autenticado', async 
   render(<ConnectedNavbar />);
   expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/me', expect.objectContaining({ cache: 'no-store' }));
+});
+
+it('carga los avisos persistentes para la campanita después de validar la sesión', async () => {
+  fetchMock.mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: { email: 'ana@umss.edu', role: 'titulado' } }),
+  } as Response);
+  mockApiClient.mockResolvedValueOnce({
+    data: [{
+      id: 'notification-1',
+      title: 'Evento actualizado',
+      description: 'Se cambió el horario.',
+      href: '/portal/eventos/event-1',
+      unread: true,
+      createdAt: '2026-11-17T22:00:00.000Z',
+    }],
+  });
+
+  render(<ConnectedNavbar />);
+
+  await waitFor(() => expect(mockApiClient).toHaveBeenCalledWith(
+    '/api/v1/event-notifications',
+    { authenticated: true },
+  ));
+  expect(await screen.findByText('Evento actualizado: Se cambió el horario.')).toBeInTheDocument();
 });
 
 it('conserva la sesión visual ante error de red y reintenta al volver online', async () => {
@@ -104,6 +137,22 @@ it('conserva el fallback visual de sesión ante errores transitorios en cualquie
   view.rerender(<ConnectedNavbar />);
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   expect(screen.getByText('talento: empresa')).toBeInTheDocument();
+});
+
+it('sin conexión mantiene al usuario si su sesión offline sigue vigente (HU07)', async () => {
+  window.localStorage.setItem('umsspira.offline.session-validation', JSON.stringify({ userId: 'u1', validatedAt: Date.now() }));
+  window.localStorage.setItem('umsspira.offline.nav-user', JSON.stringify({ name: 'titulado', initials: 'TI', role: 'titulado' }));
+  fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('titulado: titulado')).toBeInTheDocument();
+});
+
+it('sin conexión muestra visitante si la sesión offline venció', async () => {
+  window.localStorage.setItem('umsspira.offline.session-validation', JSON.stringify({ userId: 'u1', validatedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 }));
+  window.localStorage.setItem('umsspira.offline.nav-user', JSON.stringify({ name: 'titulado', initials: 'TI', role: 'titulado' }));
+  fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('Visitante')).toBeInTheDocument();
 });
 
 it('limpia la sesión visual y muestra acciones públicas ante un 401 explícito', async () => {
@@ -245,6 +294,30 @@ it('mantiene el borrador cuando falla el logout desde la navbar', async () => {
   expect(window.localStorage.getItem('umsspira:survey-draft:usuario-1')).not.toBeNull();
 });
 
+it('sin conexión se puede cerrar sesión: queda pendiente y se va a /login (HU07)', async () => {
+  const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  jest.mocked(revokeCurrentSession).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  expect(window.localStorage.getItem('umsspira.offline.pending-logout')).toBe('1');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(clearSession).toHaveBeenCalled();
+  consoleError.mockRestore();
+});
+
+it('con el servidor caído (500) también se puede cerrar sesión en este equipo', async () => {
+  const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  jest.mocked(revokeCurrentSession).mockRejectedValueOnce(new SessionError(500, 'No se pudo cerrar la sesión'));
+  render(<ConnectedNavbar />);
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  consoleError.mockRestore();
+});
+
 it('la portada institucional siempre muestra la barra de visitante, aunque haya sesión', async () => {
   mockPathname = '/portal/institucional';
   fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: { email: 'ana@umss.edu', role: 'titulado' } }) } as Response);
@@ -264,4 +337,19 @@ it('conserva la sesión al cambiar de página: no vuelve a mostrar la barra de v
   render(<ConnectedNavbar />);
   expect(screen.getByText('ana: titulado')).toBeInTheDocument();
   expect(screen.queryByText('Visitante')).not.toBeInTheDocument();
+});
+
+it('sin conexión se cierra sesión con el botón de la propia barra (sin botones duplicados flotantes)', async () => {
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: { email: 'talento@ejemplo.com', role: 'empresa' } }) } as Response);
+  render(<ConnectedNavbar />);
+  expect(await screen.findByText('talento: empresa')).toBeInTheDocument();
+
+  jest.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+  fireEvent(window, new Event('offline'));
+  expect(screen.queryByTestId('offline-logout-button')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: 'Cerrar sesión' })).toHaveLength(1);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  jest.restoreAllMocks();
 });

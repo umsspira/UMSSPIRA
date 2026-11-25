@@ -17,7 +17,13 @@ interface AccreditationExportButtonsProps {
   hasData: boolean;
 }
 
-type Feedback = { kind: 'info' | 'error'; text: string } | null;
+type Feedback = { kind: 'info' | 'error' | 'success'; text: string } | null;
+
+const feedbackColor = {
+  info: 'text-[#5B6470]',
+  error: 'text-[#B42318]',
+  success: 'text-[#067647]',
+} as const;
 
 const buttonClassName =
   'inline-flex h-11 w-full items-center justify-center rounded-md px-4 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FFB162] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto';
@@ -43,6 +49,7 @@ export function AccreditationExportButtons({
     try {
       const file = await requestAccreditationExport(format, filters);
       saveExportFile(file);
+      setFeedback({ kind: 'success', text: EXPORT_MESSAGES.downloaded });
     } catch (error) {
       const reason = error instanceof AccreditationExportError ? error.reason : 'failure';
       setFeedback({
@@ -82,9 +89,7 @@ export function AccreditationExportButtons({
       {feedback && (
         <p
           role={feedback.kind === 'error' ? 'alert' : 'status'}
-          className={`w-full text-sm sm:text-right ${
-            feedback.kind === 'error' ? 'text-[#B42318]' : 'text-[#5B6470]'
-          }`}
+          className={`w-full text-sm sm:text-right ${feedbackColor[feedback.kind]}`}
         >
           {feedback.text}
         </p>

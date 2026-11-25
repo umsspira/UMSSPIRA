@@ -133,24 +133,14 @@ describe('EditEducationForm', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('"Quitar imagen" deshace la foto elegida que aún no se guardó y vuelve al respaldo del registro', () => {
+  it('no ofrece subir un respaldo: la formación no lo guarda en la API (HU-18)', () => {
     const { container } = render(
       <ProfileStoreProvider initialRecords={PROFILE_RECORDS_MOCK}>
         <EditEducationForm />
       </ProfileStoreProvider>,
     );
-    expect(screen.queryByRole('button', { name: 'Quitar imagen' })).not.toBeInTheDocument();
-
-    const [inputFoto] = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]'));
-    const foto = new File([new Uint8Array(1024)], 'titulo-nuevo.jpg', { type: 'image/jpeg' });
-    fireEvent.change(inputFoto, { target: { files: [foto] } });
-    expect(screen.getByText('titulo-nuevo.jpg')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Quitar imagen' }));
-
-    expect(screen.queryByText('titulo-nuevo.jpg')).not.toBeInTheDocument();
-    expect(screen.getByText('respaldo.jpg')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Quitar imagen' })).not.toBeInTheDocument();
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(screen.queryByText(/respaldo/i)).not.toBeInTheDocument();
   });
 
   it('409: muestra el mensaje del backend y no guarda', async () => {

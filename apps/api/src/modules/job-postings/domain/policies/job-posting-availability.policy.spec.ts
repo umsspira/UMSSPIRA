@@ -6,11 +6,14 @@ describe('isJobPostingAvailable', () => {
   it.each([
     ['PUBLICADO', null, true],
     ['PUBLICADA', null, true],
+    // HU-14: vocabulario unificado, ACTIVA/ACTIVO ya significan "publicada".
+    ['ACTIVA', null, true],
+    ['PAUSADA', null, false],
+    ['PAUSADO', null, false],
     ['CERRADO', null, false],
     ['CERRADA', null, false],
     ['PUBLICADO', new Date('2026-11-16T11:59:59.999Z'), false],
     ['PUBLICADA', new Date('2026-11-16T12:00:00.001Z'), true],
-    ['ACTIVA', null, false],
     ['DISPONIBLE', null, false],
     [null, null, false],
   ] as const)(

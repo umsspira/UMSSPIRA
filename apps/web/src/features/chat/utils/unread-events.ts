@@ -1,5 +1,4 @@
-// Aviso interno para que la barra superior recalcule los pendientes
-// (por ejemplo, cuando se marca una conversación como leída).
+// apps/web/src/features/chat/utils/unread-events.ts
 const EVENT = "umsspira:chat-unread-refresh";
 
 export const emitUnreadRefresh = (): void => {

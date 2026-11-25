@@ -62,6 +62,7 @@ describe('GetMySurveyController', () => {
       modalidad: 'Remoto',
       salarioMensual: '8.001–12.000',
       tiempoInsercion: '2',
+      edicionUsada: false,
     });
 
     const result = await controller.handle(actor);
@@ -80,9 +81,30 @@ describe('GetMySurveyController', () => {
           modalidad: 'Remoto',
           salario_mensual: '8.001–12.000',
           tiempo_insercion: '2',
+          edicion_usada: false,
         },
       },
     });
+  });
+
+  it('devuelve edicion_usada: true cuando el titulado ya usó su única edición (HU-006 CA-07)', async () => {
+    repository.findActiveSurveyForGraduate.mockResolvedValue({
+      id: 'survey-active-1',
+    });
+    prisma.respuestaEncuesta.findUnique.mockResolvedValue({
+      condicionLaboral: false,
+      cargo: null,
+      empresa: null,
+      area: null,
+      modalidad: null,
+      salarioMensual: null,
+      tiempoInsercion: null,
+      edicionUsada: true,
+    });
+
+    const result = await controller.handle(actor);
+
+    expect(result.data.response).toMatchObject({ edicion_usada: true });
   });
 
   it('devuelve responded: false y response: null si aún no ha respondido', async () => {

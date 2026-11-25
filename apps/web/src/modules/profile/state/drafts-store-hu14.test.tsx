@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { DRAFTS_STORAGE_KEY } from '@/modules/profile/utils/drafts-storage';
+import { draftsStorageKey } from '@/modules/profile/utils/drafts-storage';
+
+const TITULADO = 'titulado-1';
+const DRAFTS_STORAGE_KEY = draftsStorageKey(TITULADO);
 
 import { DraftsStoreProvider, type DraftRecord, useDraftsStore } from './drafts-store';
 
@@ -10,7 +13,7 @@ const EXPERIENCIA = { empresa: 'Jalasoft', cargo: '', fechaInicio: '' };
 
 function renderDrafts(initialDrafts?: DraftRecord[]) {
   return renderHook(() => useDraftsStore(), {
-    wrapper: ({ children }) => <DraftsStoreProvider initialDrafts={initialDrafts}>{children}</DraftsStoreProvider>,
+    wrapper: ({ children }) => <DraftsStoreProvider initialDrafts={initialDrafts} ownerId={TITULADO}>{children}</DraftsStoreProvider>,
   });
 }
 
@@ -78,6 +81,8 @@ describe('DraftsStoreProvider (HU-14)', () => {
     });
     await waitFor(() => expect(setItem).toHaveBeenCalled());
     expect(result.current.drafts).toHaveLength(1);
+    // HU-14: se avisa en pantalla que no se pudieron conservar
+    await waitFor(() => expect(result.current.storageFailed).toBe(true));
     setItem.mockRestore();
   });
 });
