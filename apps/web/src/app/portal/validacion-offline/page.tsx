@@ -12,11 +12,6 @@ const ACCESOS_RAPIDOS = [
     descripcion: 'Participa en los próximos eventos de la comunidad UMSS.',
   },
   {
-    href: '/portal/beneficios',
-    titulo: 'Beneficios',
-    descripcion: 'Descubre los convenios y descuentos para titulados.',
-  },
-  {
     href: '/portal/empleos',
     titulo: 'Empleos',
     descripcion: 'Encuentra ofertas laborales y oportunidades.',
@@ -141,7 +136,7 @@ export default function Home() {
       <section
         data-testid="home-primary-actions"
         aria-label="Accesos rápidos"
-        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
       >
         {ACCESOS_RAPIDOS.map((acceso) => (
           <Link
