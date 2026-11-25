@@ -1,6 +1,6 @@
-import type { OcrAnalysis } from "@umsspira/shared-types";
+import type { OcrFinding } from "@umsspira/shared-types";
 
-const statuses = {
+const statuses: Record<string, string> = {
   PENDIENTE: "Pendiente",
   EN_CURSO: "En curso",
   COMPLETADO: "Completado",
@@ -8,7 +8,7 @@ const statuses = {
   DESCARTADO: "Versión anterior",
 };
 
-const suggestions = {
+const suggestions: Record<string, string> = {
   APROBAR: "Sugerencia: aprobar",
   OBSERVAR: "Sugerencia: observar",
   RECHAZAR: "Sugerencia: rechazar",
@@ -22,7 +22,14 @@ const findings = {
 };
 
 type Props = {
-  analysis: OcrAnalysis | null;
+  analysis: {
+    revision: number;
+    status: string;
+    createdAt: string | null;
+    completedAt: string | null;
+    error: string | null;
+    result: { suggestion: string; reason: string; findings: OcrFinding[] } | null;
+  } | null;
   error?: string;
   loading?: boolean;
 };
@@ -44,9 +51,11 @@ export function OcrSummaryCard({ analysis, error, loading = false }: Props) {
           <p className="mt-1 text-xs text-[#2C3B4D]">
             {analysis
               ? `Versión ${analysis.revision} · ${statuses[analysis.status]}`
-              : loading
-                ? "Consultando análisis OCR…"
-                : "Sin análisis registrado"}
+              : error
+                ? "Consulta no disponible"
+                : loading
+                  ? "Consultando análisis OCR…"
+                  : "Sin análisis registrado"}
             {timestamp &&
               ` · ${new Date(timestamp).toLocaleString("es-BO", {
                 timeZone: "America/La_Paz",
