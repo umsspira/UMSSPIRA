@@ -480,9 +480,9 @@ Sin fechas porque dependen del PO y de otros equipos; se ordena por olas.
 2. ¿Cuántos días puede usarse la sesión sin conexión? (propuesta: 7)
 3. ¿Se validan Safari/iOS más adelante? (F-01)
 4. ¿Se permite encolar acciones sin conexión? (F-03)
-6. ¿Meta de mejora de tiempos en S3-HU11 (propuesta: 30 %) y tiempo límite de consulta en S3-HU13/18 (propuesta: 8 s)?
-7. ¿Quién es el dueño del chat? (ver sección 10, M-11)
-8. Para Épica 5: ¿403 o 404 al tocar una vacante ajena, y los nombres definitivos de los estados? (E5-HU14)
+5. ¿Meta de mejora de tiempos en S3-HU11 (propuesta: 30 %) y tiempo límite de consulta en S3-HU13/18 (propuesta: 8 s)?
+6. ¿Quién es el dueño del chat? (ver sección 10, M-11)
+7. Para Épica 5: ¿403 o 404 al tocar una vacante ajena, y los nombres definitivos de los estados? (E5-HU14)
 
 ### 11.5 Riesgos a vigilar
 
@@ -492,6 +492,3 @@ Sin fechas porque dependen del PO y de otros equipos; se ordena por olas.
 | Cambios de reglas (cola, cifrado) sin validar con el PO | Retrabajo | Decisiones de la sección 4 antes de empezar |
 | El SW crece con módulos de otros | Cachés inconsistentes | Gancho `sw-extensions.js` y prueba que protege el núcleo |
 | Falta de dispositivos reales (iPhone, Android) | Fallas que no se ven en escritorio | Calendario de pruebas en dispositivos y matriz M-07 |
-
-
-

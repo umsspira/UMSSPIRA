@@ -490,13 +490,9 @@ function offlineHtml() {
   // Los QR, eventos guardados y configuración son solo del titulado: empresa y administrador solo ven el aviso de conexión.
   var notTitulado = hasSession && user && user.role && user.role !== 'titulado';
   if (notTitulado) {
+    // Empresa y administrador: solo el aviso «Sin conexión a Internet» y Reintentar, sin la caja de accesos.
     var availBox = document.querySelector('.avail');
-    if (availBox) {
-      ['.qr-hero', '[data-testid="offline-link-events"]', '[data-testid="offline-link-settings"]'].forEach(function (sel) {
-        var el = availBox.querySelector(sel); if (el) el.hidden = true;
-      });
-      var h = availBox.querySelector('h2'); if (h) h.hidden = true;
-    }
+    if (availBox) availBox.hidden = true;
   }
 
   var img = document.getElementById('logo-img');

@@ -128,6 +128,3 @@ Los módulos `vacantes` (legacy, fuera de la convención del repo) y `job-postin
 - Cuando S3-HU11 y S3-HU12 se fusionen, listar aquí los módulos, rutas y parámetros nuevos o movidos.
 - Cuando E5-HU14 se fusione, registrar el código de error definitivo y el vocabulario de estados final.
 - Documentar los endpoints de estas HU en `apps/api/docs/endpoints/` (E5-HU14 en `epic5/`) y agregar sus requests a `bruno/Vacantes/`, como piden las HU de Épica 5.
-
-
-
