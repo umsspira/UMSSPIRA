@@ -45,4 +45,23 @@ describe('updateVacanteSchema (HU-13)', () => {
     expect(result.success).toBe(true);
     if (result.success) {expect(result.data.titulo).toBe('Vacante');}
   });
+
+  it('normaliza los alias de estado al vocabulario único (HU-14)', () => {
+    const result = updateVacanteSchema.safeParse({ estado: 'pausada' });
+    expect(result.success).toBe(true);
+    if (result.success) {expect(result.data.estado).toBe('PAUSADO');}
+  });
+
+  it('acepta los tres estados canónicos (HU-14)', () => {
+    for (const estado of ['PUBLICADO', 'PAUSADO', 'CERRADO']) {
+      const result = updateVacanteSchema.safeParse({ estado });
+      expect(result.success).toBe(true);
+      if (result.success) {expect(result.data.estado).toBe(estado);}
+    }
+  });
+
+  it('rechaza un estado fuera del vocabulario (HU-14)', () => {
+    expect(updateVacanteSchema.safeParse({ estado: 'INVENTADO' }).success).toBe(false);
+    expect(updateVacanteSchema.safeParse({ estado: 'BORRADOR' }).success).toBe(false);
+  });
 });
