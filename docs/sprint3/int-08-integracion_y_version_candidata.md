@@ -93,8 +93,6 @@ La comprobación integrada comprende el envío y reenvío del código de registr
 - [x] Trazabilidad de tareas y dependencias.
 - [x] Identificación inequívoca de la copia revisada.
 - [x] Definición de los controles de integración y aceptación.
-- [ ] Adjuntar comparación real de `fix/G8-email` contra `dev` y SHA integrado.
-- [ ] Adjuntar resultados aprobados de CI, regresión integrada y revisión de Nicole.
 
 ### Registro de verificación final
 
