@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { StrictMode } from 'react';
 import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
-import { ApiError } from '@/shared/services/api-client';
+import { ApiError, apiFetch } from '@/shared/services/api-client';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinity } from '@/shared/services/job-posting-affinity';
 import { getMyJobApplication } from '@/shared/services/job-applications';
@@ -20,9 +21,23 @@ jest.mock('@/shared/services/job-applications', () => ({
   applyToJob: jest.fn(),
 }));
 
+jest.mock('@/shared/services/api-client', () => ({
+  ...jest.requireActual('@/shared/services/api-client'),
+  apiFetch: jest.fn(),
+}));
+
 const getAvailable = jest.mocked(getAvailableJobPosting);
 const calculateAffinity = jest.mocked(calculateVacancyAffinity);
 const getMyApplication = jest.mocked(getMyJobApplication);
+const getProfile = jest.mocked(apiFetch);
+const profile = {
+  titulado: { id: 'graduate-1' },
+  descripcionProfesional: 'React',
+  formacionAcademica: { registros: [] },
+  experienciaLaboral: { registros: [] },
+  certificaciones: { registros: [] },
+  proyectos: { registros: [] },
+};
 
 const posting: AvailableJobPostingDetail = {
   id: 'vacancy-1',
@@ -38,8 +53,168 @@ const posting: AvailableJobPostingDetail = {
 describe('JobPostingDetail', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    calculateAffinity.mockResolvedValue({ status: 'no-requirements', percentage: null, calculatedAt: null, comparison: [] });
+    getProfile.mockResolvedValue(profile);
+    calculateAffinity.mockResolvedValue({
+      status: 'no-requirements',
+      percentage: null,
+      calculatedAt: null,
+      comparison: [],
+    });
     getMyApplication.mockResolvedValue({ postulada: false });
+  });
+
+  it('muestra la vacante antes de que termine la consulta del perfil', async () => {
+    getAvailable.mockResolvedValue(posting);
+    let resolveProfile!: (value: typeof profile) => void;
+    getProfile.mockReturnValue(new Promise((resolve) => { resolveProfile = resolve; }));
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+
+    expect(await screen.findByRole('heading', { name: 'Desarrollador' })).toBeInTheDocument();
+    expect(screen.queryByText('Cargando oferta. Espera un momento...')).not.toBeInTheDocument();
+    expect(calculateAffinity).not.toHaveBeenCalled();
+
+    await act(async () => { resolveProfile(profile); });
+    await waitFor(() => expect(calculateAffinity).toHaveBeenCalledWith('vacancy-1'));
+  });
+
+  it('conserva la afinidad y el modal tras tres refrescos iguales de 30 segundos', async () => {
+    getAvailable.mockImplementation(async () => ({ ...posting, requisitos: [...posting.requisitos] }));
+    calculateAffinity.mockResolvedValue({
+      status: 'ready', percentage: 0, calculatedAt: '2026-11-20T09:00:00.000Z', comparison: [],
+    });
+    const visibility = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    jest.useFakeTimers();
+    try {
+      render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+      await act(async () => { await Promise.resolve(); });
+      fireEvent.click(screen.getByRole('button', { name: '¿Cómo se calcula?' }));
+      for (let cycle = 0; cycle < 3; cycle++) {
+        await act(async () => {
+          jest.advanceTimersByTime(30_500);
+          await Promise.resolve();
+        });
+      }
+      expect(getAvailable).toHaveBeenCalledTimes(4);
+      expect(getProfile).toHaveBeenCalledTimes(4);
+      expect(calculateAffinity).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('0%')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
+      fireEvent.focus(window);
+      fireEvent(document, new Event('visibilitychange'));
+      await act(async () => { jest.advanceTimersByTime(500); await Promise.resolve(); });
+      expect(calculateAffinity).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('dialog', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+      if (visibility) Object.defineProperty(document, 'visibilityState', visibility);
+    }
+  });
+
+  it('deduplica el cálculo mientras el mismo resultado sigue en vuelo', async () => {
+    getAvailable.mockResolvedValue(posting);
+    let resolveAffinity!: (value: Awaited<ReturnType<typeof calculateVacancyAffinity>>) => void;
+    calculateAffinity.mockImplementation(() => new Promise((resolve) => { resolveAffinity = resolve; }));
+
+    render(
+      <StrictMode>
+        <JobPostingDetail id="vacancy-1" presentation="hu002" />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(calculateAffinity).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      resolveAffinity({
+        status: 'ready',
+        percentage: 100,
+        calculatedAt: '2026-11-24T10:00:00.000Z',
+        comparison: [],
+      });
+    });
+    expect(await screen.findByText('100%')).toBeInTheDocument();
+    expect(calculateAffinity).toHaveBeenCalledTimes(1);
+  });
+
+  it('recalcula si el perfil incorpora una sección aunque no aporte texto', async () => {
+    getAvailable.mockResolvedValue(posting);
+    getProfile.mockResolvedValueOnce(profile).mockResolvedValue({
+      ...profile, formacionAcademica: { registros: [{ titulo: '', institucion: '' }] },
+    });
+    calculateAffinity.mockResolvedValue({
+      status: 'ready', percentage: 0, calculatedAt: '2026-11-20T09:00:00.000Z', comparison: [],
+    });
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+    await screen.findByText('0%');
+    fireEvent.focus(window);
+    await waitFor(() => expect(getProfile).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(calculateAffinity).toHaveBeenCalledTimes(2));
+  });
+
+  it('no muestra la afinidad de una vacante anterior al cambiar de identificador', async () => {
+    getAvailable.mockImplementation(async (id) => ({ ...posting, id }));
+    calculateAffinity.mockResolvedValueOnce({
+      status: 'ready', percentage: 10, calculatedAt: '2026-11-20T09:00:00.000Z', comparison: [],
+    }).mockImplementationOnce(() => new Promise(() => undefined));
+    const view = render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+    await screen.findByText('10%');
+    view.rerender(<JobPostingDetail id="vacancy-2" presentation="hu002" />);
+    expect(screen.queryByText('10%')).not.toBeInTheDocument();
+    await waitFor(() => expect(calculateAffinity).toHaveBeenCalledWith('vacancy-2'));
+    expect(screen.queryByText('10%')).not.toBeInTheDocument();
+  });
+
+  it('recalcula tras cambiar requisitos o datos relevantes del perfil', async () => {
+    getAvailable.mockResolvedValueOnce(posting)
+      .mockResolvedValueOnce({ ...posting, requisitos: [{ id: 'new', nombre: 'TypeScript' }] })
+      .mockResolvedValue({ ...posting, requisitos: [{ id: 'new', nombre: 'TypeScript' }] });
+    getProfile.mockResolvedValueOnce(profile).mockResolvedValueOnce(profile)
+      .mockResolvedValue({ ...profile, descripcionProfesional: 'TypeScript' });
+    calculateAffinity.mockResolvedValue({
+      status: 'ready', percentage: 50, calculatedAt: '2026-11-20T09:00:00.000Z', comparison: [],
+    });
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+    await screen.findByText('50%');
+    fireEvent.focus(window);
+    await waitFor(() => expect(calculateAffinity).toHaveBeenCalledTimes(2));
+    fireEvent.focus(window);
+    await waitFor(() => expect(calculateAffinity).toHaveBeenCalledTimes(3));
+  });
+
+  it('ignora un resultado antiguo cuando cambian los requisitos durante un cálculo lento', async () => {
+    let finishOld!: (value: Awaited<ReturnType<typeof calculateVacancyAffinity>>) => void;
+    calculateAffinity.mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; }))
+      .mockResolvedValue({ status: 'ready', percentage: 80, calculatedAt: '2026-11-24T10:00:00.000Z', comparison: [] });
+    getAvailable.mockResolvedValueOnce(posting)
+      .mockResolvedValue({ ...posting, requisitos: [{ id: 'new', nombre: 'TypeScript' }] });
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+    await waitFor(() => expect(calculateAffinity).toHaveBeenCalledTimes(1));
+    fireEvent.focus(window);
+    await screen.findByText('80%');
+    await act(async () => {
+      finishOld({ status: 'ready', percentage: 10, calculatedAt: '2026-11-24T09:00:00.000Z', comparison: [] });
+    });
+    expect(screen.getByText('80%')).toBeInTheDocument();
+    expect(screen.queryByText('10%')).not.toBeInTheDocument();
+  });
+
+  it('sale de la espera prolongada con un reintento funcional', async () => {
+    calculateAffinity.mockImplementationOnce(() => new Promise(() => undefined))
+      .mockResolvedValue({ status: 'ready', percentage: 75, calculatedAt: '2026-11-24T10:00:00.000Z', comparison: [] });
+    getAvailable.mockResolvedValue(posting);
+    jest.useFakeTimers();
+    try {
+      render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.getByText('Calculando afinidad…')).toBeInTheDocument();
+      await act(async () => { jest.advanceTimersByTime(60_000); });
+      expect(screen.getByText('Afinidad no disponible por ahora')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Reintentar cálculo' }));
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.getByText('75%')).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('ofrece postularse desde el detalle de la vacante', async () => {
