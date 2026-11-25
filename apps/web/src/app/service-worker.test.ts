@@ -151,6 +151,15 @@ describe('service worker del portal', () => {
     }
   });
 
+  it('HU06: una versión nueva no se activa sola al instalarse; solo con el mensaje SKIP_WAITING', async () => {
+    const { listeners, self } = loadWorker();
+    await runInstall(listeners);
+    expect(self.skipWaiting).not.toHaveBeenCalled();
+
+    listeners.message({ data: { type: 'SKIP_WAITING' }, waitUntil: () => undefined });
+    expect(self.skipWaiting).toHaveBeenCalledTimes(1);
+  });
+
   it('no intercepta el homepage ni las consultas de otras épicas', () => {
     const { listeners } = loadWorker();
     for (const path of ['/', '/me', '/graduates-report', '/api/events']) {
@@ -259,6 +268,17 @@ describe('service worker del portal', () => {
     expect(html).toContain('offline-logout');
     expect(html).toContain("indexedDB.deleteDatabase('umsspira-offline')");
     expect(html).toContain("n.indexOf('umsspira-routes') === 0");
+  });
+
+  it('Eventos sin conexión: si la pantalla no estaba guardada, el aviso lista el catálogo guardado (umsspira-hu04)', async () => {
+    const html = await pantallaSinConexion('/portal/eventos');
+    expect(html).toContain('offline-events-box');
+    expect(html).toContain("indexedDB.open('umsspira-hu04')");
+    expect(html).toContain("'public-events'");
+    // No debe crear la base vacía si no existía.
+    expect(html).toContain('transaction.abort()');
+    // Un solo bloque de eventos (sin ids repetidos).
+    expect(html.match(/id="events-box"/g)).toHaveLength(1);
   });
 
   it('HU08: las pantallas de Mis QR (/events/catalog/passes y /mis-pases) pasan por el Service Worker', () => {

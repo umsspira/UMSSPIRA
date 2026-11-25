@@ -1,26 +1,12 @@
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRealConnection } from "./use-real-connection";
 
+/**
+ * Estado de conexión para toda la app (chat, eventos, etc.).
+ * Usa la comprobación real: con Wi‑Fi sin internet o con la red cortada de verdad también da `false`,
+ * no solo cuando el navegador marca «offline» (modo sin conexión de DevTools).
+ */
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    const updateStatus = () => {
-      setIsOnline(navigator.onLine);
-    };
-
-    updateStatus();
-
-    window.addEventListener("online", updateStatus);
-    window.addEventListener("offline", updateStatus);
-
-    return () => {
-      window.removeEventListener("online", updateStatus);
-      window.removeEventListener("offline", updateStatus);
-    };
-  }, []);
-
-  return isOnline;
+  return useRealConnection();
 }

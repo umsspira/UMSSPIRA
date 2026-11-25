@@ -1,5 +1,7 @@
 'use client';
 
+import { useRealConnection } from '@/shared/hooks/use-real-connection';
+import { CONNECTION_MODE_LABEL, useConnectionMode } from '@/shared/hooks/use-connection-mode';
 import { useState, useEffect } from 'react';
 import { Database, RefreshCw, ShieldCheck, Info, Zap, Download, Terminal, CheckCircle, AlertCircle, WifiOff, Wifi, ChevronDown } from 'lucide-react';
 import { useServiceWorkerUpdate } from '../../../hooks/useServiceWorkerUpdate';
@@ -9,7 +11,8 @@ import { TarjetasValidacion, useComprobaciones } from '../validacion-offline/val
 type FilaGuardado = { id: string; titulo: string; detalle: string; estado: 'ok' | 'falta' | 'info' };
 
 export default function ConfiguracionPage() {
-  const [isOnline, setIsOnline] = useState(true);
+  const isOnline = useRealConnection();
+  const modo = useConnectionMode();
   const [lastUpdate, setLastUpdate] = useState<string>('Cargando...');
   const [cacheSize, setCacheSize] = useState<string>('Calculando...');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -41,12 +44,6 @@ export default function ConfiguracionPage() {
   };
 
   useEffect(() => {
-    setIsOnline(navigator.onLine);
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
     if ('storage' in navigator && 'estimate' in navigator.storage) {
       navigator.storage.estimate().then((est) => {
         const usedMB = ((est.usage || 0) / (1024 * 1024)).toFixed(0);
@@ -69,8 +66,6 @@ export default function ConfiguracionPage() {
 
     return () => {
       window.clearTimeout(recheck);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -228,6 +223,7 @@ export default function ConfiguracionPage() {
       <section
         data-testid="config-estado"
         data-modo={isOnline ? 'en-linea' : 'sin-conexion'}
+        data-tipo={modo}
         data-guardado={todoBien ? 'ok' : 'incompleto'}
         aria-live="polite"
         className={`mb-5 flex items-start gap-4 rounded-2xl border p-4 shadow-sm sm:items-center sm:p-5 ${
@@ -247,7 +243,7 @@ export default function ConfiguracionPage() {
         </div>
         <div className="min-w-0">
           <p className="text-lg font-bold text-[#1B2632] sm:text-xl" data-testid="config-estado-titulo">
-            {isOnline ? 'En línea' : 'Sin conexión'}
+            {CONNECTION_MODE_LABEL[modo]}
           </p>
           {todoBien ? (
             <p className="mt-0.5 flex items-start gap-1.5 text-sm text-slate-700 sm:text-base">

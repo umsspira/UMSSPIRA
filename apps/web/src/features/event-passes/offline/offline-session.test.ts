@@ -47,6 +47,20 @@ describe('offline-session', () => {
     expect(hasPendingLogout()).toBe(true);
   });
 
+  it('HU07 CA-02: al cerrar sesión se borran por completo las páginas privadas guardadas (umsspira-routes-*)', async () => {
+    const deleted: string[] = [];
+    Object.defineProperty(window, 'caches', {
+      configurable: true,
+      value: {
+        keys: async () => ['umsspira-routes-v1.0.3', 'umsspira-config-v1.0.3'],
+        delete: async (name: string) => { deleted.push(name); return true; },
+        open: async () => ({ keys: async () => [], delete: async () => true }),
+      },
+    });
+    await clearPrivateOfflineData();
+    expect(deleted).toEqual(['umsspira-routes-v1.0.3']);
+  });
+
   it('HU07 CA-03: otra cuenta en el mismo dispositivo invalida la anterior', async () => {
     await registerValidatedSession(fakeToken('u1'));
     await registerValidatedSession(fakeToken('u2'));
@@ -59,5 +73,23 @@ describe('offline-session', () => {
     expect(getOfflineSessionUserId()).toBeNull();
     clearPendingLogout();
     expect(getOfflineSessionUserId()).toBe('u1');
+  });
+
+  it('al iniciar sesión pide al Service Worker guardar de nuevo las pantallas sin conexión (una sola vez por sesión)', async () => {
+    const postMessage = jest.fn();
+    Object.defineProperty(window.navigator, 'serviceWorker', {
+      configurable: true,
+      value: { ready: Promise.resolve({ active: { postMessage } }) },
+    });
+    await registerValidatedSession(fakeToken('u1'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(postMessage).toHaveBeenCalledWith({ type: 'CACHE_OFFLINE_ROUTES' });
+
+    postMessage.mockClear();
+    await registerValidatedSession(fakeToken('u1'));
+    await Promise.resolve();
+    expect(postMessage).not.toHaveBeenCalled();
+    Object.defineProperty(window.navigator, 'serviceWorker', { configurable: true, value: undefined });
   });
 });

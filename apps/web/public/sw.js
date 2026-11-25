@@ -280,7 +280,8 @@ self.addEventListener('install', (event) => {
 
     await precacheShellAssets(staticCache);
     await syncOfflineRoutes();
-    self.skipWaiting();
+    // HU06: no se activa sola. La versión nueva queda en espera hasta que la persona pulse «Actualizar»
+    // (mensaje SKIP_WAITING). La primera instalación se activa igualmente porque no hay versión anterior.
   })());
 });
 
@@ -372,6 +373,13 @@ function offlineHtml() {
   .logout{width:100%;margin-top:12px;border:0;cursor:pointer;text-align:left}
   .logout[disabled]{opacity:.7;cursor:wait}
   nav.menu button.out{display:none;align-items:center;min-height:48px;padding:0 4px;border:0;border-bottom:1px solid #2C3B4D;background:transparent;color:#EEE9DF;font-size:.875rem;text-align:left;cursor:pointer}
+  .evlist{margin-top:22px;padding:16px;border-radius:12px;background:#FFF8EE;text-align:left}
+  .evlist h2{margin:0 0 6px;font-size:.95rem;color:#1B2632}
+  .evlist .evnote{margin:0 0 12px;font-size:.78rem;color:#5E6974}
+  .evlist ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+  .evlist li{padding:12px 14px;border-radius:10px;background:#fff;border:1px solid #E6DFD0}
+  .evlist li strong{display:block;font-size:.92rem;color:#1B2632}
+  .evlist li span{display:block;margin-top:2px;font-size:.8rem;color:#5E6974}
   .foot{margin-top:22px;text-align:center;font-size:.75rem;color:rgba(44,56,77,.5)}
   @media (max-width:900px){
     .bar{gap:8px;padding:0 14px}
@@ -409,6 +417,11 @@ function offlineHtml() {
     <button type="button" class="btn" id="retry" data-testid="offline-retry">&#10227; Reintentar</button>
     <p class="notice" id="notice" role="status" aria-live="polite" hidden>Todavía no hay conexión</p>
     <p class="notice" id="logged-out" role="status" aria-live="polite" hidden>Sesión cerrada. Tus datos privados se borraron de este dispositivo.</p>
+    <div class="evlist" id="events-box" data-testid="offline-events-box" hidden>
+      <h2>Eventos guardados en este dispositivo</h2>
+      <p class="evnote" id="events-note"></p>
+      <ul id="events-ul"></ul>
+    </div>
     <div class="avail">
       <h2>Disponible sin conexión</h2>
       <!-- HU09 CA-02: acceso destacado a Mis códigos QR sin recorrer el menú. -->
@@ -474,6 +487,18 @@ function offlineHtml() {
     acct.appendChild(go);
   }
 
+  // Los QR, eventos guardados y configuración son solo del titulado: empresa y administrador solo ven el aviso de conexión.
+  var notTitulado = hasSession && user && user.role && user.role !== 'titulado';
+  if (notTitulado) {
+    var availBox = document.querySelector('.avail');
+    if (availBox) {
+      ['.qr-hero', '[data-testid="offline-link-events"]', '[data-testid="offline-link-settings"]'].forEach(function (sel) {
+        var el = availBox.querySelector(sel); if (el) el.hidden = true;
+      });
+      var h = availBox.querySelector('h2'); if (h) h.hidden = true;
+    }
+  }
+
   var img = document.getElementById('logo-img');
   img.addEventListener('error', function () { img.hidden = true; document.getElementById('logo-text').hidden = false; });
 
@@ -534,6 +559,8 @@ function offlineHtml() {
     // Se borran páginas privadas guardadas y datos locales antes de recargar.
     clearPrivateCaches().then(function () {
       try {
+        // Se borran las dos bases de QR: la actual y la que usa el detalle del pase.
+        try { indexedDB.deleteDatabase('umsspira-event-passes'); } catch (e) {}
         var del = indexedDB.deleteDatabase('umsspira-offline');
         del.onsuccess = finish; del.onerror = finish; del.onblocked = finish;
       } catch (e) { finish(); }
@@ -555,6 +582,51 @@ function offlineHtml() {
       document.getElementById('logged-out').hidden = false;
     }
   } catch (e) {}
+
+  // Eventos sin conexión: si esta pantalla no se guardó, se muestran los eventos que la app guardó la última vez que se abrió con red.
+  function showSavedEvents() {
+    if (!hasSession || notTitulado || !startsWith(path, ['/portal/eventos']) || !window.indexedDB) return;
+    try {
+      var open = indexedDB.open('umsspira-hu04');
+      // Si la base no existía, NO se crea vacía (rompería el guardado posterior del catálogo): se cancela.
+      open.onupgradeneeded = function (e) { try { e.target.transaction.abort(); } catch (err) {} };
+      open.onerror = function () {};
+      open.onsuccess = function () {
+        var db = open.result;
+        try {
+          if (!db.objectStoreNames.contains('public-events')) { db.close(); return; }
+          var get = db.transaction('public-events', 'readonly').objectStore('public-events').get('catalog');
+          get.onsuccess = function () {
+            var rec = get.result;
+            db.close();
+            if (!rec || !rec.events || !rec.events.length) return;
+            var list = document.getElementById('events-ul');
+            var shown = 0;
+            rec.events.forEach(function (ev) {
+              if (!ev || ev.status !== 'PUBLICADO' || shown >= 20) return;
+              shown++;
+              var li = document.createElement('li');
+              var t = document.createElement('strong'); t.textContent = ev.title || 'Evento';
+              li.appendChild(t);
+              var when = '';
+              try { when = new Date(ev.startDate).toLocaleString('es-BO', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) {}
+              if (when) { var d = document.createElement('span'); d.textContent = when; li.appendChild(d); }
+              if (ev.location) { var l = document.createElement('span'); l.textContent = ev.location; li.appendChild(l); }
+              list.appendChild(li);
+            });
+            if (!shown) return;
+            var note = document.getElementById('events-note');
+            try { note.textContent = 'Última actualización: ' + new Date(rec.updatedAt).toLocaleString('es-BO', { dateStyle: 'medium', timeStyle: 'short' }) + ' · Para inscribirte necesitas conexión.'; } catch (e) {}
+            document.getElementById('title').textContent = 'Sin conexión a Internet';
+            document.getElementById('msg').textContent = 'No se pudo abrir la pantalla completa de eventos, pero esto es lo que tienes guardado.';
+            document.getElementById('events-box').hidden = false;
+          };
+          get.onerror = function () { db.close(); };
+        } catch (e) { try { db.close(); } catch (e2) {} }
+      };
+    } catch (e) {}
+  }
+  showSavedEvents();
 
   window.addEventListener('online', function () { if (!busy) { busy = true; location.replace(location.href); } }, { once: true });
 })();

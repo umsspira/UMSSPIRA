@@ -64,6 +64,21 @@ export async function registerValidatedSession(token: string, now = Date.now()):
   }
 
   writeStorage(VALIDATION_KEY, JSON.stringify({ userId, validatedAt: now }));
+
+  // Tras un inicio de sesión (o cambio de cuenta) las páginas guardadas están vacías: se piden de nuevo al Service Worker
+  // para que Eventos, Mis QR y Configuración abran sin conexión sin tener que visitarlas antes.
+  if (!previous || previous.userId !== userId) requestOfflineRoutesSync();
+}
+
+function requestOfflineRoutesSync(): void {
+  try {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    void navigator.serviceWorker.ready
+      .then((registration) => registration.active?.postMessage({ type: 'CACHE_OFFLINE_ROUTES' }))
+      .catch(() => undefined);
+  } catch {
+    /* sin Service Worker no hay nada que guardar */
+  }
 }
 
 export function markPendingLogout(): void {
@@ -95,6 +110,8 @@ export function isOfflineSessionValid(now = Date.now()): boolean {
 async function clearPrivatePageCaches(): Promise<void> {
   if (typeof caches === 'undefined') return;
   const names = await caches.keys();
+  // HU07: las páginas privadas que guarda el Service Worker viven en umsspira-routes-*: se borran completas.
+  await Promise.all(names.filter((name) => name.startsWith('umsspira-routes')).map((name) => caches.delete(name)));
   await Promise.all(
     names
       .filter((name) => name.startsWith('umsspira-core-portal') || name.startsWith('umsspira-static'))
@@ -113,9 +130,28 @@ async function clearPrivatePageCaches(): Promise<void> {
   );
 }
 
+/** HU07: borra la base donde el detalle del pase guarda sus QR (umsspira-event-passes). */
+function deleteLegacyPassDatabase(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined') return resolve();
+    try {
+      const request = indexedDB.deleteDatabase('umsspira-event-passes');
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}
+
 /** CA-02: borra QR, pases, páginas privadas y la marca de validación. Funciona sin conexión. */
 export async function clearPrivateOfflineData(): Promise<void> {
-  const results = await Promise.allSettled([clearOfflineQrPasses(), clearPrivatePageCaches()]);
+  const results = await Promise.allSettled([
+    clearOfflineQrPasses(),
+    clearPrivatePageCaches(),
+    deleteLegacyPassDatabase(),
+  ]);
   removeStorage(VALIDATION_KEY);
   results.forEach((result) => {
     if (result.status === 'rejected') {
