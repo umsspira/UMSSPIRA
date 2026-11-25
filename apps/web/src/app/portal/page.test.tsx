@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 
 import Home from './page';
@@ -130,5 +130,32 @@ describe('HU09 CA-02 · acceso destacado a Mis códigos QR sin conexión', () =>
     render(<Home />);
     expect(await screen.findByTestId('home-connection-status')).toHaveAttribute('data-estado', 'sin-conexion');
     expect(screen.getByTestId('home-offline-notice')).toHaveTextContent('Estás navegando sin conexión');
+  });
+
+  it('HU18: si el catálogo falla con conexión solo esa sección muestra «Reintentar» y se recupera', async () => {
+    setOnline(true);
+    jest.mocked(getEventCatalog).mockRejectedValueOnce(new Error('caído'));
+    render(<Home />);
+
+    const aviso = await screen.findByTestId('home-events-unavailable');
+    expect(aviso).toHaveTextContent('Esta sección no está disponible.');
+    expect(screen.getByTestId('home-primary-actions')).toBeInTheDocument();
+
+    jest.mocked(getEventCatalog).mockResolvedValueOnce(publishedEvents);
+    fireEvent.click(screen.getByRole('button', { name: /Reintentar/ }));
+    expect(await screen.findByRole('link', { name: /Encuentro de titulados publicado/ })).toBeInTheDocument();
+    expect(screen.queryByTestId('home-events-unavailable')).not.toBeInTheDocument();
+  });
+
+  it('sin conexión y sin eventos guardados muestra la tarjeta «Sin conexión a Internet» y no «No hay eventos próximos»', async () => {
+    setOnline(false);
+    jest.mocked(getEventCatalog).mockResolvedValue([]);
+    render(<Home />);
+
+    expect(await screen.findByTestId('home-offline-card')).toHaveTextContent('Sin conexión a Internet');
+    expect(screen.queryByText('No hay eventos próximos por ahora.')).not.toBeInTheDocument();
+    // El acceso destacado a Mis códigos QR sigue estando (HU09).
+    expect(screen.getByTestId('home-offline-qr-access')).toBeInTheDocument();
+    setOnline(true);
   });
 });

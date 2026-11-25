@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 import logoUmss from '@/shared/assets/images/logoumsspira.jpg';
-import { authStore } from '@/modules/auth/frontend/store/auth.store';
+import { authStore, useAuthStore } from '@/modules/auth/frontend/store';
 import { clearSession } from '@/modules/auth/frontend/services/session';
 import { hardRedirect } from '@/modules/auth/frontend/services/navigation';
 import { clearAccessToken } from '@/shared/services/auth-session';
@@ -42,11 +42,16 @@ const navItems = [
 export const Navbar: React.FC<{ eventManagement?: boolean }> = ({
   eventManagement = false,
 }) => {
+  const authRole = useAuthStore().role;
+  // "Inicio" es del portal de titulados: empresa y administrador no lo ven.
+  const roleItems = authRole === 'empresa' || authRole === 'administrador'
+    ? navItems.filter((item) => item.label !== 'Inicio')
+    : navItems;
   const items = eventManagement
-    ? navItems.map((item) => item.label === 'Eventos'
+    ? roleItems.map((item) => item.label === 'Eventos'
         ? { ...item, href: '/events' }
         : item)
-    : navItems;
+    : roleItems;
   const config = {
     height: 'h-16 lg:h-20',
     logoWidth: 'w-36 lg:w-44',

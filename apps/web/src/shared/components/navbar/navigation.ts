@@ -146,8 +146,10 @@ export interface PrimaryNavItem {
  * La barra de escritorio y el menú móvil solo cambian la presentación, nunca la lista (HU15).
  */
 export function primaryNavigation(role: NavbarRole | null, home: string, activeMentor = false): PrimaryNavItem[] {
+  // Empresa y administrador trabajan desde sus propios paneles: "Inicio" (portal de titulados) no aplica.
+  const showHome = role !== 'empresa' && role !== 'administrador';
   return [
-    { id: 'home', label: 'Inicio', href: home, items: [] },
+    ...(showHome ? [{ id: 'home', label: 'Inicio', href: home, items: [] as NavbarLink[] }] : []),
     ...navigationFor(role, activeMentor).map(section => ({
       id: section.id,
       label: section.label,
