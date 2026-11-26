@@ -17,5 +17,7 @@ export interface SurveyFormValues {
   title: string;
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
-  careerId?: string; // solo al crear, si el administrador tiene varias carreras
+  careerId?: string; // solo al crear, si el administrador tiene varias carreras; ALL_CAREERS = todas
 }
+/** Valor de «Todas las carreras» en el campo Carrera: la misma encuesta en cada carrera del administrador. */
+export const ALL_CAREERS = 'todas';
