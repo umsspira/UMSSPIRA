@@ -217,6 +217,48 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     return this.presentManaged(survey);
   }
 
+  /**
+   * HU-005: el administrador de varias carreras crea la misma encuesta para todas sus carreras.
+   * Queda una encuesta en «Borrador» por carrera; cada una se publica o edita por separado.
+   */
+  async createManagedForAllCareers(
+    actorId: string,
+    careerIds: readonly string[],
+    input: SurveyAdminInput,
+  ): Promise<SurveyAdminRecord[]> {
+    if (!careerIds.length) {
+      throw new BusinessRuleError('forbidden', 'SURVEY_CAREER_FORBIDDEN', 'No tienes una carrera asignada');
+    }
+    this.validateDates(input.startDate, input.endDate);
+    const assignments = await this.prisma.administradorDeCarrera.findMany({
+      where: { id_usuario: actorId, estado: 'ACTIVO', id_carrera: { in: [...careerIds] } },
+      select: { id: true, id_carrera: true },
+      orderBy: [{ id_carrera: 'asc' }, { id: 'asc' }],
+      distinct: ['id_carrera'],
+    });
+    if (!assignments.length) {
+      throw new BusinessRuleError('forbidden', 'SURVEY_CAREER_FORBIDDEN', 'No tienes una carrera asignada');
+    }
+    const createdAt = new Date();
+    const surveys = await this.prisma.$transaction(
+      assignments.map((assignment) =>
+        this.prisma.encuesta.create({
+          data: {
+            id_administrador: assignment.id,
+            id_carrera: assignment.id_carrera,
+            titulo: input.title,
+            fecha_inicio: input.startDate,
+            fecha_fin: input.endDate,
+            fecha_creacion: createdAt,
+            estado: 'BORRADOR',
+            formato: input.format ?? 'WEB',
+          },
+        }),
+      ),
+    );
+    return surveys.map((survey) => this.presentManaged(survey));
+  }
+
   async updateManaged(
     actorId: string,
     careerIds: readonly string[],

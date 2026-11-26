@@ -30,6 +30,18 @@ describe('survey-admin.schemas', () => {
       expect(result.careerId).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     });
 
+    it('acepta «Todas las carreras» y rechaza enviarla junto con una carrera', () => {
+      const base = { title: 'Encuesta 2027', startDate: '2027-01-01', endDate: '2027-12-31' };
+      expect(createSurveyAdminSchema.parse({ ...base, allCareers: true }).allCareers).toBe(true);
+      expect(
+        createSurveyAdminSchema.safeParse({
+          ...base,
+          allCareers: true,
+          careerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        }).success,
+      ).toBe(false);
+    });
+
     it('rechaza una carrera que no es un UUID', () => {
       expect(
         createSurveyAdminSchema.safeParse({

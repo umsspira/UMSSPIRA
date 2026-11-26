@@ -197,4 +197,73 @@ describe('PrismaSurveyRepository gestión administrativa', () => {
       expect(findMany).not.toHaveBeenCalled();
     });
   });
+
+  describe('«Todas las carreras» del administrador general', () => {
+    const dates = { startDate: new Date('2027-01-01'), endDate: new Date('2027-12-31') };
+    const record = (careerId: string) => ({
+      id: 'survey-' + careerId,
+      titulo: 'Encuesta general',
+      fecha_inicio: dates.startDate,
+      fecha_fin: dates.endDate,
+      estado: 'BORRADOR',
+      formato: 'WEB',
+      fecha_creacion: new Date('2026-11-25'),
+      id_carrera: careerId,
+    });
+
+    it('crea la misma encuesta en cada carrera, en borrador y en una transacción', async () => {
+      const create = jest.fn(({ data }: { data: { id_carrera: string } }) =>
+        Promise.resolve(record(data.id_carrera)),
+      );
+      const $transaction = jest.fn((operations: Promise<unknown>[]) => Promise.all(operations));
+      const repository = new PrismaSurveyRepository({
+        administradorDeCarrera: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 'assignment-sis', id_carrera: 'career-sis' },
+            { id: 'assignment-inf', id_carrera: 'career-inf' },
+          ]),
+        },
+        encuesta: { create },
+        $transaction,
+      } as never);
+
+      const result = await repository.createManagedForAllCareers('user-1', ['career-sis', 'career-inf'], {
+        title: 'Encuesta general',
+        ...dates,
+      });
+
+      expect($transaction).toHaveBeenCalledTimes(1);
+      expect(create).toHaveBeenCalledTimes(2);
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ id_administrador: 'assignment-inf', id_carrera: 'career-inf', estado: 'BORRADOR' }),
+        }),
+      );
+      expect(result.map((survey) => survey.careerId)).toEqual(['career-sis', 'career-inf']);
+    });
+
+    it('rechaza fechas invertidas sin crear nada', async () => {
+      const findMany = jest.fn();
+      const repository = new PrismaSurveyRepository({ administradorDeCarrera: { findMany } } as never);
+
+      await expect(
+        repository.createManagedForAllCareers('user-1', ['career-sis'], {
+          title: 'Encuesta general',
+          startDate: new Date('2027-12-31'),
+          endDate: new Date('2027-01-01'),
+        }),
+      ).rejects.toMatchObject({ code: 'SURVEY_INVALID_DATES' });
+      expect(findMany).not.toHaveBeenCalled();
+    });
+
+    it('rechaza a un administrador sin carreras activas', async () => {
+      const repository = new PrismaSurveyRepository({
+        administradorDeCarrera: { findMany: jest.fn().mockResolvedValue([]) },
+      } as never);
+
+      await expect(
+        repository.createManagedForAllCareers('user-1', ['career-sis'], { title: 'Encuesta', ...dates }),
+      ).rejects.toMatchObject({ code: 'SURVEY_CAREER_FORBIDDEN' });
+    });
+  });
 });
