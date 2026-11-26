@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown, FileSearch, Info } from "lucide-react";
 import type { OcrAnalysis } from "@umsspira/shared-types";
 import { ocrRequest, ocrQueryErrorMessage } from "../services/ocr-api";
 import { pollOcr } from "../services/ocr-polling";
@@ -73,6 +74,10 @@ export function OcrPanel({
     };
   }, [applicationId]);
   const current = analyses?.find((item) => item.current);
+  const needsReview =
+    current?.status === "COMPLETADO" &&
+    current.result &&
+    current.result.suggestion !== "APROBAR";
   const retry = async () => {
     if (!current || retrying || !canRetry || error) return;
     const signal = lifecycle.current?.signal;
@@ -99,25 +104,31 @@ export function OcrPanel({
     }
   };
   return (
-    <details className="rounded-lg border border-[#C9C1B1] bg-white p-4" open>
-      <summary className="cursor-pointer text-sm font-bold text-[#1B2632]">
-        Análisis automático del respaldo (OCR)
+    <details className="group/ocr rounded-xl border border-[#C9C1B1] bg-white p-4" open>
+      <summary className="grid cursor-pointer list-none grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-2 rounded-md text-[#1B2632] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 [&::-webkit-details-marker]:hidden lg:grid-cols-[auto_1fr_auto_auto]">
+        <span className="rounded-lg bg-[#EEE9DF] p-2">
+          <FileSearch aria-hidden="true" className="h-4 w-4" />
+        </span>
+        <span className="text-sm font-bold leading-tight sm:text-base">
+          Análisis automático del respaldo (OCR)
+        </span>
         <span
-          className="ml-2 inline-block rounded bg-[#EEE9DF] px-2 py-1 text-xs"
+          className={`col-start-2 row-start-2 w-fit rounded-md px-2 py-1 text-[11px] font-semibold leading-tight lg:col-start-3 lg:row-start-1 ${needsReview ? "bg-[#F9DDCC] text-[#8C3B20]" : "bg-[#EEE9DF]"}`}
           role="status"
         >
           {current
-            ? states[current.status]
+            ? (needsReview ? "Revisar hallazgos" : states[current.status])
             : error
               ? "Consulta no disponible"
               : analyses === null
                 ? "Consultando análisis…"
                 : "Sin análisis vigente"}
         </span>
+        <ChevronDown aria-hidden="true" className="col-start-3 row-start-1 h-4 w-4 text-[#4B5563] group-open/ocr:rotate-180 lg:col-start-4" />
       </summary>
-      <p className="my-3 text-xs text-[#2C3B4D]">
-        El análisis ayuda a la revisión. La decisión corresponde al
-        administrador y no se confirma automáticamente.
+      <p className="my-3 flex items-start gap-2 rounded-lg bg-[#F4F1EA] p-2.5 text-xs leading-5 text-[#2C3B4D]">
+        <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>El OCR orienta la revisión. El administrador emite el dictamen.</span>
       </p>
       {error && (
         <div role="alert" className="my-3 text-sm text-[#A35139]">
@@ -201,25 +212,6 @@ export function OcrPanel({
       )}
       {current?.result && (
         <>
-          <p className="font-semibold text-[#1B2632]">
-            {suggestions[current.result.suggestion]}
-          </p>
-          {current.result.suggestion === "REVISION_MANUAL" && (
-            <p className="my-2 text-sm">
-              La lectura terminó. Revisa el respaldo para comprobar los datos
-              que no se pudieron verificar automáticamente.
-            </p>
-          )}
-          <p className="my-2 text-sm">{current.result.reason}</p>
-          <p className="mb-3 text-xs">
-            Versión {current.revision} ·{" "}
-            {current.completedAt &&
-              new Date(current.completedAt).toLocaleString("es-BO", {
-                timeZone: "America/La_Paz",
-              })}{" "}
-            · {current.result.reading.pagesRead}/
-            {current.result.reading.totalPages} páginas
-          </p>
           {current.result.reading.pagesRead <
             current.result.reading.totalPages && (
             <p role="alert" className="mb-2 text-xs text-[#A35139]">
@@ -230,14 +222,23 @@ export function OcrPanel({
             findings={current.result.findings}
             selectedField={selectedField}
             onSelect={setSelectedField}
+            renderDetails={(finding) => (
+              <EvidenceViewer finding={finding} documentUrl={documentUrl} />
+            )}
           />
-          <EvidenceViewer
-            finding={
-              current.result.findings.find((f) => f.field === selectedField) ??
-              null
-            }
-            documentUrl={documentUrl}
-          />
+          <details className="mt-3 rounded-lg bg-[#F4F1EA] p-2.5 text-xs text-[#2C3B4D]">
+            <summary className="cursor-pointer rounded font-semibold text-[#1B2632]">
+              Detalles del análisis
+            </summary>
+            <p className="mt-2 font-semibold">{suggestions[current.result.suggestion]}</p>
+            <p className="mt-1">{current.result.reason}</p>
+            <p className="mt-2">
+              Versión {current.revision}
+              {current.completedAt &&
+                ` · ${new Date(current.completedAt).toLocaleString("es-BO", { timeZone: "America/La_Paz" })}`}
+              {" · "}{current.result.reading.pagesRead}/{current.result.reading.totalPages} páginas
+            </p>
+          </details>
         </>
       )}
       {analyses?.some((item) => !item.current) && (

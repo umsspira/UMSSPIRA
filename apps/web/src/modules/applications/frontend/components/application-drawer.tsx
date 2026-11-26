@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ApplicationDetail,
   OVERDUE_HOURS,
@@ -93,15 +93,31 @@ export function ApplicationDrawer({
 
   // BUG-07: mientras el expediente está abierto el fondo no se desplaza y el foco
   // queda dentro del diálogo; al cerrar se restauran ambos y el foco vuelve al control de origen.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !applicationId) return;
+    const drawer = drawerRef.current;
+    const navbar = drawer?.closest(".dashboard-container")?.querySelector(":scope > header");
+    const alignWithNavbar = () => {
+      const top = `${Math.max(0, navbar?.getBoundingClientRect().bottom ?? 0)}px`;
+      if (drawer) drawer.style.top = top;
+    };
     const origin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const { overflow, paddingRight } = document.body.style;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = "hidden";
     if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
-    drawerRef.current?.focus();
+    drawer?.focus({ preventScroll: true });
+    alignWithNavbar();
+    const observer = navbar && typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(alignWithNavbar)
+      : null;
+    if (observer && navbar) observer.observe(navbar);
+    window.addEventListener("resize", alignWithNavbar);
+    window.addEventListener("scroll", alignWithNavbar);
     return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", alignWithNavbar);
+      window.removeEventListener("scroll", alignWithNavbar);
       document.body.style.overflow = overflow;
       document.body.style.paddingRight = paddingRight;
       if (origin && origin.isConnected) origin.focus();
@@ -132,7 +148,7 @@ export function ApplicationDrawer({
   return (
     <>
       <div
-        className="fixed inset-x-0 bottom-0 top-[70px] z-40 bg-[#1B2632]/40 min-[601px]:top-[76px] min-[1261px]:top-[84px]"
+        className="fixed inset-0 z-40 bg-[#1B2632]/40"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -140,7 +156,7 @@ export function ApplicationDrawer({
       <aside
         ref={drawerRef}
         tabIndex={-1}
-        className="fixed bottom-0 right-0 top-[70px] z-40 flex min-h-0 w-full max-w-6xl flex-col overflow-hidden bg-[#EEE9DF] shadow-xl outline-none min-[601px]:top-[76px] min-[1261px]:top-[84px]"
+        className="fixed inset-y-0 right-0 z-40 flex min-h-0 w-full max-w-6xl flex-col overflow-hidden bg-[#EEE9DF] shadow-xl outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="drawer-title"

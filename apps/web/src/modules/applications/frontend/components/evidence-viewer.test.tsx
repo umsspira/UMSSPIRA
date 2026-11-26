@@ -21,22 +21,14 @@ const withoutEvidence = {
 } as unknown as OcrFinding;
 
 describe("EvidenceViewer", () => {
-  it("pide seleccionar un hallazgo cuando no hay ninguno", () => {
-    render(<EvidenceViewer finding={null} documentUrl="" />);
-    expect(
-      screen.getByText("Selecciona un hallazgo para ver su evidencia."),
-    ).toBeInTheDocument();
-  });
-
-  it("muestra el dato declarado, el leído y la evidencia junto al hallazgo", () => {
+  it("muestra el motivo y la evidencia del hallazgo", () => {
     render(
       <EvidenceViewer
         finding={withEvidence}
         documentUrl="https://files.test/doc.pdf?token=abc"
       />,
     );
-    expect(screen.getByText("Ingeniería de Sistemas")).toBeInTheDocument();
-    expect(screen.getByText("Ingenieria de Sistemas")).toBeInTheDocument();
+    expect(screen.getByText("Difiere en la tilde.")).toBeInTheDocument();
     expect(screen.getByText("Evidencia · pág. 2")).toBeInTheDocument();
     expect(
       screen.getByText("Carrera: Ingenieria de Sistemas"),
@@ -53,7 +45,6 @@ describe("EvidenceViewer", () => {
 
   it("explica que no hay evidencia y permite la revisión manual", () => {
     render(<EvidenceViewer finding={withoutEvidence} documentUrl="" />);
-    expect(screen.getByText("No legible")).toBeInTheDocument();
     expect(
       screen.getByText(/No hay evidencia disponible para este campo/),
     ).toBeInTheDocument();

@@ -11,6 +11,18 @@ const actor = { id: 'actor-1', scopes: { careerIds: ['carrera-1'] } } as unknown
  
 const query = (overrides: Partial<ApplicationQuery> = {}) =>
   ({ page: 1, pageSize: 10, ...overrides }) as ApplicationQuery;
+
+const submissionRange = (range: { gte?: Date; lt: Date }) => ({
+  OR: [
+    { fecha_creacion: { ...range, not: null }, historial_eventos: { none: { accion: 'REENVIO' } } },
+    {
+      historial_eventos: {
+        some: { accion: 'REENVIO', creado_en: range },
+        none: { accion: 'REENVIO', creado_en: { gte: range.lt } },
+      },
+    },
+  ],
+});
  
 const rows = (count: number, prefix: string) =>
   Array.from({ length: count }, (_, index) => ({
@@ -22,21 +34,28 @@ const rows = (count: number, prefix: string) =>
 interface Setup {
   pending: number;
   others: number;
+  urgent?: number;
+  urgentRows?: unknown[];
   pendingRows?: unknown[];
   otherRows?: unknown[];
 }
  
-function createRepository({ pending, others, pendingRows = [], otherRows = [] }: Setup) {
-  const prisma = {
-    $queryRaw: jest.fn().mockResolvedValue([{ id: 'solicitud-coincidente' }]),
-    $transaction: jest.fn((operations: Promise<unknown>[]) => Promise.all(operations)),
+function createRepository({
+  pending, others, urgent = 0, urgentRows = [], pendingRows = [], otherRows = [],
+}: Setup) {
+  const tx = {
     solicitud: {
-      // Primero se cuenta el total y luego los pendientes, como en el repositorio.
-      count: jest.fn().mockResolvedValueOnce(pending + others).mockResolvedValueOnce(pending),
-      findMany: jest.fn(({ where }: { where: { AND: Array<{ estado: unknown }> } }) =>
-        Promise.resolve(where.AND[1].estado === 'PENDIENTE' ? pendingRows : otherRows),
-      ),
+      count: jest.fn().mockResolvedValueOnce(pending + others).mockResolvedValueOnce(pending).mockResolvedValueOnce(urgent),
+      findMany: jest.fn(({ where }: { where: { AND: Array<{ estado?: unknown; NOT?: unknown }> } }) => {
+        const group = where.AND[1];
+        return Promise.resolve(group.NOT ? pendingRows : group.estado === 'PENDIENTE' ? urgentRows : otherRows);
+      }),
     },
+  };
+  const prisma = {
+    ...tx,
+    $queryRaw: jest.fn().mockResolvedValue([{ id: 'solicitud-coincidente' }]),
+    $transaction: jest.fn((run: (client: typeof tx) => Promise<unknown>) => run(tx)),
   };
   return { prisma, repository: new PrismaApplicationsRepository(prisma as never) };
 }
@@ -66,18 +85,18 @@ describe('PrismaApplicationsRepository.list', () => {
       jest.useRealTimers();
     });
  
-    it('filtra por fecha de registro con el día de Bolivia en «Últimos 15 días»', async () => {
+    it('filtra por último envío con el día de Bolivia en «Últimos 15 días»', async () => {
       const { prisma, repository } = createRepository({ pending: 0, others: 0 });
  
       await repository.list(actor, query({ period: 'last15' }));
  
       const { where } = prisma.solicitud.count.mock.calls[0][0];
-      expect(where.AND).toContainEqual({
-        fecha_creacion: {
+      expect(where.AND).toContainEqual(
+        submissionRange({
           gte: new Date('2026-10-07T04:00:00.000Z'),
           lt: new Date('2026-10-22T04:00:00.000Z'),
-        },
-      });
+        }),
+      );
     });
  
     it('«Desde/Hasta» incluye el día final completo', async () => {
@@ -86,12 +105,12 @@ describe('PrismaApplicationsRepository.list', () => {
       await repository.list(actor, query({ period: 'custom', from: '2026-10-01', to: '2026-10-15' }));
  
       const { where } = prisma.solicitud.count.mock.calls[0][0];
-      expect(where.AND).toContainEqual({
-        fecha_creacion: {
+      expect(where.AND).toContainEqual(
+        submissionRange({
           gte: new Date('2026-10-01T04:00:00.000Z'),
           lt: new Date('2026-10-16T04:00:00.000Z'),
-        },
-      });
+        }),
+      );
     });
  
     it('sin periodo no agrega ninguna condición de fecha', async () => {
@@ -101,6 +120,41 @@ describe('PrismaApplicationsRepository.list', () => {
  
       expect(JSON.stringify(prisma.solicitud.count.mock.calls[0][0])).not.toContain('fecha_creacion');
     });
+
+    it('descarta un reenvío reciente del filtro de más de 48 horas', async () => {
+      const { prisma, repository } = createRepository({ pending: 0, others: 0 });
+      await repository.list(actor, query({ age: 'over48' }));
+
+      expect(prisma.solicitud.count.mock.calls[0][0].where.AND).toContainEqual({
+        estado: 'PENDIENTE',
+        ...submissionRange({ lt: new Date('2026-10-19T15:00:00Z') }),
+      });
+    });
+  });
+
+  it('muestra la fecha de reenvío y conserva el año original del expediente', async () => {
+    const [original] = rows(1, 'pendiente');
+    const resentAt = new Date('2027-01-02T12:30:00Z');
+    const { prisma, repository } = createRepository({
+      pending: 2,
+      others: 0,
+      pendingRows: [
+        { ...original, historial_eventos: [{ creado_en: resentAt }] },
+        { ...original, id: 'nuevo', historial_eventos: [] },
+      ],
+    });
+
+    const page = await repository.list(actor, query());
+
+    expect(page.items[0]).toMatchObject({ submittedAt: resentAt.toISOString(), code: 'TIT-2026-PENDIE' });
+    expect(page.items[1].submittedAt).toBe(original.fecha_creacion.toISOString());
+    expect(prisma.solicitud.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      include: expect.objectContaining({
+        historial_eventos: expect.objectContaining({
+          where: { accion: 'REENVIO' }, orderBy: { creado_en: 'desc' }, take: 1,
+        }),
+      }),
+    }));
   });
   
 
@@ -125,6 +179,29 @@ describe('PrismaApplicationsRepository.list', () => {
     expect(page.total).toBe(35);
     expect(page.totalPages).toBe(4);
   });
+
+  it('agrupa todos los urgentes antes de un reenvío reciente aunque el expediente se haya creado antes', async () => {
+    const [original] = rows(1, 'pendiente');
+    const resentAt = new Date();
+    const { prisma, repository } = createRepository({
+      pending: 13,
+      urgent: 12,
+      others: 0,
+      urgentRows: [{ ...original, id: 'urgente-11' }, { ...original, id: 'urgente-12' }],
+      pendingRows: [{ ...original, id: 'corregida', historial_eventos: [{ creado_en: resentAt }] }],
+    });
+
+    const page = await repository.list(actor, query({ page: 2, pageSize: 10 }));
+
+    expect(page.items.map((item) => item.id)).toEqual(['urgente-11', 'urgente-12', 'corregida']);
+    expect(page.items[2].submittedAt).toBe(resentAt.toISOString());
+    expect(prisma.solicitud.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      skip: 10, take: 2,
+    }));
+    expect(prisma.solicitud.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      skip: 0, take: 1,
+    }));
+  });
  
   it('una página que cruza de pendientes a dictaminadas no repite ni omite expedientes (CA-08.2)', async () => {
     const { prisma, repository } = createRepository({
@@ -137,7 +214,7 @@ describe('PrismaApplicationsRepository.list', () => {
     const page = await repository.list(actor, query({ page: 3, pageSize: 10 }));
  
     const [pendingCall, otherCall] = prisma.solicitud.findMany.mock.calls.map(([args]) => args);
-    expect(pendingCall).toMatchObject({ skip: 20, take: 10 });
+    expect(pendingCall).toMatchObject({ skip: 20, take: 5 });
     expect(otherCall).toMatchObject({
       orderBy: [{ fecha_creacion: 'desc' }, { id: 'asc' }],
       skip: 0,
@@ -308,9 +385,12 @@ describe('PrismaApplicationsRepository.metrics', () => {
       gte: new Date('2026-10-21T04:00:00.000Z'),
       lt: new Date('2026-10-22T04:00:00.000Z'),
     };
-    expect(received[1]).toEqual({ fecha_creacion: todayRange });
+    expect(received[1]).toEqual(submissionRange(todayRange));
     expect(pending[1]).toEqual({ estado: 'PENDIENTE' });
-    expect(urgent[1]).toEqual({ estado: 'PENDIENTE', fecha_creacion: { lt: new Date('2026-10-19T15:00:00.000Z') } });
+    expect(urgent[1]).toEqual({
+      estado: 'PENDIENTE',
+      ...submissionRange({ lt: new Date('2026-10-19T15:00:00.000Z') }),
+    });
     expect(prisma.dictamen.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ distinct: ['id_solicitud'], where: expect.objectContaining({ fecha_creacion: todayRange }) }),
     );
@@ -322,12 +402,12 @@ describe('PrismaApplicationsRepository.metrics', () => {
     await repository.metrics(actor, new Date('2026-10-22T02:00:00Z'));
  
     const [received] = prisma.solicitud.count.mock.calls.map(([args]) => args.where.AND);
-    expect(received[1]).toEqual({
-      fecha_creacion: {
+    expect(received[1]).toEqual(
+      submissionRange({
         gte: new Date('2026-10-21T04:00:00.000Z'),
         lt: new Date('2026-10-22T04:00:00.000Z'),
-      },
-    });
+      }),
+    );
   });
  
   it('cuenta solo las solicitudes de las carreras del actor', async () => {

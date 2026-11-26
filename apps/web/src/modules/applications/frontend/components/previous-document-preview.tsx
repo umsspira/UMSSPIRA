@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { getPreviousDocument } from "../services/application.service";
 
 type Preview = {
   url: string;
-  type: string;
+  isImage: boolean;
 };
 
 type Props = {
@@ -22,6 +22,14 @@ export function PreviousDocumentPreview({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const title = "Documento previo";
+
+  function closePreview() {
+    setPreview(null);
+    trigger.current?.focus();
+  }
 
   useEffect(() => {
     mounted.current = true;
@@ -35,7 +43,7 @@ export function PreviousDocumentPreview({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setPreview(null);
+        closePreview();
       }
     };
 
@@ -49,7 +57,6 @@ export function PreviousDocumentPreview({
 
   async function openDocument() {
     if (loading || !available) return;
-
     setLoading(true);
     setError(null);
 
@@ -73,13 +80,14 @@ export function PreviousDocumentPreview({
 
     setPreview({
       url: URL.createObjectURL(result.file),
-      type: result.file.type,
+      isImage: result.file.type.startsWith("image/"),
     });
   }
 
   return (
     <>
       <button
+        ref={trigger}
         type="button"
         onClick={openDocument}
         disabled={!available || loading}
@@ -105,19 +113,19 @@ export function PreviousDocumentPreview({
           <section
             role="dialog"
             aria-modal="true"
-            aria-labelledby="previous-document-title"
+            aria-labelledby={titleId}
             className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white p-4 shadow-xl"
           >
             <header className="mb-3 flex items-center justify-between gap-3">
               <h2
-                id="previous-document-title"
-                className="font-bold text-slate-900"
+                id={titleId}
+                className="min-w-0 break-words font-bold text-slate-900"
               >
-                Documento previo
+                {title}
               </h2>
               <button
                 type="button"
-                onClick={() => setPreview(null)}
+                onClick={closePreview}
                 autoFocus
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold"
               >
@@ -125,7 +133,7 @@ export function PreviousDocumentPreview({
               </button>
             </header>
 
-            {preview.type.startsWith("image/") ? (
+            {preview.isImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={preview.url}
@@ -133,12 +141,22 @@ export function PreviousDocumentPreview({
                 className="max-h-[75vh] w-full object-contain"
               />
             ) : (
-              <iframe
-                src={preview.url}
-                title="Vista previa del documento PDF anterior"
-                sandbox="allow-scripts"
-                className="h-[75vh] w-full border-0"
-              />
+              <>
+                <object
+                  data={preview.url}
+                  type="application/pdf"
+                  aria-label={`Vista previa de ${title}`}
+                  className="h-[70dvh] w-full border-0"
+                />
+                <a
+                  href={preview.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 self-start text-sm font-semibold underline"
+                >
+                  Abrir PDF en otra pestaña
+                </a>
+              </>
             )}
           </section>
         </div>

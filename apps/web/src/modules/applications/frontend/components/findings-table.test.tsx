@@ -23,6 +23,8 @@ const findings = [
   },
 ] as unknown as OcrFinding[];
 
+const renderDetails = (finding: OcrFinding) => finding.reason;
+
 describe("FindingsTable", () => {
   it("muestra el dato declarado, el leído y el resultado de cada hallazgo", () => {
     render(
@@ -30,25 +32,27 @@ describe("FindingsTable", () => {
         findings={findings}
         selectedField={null}
         onSelect={jest.fn()}
+        renderDetails={renderDetails}
       />,
     );
     expect(screen.getByText("Carrera")).toBeInTheDocument();
     expect(screen.getByText("Coincide")).toBeInTheDocument();
     expect(screen.getByText("2024")).toBeInTheDocument();
-    expect(screen.getByText("Sin dato comprobable")).toBeInTheDocument();
-    expect(screen.getByText("No se pudo comprobar")).toBeInTheDocument();
+    expect(screen.getByText("Sin lectura")).toBeInTheDocument();
+    expect(screen.getByText("No comprobable")).toBeInTheDocument();
   });
 
-  it("indica si el hallazgo tiene evidencia", () => {
+  it("oculta los motivos mientras los campos están cerrados", () => {
     render(
       <FindingsTable
         findings={findings}
         selectedField={null}
         onSelect={jest.fn()}
+        renderDetails={renderDetails}
       />,
     );
-    expect(screen.getByText("Evidencia · pág. 1")).toBeInTheDocument();
-    expect(screen.getByText("Sin evidencia")).toBeInTheDocument();
+    expect(screen.queryByText("Los datos coinciden.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No se pudo leer el dato.")).not.toBeInTheDocument();
   });
 
   it("avisa qué campo se selecciona", () => {
@@ -58,26 +62,31 @@ describe("FindingsTable", () => {
         findings={findings}
         selectedField={null}
         onSelect={onSelect}
+        renderDetails={renderDetails}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Año de egreso" }));
     expect(onSelect).toHaveBeenCalledWith("graduationYear");
   });
 
-  it("marca como presionado solo el hallazgo seleccionado", () => {
+  it("despliega el motivo del campo seleccionado y permite cerrarlo", () => {
+    const onSelect = jest.fn();
     render(
       <FindingsTable
         findings={findings}
         selectedField="career"
-        onSelect={jest.fn()}
+        onSelect={onSelect}
+        renderDetails={renderDetails}
       />,
     );
-    expect(screen.getByRole("button", { name: "Carrera" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    const button = screen.getByRole("button", { name: "Carrera" });
+    expect(button).toHaveAttribute("aria-expanded", "true");
     expect(
       screen.getByRole("button", { name: "Año de egreso" }),
-    ).toHaveAttribute("aria-pressed", "false");
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Los datos coinciden.")).toBeVisible();
+    expect(screen.queryByText("No se pudo leer el dato.")).not.toBeInTheDocument();
+    fireEvent.click(button);
+    expect(onSelect).toHaveBeenCalledWith(null);
   });
 });

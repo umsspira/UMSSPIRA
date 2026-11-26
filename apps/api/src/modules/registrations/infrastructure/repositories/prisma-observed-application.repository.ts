@@ -32,7 +32,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
     const row = await this.prisma.solicitud.findUnique({
       where: { id: applicationId },
       include: {
-        detalle_solicitud: true,
+        detalle_solicitud: { include: { carrera: { select: { nombre: true } } } },
         documento_respaldo: {
           include: { tipo_archivo: true },
         },
@@ -105,6 +105,7 @@ export class PrismaObservedApplicationRepository implements ObservedApplicationP
       correo: d?.email ?? '',
       telefono: d?.telefono ?? '',
       carreraId: d?.id_carrera ?? '',
+      carreraNombre: d?.carrera?.nombre ?? null,
       anioEgreso: d?.anio_egreso ?? 0,
       deseaMentor: d?.desea_mentor ?? false,
       fechaTitulacion: d?.fecha_titulacion

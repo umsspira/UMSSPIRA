@@ -92,7 +92,7 @@ describe("BUG-14: vista previa del documento anterior", () => {
     ).toHaveAttribute("src", "blob:documento-previo");
   });
 
-  it("abre un PDF en un iframe", async () => {
+  it("abre un PDF en el visor y ofrece abrirlo aparte", async () => {
     mockGetPreviousDocument.mockResolvedValue({
       status: "success",
       file: new Blob(["%PDF-1.4"], {
@@ -109,8 +109,10 @@ describe("BUG-14: vista previa del documento anterior", () => {
     );
 
     expect(
-      await screen.findByTitle("Vista previa del documento PDF anterior"),
-    ).toHaveAttribute("src", "blob:documento-previo");
+      await screen.findByLabelText("Vista previa de Documento previo"),
+    ).toHaveAttribute("data", "blob:documento-previo");
+    expect(screen.getByRole("link", { name: "Abrir PDF en otra pestaña" }))
+      .toHaveAttribute("href", "blob:documento-previo");
   });
 
   it("cierra el diálogo con el botón Cerrar", async () => {
