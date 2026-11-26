@@ -11,10 +11,22 @@ import { PUSH_SENDER, type PushSender } from '../../application/ports/push-sende
 import { PUSH_NOTIFICATIONS } from '../../application/ports/push-notifications.port';
 import { PushNotificationService } from '../../application/services/push-notification.service';
 import { WebPushAdapter } from '../adapters/web-push.adapter';
+import {
+  EVENT_NOTIFICATIONS_REPOSITORY,
+  type EventNotificationsRepository,
+} from '../../application/ports/event-notifications-repository.port';
+import { PrismaEventNotificationsRepository } from '../repositories/prisma-event-notifications.repository';
+import { ListEventNotificationsUseCase } from '../../application/use-cases/list-event-notifications.use-case';
+import { MarkEventNotificationReadUseCase } from '../../application/use-cases/mark-event-notification-read.use-case';
 
 export const notificationsProviders: Provider[] = [
   PrismaPushSubscriptionsRepository,
+  PrismaEventNotificationsRepository,
   WebPushAdapter,
+  {
+    provide: EVENT_NOTIFICATIONS_REPOSITORY,
+    useExisting: PrismaEventNotificationsRepository,
+  },
   {
     provide: PUSH_SUBSCRIPTIONS_REPOSITORY,
     useExisting: PrismaPushSubscriptionsRepository,
@@ -25,9 +37,12 @@ export const notificationsProviders: Provider[] = [
   },
   {
     provide: PushNotificationService,
-    inject: [PUSH_SUBSCRIPTIONS_REPOSITORY, PUSH_SENDER],
-    useFactory: (repository: PushSubscriptionsRepository, sender: PushSender) =>
-      new PushNotificationService(repository, sender),
+    inject: [PUSH_SUBSCRIPTIONS_REPOSITORY, PUSH_SENDER, EVENT_NOTIFICATIONS_REPOSITORY],
+    useFactory: (
+      repository: PushSubscriptionsRepository,
+      sender: PushSender,
+      eventNotifications: EventNotificationsRepository,
+    ) => new PushNotificationService(repository, sender, eventNotifications),
   },
   {
     provide: PUSH_NOTIFICATIONS,
@@ -50,5 +65,17 @@ export const notificationsProviders: Provider[] = [
     inject: [PUSH_SUBSCRIPTIONS_REPOSITORY],
     useFactory: (repository: PushSubscriptionsRepository) =>
       new ListPushSubscriptionsUseCase(repository),
+  },
+  {
+    provide: ListEventNotificationsUseCase,
+    inject: [EVENT_NOTIFICATIONS_REPOSITORY],
+    useFactory: (repository: EventNotificationsRepository) =>
+      new ListEventNotificationsUseCase(repository),
+  },
+  {
+    provide: MarkEventNotificationReadUseCase,
+    inject: [EVENT_NOTIFICATIONS_REPOSITORY],
+    useFactory: (repository: EventNotificationsRepository) =>
+      new MarkEventNotificationReadUseCase(repository),
   },
 ];

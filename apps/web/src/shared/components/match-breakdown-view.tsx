@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ApplicantStageTimeline } from "./applicant-stage-timeline";
 import {
   ComoSeCalculaModal,
@@ -9,7 +9,6 @@ import {
 import { Applicant, Certification, Education, WorkExperience } from "../types/applicant";
 import { downloadApplicantCv } from "../services/applicants";
 import {
-  MATCH_UNAVAILABLE_LABEL,
   clampForDisplay,
   formatMatch,
   getMatchLevel,
@@ -119,6 +118,7 @@ export function MatchBreakdownView({
   /** Desglose recibido del motor HU-10; no se infiere desde las barras de habilidades. */
   comparison?: readonly DetalleRequisitoAfinidad[];
 }) {
+  const tabsId = useId();
   const [activeTab, setActiveTab] = useState<Tab>("coincidencia");
   const [mostrarCalculo, setMostrarCalculo] = useState(false);
   const [downloadingCv, setDownloadingCv] = useState(false);
@@ -258,13 +258,29 @@ export function MatchBreakdownView({
       )}
 
       {/* Pestañas */}
-      <div className="flex border-b border-[#EEE9DF]" role="tablist">
-        {TABS.map((tab) => (
+      <div className="flex border-b border-[#EEE9DF]" role="tablist" aria-label="Información del postulante">
+        {TABS.map((tab, index) => (
           <button
             key={tab.id}
+            id={`${tabsId}-tab-${tab.id}`}
+            type="button"
             role="tab"
+            aria-controls={`${tabsId}-panel-${tab.id}`}
             aria-selected={activeTab === tab.id}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(event) => {
+              let next = index;
+              if (event.key === "ArrowRight") next = (index + 1) % TABS.length;
+              else if (event.key === "ArrowLeft") next = (index - 1 + TABS.length) % TABS.length;
+              else if (event.key === "Home") next = 0;
+              else if (event.key === "End") next = TABS.length - 1;
+              else return;
+              event.preventDefault();
+              const nextTab = TABS[next];
+              setActiveTab(nextTab.id);
+              document.getElementById(`${tabsId}-tab-${nextTab.id}`)?.focus();
+            }}
             className={`flex-1 min-h-11 md:min-h-0 px-2 md:px-4 py-2 text-sm font-semibold border-b-2 -mb-px ${
               activeTab === tab.id
                 ? "border-orange-500 text-orange-600"
@@ -277,6 +293,7 @@ export function MatchBreakdownView({
       </div>
 
       {/* Pestaña: Perfil */}
+      <div id={`${tabsId}-panel-perfil`} role="tabpanel" aria-labelledby={`${tabsId}-tab-perfil`} hidden={activeTab !== "perfil"} tabIndex={0}>
       {activeTab === "perfil" && (
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-[#EEE9DF] grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-[#1B2632]">
           <div>
@@ -314,8 +331,10 @@ export function MatchBreakdownView({
           </div>
         </div>
       )}
+      </div>
 
       {/* Pestaña: Coincidencia técnica (CA-03, CA-04) */}
+      <div id={`${tabsId}-panel-coincidencia`} role="tabpanel" aria-labelledby={`${tabsId}-tab-coincidencia`} hidden={activeTab !== "coincidencia"} tabIndex={0}>
       {activeTab === "coincidencia" && (
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-[#EEE9DF] space-y-6">
           <div className="grid grid-cols-1 gap-8">
@@ -325,7 +344,7 @@ export function MatchBreakdownView({
                 Resultado de coincidencia técnica
               </h3>
               <div className="relative w-40 h-40 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <svg aria-hidden="true" className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                   <path
                     className="text-gray-200"
                     strokeWidth="3.5"
@@ -385,9 +404,9 @@ export function MatchBreakdownView({
                     : "No hay requisitos técnicos disponibles para comparar."}
               </p>
             ) : (
-              <div className="divide-y divide-[#EEE9DF] rounded-xl border border-[#EEE9DF]">
+              <ul className="divide-y divide-[#EEE9DF] rounded-xl border border-[#EEE9DF]">
                 {applicant.comparison.map((item) => (
-                  <div
+                  <li
                     key={item.requirement}
                     className="grid grid-cols-1 gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
                   >
@@ -404,9 +423,9 @@ export function MatchBreakdownView({
                     }`}>
                       {item.result === "exact" ? "Exacta" : item.result === "similar" ? "Similar" : "No encontrada"}
                     </span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
 
@@ -430,8 +449,10 @@ export function MatchBreakdownView({
           )}
         </div>
       )}
+      </div>
 
       {/* Pestaña: CV */}
+<div id={`${tabsId}-panel-cv`} role="tabpanel" aria-labelledby={`${tabsId}-tab-cv`} hidden={activeTab !== "cv"} tabIndex={0}>
 {activeTab === "cv" && (
   <div className="bg-white rounded-2xl p-8 shadow-sm border border-[#EEE9DF] text-center text-sm text-gray-500">
     {canDownloadCv ? (
@@ -444,12 +465,16 @@ export function MatchBreakdownView({
         {downloadingCv ? CV_DOWNLOADING_LABEL : "Descargar el CV del postulante"}
       </button>
     ) : (
-      CV_NOT_UPLOADED_MESSAGE
+      applicant.hasCv
+        ? "El CV está registrado, pero no hay una descarga disponible."
+        : CV_NOT_UPLOADED_MESSAGE
     )}
   </div>
 )}
+</div>
 
 {/* Pestaña: Historial - CA-08 */}
+<div id={`${tabsId}-panel-historial`} role="tabpanel" aria-labelledby={`${tabsId}-tab-historial`} hidden={activeTab !== "historial"} tabIndex={0}>
 {activeTab === "historial" && (
   <div className="space-y-4">
     <ApplicantStageTimeline
@@ -458,6 +483,7 @@ export function MatchBreakdownView({
     />
   </div>
 )}
+</div>
     </div>
   );
 }

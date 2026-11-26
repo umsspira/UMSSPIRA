@@ -23,6 +23,8 @@ import { CancelEventRegistrationUseCase } from '../../application/use-cases/canc
 import { GetEventParticipantsUseCase } from '../../application/use-cases/get-event-participants.use-case';
 import { ListInactiveEventsUseCase } from '../../application/use-cases/list-inactive-events.use-case';
 import { RetireEventUseCase } from '../../application/use-cases/retire-event.use-case';
+import { PrismaCertificatesRepository } from '../repositories/prisma-certificates.repository';
+import { GenerateCertificatesService } from '../../application/generate-certificates.service';
 import { ListMyEventRegistrationsUseCase } from '../../application/use-cases/list-my-event-registrations.use-case';
 import {
   PUSH_NOTIFICATIONS,
@@ -145,4 +147,6 @@ export const eventsProviders: Provider[] = [
     inject: [EVENTS_REPOSITORY],
     useFactory: (repository: EventsRepository) => new ListMyEventRegistrationsUseCase(repository),
   },
+  PrismaCertificatesRepository,
+  GenerateCertificatesService,
 ];

@@ -1,7 +1,9 @@
-import { registerValidatedSession } from '@/features/event-passes/offline/offline-session';
+import { clearPendingLogout, hasPendingLogout, registerValidatedSession } from '@/features/event-passes/offline/offline-session';
 let accessToken: string | null = null;
 let refreshInFlight: Promise<string> | null = null;
 let generation = 0;
+let completingLogout = false;
+let pendingLogoutInFlight: Promise<boolean> | null = null;
 
 export class SessionError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -10,6 +12,8 @@ export class SessionError extends Error {
 export function getAccessToken(): string | null { return accessToken; }
 export function setAccessToken(token: string): void {
   accessToken = token;
+  // Un inicio de sesión nuevo reemplaza al cierre pendiente (si no, al volver la red se cerraría la sesión nueva).
+  if (!completingLogout) clearPendingLogout();
   void registerValidatedSession(token);
 }
 export function clearAccessToken(): void {
@@ -39,6 +43,9 @@ function tokenIsFresh(token: string): boolean {
 }
 
 export async function refreshSession(): Promise<string> {
+  // HU07: si la persona cerró sesión sin conexión, la cookie de renovación sigue viva hasta que el servidor
+  // la revoque. Mientras tanto no se renueva la sesión, para que no reaparezca al recargar.
+  if (hasPendingLogout() && !completingLogout) throw new SessionError(401, 'Tu sesión se cerró. Inicia sesión nuevamente');
   if (refreshInFlight) return refreshInFlight;
   const started = generation;
   const renew = async () => {
@@ -111,4 +118,34 @@ export async function revokeCurrentSession(): Promise<void> {
   const response = await authenticatedFetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' });
   if (!response.ok) throw new SessionError(response.status, 'No se pudo cerrar la sesión. Inténtalo nuevamente');
   clearAccessToken();
+}
+
+/**
+ * HU07: completa en el servidor un cierre de sesión hecho sin conexión. Devuelve true si ya no queda nada pendiente.
+ * Sin red o con el servidor caído no hace nada y el cierre sigue pendiente (se reintenta al volver la red).
+ */
+export function completePendingLogout(): Promise<boolean> {
+  if (!hasPendingLogout()) return Promise.resolve(true);
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return Promise.resolve(false);
+  if (pendingLogoutInFlight) return pendingLogoutInFlight;
+  pendingLogoutInFlight = (async () => {
+    completingLogout = true;
+    try {
+      if (csrfToken() || accessToken) {
+        const response = await authenticatedFetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' });
+        // 401/403: la sesión ya no existe en el servidor, que es lo que se buscaba.
+        if (!response.ok && response.status !== 401 && response.status !== 403) return false;
+      }
+      clearPendingLogout();
+      return true;
+    } catch (error) {
+      if (error instanceof SessionError && error.status === 401) { clearPendingLogout(); return true; }
+      return false;
+    } finally {
+      clearAccessToken();
+      completingLogout = false;
+      pendingLogoutInFlight = null;
+    }
+  })();
+  return pendingLogoutInFlight;
 }

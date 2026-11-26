@@ -1,3 +1,4 @@
+
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/database/prisma.service';
 import { EventPassRules } from '../domain/event-pass.rules';
@@ -8,22 +9,40 @@ export class ListUserPassesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(usuarioTitularId: string): Promise<EventPassDto[]> {
-    // Busca todos los pases del usuario incluyendo los datos de su evento
     const pases = await this.prisma.paseQr.findMany({
       where: {
         inscripcion: {
           id_usuario: usuarioTitularId,
         },
       },
-      include: {
+      select: {
+        id: true,
+        id_inscripcion: true,
+        token_hash: true,
+        estado: true,
+        fecha_generacion: true,
+        fecha_expiracion: true,
         inscripcion: {
-          include: {
-            evento: true,
+          select: {
+            id_evento: true,
+            estado: true,
+            evento: {
+              select: {
+                titulo: true,
+                estado: true,
+                fecha_inicio: true,
+                fecha_fin: true,
+                ubicacion: true,
+              },
+            },
             usuario: {
               select: {
                 nombre: true,
                 titulado: {
-                  select: { nombre: true, apellido: true },
+                  select: {
+                    nombre: true,
+                    apellido: true,
+                  },
                 },
               },
             },
@@ -33,7 +52,6 @@ export class ListUserPassesService {
       orderBy: { fecha_generacion: 'desc' },
     });
 
-    // CA 5, 6 y 7: Mapear y evaluar la vigencia en tiempo real
     return pases.map((pase) => {
       const effectiveStatus = EventPassRules.resolveEffectiveStatus(
         pase.estado,
@@ -51,8 +69,9 @@ export class ListUserPassesService {
         status: effectiveStatus.status,
         isValidForAccess: effectiveStatus.isValid,
         issuedAt: pase.fecha_generacion.toISOString(),
-        expiresAt: pase.fecha_expiracion ? pase.fecha_expiracion.toISOString() : null,
-        // Agregamos esto para que el frontend dibuje la tarjeta completa:
+        expiresAt: pase.fecha_expiracion
+          ? pase.fecha_expiracion.toISOString()
+          : null,
         eventDetails: {
           name: pase.inscripcion?.evento?.titulo ?? 'Evento UMSSPIRA',
           userName:
@@ -65,9 +84,11 @@ export class ListUserPassesService {
               .join(' ') ||
             pase.inscripcion?.usuario?.nombre?.trim() ||
             'Titulado',
-          dateTime: pase.inscripcion?.evento?.fecha_inicio?.toISOString() ?? '',
-          location: pase.inscripcion?.evento?.ubicacion ?? 'Ubicación por definir'
-        }
+          dateTime:
+            pase.inscripcion?.evento?.fecha_inicio?.toISOString() ?? '',
+          location:
+            pase.inscripcion?.evento?.ubicacion ?? 'Ubicación por definir',
+        },
       };
     });
   }

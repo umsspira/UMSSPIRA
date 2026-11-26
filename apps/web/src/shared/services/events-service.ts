@@ -1,6 +1,7 @@
 import type {
   CreateEventDto,
   EventParticipantsDto,
+  EventReminderSettings,
   EventRegistrationItem,
   EventItem,
   InactiveEventItem,
@@ -195,6 +196,22 @@ export async function getAdminEvents(
   return (await apiClient<{ data: EventItem[] }>('/api/v1/events/owned', {
     authenticated: true,
   })).data;
+}
+
+export async function getEventReminderSettings(): Promise<EventReminderSettings> {
+  return (await apiClient<{ data: EventReminderSettings }>(
+    '/api/v1/events/reminder-settings',
+    { authenticated: true },
+  )).data;
+}
+
+export async function updateEventReminderSettings(
+  settings: EventReminderSettings,
+): Promise<EventReminderSettings> {
+  return (await apiClient<{ data: EventReminderSettings }>(
+    '/api/v1/events/reminder-settings',
+    { method: 'PATCH', authenticated: true, body: settings },
+  )).data;
 }
 
 export async function getAdminDraft(

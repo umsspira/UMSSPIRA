@@ -61,7 +61,7 @@ integration('HU10: Adaptador de datos de afinidad laboral contra PostgreSQL real
     // 1. Crear usuario y titulado
     await db.usuario.create({
       data: {
-        id: userId,
+        usuario_id: userId,
         correo: `grad-${randomUUID()}@example.com`,
         nombre: 'Candidato Integración',
         rol: 'titulado',
@@ -71,16 +71,16 @@ integration('HU10: Adaptador de datos de afinidad laboral contra PostgreSQL real
             id: graduateId,
             nombre: 'Candidato Integración',
             formacion_academica_registros: {
-              create: [{ titulo: 'Ingeniería de Sistemas', institucion: 'UMSS' }],
+              create: [{ titulo: 'Ingeniería de Sistemas', institucion: 'UMSS', anio_egreso: 2020 }],
             },
             experiencia_laboral_registros: {
-              create: [{ cargo: 'Backend Developer', empresa: 'Tech Corp' }],
+              create: [{ cargo: 'Backend Developer', empresa: 'Tech Corp', fecha_inicio: new Date('2021-01-01T00:00:00Z') }],
             },
             certificacion_registros: {
-              create: [{ nombre: 'AWS Certified', entidad_emisora: 'Amazon' }],
+              create: [{ nombre: 'AWS Certified', entidad_emisora: 'Amazon', grado: 'Profesional' }],
             },
             proyecto_registros: {
-              create: [{ nombre: 'Portal Empleos', descripcion: 'Microservicios', tecnologias: 'Java, TypeScript' }],
+              create: [{ nombre: 'Portal Empleos', enlace: 'https://example.com/portal', descripcion: 'Microservicios', tecnologias: 'Java, TypeScript' }],
             },
             perfil_area_registros: {
               create: [{ descripcion_profesional: 'Especialista en desarrollo backend Java y SQL' }],
@@ -93,28 +93,27 @@ integration('HU10: Adaptador de datos de afinidad laboral contra PostgreSQL real
     // 2. Crear empresa y vacante con requisitos técnicos estructurados
     await db.usuario.create({
       data: {
-        id: companyUserId,
+        usuario_id: companyUserId,
         correo: `company-${randomUUID()}@example.com`,
         nombre: 'Empresa Integración',
         rol: 'empresa',
         estado: 'ACTIVO',
-        empresa: {
+        empresa_registros: {
           create: {
             id: companyId,
-            nombre: 'Empresa SA',
+            razon_social: 'Empresa SA',
             nit: `NIT-${randomUUID().slice(0, 8)}`,
-            vacantes: {
+            vacante_registros: {
               create: {
                 id: vacancyId,
-                id_usuario_creador: companyUserId,
                 titulo: 'Desarrollador Senior Java',
-                descripcion: 'Buscamos desarrollador senior con experiencia',
+                descripcion_tecnica: 'Buscamos desarrollador senior con experiencia',
                 estado: 'PUBLICADO',
-                fecha_limite: new Date(Date.now() + 86400000),
-                vacante_requisitos_tecnicos: {
+                fecha_cierre: new Date(Date.now() + 86400000),
+                requisito_tecnico_registros: {
                   create: [
-                    { nombre: 'Java', anos_experiencia: 3, excluyente: true },
-                    { nombre: 'SQL', anos_experiencia: 2, excluyente: false },
+                    { nombre: 'Java', nombre_normalizado: 'java' },
+                    { nombre: 'SQL', nombre_normalizado: 'sql' },
                   ],
                 },
               },

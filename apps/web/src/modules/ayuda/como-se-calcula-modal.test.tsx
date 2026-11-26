@@ -12,8 +12,8 @@ describe('ComoSeCalculaModal', () => {
     render(<ComoSeCalculaModal open onClose={jest.fn()} percentage={67} comparison={datos} />);
     expect(screen.getByRole('dialog', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
     expect(screen.getByText('2 de 3 requisitos = 67 %')).toBeInTheDocument();
-    expect(screen.getAllByText('Coincide')).toHaveLength(2);
-    expect(screen.getByText('No encontrado')).toBeInTheDocument();
+    expect(screen.getAllByText('Exacta')).toHaveLength(2);
+    expect(screen.getByText('No encontrada')).toBeInTheDocument();
   });
 
   it('muestra el equivalente ponderado cuando llegan pesos coherentes del motor', () => {
@@ -22,7 +22,7 @@ describe('ComoSeCalculaModal', () => {
       { requirement: 'Docker Compose', matchedSkill: 'Docker', result: 'similar' as const, weight: 0.5 },
     ];
     render(<ComoSeCalculaModal open onClose={jest.fn()} percentage={75} comparison={comparison} />);
-    expect(screen.getByText('Coincide parcialmente')).toBeInTheDocument();
+    expect(screen.getByText('Similar')).toBeInTheDocument();
     expect(screen.getByText('1,5 de 2 requisitos equivalentes = 75 %')).toBeInTheDocument();
   });
 
@@ -34,7 +34,9 @@ describe('ComoSeCalculaModal', () => {
     ];
     render(<ComoSeCalculaModal open onClose={jest.fn()} percentage={50} comparison={comparison} />);
     expect(screen.getByText('1 exacta + 1 parcial de 3 requisitos = 50 %')).toBeInTheDocument();
-    expect(screen.getByText('Coincide parcialmente')).toBeInTheDocument();
+    expect(screen.getByText('Similar')).toBeInTheDocument();
+    // La cuenta cuadra: no se muestra la nota de «peso distinto» (HU-11 Épica 5)
+    expect(screen.queryByText(/peso distinto/)).not.toBeInTheDocument();
   });
 
   it('acepta el redondeo a entero de la API en la cuenta con parciales', () => {

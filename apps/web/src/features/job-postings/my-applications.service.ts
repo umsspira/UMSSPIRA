@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { apiFetch } from '@/shared/services/api-client';
+import type { JobPostingStoredMatchStatus } from '@umsspira/shared-types';
 
 const myApplicationSchema = z.object({
   id: z.string().uuid(),
@@ -8,6 +9,7 @@ const myApplicationSchema = z.object({
   companyName: z.string().nullable(),
   appliedAt: z.string().datetime({ offset: true }).nullable(),
   matchPercentage: z.number().min(0).max(100).nullable(),
+  matchStatus: z.enum(['ready', 'profile-incomplete', 'no-requirements', 'pending', 'error']).optional(),
   isVacancyAvailable: z.boolean(),
 });
 
@@ -23,6 +25,7 @@ const vacancyOfferSchema = z.object({
 });
 
 export type MyApplication = z.infer<typeof myApplicationSchema>;
+export type { JobPostingStoredMatchStatus };
 export type VacancyOffer = z.infer<typeof vacancyOfferSchema>;
 
 export async function fetchMyApplications(): Promise<MyApplication[]> {

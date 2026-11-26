@@ -218,20 +218,20 @@ describe('ProfileRecordsManager', () => {
         {
           pestana: 'Formación académica',
           mensaje: 'Aún no tienes formación académica registrada',
-          boton: 'Agregar formación académica',
-          ruta: '/profile/completar?seccion=formacion-academica&returnTo=%2Fprofile',
+          boton: 'Agregar registros',
+          ruta: '/profile/registros/agregar#seccion-1',
         },
         {
           pestana: 'Certificaciones',
           mensaje: 'Aún no tienes certificaciones registradas',
-          boton: 'Agregar certificación',
-          ruta: '/profile/completar?seccion=certificaciones&returnTo=%2Fprofile',
+          boton: 'Agregar registros',
+          ruta: '/profile/registros/agregar#seccion-3',
         },
         {
           pestana: 'Experiencia',
           mensaje: 'Aún no tienes experiencia laboral registrada',
-          boton: 'Agregar experiencia',
-          ruta: '/profile/completar?seccion=experiencia-laboral&returnTo=%2Fprofile',
+          boton: 'Agregar registros',
+          ruta: '/profile/registros/agregar#seccion-2',
         },
       ];
 
@@ -242,9 +242,10 @@ describe('ProfileRecordsManager', () => {
 
         expect(await screen.findByText(seccion.mensaje)).toBeInTheDocument();
 
+        // Además del botón de arriba, el estado vacío trae su propio «Agregar registros» hacia el apartado
         expect(
-          screen.getByRole('link', { name: seccion.boton }),
-        ).toHaveAttribute('href', seccion.ruta);
+          screen.getAllByRole('link', { name: seccion.boton }).map((link) => link.getAttribute('href')),
+        ).toContain(seccion.ruta);
 
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
       }

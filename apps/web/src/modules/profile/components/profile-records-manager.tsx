@@ -145,7 +145,7 @@ export function ProfileRecordsManager({
         <ProfileQuickLinks current="/profile/records" />
       </header>
 
-      {/* Avatar con iniciales; las fotos de perfil ya no se pueden cargar. */}
+      {/* HU-16: foto actual o avatar con iniciales */}
       <ProfilePhotoSection name={store?.header?.name ?? ''} />
 
       <Link

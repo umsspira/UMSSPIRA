@@ -111,23 +111,35 @@ export class VacantesController {
     return this.vacantesService.obtenerVacantePorId(id, actor.id);
   }
 
+  // HU-14: cerrar exige permiso de escritura Y que la vacante sea de la empresa del actor
+  // (el servicio responde 404 si es ajena). Antes cualquier usuario autenticado podía cerrar cualquiera.
   @Patch(':id/cerrar')
-  async cerrar(@Param('id') id: string) {
-    return this.vacantesService.cerrarVacante(id);
+  @RequirePermissions('empresas:self:write')
+  async cerrar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
+    return this.vacantesService.cerrarVacante(id, actor.id);
   }
 
   @Patch(':id')
   @RequirePermissions('empresas:self:write')
   async actualizar(
+
     @Param('id', new ZodValidationPipe(vacancyIdSchema)) id: VacancyId,
     @Body(new ZodValidationPipe(updateVacanteSchema)) body: UpdateVacanteBody,
+
     @CurrentActor() actor: ActorContext
   ) {
     return this.vacantesService.actualizarVacante(id, actor.id, body);
   }
 
   @Delete(':id')
-  async eliminar(@Param('id') id: string, @CurrentActor() actor: ActorContext) {
+  @RequirePermissions('empresas:self:write')
+  async eliminar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentActor() actor: ActorContext,
+  ) {
     return this.vacantesService.eliminarVacante(id, actor.id);
   }
 }

@@ -35,17 +35,23 @@ describe('VacantesService · postulantes (HU-01)', () => {
   }
 
   function crearServicio(opts: { vacantesVisibles?: number; filas?: unknown[]; detalle?: unknown } = {}) {
+    const rows = (opts.filas ?? [fila()]) as ReturnType<typeof fila>[];
+    const statuses = new Map(rows.map((row) => [row.id, row.porcentaje_match === null ? 'pending' : 'ready']));
+    const refresh = {
+      forVacancy: jest.fn().mockResolvedValue(statuses),
+      forApplication: jest.fn().mockResolvedValue(statuses),
+    };
     const prisma = {
       vacante: {
         count: jest.fn().mockResolvedValue(opts.vacantesVisibles ?? 1),
         findFirst: jest.fn().mockResolvedValue(opts.detalle ?? null),
       },
       postulacion: {
-        findMany: jest.fn().mockResolvedValue(opts.filas ?? [fila()]),
+        findMany: jest.fn().mockResolvedValue(rows),
         findFirst: jest.fn().mockResolvedValue(opts.detalle === undefined ? fila() : opts.detalle),
       },
     };
-    return { servicio: new VacantesService(prisma as never, {} as never, {} as never), prisma };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never, refresh as never, {} as never), prisma, refresh };
   }
 
   it('devuelve los postulantes con la forma que espera el front', async () => {
@@ -64,6 +70,7 @@ describe('VacantesService · postulantes (HU-01)', () => {
         cvUrl: null,
         matchPercentage: 92,
         matchCalculatedAt: '2026-11-01T12:00:00.000Z',
+        matchStatus: 'ready',
         skills: null,
         workExperience: [],
         education: [],
@@ -201,6 +208,7 @@ describe('VacantesService · postulantes (HU-01)', () => {
       'cvUrl',
       'matchPercentage',
       'matchCalculatedAt',
+      'matchStatus',
       'skills',
       'workExperience',
       'education',
@@ -340,6 +348,7 @@ describe('VacantesService · postulantes (HU-01)', () => {
           cvUrl: null,
           matchPercentage: 92,
           matchCalculatedAt: '2026-11-01T12:00:00.000Z',
+          matchStatus: 'ready',
           skills: null,
           workExperience: [
             {
@@ -493,6 +502,7 @@ describe('VacantesService · postulantes (HU-01)', () => {
           cvUrl: null,
           matchPercentage: null,
           matchCalculatedAt: null,
+          matchStatus: 'pending',
           skills: null,
           workExperience: [],
           education: [],
@@ -515,11 +525,14 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
   const ID_VACANTE = '44500000-0000-4000-8000-000000000001';
 
   function crearServicio(filas: unknown[] = []) {
+    const statuses = new Map((filas as { id: string; porcentaje_match: number | null }[])
+      .map((row) => [row.id, row.porcentaje_match === null ? 'pending' : 'ready']));
+    const refresh = { forUser: jest.fn().mockResolvedValue(statuses) };
     const prisma = {
       postulacion: { findMany: jest.fn().mockResolvedValue(filas) },
       vacante: { findFirst: jest.fn() },
     };
-    return { servicio: new VacantesService(prisma as never, {} as never, {} as never), prisma };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never, refresh as never, {} as never), prisma, refresh };
   }
 
   it('filtra por usuario, ordena de más reciente a más antigua y no inventa la afinidad', async () => {
@@ -548,6 +561,7 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
         appliedAt: appliedAt.toISOString(),
         matchPercentage: null,
         matchCalculatedAt: null,
+        matchStatus: 'pending',
         isVacancyAvailable: false,
       },
     ]);
@@ -589,6 +603,78 @@ describe('VacantesService · mis postulaciones (HU-006)', () => {
 
     expect(postulacion?.isVacancyAvailable).toBe(true);
     expect(postulacion?.matchPercentage).toBe(0);
+  });
+
+
+  it('marca como no disponible una vacante publicada con fecha de cierre vencida (HU-14)', async () => {
+    const { servicio } = crearServicio([
+      {
+        id: ID_POSTULACION,
+        created_at: null,
+        porcentaje_match: null,
+        vacante: {
+          id: ID_VACANTE,
+          titulo: 'Analista',
+          estado: 'PUBLICADO',
+          fecha_cierre: new Date('2020-01-01T00:00:00.000Z'),
+          empresa: null,
+        },
+      },
+    ]);
+
+    const [postulacion] = await servicio.listarMisPostulaciones(ID_USUARIO);
+
+    expect(postulacion?.isVacancyAvailable).toBe(false);
+  });
+
+  it('mantiene disponible una vacante publicada con fecha de cierre futura (HU-14)', async () => {
+    const { servicio } = crearServicio([
+      {
+        id: ID_POSTULACION,
+        created_at: null,
+        porcentaje_match: null,
+        vacante: {
+          id: ID_VACANTE,
+          titulo: 'Analista',
+          estado: 'PUBLICADO',
+          fecha_cierre: new Date('2099-01-01T00:00:00.000Z'),
+          empresa: null,
+        },
+      },
+    ]);
+
+    const [postulacion] = await servicio.listarMisPostulaciones(ID_USUARIO);
+
+    expect(postulacion?.isVacancyAvailable).toBe(true);
+  });
+
+  it('oculta la afinidad desactualizada y respeta la fecha de cierre de la vacante', async () => {
+    const { servicio, refresh } = crearServicio([
+      {
+        id: ID_POSTULACION,
+        created_at: null,
+        porcentaje_match: 80,
+        fecha_match: new Date('2026-01-01T00:00:00.000Z'),
+        vacante: {
+          id: ID_VACANTE,
+          titulo: 'Analista',
+          estado: 'PUBLICADO',
+          fecha_cierre: new Date('2000-01-01T00:00:00.000Z'),
+          empresa: null,
+        },
+      },
+    ]);
+
+    refresh.forUser.mockResolvedValue(new Map([[ID_POSTULACION, 'pending']]));
+
+    const [postulacion] = await servicio.listarMisPostulaciones(ID_USUARIO);
+
+    expect(postulacion).toMatchObject({
+      matchStatus: 'pending',
+      matchPercentage: null,
+      matchCalculatedAt: null,
+      isVacancyAvailable: false,
+    });
   });
 
   it('permite abrir vacantes cerradas solo cuando el titulado se postuló', async () => {
@@ -661,7 +747,7 @@ describe('VacantesService · cambio de etapa (HU-04)', () => {
     };
 
     return {
-      servicio: new VacantesService(prisma as never, {} as never, {} as never),
+      servicio: new VacantesService(prisma as never, {} as never, {} as never, {} as never, {} as never),
       prisma,
     };
   }
@@ -745,18 +831,24 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
 
   function crearServicio(opts: { vacantesVisibles?: number } = {}) {
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(0),
       vacante: {
         update: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Nueva' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: ID_VACANTE, titulo: 'Actual' }),
       },
     };
     const prisma = {
       vacante: {
         count: jest.fn().mockResolvedValue(opts.vacantesVisibles ?? 1),
+        // cambiarEstado (HU-14) lee y actualiza la vacante fuera de la transacción.
+        findFirst: jest.fn().mockResolvedValue(
+          opts.vacantesVisibles === 0 ? null : { id: ID_VACANTE, estado: 'PUBLICADO' },
+        ),
+        update: jest.fn().mockResolvedValue({ id: ID_VACANTE, estado: 'PAUSADO' }),
       },
       $transaction: jest.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     };
-    return { servicio: new VacantesService(prisma as never, {} as never, {} as never), prisma, tx };
+    return { servicio: new VacantesService(prisma as never, {} as never, {} as never, {} as never, {} as never), prisma, tx };
   }
 
   it('permite editar al dueño y a los miembros activos de la empresa', async () => {
@@ -789,12 +881,25 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
   it('actualiza solo los campos enviados', async () => {
     const { servicio, tx } = crearServicio();
 
-    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { estado: 'PAUSADA' });
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { titulo: 'Nueva' });
 
     expect(tx.vacante.update).toHaveBeenCalledWith({
       where: { id: ID_VACANTE },
-      data: { estado: 'PAUSADA' },
+      data: { titulo: 'Nueva', fecha_actualizacion: expect.any(Date) },
     });
+  });
+
+  it('cambia el estado con la política única de transiciones (HU-14)', async () => {
+    const { servicio, prisma, tx } = crearServicio();
+
+    await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { estado: 'PAUSADA' });
+
+    expect(prisma.vacante.update).toHaveBeenCalledWith({
+      where: { id: ID_VACANTE },
+      data: { estado: 'PAUSADO', fecha_actualizacion: expect.any(Date) },
+      select: { id: true, estado: true },
+    });
+    expect(tx.vacante.update).not.toHaveBeenCalled();
   });
 
   it('serializa los envíos simultáneos con el bloqueo por vacante dentro de la transacción', async () => {
@@ -803,8 +908,8 @@ describe('VacantesService · edición de vacante (HU-13)', () => {
     await servicio.actualizarVacante(ID_VACANTE, ID_USUARIO, { titulo: 'Nueva' });
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
-    const orden = tx.$queryRaw.mock.invocationCallOrder[0];
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    const orden = tx.$executeRaw.mock.invocationCallOrder[0];
     const actualizacion = tx.vacante.update.mock.invocationCallOrder[0];
     expect(orden).toBeLessThan(actualizacion);
   });
