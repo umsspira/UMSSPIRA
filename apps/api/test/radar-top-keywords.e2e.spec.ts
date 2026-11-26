@@ -275,6 +275,25 @@ describe('Radar HU-8 - contrato HTTP de keywords influyentes', () => {
     ).toBe(true);
   });
 
+  it('recalcula al quitar y volver a agregar registros del perfil', async () => {
+    profileReader.texts = ['javascript'];
+    extractor.keywords = [{ term: 'javascript', count: 1 }];
+    const initial = successSchema.parse((await recalculate().expect(200)).body).data;
+    expect(initial.areas[0].affinity).toBe(12.5);
+
+    profileReader.texts = [];
+    extractor.keywords = [];
+    const empty = successSchema.parse((await recalculate().expect(200)).body).data;
+    expect(empty).toMatchObject({ status: 'empty', recalculated: true });
+    expect(empty.areas.every(({ affinity }) => affinity === 0)).toBe(true);
+
+    profileReader.texts = ['javascript javascript'];
+    extractor.keywords = [{ term: 'javascript', count: 2 }];
+    const restored = successSchema.parse((await recalculate().expect(200)).body).data;
+    expect(restored).toMatchObject({ status: 'ok', recalculated: true });
+    expect(restored.areas[0]).toMatchObject({ affinity: 25, previousAffinity: 0 });
+  });
+
   it('responde 401 sin token y 403 a una empresa con el esquema de error', async () => {
     const withoutToken = await request(app.getHttpServer()).get('/api/v1/radar').expect(401);
     expect(errorSchema.parse(withoutToken.body).error.code).toBe('UNAUTHENTICATED');
@@ -327,5 +346,36 @@ describe('Radar HU-8 - contrato HTTP de keywords influyentes', () => {
     expect(radarRepository.savedCalculations).toHaveLength(1);
     expect(bodies.map(({ data }) => data.recalculated).sort()).toEqual([false, true]);
     expect(bodies[0].data.areas[0].topKeywords).toEqual(bodies[1].data.areas[0].topKeywords);
+  });
+
+  it('BUG-RADAR-01: con una fila de palabra_clave_area hacia un área ajena al radar, POST /radar/recalculate responde 200 y esa fila no suma puntos', async () => {
+    profileReader.texts = ['Uso JavaScript, PostgreSQL y Gestión de proyectos'];
+    extractor.keywords = [
+      { term: 'javascript', count: 1 },
+      { term: 'postgresql', count: 1 },
+      { term: 'gestion de proyectos', count: 1 },
+    ];
+    radarRepository.areaWeights['60000000-0000-4000-8000-000000000018'] = [
+      { term: 'postgresql', peso: 4 },
+    ];
+    radarRepository.areaWeights['60000000-0000-4000-8000-000000000005'] = [
+      { term: 'gestion de proyectos', peso: 5 },
+    ];
+
+    try {
+      const response = await recalculate().expect(200);
+      const body = successSchema.parse(response.body);
+
+      expect(body.data.status).toBe('ok');
+      expect(body.data.areas).toHaveLength(6);
+      const software = body.data.areas.find((a) => a.area === 'software-development');
+      expect(software?.affinity).toBe(12.5);
+      expect(software?.topKeywords.map((k) => k.keyword)).toEqual(['javascript']);
+      const otherAreas = body.data.areas.filter((a) => a.area !== 'software-development');
+      expect(otherAreas.every((a) => a.affinity === 0 && a.topKeywords.length === 0)).toBe(true);
+    } finally {
+      delete radarRepository.areaWeights['60000000-0000-4000-8000-000000000018'];
+      delete radarRepository.areaWeights['60000000-0000-4000-8000-000000000005'];
+    }
   });
 });

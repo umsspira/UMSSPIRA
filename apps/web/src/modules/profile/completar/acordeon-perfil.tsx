@@ -24,13 +24,17 @@ import { ProfileQuickLinks } from '@/modules/profile/components/profile-quick-li
 import { DeleteRecordException, deleteProfileRecord } from '@/modules/profile/services/profile-records-service';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
 import { BackButton } from '@/shared/components/back-button';
+import { volverALaPantallaAnterior } from '@/modules/profile/utils/return-to';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
 import { backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
 import {
+  isProfileEmpty,
   profileCompleteness,
   type CompletenessSectionId,
 } from '@/modules/profile/utils/profile-completeness';
+import { type IncompleteEntry, saveIncompleteEntries } from '@/modules/profile/utils/drafts-storage';
+import type { DraftDataBySection } from '@/modules/profile/state/drafts-store';
 import type {
   CertificationRecord,
   EducationRecord,
@@ -50,6 +54,7 @@ export function AcordeonPerfil({
 }) {
   // Los registros vienen del estado compartido del perfil, así lo agregado aquí aparece en el resumen
   const {
+    header,
     records,
     description,
     isLoading,
@@ -64,7 +69,40 @@ export function AcordeonPerfil({
     updateRecord,
   } = useProfileStore();
   const router = useRouter();
-  const [avisoBorrador, setAvisoBorrador] = useState(false);
+  // Texto del aviso de «Guardar borrador»; null = sin aviso
+  const [avisoBorrador, setAvisoBorrador] = useState<string | null>(null);
+  // HU-12: con el perfil vacío «Guardar perfil profesional» no navega (el resumen volvería a Completar perfil)
+  const [errorPerfilVacio, setErrorPerfilVacio] = useState(false);
+  // Lo escrito en cada formulario, para «Guardar borrador»; al agregarse un registro el formulario queda vacío
+  const formData = useRef<Partial<DraftDataBySection>>({});
+  const trackForm = useMemo(
+    () => ({
+      education: (data: DraftDataBySection['education']) => { formData.current.education = data; },
+      experience: (data: DraftDataBySection['experience']) => { formData.current.experience = data; },
+      certification: (data: DraftDataBySection['certification']) => { formData.current.certification = data; },
+      project: (data: DraftDataBySection['project']) => { formData.current.project = data; },
+    }),
+    [],
+  );
+
+  // «Guardar borrador»: lo escrito sin agregar pasa a «Agregar registros» como borrador incompleto (HU-14)
+  async function guardarBorrador() {
+    const conDatos = (data: object) =>
+      Object.values(data).some((value) => (typeof value === 'string' ? value.trim() !== '' : value != null));
+    const entries = (Object.entries(formData.current) as [keyof DraftDataBySection, object][])
+      .filter(([, data]) => data && conDatos(data))
+      .map(([section, data]) => ({ section, data }) as IncompleteEntry);
+    if (entries.length === 0) {
+      setAvisoBorrador('No hay datos escritos para guardar como borrador');
+      return;
+    }
+    const guardados = await saveIncompleteEntries(header?.id ?? '', entries);
+    setAvisoBorrador(
+      guardados > 0
+        ? 'Borrador guardado: lo encontrarás en Agregar registros'
+        : 'No se pudo guardar el borrador. Inténtalo de nuevo',
+    );
+  }
   // Errores sin corregir por sección, para el contador del encabezado (HU-02, AC 6)
   const [erroresFormacion, setErroresFormacion] = useState(0);
   const [erroresExperiencia, setErroresExperiencia] = useState(0);
@@ -99,7 +137,7 @@ export function AcordeonPerfil({
  
   useEffect(() => {
     if (!avisoBorrador) return;
-    const temporizador = setTimeout(() => setAvisoBorrador(false), 3000);
+    const temporizador = setTimeout(() => setAvisoBorrador(null), 3000);
     return () => clearTimeout(temporizador);
   }, [avisoBorrador]);
  
@@ -190,8 +228,13 @@ export function AcordeonPerfil({
             <span className="text-sm font-semibold text-truffle-trouble">
               {completas} de {secciones.length} secciones completas
             </span>
-            {/* Sin returnTo se vuelve a Mi perfil (HU-11) */}
-            <BackButton href="/profile" returnTo={returnTo} ariaLabel={returnTo ? 'Volver' : 'Volver a Mi perfil'} />
+            {/* Con returnTo vuelve a esa pantalla; sin él, a la última visitada. Nunca a /profile:
+                con el perfil vacío /profile reenvía aquí y el botón parecía no hacer nada (Observación 1) */}
+            <BackButton
+              returnTo={returnTo}
+              onClick={returnTo ? undefined : () => volverALaPantallaAnterior(router)}
+              ariaLabel="Volver"
+            />
           </div>
         </div>
         <BarraProgreso completas={completas} total={secciones.length} />
@@ -228,6 +271,7 @@ export function AcordeonPerfil({
         {(cerrar) => (
         <FormacionAcademicaForm
           formaciones={formaciones}
+          onDatosChange={trackForm.education}
           onErroresChange={setErroresFormacion}
           onCancelar={cerrar}
           onAgregar={async (formacion) => {
@@ -248,6 +292,7 @@ export function AcordeonPerfil({
         {(cerrar) => (
         <FormularioExperiencia
           experiencias={experiencias}
+          onDatosChange={trackForm.experience}
           onErroresChange={setErroresExperiencia}
           onCancelar={cerrar}
           onAgregar={async (experiencia) => {
@@ -268,6 +313,7 @@ export function AcordeonPerfil({
         {(cerrar) => (
         <FormularioCertificaciones
           certificaciones={certificaciones}
+          onDatosChange={trackForm.certification}
           onErroresChange={setErroresCertificaciones}
           returnTo={returnTo}
           progreso={progresoSubida}
@@ -383,6 +429,7 @@ export function AcordeonPerfil({
         {(cerrar) => (
         <FormularioProyectos
           proyectos={proyectos}
+          onDatosChange={trackForm.project}
           onErroresChange={setErroresProyectos}
           onCancelar={cerrar}
           onAgregar={async (proyecto) => {
@@ -394,18 +441,29 @@ export function AcordeonPerfil({
       </SeccionAcordeon>
 
           {/* Acciones finales (v3) */}
+          {errorPerfilVacio && isProfileEmpty(records, description) && (
+            <p role="alert" className="rounded-lg border border-[#A35139]/30 bg-[#FFF0E1] px-4 py-3 text-sm text-[#A35139]">
+              Agrega al menos un registro o tu descripción profesional para guardar tu perfil.
+            </p>
+          )}
           <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <button
               type="button"
               // Sin returnTo vuelve al resumen con el aviso «Se guardó correctamente» (HU-21, CA-01)
-              onClick={() => router.push(returnTo ?? '/profile?guardado=1')}
+              onClick={() => {
+                if (!returnTo && isProfileEmpty(records, description)) {
+                  setErrorPerfilVacio(true);
+                  return;
+                }
+                router.push(returnTo ?? '/profile?guardado=1');
+              }}
               className="h-12 flex-1 rounded-lg bg-burning-flame text-base font-bold text-abyssal-blue transition hover:brightness-95"
             >
               Guardar perfil profesional
             </button>
             <button
               type="button"
-              onClick={() => setAvisoBorrador(true)}
+              onClick={() => void guardarBorrador()}
               className="h-12 rounded-lg border border-oatmeal bg-white px-6 text-sm font-semibold text-blue-fantastic transition hover:bg-palladian"
             >
               Guardar borrador
@@ -420,7 +478,7 @@ export function AcordeonPerfil({
           className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-abyssal-blue px-4 py-3 text-sm font-semibold text-white shadow-lg"
         >
           <Check className="h-4 w-4 text-burning-flame" aria-hidden="true" />
-          Borrador guardado
+          {avisoBorrador}
         </div>
       )}
     </div>

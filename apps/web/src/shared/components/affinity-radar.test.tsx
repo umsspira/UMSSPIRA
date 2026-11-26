@@ -24,12 +24,12 @@ describe('AffinityRadar Component', () => {
   it('renderiza las 6 áreas en el orden fijo', () => {
     render(<AffinityRadar affinityData={mockData as any} hasData={true} />);
 
-    expect(screen.getByText(/Desarrollo de Software/i)).toBeInTheDocument();
-    expect(screen.getByText(/Cloud, DevOps & Infraestructura/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ciencia de Datos & IA/i)).toBeInTheDocument();
-    expect(screen.getByText(/Aseguramiento de Calidad \(QA\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ciberseguridad & Redes/i)).toBeInTheDocument();
-    expect(screen.getByText(/Gestión de TI & Gobernanza/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Desarrollo de Software/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cloud, DevOps & Infraestructura/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Ciencia de Datos & IA/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Aseguramiento de Calidad \(QA\)/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Ciberseguridad & Redes/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Gestión de TI & Gobernanza/i })).toBeInTheDocument();
   });
 
   it('muestra los detalles correctos al hacer clic en un área y reemplaza la selección', () => {
@@ -39,7 +39,7 @@ describe('AffinityRadar Component', () => {
     expect(screen.getByText('Selecciona un área del radar para consultar sus coincidencias de palabras clave.')).toBeInTheDocument();
 
     // Clic en la primera área (Desarrollo de Software)
-    const softwareDevLabel = screen.getByText(/Desarrollo de Software/i);
+    const softwareDevLabel = screen.getByRole('button', { name: /Desarrollo de Software/i });
     fireEvent.click(softwareDevLabel);
 
     // Debe mostrar la etiqueta correcta y el porcentaje redondeado formateado
@@ -47,7 +47,7 @@ describe('AffinityRadar Component', () => {
     expect(screen.getByText('86%')).toBeInTheDocument();
 
     // Clic en la segunda área (Cloud/DevOps)
-    const cloudDevopsLabel = screen.getByText(/Cloud, DevOps & Infraestructura/i);
+    const cloudDevopsLabel = screen.getByRole('button', { name: /Cloud, DevOps & Infraestructura/i });
     fireEvent.click(cloudDevopsLabel);
 
     // Debe reemplazar el 86% anterior por el 70% de Cloud
@@ -65,7 +65,7 @@ describe('AffinityRadar Component', () => {
     expect(screen.queryByText(/ÁREA SELECCIONADA/i)).not.toBeInTheDocument();
     
     // Verifica que las etiquetas de los ejes sigan mostrándose (sin porcentajes, CA-HU2-05)
-    expect(screen.getByText(/Desarrollo de Software/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Desarrollo de Software/i })).toBeInTheDocument();
   });
 
   it('no debe renderizar el polígono ni el panel inferior cuando affinityData está vacío', () => {
@@ -75,7 +75,7 @@ describe('AffinityRadar Component', () => {
     expect(screen.queryByText(/ÁREA SELECCIONADA/i)).not.toBeInTheDocument();
     
     // Los ejes base de la telaraña deben seguir ahí
-    expect(screen.getByText(/Desarrollo de Software/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Desarrollo de Software/i })).toBeInTheDocument();
   });
 
     // --- SELECCIÓN CONTROLADA DESDE EL PADRE ---
@@ -97,7 +97,7 @@ describe('AffinityRadar Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByText(/Cloud, DevOps & Infraestructura/i));
+    fireEvent.click(screen.getByRole('button', { name: /Cloud, DevOps & Infraestructura/i }));
     
     expect(onSelectArea).toHaveBeenCalledWith('cloud-devops');
     expect(
@@ -110,7 +110,7 @@ describe('AffinityRadar Component', () => {
     const onSelectArea = jest.fn();
     render(<AffinityRadar affinityData={mockData as any} hasData={true} onSelectArea={onSelectArea} />);
 
-    fireEvent.click(screen.getByText(/Desarrollo de Software/i));
+    fireEvent.click(screen.getByRole('button', { name: /Desarrollo de Software/i }));
 
     expect(onSelectArea).toHaveBeenCalledWith('software-development');
     expect(screen.getByText('ÁREA SELECCIONADA')).toBeInTheDocument();
@@ -197,6 +197,29 @@ describe('AffinityRadar Component', () => {
     expect(container.querySelectorAll('circle.stroke-amber-600')).toHaveLength(1);
     expect(container.querySelector('polygon.stroke-red-800\\/60')?.getAttribute('class')).toContain(
       'transition-all',
+    );
+  });
+
+  it('asocia los valores textuales al SVG y permite enfocar y seleccionar un área', () => {
+    render(<AffinityRadar affinityData={mockData as AffinityAreaScore[]} />);
+
+    const radar = screen.getByRole('group', { name: 'Radar de afinidad' });
+    const description = document.getElementById(radar.getAttribute('aria-describedby')!);
+    expect(description).toHaveTextContent('Desarrollo de Software: 86%');
+    expect(description).toHaveTextContent('Gestión de TI & Gobernanza: 80%');
+
+    const button = screen.getByRole('button', { name: /Desarrollo de Software/ });
+    button.focus();
+    expect(button).toHaveFocus();
+    fireEvent.click(button);
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('explica el radar vacío sin inventar porcentajes', () => {
+    render(<AffinityRadar affinityData={[]} hasData={false} />);
+    const radar = screen.getByRole('group', { name: 'Radar de afinidad' });
+    expect(document.getElementById(radar.getAttribute('aria-describedby')!)).toHaveTextContent(
+      'El radar no tiene datos de afinidad disponibles.',
     );
   });
 });

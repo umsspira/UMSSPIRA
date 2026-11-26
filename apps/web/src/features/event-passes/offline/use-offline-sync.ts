@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRealConnection } from '@/shared/hooks/use-real-connection';
 import { getOfflineSessionUserId } from './offline-session';
 import { getOfflineQrPasses } from './offline-qr-storage';
 import {
@@ -22,6 +23,7 @@ export function useOfflineSync() {
   const [result, setResult] = useState<OfflineSyncResult | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [hasSavedData, setHasSavedData] = useState(false);
+  const realConnection = useRealConnection();
   const running = useRef(false);
 
   const refreshLastUpdate = useCallback(async () => {
@@ -93,5 +95,5 @@ export function useOfflineSync() {
     };
   }, [sync, refreshLastUpdate]);
 
-  return { isOnline, state, result, lastUpdate, hasSavedData, retry: sync };
+  return { isOnline: isOnline && realConnection, state, result, lastUpdate, hasSavedData, retry: sync };
 }

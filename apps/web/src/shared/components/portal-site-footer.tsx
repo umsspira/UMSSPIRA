@@ -9,7 +9,6 @@ const PLATFORM_LINKS = [
   { href: '/companies', label: 'Empresas' },
   { href: '/job-postings', label: 'Ofertas' },
   { href: '/portal/eventos', label: 'Eventos' },
-  { href: '/portal/beneficios', label: 'Beneficios' },
 ]
 
 const ACCOUNT_LINKS = [

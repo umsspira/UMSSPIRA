@@ -1,0 +1,33 @@
+meta {
+  name: HU17 - Denegar usuario sin solicitudes:read (403)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/applications/{{applicationId}}/history
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenSinPermiso}}
+}
+
+tests {
+  test("HU17: usuario autenticado sin permiso recibe 403", function () {
+    expect(res.getStatus()).to.equal(403);
+  });
+  test("HU17: no recibe datos internos", function () {
+    const data = res.getBody()?.data;
+    expect(data?.events).to.be.undefined;
+    expect(data?.ocr).to.be.undefined;
+  });
+}
+
+docs {
+  accessTokenSinPermiso ya se utiliza en bruno/NLP.
+  Configura un token VALIDO de usuario autenticado que NO tenga
+  solicitudes:read (por ejemplo un rol al que no se concede este permiso).
+  Usar un token vacio o expirado resultara en 401 y NO prueba el 403.
+}

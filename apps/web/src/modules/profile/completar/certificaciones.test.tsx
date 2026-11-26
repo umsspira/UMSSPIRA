@@ -33,7 +33,7 @@ describe('FormularioCertificaciones', () => {
     expect(screen.getByLabelText('Subir foto', { selector: 'input' })).toHaveAttribute('accept', 'application/pdf,image/jpeg');
     expect(screen.getByLabelText('Subir documento', { selector: 'input' })).toHaveAttribute('accept', 'application/pdf,image/jpeg');
     // La interfaz indica el formato y el tamaño permitidos (BUG-HU2-007)
-    expect(screen.getByText('PDF o JPG, máximo 5 MB')).toBeInTheDocument();
+    expect(screen.getByText('PDF o JPG, máximo 4 MB')).toBeInTheDocument();
   });
  
   it('envia la certificacion con su respaldo', () => {
@@ -57,7 +57,7 @@ describe('FormularioCertificaciones', () => {
   });
 });
  
-describe('FormularioCertificaciones · respaldo PDF o JPG de hasta 5 MB (HU-18)', () => {
+describe('FormularioCertificaciones · respaldo PDF o JPG de hasta 4 MB (HU-18)', () => {
   const MB = 1024 * 1024;
  
   // File con el tamaño indicado sin reservar esa memoria: size se sobrescribe
@@ -78,7 +78,7 @@ describe('FormularioCertificaciones · respaldo PDF o JPG de hasta 5 MB (HU-18)'
  
     adjuntar(archivo('certificado.png', 'image/png', 6 * MB));
  
-    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toHaveAttribute('id', 'error-respaldo');
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 4 MB')).toHaveAttribute('id', 'error-respaldo');
     expect(screen.queryByText('certificado.png')).not.toBeInTheDocument();
  
     // Sin un respaldo válido no se envía nada (T8.3)
@@ -86,12 +86,12 @@ describe('FormularioCertificaciones · respaldo PDF o JPG de hasta 5 MB (HU-18)'
     expect(onAgregar).not.toHaveBeenCalled();
   });
  
-  it('rechaza un JPG de más de 5 MB', () => {
+  it('rechaza un JPG de más de 4 MB', () => {
     render(<FormularioCertificaciones certificaciones={[]} onAgregar={jest.fn()} />);
  
     adjuntar(archivo('certificado.jpg', 'image/jpeg', 6 * MB));
  
-    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 4 MB')).toBeInTheDocument();
     expect(screen.queryByText('certificado.jpg')).not.toBeInTheDocument();
   });
  
@@ -99,9 +99,9 @@ describe('FormularioCertificaciones · respaldo PDF o JPG de hasta 5 MB (HU-18)'
     render(<FormularioCertificaciones certificaciones={[]} onAgregar={jest.fn()} />);
     adjuntar(archivo('certificado.png', 'image/png'));
  
-    adjuntar(archivo('certificado.jpg', 'image/jpeg', 5 * MB));
+    adjuntar(archivo('certificado.jpg', 'image/jpeg', 4 * MB));
  
-    expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).not.toBeInTheDocument();
+    expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 4 MB')).not.toBeInTheDocument();
     expect(screen.getByText('certificado.jpg')).toBeInTheDocument();
   });
  
@@ -113,7 +113,7 @@ describe('FormularioCertificaciones · respaldo PDF o JPG de hasta 5 MB (HU-18)'
     fireEvent.click(screen.getByRole('button', { name: /agregar certificación/i }));
  
     await waitFor(() =>
-      expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).not.toBeInTheDocument(),
+      expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 4 MB')).not.toBeInTheDocument(),
     );
   });
 });
@@ -167,7 +167,7 @@ describe('FormularioCertificaciones · miniatura y quitar respaldo (T8.2)', () =
     adjuntar(new File(['x'], 'certificado.png', { type: 'image/png' }));
  
     expect(screen.queryByAltText('Vista previa del respaldo')).not.toBeInTheDocument();
-    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 4 MB')).toBeInTheDocument();
   });
 });
  
@@ -284,7 +284,7 @@ describe('FormularioCertificaciones · validación en pantalla (T8.3)', () => {
     agregar();
  
     expect(screen.getAllByText('Este campo es obligatorio')).toHaveLength(3);
-    expect(screen.getByText('Adjunta el respaldo de la certificación (PDF o JPG de hasta 5 MB)')).toHaveAttribute(
+    expect(screen.getByText('Adjunta el respaldo de la certificación (PDF o JPG de hasta 4 MB)')).toHaveAttribute(
       'id',
       'error-respaldo',
     );
@@ -326,7 +326,7 @@ describe('FormularioCertificaciones · validación en pantalla (T8.3)', () => {
  
     agregar();
  
-    expect(screen.getByText('Adjunta el respaldo de la certificación (PDF o JPG de hasta 5 MB)')).toBeInTheDocument();
+    expect(screen.getByText('Adjunta el respaldo de la certificación (PDF o JPG de hasta 4 MB)')).toBeInTheDocument();
     expect(onAgregar).not.toHaveBeenCalled();
   });
  
@@ -487,7 +487,7 @@ describe('FormularioCertificaciones · respaldo PDF y cambiar respaldo (HU-18)',
 
     expect(screen.getByText('titulo.pdf')).toBeInTheDocument();
     expect(screen.queryByAltText('Vista previa del respaldo')).not.toBeInTheDocument();
-    expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).not.toBeInTheDocument();
+    expect(screen.queryByText('Solo se aceptan archivos PDF o JPG de hasta 4 MB')).not.toBeInTheDocument();
   });
 
   it('no muestra «Cambiar respaldo» antes de guardar (T18.1)', () => {
@@ -514,7 +514,7 @@ describe('FormularioCertificaciones · respaldo PDF y cambiar respaldo (HU-18)',
 
     fireEvent.change(screen.getByLabelText('Cambiar respaldo', { selector: 'input' }), { target: { files: [png] } });
 
-    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 5 MB')).toBeInTheDocument();
+    expect(screen.getByText('Solo se aceptan archivos PDF o JPG de hasta 4 MB')).toBeInTheDocument();
     expect(onCambiarRespaldo).not.toHaveBeenCalled();
   });
 

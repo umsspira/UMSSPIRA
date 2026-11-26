@@ -15,7 +15,7 @@ const STAGE_LABELS: Record<ApplicantStatus, string> = {
   Postulado: "Postulación recibida",
   "En revisión": "En revisión",
   Preseleccionado: "Preseleccionado",
-  Entrevistado: "Entrevista",
+  Entrevista: "Entrevista",
   Descartado: "Descartado",
 };
 

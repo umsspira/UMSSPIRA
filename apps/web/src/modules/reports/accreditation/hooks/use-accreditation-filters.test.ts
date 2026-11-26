@@ -1,5 +1,7 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
 import {
+  filtersStorageKey,
   buildFiltersQuery,
   readFiltersFromParams,
   useAccreditationFilters,
@@ -14,9 +16,23 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockQuery),
 }));
 
+jest.mock('@/modules/auth/frontend/services/auth.service', () => ({
+  getCurrentUser: jest.fn(),
+}));
+
+const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>;
+const ADMIN_A = 'admin-a';
+const ADMIN_B = 'admin-b';
+
+function loggedAs(id: string) {
+  mockGetCurrentUser.mockResolvedValue({ id } as Awaited<ReturnType<typeof getCurrentUser>>);
+}
+
 beforeEach(() => {
   mockReplace.mockClear();
   mockQuery = '';
+  window.sessionStorage.clear();
+  loggedAs(ADMIN_A);
 });
 
 describe('lectura de filtros desde la URL', () => {
@@ -58,6 +74,11 @@ describe('escritura de filtros en la URL', () => {
 });
 
 describe('useAccreditationFilters', () => {
+  // Estas pruebas solo revisan la URL: el usuario no llega a cargarse.
+  beforeEach(() => {
+    mockGetCurrentUser.mockReturnValue(new Promise(() => {}));
+  });
+
   test('al elegir una cohorte actualiza la URL sin recargar ni desplazar', () => {
     const { result } = renderHook(() => useAccreditationFilters());
     act(() => result.current.setCohort('2023'));
@@ -93,4 +114,94 @@ describe('useAccreditationFilters', () => {
     expect(result.current.isSemesterActive).toBe(true);
     expect(result.current.filters).toEqual({ cohort: '', semester: '2/2026' });
   });
+});
+
+describe('filtros al navegar entre secciones', () => {
+  test('al volver al tablero sin filtros en la URL, recupera los últimos del mismo usuario', async () => {
+    window.sessionStorage.setItem(filtersStorageKey(ADMIN_A), 'cohorte=2021&semestre=2-2025');
+    renderHook(() => useAccreditationFilters());
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith(
+        '/reports/acreditacion?cohorte=2021&semestre=2-2025',
+        { scroll: false },
+      ),
+    );
+  });
+
+  test('otro usuario en la misma pestaña no recupera los filtros guardados', async () => {
+    window.sessionStorage.setItem(filtersStorageKey(ADMIN_A), 'cohorte=2021&semestre=2-2025');
+    loggedAs(ADMIN_B);
+    renderHook(() => useAccreditationFilters());
+    await waitFor(() => expect(mockGetCurrentUser).toHaveBeenCalled());
+    await act(async () => {});
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(filtersStorageKey(ADMIN_A))).toBe(
+      'cohorte=2021&semestre=2-2025',
+    );
+  });
+
+  test('si la URL ya trae filtros, no los cambia por los guardados y guarda los de la URL', async () => {
+    window.sessionStorage.setItem(filtersStorageKey(ADMIN_A), 'cohorte=2021');
+    mockQuery = 'cohorte=2023';
+    renderHook(() => useAccreditationFilters());
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(filtersStorageKey(ADMIN_A))).toBe('cohorte=2023'),
+    );
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  test('sin filtros elegidos no queda nada guardado', async () => {
+    window.sessionStorage.setItem(filtersStorageKey(ADMIN_A), 'cohorte=abc');
+    renderHook(() => useAccreditationFilters());
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(filtersStorageKey(ADMIN_A))).toBeNull(),
+    );
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  test('sin usuario identificado no guarda ni recupera filtros', async () => {
+    mockGetCurrentUser.mockRejectedValue(new Error('sin sesión'));
+    mockQuery = 'cohorte=2023';
+    renderHook(() => useAccreditationFilters());
+    await act(async () => {});
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+describe('filtro «Carrera» (bug 2 del QA de la HU-002)', () => {
+  const INF = '10000000-0000-4000-8000-000000000002';
+
+  beforeEach(() => {
+    mockGetCurrentUser.mockReturnValue(new Promise(() => {}));
+  });
+
+  test('lee la carrera de la URL e ignora valores que no son un id', () => {
+    expect(readFiltersFromParams(new URLSearchParams(`carrera=${INF}&cohorte=2023`))).toEqual({
+      cohort: '2023',
+      semester: '',
+      career: INF,
+    });
+    expect(readFiltersFromParams(new URLSearchParams('carrera=sistemas'))).toEqual({
+      cohort: '',
+      semester: '',
+    });
+  });
+
+  test('al cambiar de carrera reinicia cohorte y semestre', () => {
+    mockQuery = 'cohorte=2023&semestre=1-2026';
+    const { result } = renderHook(() => useAccreditationFilters());
+    act(() => result.current.setCareer(INF));
+    expect(mockReplace).toHaveBeenCalledWith(`/reports/acreditacion?carrera=${INF}`, {
+      scroll: false,
+    });
+  });
+
+  test('«Limpiar filtros» conserva la carrera elegida', () => {
+    mockQuery = `carrera=${INF}&cohorte=2023&semestre=1-2026`;
+    const { result } = renderHook(() => useAccreditationFilters());
+    act(() => result.current.clearFilters());
+    expect(mockReplace).toHaveBeenCalledWith(`/reports/acreditacion?carrera=${INF}`, {
+      scroll: false,
+    });
+  });
+});
 });

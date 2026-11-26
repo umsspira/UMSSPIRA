@@ -1,0 +1,19 @@
+meta {
+  name: Descargar CV del postulante
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/vacantes/{{vacancyId}}/postulantes/{{applicationId}}/cv
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Usa un accessToken de reclutador. La vacante debe pertenecer a su empresa y la postulación debe corresponder a esa vacante.
+}

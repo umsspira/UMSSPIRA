@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
 import { ApiError } from '@/shared/services/api-client';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
@@ -38,7 +38,12 @@ const posting: AvailableJobPostingDetail = {
 describe('JobPostingDetail', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    calculateAffinity.mockResolvedValue({ status: 'insufficient-requirements' });
+    calculateAffinity.mockResolvedValue({
+      status: 'no-requirements',
+      percentage: null,
+      calculatedAt: null,
+      comparison: [],
+    });
     getMyApplication.mockResolvedValue({ postulada: false });
   });
 
@@ -151,13 +156,82 @@ describe('JobPostingDetail', () => {
     render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
 
     expect(await screen.findByText('Introducción del puesto.')).toBeInTheDocument();
-    expect(screen.getByText('React')).toBeInTheDocument();
-    expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
-    expect(screen.queryByText(/Conocimientos técnicos requeridos/)).not.toBeInTheDocument();
     expect(await screen.findByText('100%')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver comparación' }));
+    const requirements = screen.getByRole('heading', { name: 'Requisitos técnicos' }).closest('section');
+    expect(requirements).not.toBeNull();
+    expect(within(requirements!).getByText('React')).toBeVisible();
+    expect(within(requirements!).getByText('PostgreSQL')).toBeVisible();
+    expect(screen.queryByText(/Conocimientos técnicos requeridos/)).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Ver comparación' });
+    button.focus();
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(button);
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(button.getAttribute('aria-controls')!)).toHaveTextContent('React Native');
     expect(screen.getByText('Habilidad: React Native')).toBeInTheDocument();
     expect(screen.getByText('Habilidad: PostgreSQL avanzado')).toBeInTheDocument();
+  });
+
+  it('abre y cierra la explicación del porcentaje desde el detalle de la vacante', async () => {
+    getAvailable.mockResolvedValue(posting);
+    calculateAffinity.mockResolvedValue({
+      status: 'ready',
+      percentage: 67,
+      calculatedAt: '2026-11-20T09:00:00.000Z',
+      comparison: [
+        { requirement: 'Node.js', matchedSkill: 'Node.js', result: 'exact' },
+        { requirement: 'PostgreSQL', matchedSkill: 'PostgreSQL', result: 'exact' },
+        { requirement: 'Docker', matchedSkill: null, result: 'not-found' },
+      ],
+    });
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+    fireEvent.click(await screen.findByRole('button', { name: '¿Cómo se calcula?' }));
+
+    expect(screen.getByRole('dialog', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
+    expect(screen.getByText('2 de 3 requisitos = 67 %')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
+  });
+
+  it('no cierra «¿Cómo se calcula?» con la actualización automática de 30 s (HU-20 CA-11)', async () => {
+    jest.useFakeTimers();
+    try {
+      getAvailable.mockResolvedValue(posting);
+      calculateAffinity.mockResolvedValue({
+        status: 'ready',
+        percentage: 67,
+        calculatedAt: '2026-11-20T09:00:00.000Z',
+        comparison: [
+          { requirement: 'Node.js', matchedSkill: 'Node.js', result: 'exact' },
+          { requirement: 'Docker', matchedSkill: null, result: 'not-found' },
+        ],
+      });
+
+      render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+      fireEvent.click(await screen.findByRole('button', { name: '¿Cómo se calcula?' }));
+      const callsWithDialogOpen = getAvailable.mock.calls.length;
+
+      await act(async () => {
+        jest.advanceTimersByTime(31_000);
+      });
+      expect(screen.getByRole('dialog', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
+      expect(getAvailable).toHaveBeenCalledTimes(callsWithDialogOpen);
+
+      // Al cerrarla, la actualización automática vuelve a funcionar.
+      fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+      await act(async () => {
+        jest.advanceTimersByTime(31_000);
+      });
+      await waitFor(() =>
+        expect(getAvailable.mock.calls.length).toBeGreaterThan(callsWithDialogOpen),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('muestra error y volver a vacantes en la presentación HU-002', async () => {
@@ -197,6 +271,58 @@ describe('JobPostingDetail', () => {
       screen.queryByText('Afinidad no disponible por ahora'),
     ).not.toBeInTheDocument();
     expect(calculateAffinity).toHaveBeenCalledTimes(2);
+    expect(calculateAffinity).toHaveBeenCalledWith('vacancy-1');
     expect(getAvailable).toHaveBeenCalledTimes(1);
+  });
+
+  it('muestra 0% de afinidad cuando el perfil está completo pero no hay coincidencias', async () => {
+    getAvailable.mockResolvedValue(posting);
+    calculateAffinity.mockResolvedValue({
+      status: 'ready',
+      percentage: 0,
+      calculatedAt: '2026-11-20T12:00:00.000Z',
+      comparison: [{ requirement: 'Python', matchedSkill: null, result: 'not-found' }],
+    });
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+
+    expect(await screen.findByText('0%')).toBeInTheDocument();
+    expect(screen.queryByText('Afinidad no calculada')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completa tu perfil')).not.toBeInTheDocument();
+  });
+
+  it('muestra mensaje de completar perfil cuando status es profile-incomplete', async () => {
+    getAvailable.mockResolvedValue(posting);
+    calculateAffinity.mockResolvedValue({
+      status: 'profile-incomplete',
+      percentage: null,
+      calculatedAt: null,
+      comparison: [],
+    });
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+
+    expect(await screen.findByText('Completa tu perfil para conocer tu afinidad')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Completar perfil profesional' })).toHaveAttribute(
+      'href',
+      '/profile/completar',
+    );
+    expect(screen.queryByText(/\d+\s*%/)).not.toBeInTheDocument();
+  });
+
+  it('muestra mensaje de sin requisitos cuando status es no-requirements', async () => {
+    getAvailable.mockResolvedValue(posting);
+    calculateAffinity.mockResolvedValue({
+      status: 'no-requirements',
+      percentage: null,
+      calculatedAt: null,
+      comparison: [],
+    });
+
+    render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+
+    expect(await screen.findByText('Afinidad no calculada')).toBeInTheDocument();
+    expect(screen.getByText('La oferta no contiene requisitos técnicos identificables para comparar.')).toBeInTheDocument();
+    expect(screen.queryByText(/\d+\s*%/)).not.toBeInTheDocument();
   });
 });

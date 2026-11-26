@@ -15,6 +15,15 @@ export interface AccreditationExportFilters {
   cohort: string;
   /** Semestre en formato «2/2026». Vacío = «Todos». */
   semester: string;
+  /** Carrera elegida cuando el administrador tiene varias (HU-002, bug 2 del QA). Vacío = la de su sesión. */
+  career?: string;
+}
+
+const CAREER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** true si el valor es el id (UUID) de una carrera. */
+export function isCareerId(value: string | undefined): value is string {
+  return typeof value === 'string' && CAREER_ID_PATTERN.test(value);
 }
 
 export interface AccreditationExportFile {
@@ -28,6 +37,7 @@ export const EXPORT_MESSAGES = {
   generating: 'Generando…',
   noData: 'No hay información para exportar en este periodo',
   failure: 'No se pudo generar el archivo. Intente nuevamente',
+  downloaded: 'El archivo se descargó correctamente',
 } as const;
 
 /** Error de exportación con el motivo que se muestra al Administrador. */
@@ -49,6 +59,8 @@ const MIME_TYPES: Record<AccreditationExportFormat, string> = {
  */
 export function buildExportQuery(filters: AccreditationExportFilters): string {
   const params = new URLSearchParams();
+  // El backend valida que la carrera sea del administrador (403 si no lo es).
+  if (isCareerId(filters.career)) params.set('careerId', filters.career);
   if (/^\d{4}$/.test(filters.cohort)) params.set('cohorte', filters.cohort);
   if (/^[12]\/\d{4}$/.test(filters.semester)) {
     params.set('semestre', filters.semester.replace('/', '-'));

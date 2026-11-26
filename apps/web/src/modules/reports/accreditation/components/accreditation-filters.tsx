@@ -1,9 +1,12 @@
 'use client';
 
 import React from 'react';
+import { Info } from 'lucide-react';
 import { ALL, type AccreditationFilters as Filters } from '../hooks/use-accreditation-filters';
 
 export const MESSAGES = {
+  careerLabel: 'Carrera',
+  allCareers: 'Todas las carreras',
   cohortLabel: 'Cohorte',
   semesterLabel: 'Semestre',
   allCohorts: 'Todas',
@@ -13,7 +16,16 @@ export const MESSAGES = {
   semesterHeatmapNote: 'El filtro de semestre no se aplica al mapa de calor',
 } as const;
 
+/** Carrera asignada al administrador, con el nombre que se muestra. */
+export interface CareerOption {
+  id: string;
+  name: string;
+}
+
 interface AccreditationFiltersProps {
+  /** Carreras del administrador; el selector «Carrera» aparece solo si hay más de una. */
+  careers?: CareerOption[];
+  onCareerChange?: (career: string) => void;
   /** Años de las cohortes con datos (CA-01). */
   cohorts: string[];
   /** Semestres con encuestas enviadas, en formato «2/2026» (CA-02). */
@@ -47,6 +59,8 @@ function sortSemesters(semesters: string[]) {
  * Se adapta desde 390 px: en móvil los selectores ocupan todo el ancho.
  */
 export function AccreditationFilters({
+  careers = [],
+  onCareerChange,
   cohorts,
   semesters,
   value,
@@ -63,6 +77,29 @@ export function AccreditationFilters({
       aria-label="Filtros del tablero"
       className="flex w-full flex-col gap-3 rounded-lg bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end"
     >
+      {careers.length > 1 && onCareerChange && (
+        <div className="flex w-full flex-col gap-1.5 sm:w-64">
+          <label htmlFor="accreditation-career" className="text-sm font-semibold text-[#1B2632]">
+            {MESSAGES.careerLabel}
+          </label>
+          <select
+            id="accreditation-career"
+            value={value.career ?? ''}
+            disabled={disabled}
+            onChange={(e) => onCareerChange(e.target.value)}
+            className={selectClassName}
+          >
+            {/* El administrador de varias carreras puede verlas juntas o una por una. */}
+            <option value={ALL}>{MESSAGES.allCareers}</option>
+            {careers.map((career) => (
+              <option key={career.id} value={career.id}>
+                {career.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="flex w-full flex-col gap-1.5 sm:w-40">
         <label htmlFor="accreditation-cohort" className="text-sm font-semibold text-[#1B2632]">
           {MESSAGES.cohortLabel}
@@ -133,12 +170,16 @@ export function AccreditationNoDataForPeriod() {
   );
 }
 
-/** Nota sobre el mapa de calor cuando hay un semestre elegido (CA-05). */
+/** Nota sobre el mapa de calor cuando hay un semestre elegido (CA-05): recuadro con el ícono de información, como en el mockup. */
 export function SemesterHeatmapNote({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
-    <p role="note" className="text-sm text-[#5B6470]">
-      {MESSAGES.semesterHeatmapNote}
+    <p
+      role="note"
+      className="flex items-start gap-2 rounded-md border border-[#F4C99A] bg-[#FFF1DF] px-3 py-2 text-sm text-[#7A4E00]"
+    >
+      <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>{MESSAGES.semesterHeatmapNote}</span>
     </p>
   );
 }

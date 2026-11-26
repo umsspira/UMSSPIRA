@@ -35,6 +35,7 @@ const publishedEvent: EventItem = {
 describe('detalle público de eventos', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    window.history.replaceState({}, '', '/');
     jest.mocked(getMyEventRegistrations).mockResolvedValue([]);
   });
   it('rechaza un identificador malformado sin consultar la API', () => {
@@ -143,6 +144,16 @@ describe('detalle público de eventos', () => {
     expect(getPublishedEvent).toHaveBeenCalledTimes(1);
   });
 
+  it('abre desde el recordatorio y muestra la reprogramación', async () => {
+    jest.mocked(getPublishedEvent).mockResolvedValueOnce(publishedEvent);
+    window.history.replaceState({}, '', '?fromReminder=1&rescheduled=1');
+
+    render(<EventDetailPage params={{ id: EVENT_ID }} />);
+
+    expect(await screen.findByText('Abierto desde un recordatorio')).toBeInTheDocument();
+    expect(screen.getByText('Fecha actualizada antes del envío')).toBeInTheDocument();
+  });
+
   it('usa plural para capacidades distintas de uno', async () => {
     jest.mocked(getPublishedEvent).mockResolvedValueOnce({
       ...publishedEvent,
@@ -245,7 +256,7 @@ describe('detalle público de eventos', () => {
     expect(screen.getByText('CONFIRMADA')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver mis eventos' })).toHaveAttribute('href', '/portal/eventos/mis-eventos');
-    expect(screen.getByRole('link', { name: 'Ver pase QR' })).toHaveAttribute('href', '/mis-pases');
+    expect(screen.getByRole('link', { name: 'Ver pase QR' })).toHaveAttribute('href', '/events/catalog/passes');
   });
 
   it('muestra la variante visual de inscripción duplicada', async () => {
@@ -264,7 +275,7 @@ describe('detalle público de eventos', () => {
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Confirmar inscripción' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver mis eventos' })).toHaveAttribute('href', '/portal/eventos/mis-eventos');
-    expect(screen.getByRole('link', { name: 'Ver pase QR' })).toHaveAttribute('href', '/mis-pases');
+    expect(screen.getByRole('link', { name: 'Ver pase QR' })).toHaveAttribute('href', '/events/catalog/passes');
   });
 
   it('muestra un error seguro y permite reintentar sin dejar dos modales abiertos', async () => {

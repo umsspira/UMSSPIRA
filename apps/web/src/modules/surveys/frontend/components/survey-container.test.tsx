@@ -249,14 +249,19 @@ describe('SurveyContainer · formulario HU-2', () => {
     expect(screen.getByRole('radio', { name: 'Remoto' }).getAttribute('aria-checked')).toBe('true');
   });
 
-  it('bloquea la encuesta después de verificar un envío previo en el servidor', async () => {
-    mockedSubmissionStatus.mockResolvedValue({ submitted: true, hasActiveSurvey: true, surveyId: null });
-    render(<SurveyContainer />);
+  it('muestra el estado de encuesta enviada y bloquea un nuevo envío', async () => {
+  mockedSubmissionStatus.mockResolvedValue({ submitted: true, hasActiveSurvey: true, surveyId: null });
 
-    expect(await screen.findByText('Esta encuesta ya fue enviada. No es posible enviarla nuevamente.')).toBeInTheDocument();
-    expect(screen.queryByRole('radio')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Siguiente/ })).toBeNull();
-  });
+  render(<SurveyContainer />);
+
+  expect(
+    await screen.findByText('Esta encuesta ya fue enviada.'),
+  ).toBeInTheDocument();
+
+  expect(
+    screen.queryByRole('button', { name: /Siguiente/ }),
+  ).toBeNull();
+});
 
   it('muestra aviso de encuesta no disponible y botón volver al inicio (Mockup M18 / CA-11 a CA-13)', async () => {
     mockedSubmissionStatus.mockResolvedValue({

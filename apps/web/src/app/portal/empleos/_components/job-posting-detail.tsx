@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Briefcase, CalendarDays, MapPin } from 'lucide-react';
 import type { AvailableJobPostingDetail } from '@umsspira/shared-types';
@@ -8,8 +8,9 @@ import { ApiError } from '@/shared/services/api-client';
 import { ErrorAlert } from '@/shared/components/error-alert';
 import { Spinner } from '@/shared/components/spinner';
 import { ApplyToVacancyButton } from '@/shared/components/apply-to-vacancy-button';
+import { ComoSeCalculaModal } from '@/modules/ayuda/como-se-calcula-modal';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
-import { calculateVacancyAffinity, type VacancyAffinityResult } from '@/shared/services/job-posting-affinity';
+import { calculateVacancyAffinity, type JobPostingAffinityResult } from '@/shared/services/job-posting-affinity';
 import { descriptionWithoutRequirements } from '@/shared/utils/job-posting-requirements';
 
 type DetailState =
@@ -18,7 +19,10 @@ type DetailState =
   | { status: 'not-found' }
   | { status: 'error' };
 
-type AffinityState = { status: 'loading' } | { status: 'error' } | VacancyAffinityResult;
+type AffinityState =
+  | { status: 'loading' }
+  | { status: 'error'; message?: string; retryable?: boolean }
+  | JobPostingAffinityResult;
 
 export function JobPostingDetail({
   id,
@@ -29,15 +33,40 @@ export function JobPostingDetail({
   backHref?: string;
   presentation?: 'legacy' | 'hu002';
 }) {
+  const comparisonId = useId();
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [retryCount, setRetryCount] = useState(0);
   const [affinityState, setAffinityState] = useState<AffinityState>({ status: 'loading' });
   const [affinityRetryCount, setAffinityRetryCount] = useState(0);
   const [showComparison, setShowComparison] = useState(false);
+  const [mostrarCalculo, setMostrarCalculo] = useState(false);
+  // HU-20 CA-11: mientras «¿Cómo se calcula?» está abierta no se recalcula solo; si no, se cierra cada 30 s.
+  const calculoAbierto = useRef(false);
+  useEffect(() => {
+    calculoAbierto.current = mostrarCalculo;
+  }, [mostrarCalculo]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      if (document.visibilityState === 'hidden' || calculoAbierto.current) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setRetryCount((count) => count + 1), 500);
+    };
+    const interval = setInterval(schedule, 30_000);
+    window.addEventListener('focus', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    return () => {
+      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
-    setState({ status: 'loading' });
+    setState((previous) => previous.status === 'loaded' ? previous : { status: 'loading' });
 
     getAvailableJobPosting(id).then(
       (posting) => {
@@ -67,16 +96,24 @@ export function JobPostingDetail({
   useEffect(() => {
     if (!loadedPosting) return;
     let active = true;
+    // HU-20 T20.1: al recalcular, la ventana «¿Cómo se calcula?» se cierra.
+    // Va antes de setAffinityState para no quedar pegado a la llamada que cambia la HU-10.
+    setMostrarCalculo(false);
     setAffinityState({ status: 'loading' });
     setShowComparison(false);
-    calculateVacancyAffinity(technicalRequirements).then(
+    calculateVacancyAffinity(id).then(
       (result) => active && setAffinityState(result),
-      () => active && setAffinityState({ status: 'error' }),
+      (error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'No se pudo calcular la afinidad';
+        const retryable = (error as Record<string, unknown>)?.status === 503 || (error as Record<string, unknown>)?.retryable !== false;
+        setAffinityState({ status: 'error', message, retryable });
+      },
     );
     return () => {
       active = false;
     };
-  }, [id, loadedPosting, technicalRequirements, affinityRetryCount]);
+  }, [id, loadedPosting, affinityRetryCount]);
 
   if (state.status === 'loading') {
     return (
@@ -259,12 +296,12 @@ export function JobPostingDetail({
                 {affinityState.status === 'profile-incomplete' && (
                   <div className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] p-5 text-center">
                     <p className="font-semibold text-slate-800">Completa tu perfil para conocer tu afinidad</p>
-                    <Link href="/mentorship/onboarding" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
-                      Configurar perfil de mentorÃ­a
+                    <Link href="/profile/completar" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
+                      Completar perfil profesional
                     </Link>
                   </div>
                 )}
-                {affinityState.status === 'insufficient-requirements' && (
+                {(affinityState.status === 'no-requirements' || (affinityState as { status: string }).status === 'insufficient-requirements') && (
                   <div role="status" className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] px-4 py-6 text-center">
                     <p className="font-semibold text-slate-800">Afinidad no calculada</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">La oferta no contiene requisitos técnicos identificables para comparar.</p>
@@ -282,7 +319,16 @@ export function JobPostingDetail({
                   <>
                     <div className="mt-6 flex items-center justify-between gap-3">
                       <p className="text-5xl font-bold tracking-tight text-[#A64D35]">{affinityState.percentage}%</p>
-                      <span className="text-sm text-slate-500">Afinidad</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-sm text-slate-500">Afinidad</span>
+                        <button
+                          type="button"
+                          onClick={() => setMostrarCalculo(true)}
+                          className="min-h-10 text-right text-sm font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500"
+                        >
+                          ¿Cómo se calcula?
+                        </button>
+                      </div>
                     </div>
                     <div
                       role="progressbar"
@@ -296,11 +342,16 @@ export function JobPostingDetail({
                     </div>
                     <p className="mt-4 text-sm leading-6 text-slate-600">Estimación orientativa basada en los requisitos identificados. No garantiza la contratación.</p>
                     <p className="mt-3 text-sm text-slate-500">Actualizado: {new Date(affinityState.calculatedAt).toLocaleString('es-BO')}</p>
-                    <button type="button" aria-expanded={showComparison} onClick={() => setShowComparison((visible) => !visible)} className="mt-5 min-h-12 w-full rounded-lg border border-[#D8CEBF] px-4 font-semibold text-[#172238] hover:bg-slate-50">
+                    <ComoSeCalculaModal
+                      open={mostrarCalculo}
+                      onClose={() => setMostrarCalculo(false)}
+                      percentage={affinityState.percentage}
+                      comparison={affinityState.comparison}
+                    />
+                    <button type="button" aria-expanded={showComparison} aria-controls={comparisonId} onClick={() => setShowComparison((visible) => !visible)} className="mt-5 min-h-12 w-full rounded-lg border border-[#D8CEBF] px-4 font-semibold text-[#172238] hover:bg-slate-50">
                       {showComparison ? 'Ocultar comparación' : 'Ver comparación'}
                     </button>
-                    {showComparison && (
-                      <ul className="mt-4 space-y-3 border-t border-[#E8E1D6] pt-4">
+                      <ul id={comparisonId} hidden={!showComparison} className="mt-4 space-y-3 border-t border-[#E8E1D6] pt-4">
                         {affinityState.comparison.map((item, index) => (
                           <li key={`${item.requirement}-${index}`} className="rounded-lg bg-[#FAF8F3] p-3 text-sm">
                             <p className="font-semibold text-slate-800">{item.requirement}</p>
@@ -309,7 +360,6 @@ export function JobPostingDetail({
                           </li>
                         ))}
                       </ul>
-                    )}
                   </>
                 )}
                 <p id="job-affinity-note" className="mt-4 text-sm leading-6 text-slate-500">

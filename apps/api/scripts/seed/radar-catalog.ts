@@ -2,6 +2,8 @@ import { normalizePhrase } from '../../src/modules/nlp/domain/policies/text-norm
 import { RADAR_DICTIONARY } from '../../src/modules/radar/domain/affinity-catalog';
 import { RADAR_AREA_IDS, type RadarArea } from '../../src/modules/radar/domain/entities/radar-area';
 import type { PrismaClient } from '../../src/generated/prisma/client';
+import { DICTIONARY_VERSION } from '../../src/modules/radar/domain/policies/affinity-config';
+import { getRadarDictionaryFingerprint } from './radar-dictionary-version';
 export { RADAR_DICTIONARY } from '../../src/modules/radar/domain/affinity-catalog';
 
 export function validateRadarDictionary(): void {
@@ -61,11 +63,73 @@ export function validateRadarDictionary(): void {
   }
 }
 
+function compareDictionaryVersions(a: string, b: string): number {
+  const pattern = /^(\d{4})-(\d{2})-(\d{2})\.(\d+)$/;
+
+  const matchA = pattern.exec(a);
+  const matchB = pattern.exec(b);
+
+  if (!matchA || !matchB) {
+    throw new Error(`Formato de versión de diccionario inválido: ${a} / ${b}`);
+  }
+
+  const partsA = matchA.slice(1).map(Number);
+  const partsB = matchB.slice(1).map(Number);
+
+  for (let i = 0; i < partsA.length; i++) {
+    if (partsA[i] !== partsB[i]) {
+      return partsA[i] > partsB[i] ? 1 : -1;
+    }
+  }
+
+  return 0;
+}
+
 export async function seedRadarCatalog(prisma: PrismaClient): Promise<void> {
   validateRadarDictionary();
 
+  const fingerprint = getRadarDictionaryFingerprint();
+
   await prisma.$transaction(
     async (tx) => {
+      // T15.3: Serializar publicaciones del diccionario Radar.
+      // El bloqueo se libera automáticamente al finalizar la transacción.
+       await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(15320261116)
+      `;
+      // T15.3: Consultar versiones publicadas.
+      const publishedVersions = await tx.radarDiccionarioVersion.findMany({
+        select: {
+          version: true,
+          fingerprint: true,
+        },
+      });
+
+      // Impedir que una versión antigua se ejecute
+      // si ya existe una publicación más reciente.
+      for (const published of publishedVersions) {
+        if (compareDictionaryVersions(DICTIONARY_VERSION, published.version) < 0) {
+          throw new Error(
+            `No se puede publicar ${DICTIONARY_VERSION}: existe la versión ${published.version}`,
+          );
+        }
+      }
+
+      const existing = publishedVersions.find(
+        (item) => item.version === DICTIONARY_VERSION,
+      );
+
+      // Una versión existente debe conservar su contenido original.
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) {
+          throw new Error(
+            `La versión ${DICTIONARY_VERSION} ya fue publicada con otro contenido`,
+          );
+        }
+
+        // Misma versión y mismo contenido: publicación idempotente.
+        return;
+      }
       const definitions = new Map<
         string,
         { name: string; aliases: Set<string>; areas: Map<string, number> }
@@ -192,6 +256,15 @@ export async function seedRadarCatalog(prisma: PrismaClient): Promise<void> {
           });
         }
       }
+
+      // T15.3: Registrar la versión solo después de aplicar el catálogo.
+      await tx.radarDiccionarioVersion.create({
+        data: {
+          version: DICTIONARY_VERSION,
+          fingerprint,
+          descripcion: 'Publicación del diccionario Radar mediante seed versionado',
+        },
+      });
     },
     {
       timeout: 120000,

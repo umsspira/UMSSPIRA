@@ -3,7 +3,6 @@ import { Button } from "./button";
 
 const navLinks = [
   { href: "/", label: "Inicio" },
-  { href: "/comunidad", label: "Comunidad" },
   { href: "/directorio", label: "Directorio" },
   { href: "/carreras", label: "Carreras" },
   { href: "/eventos", label: "Eventos" },

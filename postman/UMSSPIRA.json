@@ -1234,6 +1234,63 @@
               "variable": []
             }
           }
+        },
+        {
+          "name": "GET Radar - términos no mapeados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Resumen agregado con mínimo de tres titulados\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const vector = pm.response.json().data;",
+                  "  const hiddenTerm = pm.variables.get(\"radarTermTwoGraduates\");",
+                  "  const visibleTerm = pm.variables.get(\"radarTermThreeGraduates\");",
+                  "  pm.expect(vector.dictionaryVersion).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(vector.items).to.be.an(\"array\");",
+                  "  pm.expect(vector.totalTerms).to.equal(vector.items.length);",
+                  "  for (const item of vector.items) {",
+                  "    pm.expect(item.term).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(item.graduatesCount).to.be.at.least(3);",
+                  "    pm.expect(item.totalFrequency).to.be.at.least(item.graduatesCount);",
+                  "  }",
+                  "  if (hiddenTerm) pm.expect(vector.items.map((item) => item.term)).not.to.include(hiddenTerm);",
+                  "  if (visibleTerm) pm.expect(vector.items.map((item) => item.term)).to.include(visibleTerm);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{radarReportsToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/radar/unmapped-keywords",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "radar",
+                "unmapped-keywords"
+              ]
+            },
+            "description": "Configurar radarReportsToken con un usuario que tenga reportes:read. Para el caso con datos, configurar radarTermTwoGraduates y radarTermThreeGraduates con términos conocidos del fixture QA."
+          },
+          "response": []
         }
       ]
     },

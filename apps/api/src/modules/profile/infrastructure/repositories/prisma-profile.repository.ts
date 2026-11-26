@@ -4,7 +4,12 @@ import type { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 import type { StoredFile } from '../../../../shared/files/contracts/uploaded-file';
-import type { ProfilePhotoFile, ProfileRepository } from '../../application/ports/profile-repository.port';
+import type {
+  CvFile,
+  ProfilePhotoFile,
+  ProfileRepository,
+  SavedCvFile,
+} from '../../application/ports/profile-repository.port';
 import type {
   CertificationCreationInput,
   EducationInput,
@@ -15,6 +20,7 @@ import type {
 } from '../../application/contracts/profile-inputs';
 import type { ProfileSection, ProfileSnapshot } from '../../domain/entities/profile-record';
 import { assertUniqueEducation } from '../../domain/policies/education.policy';
+import { assertCurrentJobsLimit } from '../../domain/policies/current-jobs.policy';
 import { backupKind } from '../../domain/policies/backup-file.policy';
 import {
   toBackup,
@@ -62,6 +68,9 @@ export class PrismaProfileRepository implements ProfileRepository {
         perfil_area_registros: { orderBy: descriptionOrder, take: 1 },
         // HU-19: del más reciente al más antiguo
         proyecto_registros: { orderBy: [{ fecha_creacion: 'desc' }, { id: 'asc' }] },
+        curriculum_vitae: {
+          select: { nombre: true, size_bytes: true, fecha_subida: true },
+        },
       },
     });
     if (!row) {
@@ -83,6 +92,13 @@ export class PrismaProfileRepository implements ProfileRepository {
       certifications: row.certificacion_registros.map(toCertification),
       projects: row.proyecto_registros.map(toProject),
       description: toDescription(row.perfil_area_registros[0]),
+      // T16.3: entrega solo metadatos; el contenido binario se sirve por GET /perfil/cv.
+      cv: {
+        hasFile: row.curriculum_vitae?.size_bytes != null,
+        name: row.curriculum_vitae?.nombre ?? null,
+        size: row.curriculum_vitae?.size_bytes ?? null,
+        uploadedAt: row.curriculum_vitae?.fecha_subida ?? null,
+      },
     };
   }
 
@@ -111,6 +127,11 @@ export class PrismaProfileRepository implements ProfileRepository {
     return this.prisma.$transaction(
       async (tx) => {
         await lockGraduate(tx, scope);
+        // HU-21 CA-09: con el titulado bloqueado, se cuentan sus trabajos actuales antes de crear otro
+        assertCurrentJobsLimit(
+          !input.fechaFin,
+          await tx.experienciaLaboral.count({ where: { id_titulado: scope.graduateId, fecha_fin: null } }),
+        );
         return toExperience(
           await tx.experienciaLaboral.create({
             data: {
@@ -250,6 +271,13 @@ export class PrismaProfileRepository implements ProfileRepository {
             if (!(await tx.experienciaLaboral.findFirst({ where, select: { id: true } }))) {
               await rejectProfileRecord(tx.experienciaLaboral.findUnique({ where: { id } }));
             }
+            // HU-21 CA-09: no cuenta el registro que se edita
+            assertCurrentJobsLimit(
+              !change.data.fechaFin,
+              await tx.experienciaLaboral.count({
+                where: { id_titulado: scope.graduateId, fecha_fin: null, NOT: { id } },
+              }),
+            );
             return toExperience(
               await tx.experienciaLaboral.update({
                 where,
@@ -446,6 +474,68 @@ export class PrismaProfileRepository implements ProfileRepository {
       },
       { timeout: 15000 },
     );
+  }
+
+  async saveCv(scope: ProfileScope, file: CvFile): Promise<SavedCvFile> {
+    const uploadedAt = new Date();
+    const saved = await this.prisma.$transaction(
+      async (tx) => {
+        await lockGraduate(tx, scope);
+        const previous = await tx.curriculumVitae.findUnique({
+          where: { id_titulado: scope.graduateId },
+          select: { id: true },
+        });
+        const row = await tx.curriculumVitae.upsert({
+          where: { id_titulado: scope.graduateId },
+          create: {
+            id_titulado: scope.graduateId,
+            nombre: file.name,
+            contenido: new Uint8Array(file.bytes),
+            size_bytes: file.size,
+            fecha_subida: uploadedAt,
+            valido: true,
+          },
+          update: {
+            nombre: file.name,
+            contenido: new Uint8Array(file.bytes),
+            size_bytes: file.size,
+            fecha_subida: uploadedAt,
+            valido: true,
+          },
+        });
+        return { row, replaced: Boolean(previous) };
+      },
+      { timeout: 15000 },
+    );
+    return {
+      name: saved.row.nombre ?? file.name,
+      mime: file.mime,
+      bytes: saved.row.contenido ?? file.bytes,
+      size: saved.row.size_bytes ?? file.size,
+      uploadedAt: saved.row.fecha_subida ?? file.uploadedAt,
+      replaced: saved.replaced,
+    };
+  }
+
+  async readCv(scope: ProfileScope): Promise<CvFile> {
+    const row = await this.prisma.curriculumVitae.findFirst({
+      where: {
+        id_titulado: scope.graduateId,
+        titulado: { id_usuario: scope.userId },
+        contenido: { not: null },
+      },
+      select: { nombre: true, contenido: true, size_bytes: true, fecha_subida: true },
+    });
+    if (!row?.contenido || !row.size_bytes || !row.fecha_subida) {
+      throw new BusinessRuleError('missing', 'CV_NOT_FOUND', 'El titulado aún no subió su CV');
+    }
+    return {
+      name: row.nombre ?? 'cv.pdf',
+      mime: 'application/pdf',
+      bytes: row.contenido,
+      size: row.size_bytes,
+      uploadedAt: row.fecha_subida,
+    };
   }
 
   async savePhoto(scope: ProfileScope, file: ProfilePhotoFile): Promise<void> {

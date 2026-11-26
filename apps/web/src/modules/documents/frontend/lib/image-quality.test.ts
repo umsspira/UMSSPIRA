@@ -125,6 +125,40 @@ describe("evaluateImageQuality", () => {
     expect(codes).toContain("LOW_RESOLUTION");
   });
 
+  describe("evaluacion de resolucion y formato", () => {
+    it("no avisa de baja resolucion para un documento horizontal claro de 1408x768", () => {
+      const clear = buildTextLikeImage(400, 300);
+      const metrics = computeImageQualityMetrics(clear, 1408, 768);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).not.toContain("LOW_RESOLUTION");
+    });
+
+    it("no avisa de baja resolucion para un documento vertical A4 de 1000x1400", () => {
+      const clear = buildTextLikeImage(400, 300);
+      const metrics = computeImageQualityMetrics(clear, 1000, 1400);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).not.toContain("LOW_RESOLUTION");
+    });
+
+    it("avisa de baja resolucion para una imagen horizontal con lado corto de 550 px", () => {
+      const clear = buildTextLikeImage(400, 300);
+      const metrics = computeImageQualityMetrics(clear, 1500, 550);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).toContain("LOW_RESOLUTION");
+    });
+
+    it("evalua correctamente las fronteras de minPixels", () => {
+      const clear = buildTextLikeImage(400, 300);
+      // 1000 x 800 = 800,000 px exactos (igual a minPixels, short=800>=600, long=1000>=800)
+      const exactBoundary = computeImageQualityMetrics(clear, 1000, 800);
+      expect(evaluateImageQuality(exactBoundary).map((w) => w.code)).not.toContain("LOW_RESOLUTION");
+
+      // 1000 x 799 = 799,000 px (estrictamente por debajo de minPixels)
+      const belowBoundary = computeImageQualityMetrics(clear, 1000, 799);
+      expect(evaluateImageQuality(belowBoundary).map((w) => w.code)).toContain("LOW_RESOLUTION");
+    });
+  });
+
   it("avisa de imagen borrosa", () => {
     const blurred = blur(buildTextLikeImage(400, 300), 8);
     const metrics = computeImageQualityMetrics(blurred, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
@@ -132,6 +166,99 @@ describe("evaluateImageQuality", () => {
     const codes = evaluateImageQuality(metrics).map((warning) => warning.code);
 
     expect(codes).toContain("BLURRY");
+  });
+
+  describe("evaluacion de borrosidad y mediana de bloques con contenido", () => {
+    it("marca BLURRY un buffer con titulo nitido pero cuerpo de texto desenfocado", () => {
+      // Titulo superior nitido (y < 60) y cuerpo de texto suave/desenfocado (y >= 80)
+      const mixedDoc = buildImage(400, 300, (x, y) => {
+        if (y >= 20 && y < 60) {
+          return x % 6 < 2 && y % 12 < 8 ? 30 : 235;
+        }
+        if (y >= 80 && y < 280) {
+          if (Math.floor(y / 16) % 2 === 0) {
+            return 235 - 35 * (0.5 + 0.5 * Math.sin(x * 0.4) * Math.sin(y * 0.4));
+          }
+        }
+        return 235;
+      });
+
+      const metrics = computeImageQualityMetrics(mixedDoc, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      // El promedio del 25% superior es alto por el titulo nitido
+      expect(metrics.sharpness).toBeGreaterThan(IMAGE_QUALITY_CONFIG.blurThreshold);
+      // Pero la mediana de bloques activos es baja por el cuerpo desenfocado
+      expect(metrics.activeTileCount).toBeGreaterThanOrEqual(IMAGE_QUALITY_CONFIG.minActiveTiles);
+      expect(metrics.sharpnessMedian).toBeLessThan(IMAGE_QUALITY_CONFIG.blurMedianThreshold);
+
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).toContain("BLURRY");
+    });
+
+    it("no marca BLURRY un documento nitido con amplios margenes blancos", () => {
+      const pageWithMargins = buildImage(400, 300, (x, y) => {
+        const insideText = x > 140 && x < 260 && y > 100 && y < 200;
+        return insideText && x % 6 < 2 && y % 12 < 8 ? 30 : 240;
+      });
+
+      const metrics = computeImageQualityMetrics(pageWithMargins, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      expect(metrics.sharpness).toBeGreaterThan(IMAGE_QUALITY_CONFIG.blurThreshold);
+      expect(metrics.sharpnessMedian).toBeGreaterThan(IMAGE_QUALITY_CONFIG.blurMedianThreshold);
+
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).not.toContain("BLURRY");
+    });
+
+    it("no activa la regla de mediana en una pagina casi vacia con pocos bloques activos", () => {
+      // Solo 2 bloques con leve trazo (activeTileCount < minActiveTiles) y un sello nitido que supera blurThreshold
+      const sparsePage = buildImage(400, 300, (x, y) => {
+        // Sello muy nitido en un solo bloque pequeno
+        if (x >= 40 && x < 65 && y >= 40 && y < 65) {
+          return x % 4 < 2 ? 20 : 240;
+        }
+        return 245;
+      });
+
+      const metrics = computeImageQualityMetrics(sparsePage, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      expect(metrics.activeTileCount).toBeLessThan(IMAGE_QUALITY_CONFIG.minActiveTiles);
+
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).not.toContain("BLURRY");
+    });
+
+    it("evalua con precision las fronteras de blurMedianThreshold y minActiveTiles", () => {
+      const baseMetrics = computeImageQualityMetrics(
+        buildTextLikeImage(400, 300),
+        ORIGINAL_WIDTH,
+        ORIGINAL_HEIGHT,
+      );
+
+      // En el umbral exacto: sharpnessMedian === 300 (no estrictamente menor) -> no avisa
+      const atBoundary = {
+        ...baseMetrics,
+        sharpness: 1000,
+        activeTileCount: 15,
+        sharpnessMedian: IMAGE_QUALITY_CONFIG.blurMedianThreshold,
+      };
+      expect(evaluateImageQuality(atBoundary).map((w) => w.code)).not.toContain("BLURRY");
+
+      // Justo por debajo: sharpnessMedian === 299 -> avisa BLURRY
+      const belowBoundary = {
+        ...baseMetrics,
+        sharpness: 1000,
+        activeTileCount: 15,
+        sharpnessMedian: IMAGE_QUALITY_CONFIG.blurMedianThreshold - 1,
+      };
+      expect(evaluateImageQuality(belowBoundary).map((w) => w.code)).toContain("BLURRY");
+
+      // Con mediana baja pero menos bloques activos que el minimo (9 < 10) -> no avisa por regla de mediana
+      const fewTiles = {
+        ...baseMetrics,
+        sharpness: 1000,
+        activeTileCount: IMAGE_QUALITY_CONFIG.minActiveTiles - 1,
+        sharpnessMedian: 150,
+      };
+      expect(evaluateImageQuality(fewTiles).map((w) => w.code)).not.toContain("BLURRY");
+    });
   });
 
   it("avisa de imagen oscura", () => {
@@ -173,6 +300,35 @@ describe("evaluateImageQuality", () => {
     const codes = evaluateImageQuality(metrics).map((warning) => warning.code);
 
     expect(codes).not.toContain("OVEREXPOSED");
+  });
+
+  describe("calibracion con casos de frontera", () => {
+    it("no avisa en una imagen con luminosidad media en el borde superior de oscuridad", () => {
+      const nearDarkBorder = buildImage(400, 300, () => IMAGE_QUALITY_CONFIG.darkMeanThreshold + 5);
+      const metrics = computeImageQualityMetrics(nearDarkBorder, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).not.toContain("TOO_DARK");
+    });
+
+    it("avisa si la luminosidad cae estrictamente por debajo del umbral de oscuridad calibrado", () => {
+      const darkBorder = buildImage(400, 300, () => IMAGE_QUALITY_CONFIG.darkMeanThreshold - 2);
+      const metrics = computeImageQualityMetrics(darkBorder, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).toContain("TOO_DARK");
+    });
+
+    it("avisa de destello cuando el ratio supera el umbral minimo calibrado", () => {
+      // 1.5% de pixeles quemados (255) en zona central, que supera glareMinRatio (0.005 = 0.5%)
+      const withSubtleFlash = buildImage(400, 300, (x, y) => {
+        const isCenter = x >= 40 && x < 360 && y >= 30 && y < 270;
+        return isCenter && x % 20 === 0 && y % 3 === 0 ? 255 : 160;
+      });
+      const metrics = computeImageQualityMetrics(withSubtleFlash, ORIGINAL_WIDTH, ORIGINAL_HEIGHT);
+      expect(metrics.glareRatio).toBeGreaterThanOrEqual(IMAGE_QUALITY_CONFIG.glareMinRatio);
+      expect(metrics.glareRatio).toBeLessThanOrEqual(IMAGE_QUALITY_CONFIG.glareMaxRatio);
+      const codes = evaluateImageQuality(metrics).map((w) => w.code);
+      expect(codes).toContain("OVEREXPOSED");
+    });
   });
 
   it("incluye una recomendacion en cada aviso", () => {

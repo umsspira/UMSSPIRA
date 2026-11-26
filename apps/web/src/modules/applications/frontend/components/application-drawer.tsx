@@ -18,6 +18,7 @@ import { RejectDialog } from "./reject-dialog";
 import { btnAccent, btnDanger, btnSecondary } from "./review-ui";
 import { ReviewSummaryNotice } from './review-summary-notice';
 import type { BoardDetail } from '../services/applications-board.service';
+import { HistoryTab } from './history-tab';
 
 type Props = {
   open: boolean;
@@ -190,10 +191,11 @@ export function ApplicationDrawer({
               {loadError}
             </p>
           )}
-          {application && !isLoading && <>
+          {application && application.id === applicationId && !isLoading && <>
             <ReviewSummaryNotice summary={reviewData?.reviewSummary} currentReviewer={reviewData?.currentReviewer}
               reviewAuthor={reviewData?.reviewAuthor} pending={canReview} />
-            <ApplicationDetail application={application} />
+            <ApplicationDetail application={application}
+              history={<HistoryTab key={application.id} applicationId={application.id} />} />
           </>}
         </div>
 
