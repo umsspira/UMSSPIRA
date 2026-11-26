@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AccreditationExportError,
   EXPORT_MESSAGES,
@@ -18,6 +18,9 @@ interface AccreditationExportButtonsProps {
 }
 
 type Feedback = { kind: 'info' | 'error' | 'success'; text: string } | null;
+
+/** La confirmación de descarga es temporal (bug 1 del QA); los avisos y errores quedan fijos. */
+export const SUCCESS_MESSAGE_MS = 5000;
 
 const feedbackColor = {
   info: 'text-[#5B6470]',
@@ -38,6 +41,12 @@ export function AccreditationExportButtons({
 }: AccreditationExportButtonsProps) {
   const [generating, setGenerating] = useState<AccreditationExportFormat | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
+
+  useEffect(() => {
+    if (feedback?.kind !== 'success') return;
+    const timer = setTimeout(() => setFeedback(null), SUCCESS_MESSAGE_MS);
+    return () => clearTimeout(timer);
+  }, [feedback]);
 
   async function handleExport(format: AccreditationExportFormat) {
     setFeedback(null);

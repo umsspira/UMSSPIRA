@@ -372,4 +372,38 @@ describe('SurveyContainer · HU-006 · edición única', () => {
       }),
     ).toBeInTheDocument();
   });
+  describe('diseño según el mock-up (segunda corrida del QA)', () => {
+    it('bug 1: el resumen dice «Estas son las respuestas registradas.» y el botón tiene lápiz', async () => {
+      await renderSubmittedSurvey();
+
+      expect(screen.getByText('Estas son las respuestas registradas.')).toBeInTheDocument();
+      const editar = screen.getByRole('button', { name: 'Editar respuestas' });
+      expect(editar.querySelector('svg')).not.toBeNull();
+      expect(editar).toHaveClass('bg-burning-flame');
+    });
+
+    it('bug 2: al editar solo aparece el aviso «Solo puede editar esta encuesta una vez»', async () => {
+      await startEditing();
+
+      expect(screen.getByText('Solo puede editar esta encuesta una vez')).toBeInTheDocument();
+      expect(screen.queryByText('Esta encuesta ya fue enviada.')).toBeNull();
+      expect(screen.queryByText('Está editando las respuestas de su encuesta.')).toBeNull();
+      expect(screen.queryByText(/Revise cuidadosamente/)).toBeNull();
+    });
+
+    it('bug 3: «Guardar cambios» es naranja', async () => {
+      await startEditing();
+
+      expect(screen.getByRole('button', { name: 'Guardar cambios' })).toHaveClass('bg-burning-flame');
+    });
+
+    it('bug 4: después de guardar solo se ve «Sus cambios se guardaron correctamente»', async () => {
+      await startEditing();
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      expect(await screen.findByText('Sus cambios se guardaron correctamente')).toBeInTheDocument();
+      expect(screen.queryByText('Esta encuesta ya fue enviada.')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Volver al inicio' })).toBeNull();
+    });
+  });
 });

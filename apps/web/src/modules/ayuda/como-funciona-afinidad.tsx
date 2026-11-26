@@ -23,18 +23,15 @@ export function ComoFuncionaAfinidad({ pesoParcial = PESO_PARCIAL_HU11 }: { peso
         <p className="mt-3 break-words rounded-lg bg-[#FFF0DD] p-3 text-sm font-semibold text-[#172238]">
           {FORMULA_AFINIDAD}
         </p>
+        {/* Textos cortos como en el mock-up (bug 1 del QA); las etiquetas son las de la HU-11. */}
         <ul className="mt-3 list-inside list-disc space-y-1 text-sm leading-6 text-slate-700">
-          <li><strong>Exacta:</strong> suma el requisito completo, aunque el perfil lo escriba distinto (alias, plural o género).</li>
-          <li><strong>Similar:</strong> coincide en parte (por ejemplo, React frente a React Native) y suma el {pesoParcial} % del requisito.</li>
-          <li><strong>No encontrada:</strong> no suma al porcentaje. Tecnologías distintas no se mezclan: Java no cumple JavaScript.</li>
+          <li><strong>Exacta:</strong> suma el requisito completo.</li>
+          <li><strong>Similar:</strong> suma {pesoParcial === 50 ? 'la mitad' : `el ${pesoParcial} %`} del requisito.</li>
+          <li><strong>No encontrada:</strong> no suma.</li>
         </ul>
-        <p className="mt-2 text-xs leading-5 text-slate-600">
-          El porcentaje se redondea al entero más próximo y es el mismo que ves junto a cada vacante.
-        </p>
       </section>
       <section aria-labelledby="ejemplos-afinidad" className="rounded-xl border border-[#E8E1D6] bg-white p-4 sm:p-5">
         <h2 id="ejemplos-afinidad" className="text-base font-bold text-[#172238]">Ejemplos</h2>
-        <p className="mt-1 text-xs text-slate-600">Ejemplos educativos con coincidencias exactas; 2 ÷ 3 = 66,67 %, mostrado como 67 % al redondear a enteros.</p>
         <div className="mt-3 space-y-3 sm:hidden">
           {EJEMPLOS.map((ejemplo) => (
             <div key={ejemplo.afinidad} className="space-y-1 rounded-lg border border-stone-200 bg-[#FAF8F3] p-3 text-sm">

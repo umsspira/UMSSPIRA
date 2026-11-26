@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { AccreditationExportButtons } from './accreditation-export-buttons';
+import { AccreditationExportButtons, SUCCESS_MESSAGE_MS } from './accreditation-export-buttons';
 import {
   AccreditationExportError,
   requestAccreditationExport,
@@ -97,4 +97,48 @@ test('después de descargar el archivo muestra un mensaje de confirmación', asy
   expect(await screen.findByRole('status')).toHaveTextContent(
     'El archivo se descargó correctamente',
   );
+});
+
+describe('el mensaje de confirmación es temporal (bug 1 del QA)', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  test('desaparece solo a los 5 segundos', async () => {
+    mockRequest.mockResolvedValue(file);
+    render(<AccreditationExportButtons filters={filters} hasData />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Exportar PDF' }));
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('El archivo se descargó correctamente');
+
+    act(() => jest.advanceTimersByTime(SUCCESS_MESSAGE_MS - 1));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => jest.advanceTimersByTime(1));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  test('el aviso «No hay información…» no desaparece solo', () => {
+    render(<AccreditationExportButtons filters={filters} hasData={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar PDF' }));
+
+    act(() => jest.advanceTimersByTime(SUCCESS_MESSAGE_MS * 2));
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'No hay información para exportar en este periodo',
+    );
+  });
+
+  test('el mensaje de error no desaparece solo', async () => {
+    mockRequest.mockRejectedValue(new AccreditationExportError('failure'));
+    render(<AccreditationExportButtons filters={filters} hasData />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Exportar Excel' }));
+    });
+    act(() => jest.advanceTimersByTime(SUCCESS_MESSAGE_MS * 2));
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No se pudo generar el archivo. Intente nuevamente',
+    );
+  });
 });
