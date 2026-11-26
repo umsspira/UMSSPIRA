@@ -18,18 +18,21 @@ import {
   type CorrectionValues,
 } from "../hooks/use-observed-correction";
 import { PreviousDocumentPreview } from "./previous-document-preview";
+import { CorrectionDocumentPreview } from "./correction-document-preview";
 
 type Props = {
   token?: string;
   hasPreviousDocument?: boolean;
   initial: CorrectionValues;
+  initialCareerName?: string | null;
+  showDocumentPreview?: boolean;
   currentDocument: {
     name: string;
     sizeLabel: string;
     uploadedAt: string;
     url?: string;
   };
-  onReview: (result: CorrectionResult) => void;
+  onReview: (result: CorrectionResult, careerName: string | null) => void;
   onRequireEmailVerification?: (result: CorrectionResult) => void;
   onCancel: () => void;
 };
@@ -90,6 +93,8 @@ export function ObservedEditForm({
   token = "",
   hasPreviousDocument = true,
   initial,
+  initialCareerName,
+  showDocumentPreview = true,
   currentDocument,
   onReview,
   onRequireEmailVerification,
@@ -134,6 +139,10 @@ useEffect(() => {
     };
   }, []);
 
+  const careerOptions = initialCareerName && !careers.some((career) => career.id === initial.career)
+    ? [{ id: initial.career, nombre: initialCareerName }, ...careers]
+    : careers;
+
   const text = (
     name: keyof CorrectionValues,
     label: string,
@@ -158,7 +167,8 @@ useEffect(() => {
     if (result.emailChanged && onRequireEmailVerification) {
       onRequireEmailVerification(result);
     } else {
-      onReview(result);
+      const careerName = careerOptions.find((career) => career.id === result.values.career)?.nombre;
+      onReview(result, careerName || null);
     }
   }
 
@@ -225,7 +235,7 @@ useEffect(() => {
                 <option value="">
                   {loadingCareers ? "Cargando carreras..." : "Selecciona tu carrera"}
                 </option>
-                {careers.map((item) => (
+                {careerOptions.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.nombre}
                   </option>
@@ -286,9 +296,10 @@ useEffect(() => {
             onErrorChange={c.setFileError}
           />
           {c.file && (
-          <div className="mt-3">
-          <QualityWarning result={qualityResult} />
-          </div>
+            <div className="mt-3">
+              {showDocumentPreview && <CorrectionDocumentPreview file={c.file} />}
+              <QualityWarning result={qualityResult} />
+            </div>
           )}
         </div>
       </Card>
@@ -304,7 +315,7 @@ useEffect(() => {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!c.hasChanges}
+          disabled={!c.hasChanges || c.validatingFile}
           className="rounded-lg bg-[#B5533C] px-5 py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Revisar cambios

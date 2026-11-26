@@ -16,12 +16,13 @@ function normalizeStatus(rawEstado: string | null | undefined): ApplicationDetai
 export function toApplication(row: ApplicationRow): ApplicationDetail {
   const detail = row.detalle_solicitud;
   const file = row.registro?.archivo;
-  const submittedAt = row.fecha_creacion?.toISOString() ?? '';
+  const createdAt = row.fecha_creacion?.toISOString() ?? '';
+  const submittedAt = row.historial_eventos?.[0]?.creado_en.toISOString() ?? createdAt;
   return {
     id: row.id,
     version: row.version_vigente,
     code:
-      'TIT-' + submittedAt.slice(0, 4) + '-' + row.id.replaceAll('-', '').slice(0, 6).toUpperCase(),
+      'TIT-' + createdAt.slice(0, 4) + '-' + row.id.replaceAll('-', '').slice(0, 6).toUpperCase(),
     fullName: [detail?.nombre, detail?.apellido].filter(Boolean).join(' '),
     firstName: detail?.nombre ?? '',
     lastName: detail?.apellido ?? '',

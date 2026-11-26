@@ -36,6 +36,7 @@ describe('ObservedApplicationController', () => {
         correo: 'carlos@example.com',
         telefono: '77777777',
         carreraId: '123e4567-e89b-12d3-a456-426614174000',
+        carreraNombre: 'Ingeniería de Sistemas',
         anioEgreso: 2024,
         deseaMentor: true,
         observacion: {
@@ -233,4 +234,4 @@ describe('ObservedApplicationController', () => {
       expect(response).toEqual({ data: mockResult });
     });
   });
-}); 
+});

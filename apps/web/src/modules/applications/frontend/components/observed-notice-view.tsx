@@ -138,7 +138,7 @@ function ValidView({
   data: ObservedApplicationDetail;
   token: string;
 }) {
-  const [pending, setPending] = useState<CorrectionResult | null>(null);
+  const [pending, setPending] = useState<{ result: CorrectionResult; careerName: string | null } | null>(null);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const router = useRouter();
 
@@ -273,8 +273,10 @@ function ValidView({
         <ObservedReviewSubmit
           token={token}
           version={data.version}
-          result={pending}
+          result={pending.result}
+          careerName={pending.careerName}
           currentDocument={document}
+          hasPreviousDocument={Boolean(data.documento)}
           onBack={() => setPending(null)}
         />
       )}
@@ -284,9 +286,11 @@ function ValidView({
           token={token}
           hasPreviousDocument={Boolean(data.documento)}
           initial={form}
+          initialCareerName={data.carreraNombre}
+          showDocumentPreview={!pending}
           currentDocument={document}
           onCancel={handleCancel}
-          onReview={(result) => setPending(result)}
+          onReview={(result, careerName) => setPending({ result, careerName })}
           onRequireEmailVerification={() => {
             // Se procesará en el flujo de correo.
           }}

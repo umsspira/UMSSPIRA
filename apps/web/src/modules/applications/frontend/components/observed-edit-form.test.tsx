@@ -1,8 +1,9 @@
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ObservedEditForm } from "./observed-edit-form";
 import { validateDocumentFile } from "@/modules/documents/frontend/validation/document-file";
 import { useImageQuality } from "@/modules/documents/frontend/hooks/use-image-quality";
+import { fetchCareers } from "@/modules/registration/frontend/services/registration.service";
 
 jest.mock("@/modules/documents/frontend/validation/document-file", () => ({
   ...jest.requireActual("@/modules/documents/frontend/validation/document-file"),
@@ -11,6 +12,10 @@ jest.mock("@/modules/documents/frontend/validation/document-file", () => ({
 
 jest.mock("@/modules/documents/frontend/hooks/use-image-quality", () => ({
   useImageQuality: jest.fn(),
+}));
+
+jest.mock("@/modules/registration/frontend/components/institutional-pdf-preview", () => ({
+  InstitutionalPdfPreview: ({ fileName }: { fileName: string }) => <div>PDF: {fileName}</div>,
 }));
 
 jest.mock("@/modules/registration/frontend/services/registration.service", () => ({
@@ -55,7 +60,7 @@ const doc = {
   url: "#",
 };
 
-async function setup() {
+async function setup(initialCareerName?: string) {
   const onReview = jest.fn();
   const onVerify = jest.fn();
   const onCancel = jest.fn();
@@ -63,6 +68,7 @@ async function setup() {
   render(
     <ObservedEditForm
       initial={initial}
+      initialCareerName={initialCareerName}
       currentDocument={doc}
       onReview={onReview}
       onRequireEmailVerification={onVerify}
@@ -86,6 +92,8 @@ const fileInput = () =>
   screen.getByLabelText("Subir documento de respaldo");
 
 beforeEach(() => {
+  URL.createObjectURL = jest.fn(() => "blob:respaldo");
+  URL.revokeObjectURL = jest.fn();
   mockedValidate.mockReset();
   mockAnalyzeQuality.mockReset();
   mockResetQuality.mockReset();
@@ -153,6 +161,7 @@ describe("ObservedEditForm", () => {
     expect(onReview).toHaveBeenCalledTimes(1);
     expect(onReview.mock.calls[0][0].values.career).toBe("Informatica");
     expect(onReview.mock.calls[0][0].changedFields).toContain("career");
+    expect(onReview.mock.calls[0][1]).toBe("Ingeniería Informática");
   });
 
   it("llama a onReview con solo el campo cambiado y conserva el resto", async () => {
@@ -173,6 +182,17 @@ describe("ObservedEditForm", () => {
     expect(result.values.firstName).toBe("Juan Carlos");
     expect(result.values.lastName).toBe("Quispe");
     expect(result.emailChanged).toBe(false);
+    expect(onReview.mock.calls[0][1]).toBe("Ingeniería de Sistemas");
+  });
+
+  it("conserva el nombre de la carrera registrada si falla el catálogo", async () => {
+    jest.mocked(fetchCareers).mockRejectedValueOnce(new Error("Catálogo no disponible"));
+    const { onReview } = await setup("Ingeniería de Sistemas");
+    fireEvent.change(screen.getByLabelText(/Apellidos/), { target: { value: "Quispe" } });
+    fireEvent.click(reviewButton());
+
+    expect(onReview.mock.calls[0][0].values.career).toBe("Sistemas");
+    expect(onReview.mock.calls[0][1]).toBe("Ingeniería de Sistemas");
   });
 
   it("muestra error y no avanza si se vacía un campo obligatorio", async () => {
@@ -297,6 +317,7 @@ describe("ObservedEditForm", () => {
     });
 
     expect(await screen.findByText("nuevo.pdf")).toBeInTheDocument();
+    expect(await screen.findByText("PDF: nuevo.pdf")).toBeVisible();
 
     await waitFor(() => {
       expect(reviewButton()).toBeEnabled();
@@ -306,6 +327,25 @@ describe("ObservedEditForm", () => {
 
     expect(onReview).toHaveBeenCalledTimes(1);
     expect(onReview.mock.calls[0][0].file).toBe(nuevo);
+  });
+
+  it("espera la validación y conserva el último archivo elegido", async () => {
+    const { onReview } = await setup();
+    let finishFirst!: (kind: "pdf") => void;
+    mockedValidate
+      .mockReturnValueOnce(new Promise((resolve) => { finishFirst = resolve; }))
+      .mockResolvedValueOnce("pdf");
+    const first = new File(["%PDF-1.4"], "primero.pdf", { type: "application/pdf" });
+    const latest = new File(["%PDF-1.4"], "ultimo.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText(/Apellidos/), { target: { value: "Quispe" } });
+    fireEvent.change(fileInput(), { target: { files: [first] } });
+    expect(reviewButton()).toBeDisabled();
+
+    fireEvent.change(fileInput(), { target: { files: [latest] } });
+    expect(await screen.findByText("ultimo.pdf")).toBeVisible();
+    await act(async () => finishFirst("pdf"));
+    fireEvent.click(reviewButton());
+    expect(onReview.mock.calls[0][0].file).toBe(latest);
   });
 
   it("llama a onCancel al presionar Cancelar", async () => {

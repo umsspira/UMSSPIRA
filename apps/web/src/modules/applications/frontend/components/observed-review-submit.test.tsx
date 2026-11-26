@@ -18,7 +18,7 @@ const values = {
   issuedIn: "CB",
   email: "a@correo.com",
   phone: "70745821",
-  career: "Sistemas",
+  career: "10000000-0000-4000-8000-000000000001",
   graduationYear: "2023",
   sisCode: "201804921",
   documentType: "Título en Provisión Nacional",
@@ -32,17 +32,19 @@ const base: CorrectionResult = {
 
 function setup(result: CorrectionResult = base, acceptDeclaration = true) {
   const onBack = jest.fn();
-  render(
+  const view = render(
     <ObservedReviewSubmit
       token="abc123"
       version={2}
       result={result}
+      careerName="Ingeniería de Sistemas"
       currentDocument={{ name: "doc.pdf" }}
+      hasPreviousDocument
       onBack={onBack}
     />,
   );
   if (acceptDeclaration) fireEvent.click(screen.getByRole('checkbox'));
-  return { onBack };
+  return { onBack, ...view };
 }
 const submit = () => screen.getByRole("button", { name: /Entregar solicitud|Reintentar/ });
 
@@ -60,7 +62,23 @@ describe("ObservedReviewSubmit", () => {
   it("muestra el resumen y marca los campos modificados", () => {
     setup();
     expect(screen.getByText(/Quispe/)).toBeInTheDocument();
+    expect(screen.getByText("Ingeniería de Sistemas")).toBeVisible();
+    expect(screen.queryByText(values.career)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver documento previo" })).toBeEnabled();
     expect(screen.getAllByText("Modificado")).toHaveLength(1);
+  });
+
+  it("ofrece la vista previa del archivo de reemplazo en el resumen", () => {
+    URL.createObjectURL = jest.fn(() => "blob:reemplazo");
+    URL.revokeObjectURL = jest.fn();
+    const file = new File(["imagen"], "reemplazo.png", { type: "image/png" });
+    const { unmount } = setup({ ...base, file });
+    expect(screen.getByText("reemplazo.png")).toBeVisible();
+    expect(screen.getByRole("img", { name: "Vista previa de reemplazo.png" }))
+      .toHaveAttribute("src", "blob:reemplazo");
+    expect(screen.queryByRole("button", { name: "Ver documento previo" })).not.toBeInTheDocument();
+    unmount();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:reemplazo");
   });
 
   it("entrega sobre el mismo expediente (con el token y la versión) y muestra la confirmación", async () => {
