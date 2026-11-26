@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import type { AdminCareer, SurveyFormValues } from '../types/survey-admin.types';
+import { ALL_CAREERS, type AdminCareer, type SurveyFormValues } from '../types/survey-admin.types';
 
 const REQUIRED = 'Este campo es obligatorio';
 const END_BEFORE_START = 'La fecha de fin no puede ser anterior a la de inicio';
@@ -96,6 +96,8 @@ export function SurveyAdminForm({
             className={inputClass}
           >
             <option value="">Seleccione una carrera</option>
+            {/* La misma encuesta en cada carrera del administrador; se publica por separado en cada una. */}
+            <option value={ALL_CAREERS}>Todas las carreras</option>
             {careers.map((career) => (
               <option key={career.id} value={career.id}>
                 {career.name}

@@ -6,6 +6,7 @@ import {
   toCreateBody,
   toInputDate,
 } from './survey-admin.adapter';
+import { ALL_CAREERS } from '../types/survey-admin.types';
 
 describe('survey-admin.adapter', () => {
   it('mapea la lista y tolera campos null', () => {
@@ -66,5 +67,12 @@ describe('survey-admin.adapter', () => {
       endDate: '2027-12-31',
     });
     expect(JSON.parse(toCreateBody({ ...values, careerId: 'c2' })).careerId).toBe('c2');
+    // «Todas las carreras»: la API crea una encuesta por carrera.
+    expect(JSON.parse(toCreateBody({ ...values, careerId: ALL_CAREERS }))).toEqual({
+      title: 'Encuesta',
+      startDate: '2027-01-15',
+      endDate: '2027-12-31',
+      allCareers: true,
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { authenticatedFetch } from '@/shared/services/auth-session';
-import type { AdminCareer, ManagedSurvey, SurveyFormValues } from '../types/survey-admin.types';
+import { ALL_CAREERS, type AdminCareer, type ManagedSurvey, type SurveyFormValues } from '../types/survey-admin.types';
 
 const BASE = '/api/v1/surveys/admin';
 
@@ -118,6 +118,9 @@ function toPayload(values: SurveyFormValues) {
 
 // La carrera solo se envía al crear y si el administrador eligió una; el backend valida que sea suya (CA-14).
 export function toCreateBody(values: SurveyFormValues): string {
+  if (values.careerId === ALL_CAREERS) {
+    return JSON.stringify({ ...toPayload(values), allCareers: true });
+  }
   return JSON.stringify({
     ...toPayload(values),
     ...(values.careerId ? { careerId: values.careerId } : {}),

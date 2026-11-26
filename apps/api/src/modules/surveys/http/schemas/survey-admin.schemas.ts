@@ -16,8 +16,14 @@ export const createSurveyAdminSchema = z
       .uuid()
       .transform((value) => value.toLowerCase())
       .optional(),
+    // Administrador de varias carreras: la misma encuesta en todas sus carreras, una por carrera.
+    allCareers: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .refine((body) => !(body.allCareers && body.careerId), {
+    message: 'Elija una carrera o todas, no ambas',
+    path: ['careerId'],
+  });
 export const updateSurveyAdminSchema = z.object(surveyDates).partial().strict();
 export const surveyIdSchema = z.string().uuid();
 
