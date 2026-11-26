@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Info, Pencil } from 'lucide-react';
 
 import { Button } from '@/shared/components/button';
 
@@ -47,6 +48,10 @@ const MODALITY_FROM_DRAFT: Record<
   remoto: 'Remoto',
   hibrido: 'Hibrido',
 };
+
+/** Botón principal naranja de la edición (HU-006), como en el mock-up: redondeado, negrita y con ícono. */
+const EDIT_PRIMARY_BUTTON =
+  'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-burning-flame font-bold text-abyssal-blue hover:bg-burning-flame/90 sm:w-auto';
 
 export function SurveyContainer() {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -656,7 +661,7 @@ export function SurveyContainer() {
                 </h2>
 
                 <p className="mt-1 text-sm text-abyssal-blue/70">
-                  Estas son las respuestas que quedaron registradas.
+                  Estas son las respuestas registradas.
                 </p>
               </div>
             </div>
@@ -734,27 +739,24 @@ export function SurveyContainer() {
         </div>
       )}
 
-      {/* Estado de encuesta previamente enviada */}
-      {submissionCheck === 'submitted' && (
+      {/* Estado de encuesta previamente enviada. Como en el mock-up de la HU-006, no se muestra
+          mientras se edita ni junto a «Sus cambios se guardaron correctamente» (bugs 2 y 4 del QA). */}
+      {submissionCheck === 'submitted' &&
+        !isEditing &&
+        edit.status !== 'success' && (
         <div
           role="status"
           className="mt-6 flex flex-col gap-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800 sm:flex-row sm:items-center sm:justify-between"
         >
-          <p>
-            {isEditing
-              ? 'Está editando las respuestas de su encuesta.'
-              : 'Esta encuesta ya fue enviada.'}
-          </p>
+          <p>Esta encuesta ya fue enviada.</p>
 
-          {!isEditing && (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => router.push('/portal')}
-            >
-              Volver al inicio
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => router.push('/portal')}
+          >
+            Volver al inicio
+          </Button>
         </div>
       )}
 
@@ -776,7 +778,7 @@ export function SurveyContainer() {
             className="mt-6 rounded-xl border border-green-200 bg-white p-4 shadow-sm sm:p-6"
             aria-labelledby="survey-recorded-summary-title"
           >
-            <div className="flex flex-col gap-4 border-b border-oatmeal pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
               <div>
                 <h2
                   id="survey-recorded-summary-title"
@@ -786,19 +788,9 @@ export function SurveyContainer() {
                 </h2>
 
                 <p className="mt-1 text-sm text-abyssal-blue/70">
-                  Estas son las respuestas que quedaron registradas.
+                  Estas son las respuestas registradas.
                 </p>
               </div>
-
-              {!editUsed && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleStartEdit}
-                >
-                  Editar respuestas
-                </Button>
-              )}
             </div>
 
             <dl className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -821,6 +813,20 @@ export function SurveyContainer() {
                 </div>
               ))}
             </dl>
+
+            {/* Bug 1 del QA: botón naranja con lápiz, abajo a la derecha del resumen, como en el mock-up */}
+            {!editUsed && (
+              <div className="mt-6 flex sm:justify-end">
+                <Button
+                  type="button"
+                  className={EDIT_PRIMARY_BUTTON}
+                  onClick={handleStartEdit}
+                >
+                  <Pencil size={18} aria-hidden="true" />
+                  Editar respuestas
+                </Button>
+              </div>
+            )}
           </section>
         )}
 
@@ -854,15 +860,11 @@ export function SurveyContainer() {
           {isEditing && (
             <div
               role="status"
-              className="mt-6 rounded-lg border border-truffle-trouble/40 bg-truffle-trouble/10 p-4"
+              className="mt-6 flex items-center gap-3 rounded-lg border border-burning-flame bg-[#FEF1E0] p-4 text-abyssal-blue"
             >
-              <p className="font-semibold text-truffle-trouble">
+              <Info size={20} className="shrink-0" aria-hidden="true" />
+              <p className="font-semibold">
                 Solo puede editar esta encuesta una vez
-              </p>
-
-              <p className="mt-1 text-sm text-abyssal-blue/80">
-                Revise cuidadosamente sus respuestas antes de guardar
-                los cambios.
               </p>
             </div>
           )}
@@ -1035,17 +1037,17 @@ export function SurveyContainer() {
                 <Button
                   type="button"
                   variant="secondary"
-                  className="min-w-0 flex-1 sm:flex-none"
+                  className="min-w-0 flex-1 rounded-xl border-abyssal-blue bg-white font-bold hover:bg-palladian sm:flex-none"
                   onClick={handleCancelEdit}
                   disabled={edit.isSaving}
                 >
                   Cancelar
                 </Button>
 
+                {/* Bug 3 del QA: «Guardar cambios» naranja, como en el mock-up */}
                 <Button
                   type="button"
-                  variant="primary"
-                  className="min-w-0 flex-1 sm:flex-none"
+                  className={`${EDIT_PRIMARY_BUTTON} min-w-0 flex-1 sm:flex-none`}
                   onClick={handleSaveEdit}
                   disabled={edit.isSaving}
                 >
