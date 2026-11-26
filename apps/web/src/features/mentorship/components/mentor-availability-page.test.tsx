@@ -4,7 +4,6 @@ import { MentorAvailabilityPage } from './mentor-availability-page';
 import { getMentorAvailability, updateMentorAvailability } from '../services/mentor-availability-api';
 import { getMentorSchedule, saveMentorSchedule } from '../services/mentor-schedule-api';
 import { getMentorOnboarding, type MentorOnboardingState } from '../services/mentor-onboarding-api';
-import { getMentorProfileInformation } from '../services/mentor-profile-info-api';
 
 jest.mock('../services/mentor-availability-api', () => ({
   ...jest.requireActual('../services/mentor-availability-api'),
@@ -20,10 +19,6 @@ jest.mock('../services/mentor-onboarding-api', () => ({
   ...jest.requireActual('../services/mentor-onboarding-api'),
   getMentorOnboarding: jest.fn(),
 }));
-jest.mock('../services/mentor-profile-info-api', () => ({
-  ...jest.requireActual('../services/mentor-profile-info-api'),
-  getMentorProfileInformation: jest.fn(),
-}));
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
@@ -38,7 +33,6 @@ const updateAvailability = jest.mocked(updateMentorAvailability);
 const getSchedule = jest.mocked(getMentorSchedule);
 const saveSchedule = jest.mocked(saveMentorSchedule);
 const getOnboarding = jest.mocked(getMentorOnboarding);
-const getProfileInformation = jest.mocked(getMentorProfileInformation);
 const monday = { weekday: 1, start: '09:00', end: '10:00' };
 
 function onboardingState(): MentorOnboardingState {
@@ -63,11 +57,6 @@ beforeEach(() => {
   getAvailability.mockResolvedValue({ availabilityStatus: 'DISPONIBLE', fecha_actualizacion: '2026-11-01' });
   getSchedule.mockResolvedValue({ schedule: [], fecha_actualizacion: null });
   getOnboarding.mockResolvedValue(onboardingState());
-  getProfileInformation.mockResolvedValue({
-    nombre: 'Mentor',
-    exists: false,
-    profile: null,
-  });
   updateAvailability.mockImplementation(async status => ({ availabilityStatus: status, fecha_actualizacion: '2026-01-01' }));
   saveSchedule.mockImplementation(async schedule => ({ schedule, fecha_actualizacion: '2026-11-14' }));
 });
@@ -111,8 +100,8 @@ it('agrega una franja, la guarda con PUT y muestra «Horarios guardados»', asyn
     { weekday: 1, start: '11:00', end: '12:00' },
   ]));
   expect(await screen.findByText('Horarios guardados', {}, { timeout: 3000 })).toBeInTheDocument();
-  await waitFor(() => expect(screen.getByText('2 de 4 pasos completados')).toBeInTheDocument());
-  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toHaveTextContent('2 de 3 pasos completados'));
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');
   expect(updateAvailability).not.toHaveBeenCalled();
 });
 
@@ -172,14 +161,18 @@ it('un cambio solo de estado sigue usando el PATCH de disponibilidad', async () 
 
 it('muestra el avance real y permite navegar a las secciones pendientes', async () => {
   render(<MentorAvailabilityPage />);
-  await screen.findByText('1 de 4 pasos completados');
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toHaveTextContent('1 de 3 pasos completados'));
 
   expect(screen.getByRole('heading', { name: 'Completa tu perfil de mentor' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Ir al paso 1: Áreas técnicas/ })).toHaveAttribute('href', '/mentorship/profile/areas#first-incomplete');
   expect(screen.getByRole('link', { name: /Ir al paso 2: Intereses de mentoría/ })).toHaveAttribute('href', '/mentorship/profile/interests#first-incomplete');
-  expect(screen.getByRole('link', { name: /Ir al paso 4: Información del perfil/ })).toHaveAttribute('href', '/mentorship/profile/information?edit=1#first-incomplete');
-  expect(screen.getByRole('region', { name: 'Completa tu perfil de mentor' })).toHaveTextContent('25%');
-  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25');
+  expect(screen.queryByRole('link', { name: /Ir al paso 4/ })).not.toBeInTheDocument();
+  expect(screen.getByText('Paso 3 de 3')).toBeInTheDocument();
+  expect(within(screen.getByRole('region', { name: 'Completa tu perfil de mentor' }))
+    .getAllByRole('listitem').map(item => item.querySelector('strong')?.textContent))
+    .toEqual(['Áreas técnicas', 'Intereses de mentoría', 'Disponibilidad']);
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '3');
 });
 
 it('guarda la disponibilidad y finaliza en mi perfil de mentor', async () => {

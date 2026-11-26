@@ -1446,11 +1446,12 @@
 
   .mentor-info-footer {
     padding: 1rem 1.25rem;
+    justify-content: center;
   }
 
   .mentor-info-footer-right {
     margin-left: 0;
     width: 100%;
-    justify-content: space-between;
+    justify-content: center;
   }
 }

@@ -137,7 +137,20 @@ export function MentorInterests({
         .filter((area) => draft.areaIds.includes(area.id))
         .flatMap((area) => area.topics)
         .find((topic) => !topic.isCustom)?.id;
-  const completedSteps = Number(saved.areaIds.length > 0) + Number(saved.topicIds.length > 0);
+  const completedSteps: (1 | 2)[] = [
+    ...(saved.areaIds.length > 0 ? [1 as const] : []),
+    ...(saved.topicIds.length > 0 && !dirty ? [2 as const] : []),
+  ];
+  // TC-010: el contador representa el borrador actual de las áreas activas.
+  // Incluye intereses personalizados que estén seleccionados y excluye las
+  // áreas bloqueadas o retiradas hasta que vuelvan a activarse.
+  const selectedTopicCount = new Set(
+    currentCatalog
+      .filter((area) => draft.areaIds.includes(area.id) && area.locked !== true)
+      .flatMap((area) => area.topics)
+      .filter((topic) => draft.topicIds.includes(topic.id))
+      .map((topic) => topic.id),
+  ).size;
   const added = draft.topicIds.filter((id) => !saved.topicIds.includes(id));
   const removed = saved.topicIds.filter((id) => !draft.topicIds.includes(id));
   const topicName = (id: string) =>
@@ -675,7 +688,7 @@ export function MentorInterests({
         </button>
       </p>
 
-      <MentorSetupSteps currentStep={2} completedSteps={completedSteps} />
+      <MentorSetupSteps currentStep={2} completedSteps={completedSteps} editingStep={dirty ? 2 : undefined} />
 
       {success && (
         <div role="status" className="interests-success">
@@ -701,7 +714,7 @@ export function MentorInterests({
             </SecondaryButton>
             {dirty ? (
               <PrimaryButton loading={saving} iconRight={ArrowRightIcon} onClick={() => { setSaveDestination(nextHref); setDialog('save'); }}>
-                Guardar y continuar
+                Guardar configuración ({selectedTopicCount})
               </PrimaryButton>
             ) : (
               <PrimaryButton disabled={saving} iconRight={ArrowRightIcon} onClick={() => leave(nextHref)}>
