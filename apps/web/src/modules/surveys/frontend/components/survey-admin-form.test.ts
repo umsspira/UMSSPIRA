@@ -23,4 +23,11 @@ describe('validateSurveyForm', () => {
       validateSurveyForm({ title: 'Encuesta 2027', startDate: '2027-01-15', endDate: '2027-12-31' }),
     ).toEqual({});
   });
+
+  it('pide la carrera cuando el administrador tiene varias', () => {
+    const values = { title: 'Encuesta 2027', startDate: '2027-01-15', endDate: '2027-12-31' };
+    expect(validateSurveyForm(values, true).careerId).toBe('Este campo es obligatorio');
+    expect(validateSurveyForm({ ...values, careerId: 'c2' }, true)).toEqual({});
+    expect(validateSurveyForm(values)).toEqual({});
+  });
 });

@@ -38,6 +38,14 @@ test('CA-04: envía solo los filtros aplicados', () => {
   );
 });
 
+test('con varias carreras envía la carrera elegida (bug 2 del QA de la HU-002)', () => {
+  const career = '10000000-0000-4000-8000-000000000002';
+  expect(buildExportQuery({ cohort: '2023', semester: '', career })).toBe(
+    `careerId=${career}&cohorte=2023`,
+  );
+  expect(buildExportQuery({ cohort: '', semester: '', career: 'sistemas' })).toBe('');
+});
+
 test('pide el PDF por la ruta relativa del proxy y usa el nombre del Content-Disposition', async () => {
   mockFetch.mockResolvedValue(
     response(200, '%PDF', {

@@ -19,6 +19,8 @@ interface Props {
   loading?: boolean;
   error?: string | null;
   onRefresh?: () => void | Promise<void>;
+  /** Momento de la última consulta (ISO); con él, «Actualizado» muestra cuándo se actualizó el mapa (CA-07). */
+  checkedAt?: string | null;
 }
 
 /**
@@ -27,22 +29,24 @@ interface Props {
  * La página /reports/acreditacion integra el componente mediante un cargador HTTP.
  */
 export function CompetencyHeatmap({
-  careerName, data, loading = false, error = null, onRefresh,
+  careerName, data, loading = false, error = null, onRefresh, checkedAt = null,
 }: Props) {
+  // Sin cálculos no hay nada actualizado: se mantiene «—».
+  const updatedAt = data?.updatedAt ? checkedAt ?? data.updatedAt : null;
   const cohorts = data ? orderedCohorts(data.cohorts) : [];
 
   return (
     <section className={styles.card} aria-labelledby="competency-heatmap-title">
-      <div className={styles.heading}>
-        <h2 id="competency-heatmap-title" className={styles.title}>Mapa de calor de competencias</h2>
-        <p className={styles.subtitle}>Porcentaje de dominio por cohorte en las 6 áreas técnicas</p>
-      </div>
-
-      <div className={styles.meta}>
-        <p className={styles.career}>Carrera: {careerName}</p>
+      {/* Mock-up de la HU-002: título y carrera a la izquierda; «Actualizado» y el botón arriba a la derecha. */}
+      <div className={styles.header}>
+        <div className={styles.heading}>
+          <h2 id="competency-heatmap-title" className={styles.title}>Mapa de calor de competencias</h2>
+          <p className={styles.subtitle}>Porcentaje de dominio por cohorte en las 6 áreas técnicas</p>
+          <p className={styles.career}>Carrera: {careerName}</p>
+        </div>
         <div className={styles.updateRow}>
           <p className={styles.updated} aria-live="polite">
-            Actualizado: {formatHeatmapUpdatedAt(data?.updatedAt)}
+            Actualizado: {formatHeatmapUpdatedAt(updatedAt)}
           </p>
           {onRefresh && (
             <button

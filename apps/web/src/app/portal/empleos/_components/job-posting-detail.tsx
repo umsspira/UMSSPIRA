@@ -79,11 +79,16 @@ export function JobPostingDetail({
   const [showComparison, setShowComparison] = useState(false);
   const [mostrarCalculo, setMostrarCalculo] = useState(false);
   const affinityRequestsRef = useRef(new Map<string, Promise<JobPostingAffinityResult>>());
+  // HU-20 CA-11: mientras «¿Cómo se calcula?» está abierta no se recalcula solo; si no, se cierra cada 30 s.
+  const calculoAbierto = useRef(false);
+  useEffect(() => {
+    calculoAbierto.current = mostrarCalculo;
+  }, [mostrarCalculo]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
-      if (document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden' || calculoAbierto.current) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => setRetryCount((count) => count + 1), 500);
     };

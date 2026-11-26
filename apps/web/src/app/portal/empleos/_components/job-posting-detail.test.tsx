@@ -78,7 +78,7 @@ describe('JobPostingDetail', () => {
     await waitFor(() => expect(calculateAffinity).toHaveBeenCalledWith('vacancy-1'));
   });
 
-  it('conserva la afinidad y el modal tras tres refrescos iguales de 30 segundos', async () => {
+  it('conserva la afinidad tras tres refrescos iguales de 30 segundos', async () => {
     getAvailable.mockImplementation(async () => ({ ...posting, requisitos: [...posting.requisitos] }));
     calculateAffinity.mockResolvedValue({
       status: 'ready', percentage: 0, calculatedAt: '2026-11-20T09:00:00.000Z', comparison: [],
@@ -89,7 +89,6 @@ describe('JobPostingDetail', () => {
     try {
       render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
       await act(async () => { await Promise.resolve(); });
-      fireEvent.click(screen.getByRole('button', { name: '¿Cómo se calcula?' }));
       for (let cycle = 0; cycle < 3; cycle++) {
         await act(async () => {
           jest.advanceTimersByTime(30_500);
@@ -100,6 +99,7 @@ describe('JobPostingDetail', () => {
       expect(getProfile).toHaveBeenCalledTimes(4);
       expect(calculateAffinity).toHaveBeenCalledTimes(1);
       expect(screen.getByText('0%')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: '¿Cómo se calcula?' }));
       expect(screen.getByRole('dialog', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
       fireEvent.focus(window);
       fireEvent(document, new Event('visibilitychange'));
@@ -365,6 +365,43 @@ describe('JobPostingDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
+  });
+
+  it('no cierra «¿Cómo se calcula?» con la actualización automática de 30 s (HU-20 CA-11)', async () => {
+    jest.useFakeTimers();
+    try {
+      getAvailable.mockResolvedValue(posting);
+      calculateAffinity.mockResolvedValue({
+        status: 'ready',
+        percentage: 67,
+        calculatedAt: '2026-11-20T09:00:00.000Z',
+        comparison: [
+          { requirement: 'Node.js', matchedSkill: 'Node.js', result: 'exact' },
+          { requirement: 'Docker', matchedSkill: null, result: 'not-found' },
+        ],
+      });
+
+      render(<JobPostingDetail id="vacancy-1" presentation="hu002" />);
+      fireEvent.click(await screen.findByRole('button', { name: '¿Cómo se calcula?' }));
+      const callsWithDialogOpen = getAvailable.mock.calls.length;
+
+      await act(async () => {
+        jest.advanceTimersByTime(31_000);
+      });
+      expect(screen.getByRole('dialog', { name: '¿Cómo se calcula?' })).toBeInTheDocument();
+      expect(getAvailable).toHaveBeenCalledTimes(callsWithDialogOpen);
+
+      // Al cerrarla, la actualización automática vuelve a funcionar.
+      fireEvent.click(screen.getByRole('button', { name: 'Entendido' }));
+      await act(async () => {
+        jest.advanceTimersByTime(31_000);
+      });
+      await waitFor(() =>
+        expect(getAvailable.mock.calls.length).toBeGreaterThan(callsWithDialogOpen),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('muestra error y volver a vacantes en la presentación HU-002', async () => {

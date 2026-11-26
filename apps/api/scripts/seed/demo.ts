@@ -13,6 +13,7 @@ import { seedEpic7 } from './epic-7';
 import { seedEpic8 } from './epic-8';
 import { seedEpic9 } from './epic-9';
 import { seedHu19 } from './hu19-demo';
+import { seedProfileTestAccounts } from './profile-accounts';
 import { seedQaSecondCareer } from './qa-second-career';
 
 async function seedDemo(): Promise<void> {
@@ -25,6 +26,10 @@ async function seedDemo(): Promise<void> {
     { name: 'base compartida', run: seedBase },
     { name: 'épica 1', run: seedEpic1 },
     { name: 'épica 2', run: seedEpic2 },
+    {
+      name: 'épica 2 · cuentas de titulado con perfil vacío, parcial y completo',
+      run: seedProfileTestAccounts,
+    },
     { name: 'épica 6', run: seedEpic6 },
     { name: 'épica 3', run: seedEpic3 },
     { name: 'épica 4', run: seedEpic4 },

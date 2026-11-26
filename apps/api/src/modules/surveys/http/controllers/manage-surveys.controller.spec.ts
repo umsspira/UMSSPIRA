@@ -30,6 +30,7 @@ describe('ManageSurveysController', () => {
   let repository: {
     listManaged: jest.Mock;
     createManaged: jest.Mock;
+    createManagedForAllCareers: jest.Mock;
     updateManaged: jest.Mock;
     publishManaged: jest.Mock;
     unpublishManaged: jest.Mock;
@@ -40,6 +41,7 @@ describe('ManageSurveysController', () => {
     repository = {
       listManaged: jest.fn().mockResolvedValue([record]),
       createManaged: jest.fn().mockResolvedValue(record),
+      createManagedForAllCareers: jest.fn().mockResolvedValue([record, record]),
       updateManaged: jest.fn().mockResolvedValue({ ...record, title: 'Nuevo título' }),
       publishManaged: jest.fn().mockResolvedValue({ ...record, status: 'PUBLICADA' }),
       unpublishManaged: jest.fn().mockResolvedValue(record),
@@ -62,6 +64,40 @@ describe('ManageSurveysController', () => {
 
     await expect(controller.create(adminActor, body)).resolves.toEqual({ data: record });
     expect(repository.createManaged).toHaveBeenCalledWith('admin-1', [careerId], body);
+  });
+
+  it('pasa la carrera elegida cuando el administrador tiene varias', async () => {
+    const body = {
+      title: 'Encuesta 2026',
+      startDate: new Date('2026-11-01'),
+      endDate: new Date('2026-11-30'),
+      careerId,
+    };
+
+    await controller.create(adminActor, body);
+
+    expect(repository.createManaged).toHaveBeenCalledWith(
+      'admin-1',
+      [careerId],
+      expect.objectContaining({ careerId }),
+    );
+  });
+
+  it('con «Todas las carreras» crea una encuesta por carrera', async () => {
+    const body = {
+      title: 'Encuesta general',
+      startDate: new Date('2027-01-01'),
+      endDate: new Date('2027-12-31'),
+      allCareers: true,
+    };
+
+    await expect(controller.create(adminActor, body)).resolves.toEqual({ data: [record, record] });
+    expect(repository.createManagedForAllCareers).toHaveBeenCalledWith(
+      'admin-1',
+      [careerId],
+      expect.objectContaining({ title: 'Encuesta general' }),
+    );
+    expect(repository.createManaged).not.toHaveBeenCalled();
   });
 
   it('actualiza solo los campos enviados', async () => {

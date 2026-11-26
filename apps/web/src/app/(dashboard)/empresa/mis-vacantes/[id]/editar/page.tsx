@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { normalizeVacancyStatus } from '@/shared/utils/vacancy-status';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -16,7 +16,15 @@ import {
 } from 'lucide-react';
 import { getAccessToken } from '@/shared/services/auth-session';
 import { API_BASE_URL } from '@/shared/config/api';
+import { ActionNotice } from '@/shared/components/action-notice';
 import { Cargando, EstadoError } from '../../../_components/estado-pantalla';
+
+interface ValoresEditables {
+  modalidad: string;
+  nivel: string;
+  descripcion: string;
+  requisitosTecnicos: string[];
+}
 
 export default function EditarVacantePage() {
   const router = useRouter();
@@ -37,10 +45,27 @@ export default function EditarVacantePage() {
   const [requisitosTecnicos, setRequisitosTecnicos] = useState<string[]>([]);
   const [requisitoDraft, setRequisitoDraft] = useState('');
 
+  // BUG-01 (CAF-07): valores precargados contra los que se detectan cambios pendientes.
+  const [valoresIniciales, setValoresIniciales] = useState<ValoresEditables | null>(null);
+  const [guardadoOk, setGuardadoOk] = useState(false);
+  const [errorGuardado, setErrorGuardado] = useState('');
+
+  const hayCambios = useMemo(() => {
+    if (!valoresIniciales) return false;
+    return (
+      modalidad !== valoresIniciales.modalidad ||
+      nivel !== valoresIniciales.nivel ||
+      descripcion !== valoresIniciales.descripcion ||
+      requisitosTecnicos.join('\n') !== valoresIniciales.requisitosTecnicos.join('\n')
+    );
+  }, [modalidad, nivel, descripcion, requisitosTecnicos, valoresIniciales]);
+
   useEffect(() => {
     const fetchVacante = async () => {
       setIsLoading(true);
       setErrorCarga(false);
+      setGuardadoOk(false);
+      setErrorGuardado('');
 
       try {
         const token = getAccessToken();
@@ -57,39 +82,45 @@ export default function EditarVacantePage() {
           const encontrada = await response.json();
 
           if (encontrada) {
-            setTitulo(encontrada.titulo);
-
             const mod = String(encontrada.modalidad).toUpperCase().trim();
+            let modalidadUI = 'Presencial';
 
             if (mod === 'REMOTO') {
-              setModalidad('Remoto');
+              modalidadUI = 'Remoto';
             } else if (mod === 'HIBRIDO' || mod === 'HÍBRIDO') {
-              setModalidad('Híbrido');
-            } else {
-              setModalidad('Presencial');
+              modalidadUI = 'Híbrido';
             }
 
             const niv = String(encontrada.nivel_experiencia).toUpperCase().trim();
+            let nivelUI = 'Senior';
 
             if (niv === 'JUNIOR' || niv === 'SIN_EXPERIENCIA') {
-              setNivel('Junior');
+              nivelUI = 'Junior';
             } else if (niv === 'SEMI-SENIOR') {
-              setNivel('Semi-Senior');
-            } else {
-              setNivel('Senior');
+              nivelUI = 'Semi-Senior';
             }
 
-            setDescripcion(encontrada.descripcion_tecnica || '');
+            const descripcionUI = encontrada.descripcion_tecnica || '';
+            const requisitosUI: string[] = Array.isArray(
+              encontrada.requisito_tecnico_registros
+            )
+              ? encontrada.requisito_tecnico_registros.map(
+                  (item: { nombre: string }) => item.nombre
+                )
+              : [];
 
-            setRequisitosTecnicos(
-              Array.isArray(encontrada.requisito_tecnico_registros)
-                ? encontrada.requisito_tecnico_registros.map(
-                    (item: { nombre: string }) => item.nombre
-                  )
-                : []
-            );
-
+            setTitulo(encontrada.titulo);
+            setModalidad(modalidadUI);
+            setNivel(nivelUI);
+            setDescripcion(descripcionUI);
+            setRequisitosTecnicos(requisitosUI);
             setEstado(normalizeVacancyStatus(encontrada.estado));
+            setValoresIniciales({
+              modalidad: modalidadUI,
+              nivel: nivelUI,
+              descripcion: descripcionUI,
+              requisitosTecnicos: requisitosUI
+            });
           }
         } else {
           setErrorCarga(true);
@@ -106,7 +137,12 @@ export default function EditarVacantePage() {
   }, [id, reloadKey]);
 
   const handleGuardar = async () => {
+    // BUG-01: nunca se envía una actualización cuando no hay modificaciones.
+    if (!hayCambios) return;
+
     setIsSaving(true);
+    setGuardadoOk(false);
+    setErrorGuardado('');
 
     try {
       const token = getAccessToken();
@@ -141,12 +177,18 @@ export default function EditarVacantePage() {
         );
       }
 
-      alert('Cambios guardados con éxito en la base de datos');
-      router.push('/empresa/mis-vacantes');
+      // BUG-02: la confirmación se muestra con el componente de avisos de la
+      // aplicación; no se usan alertas nativas del navegador.
+      setValoresIniciales({ modalidad, nivel, descripcion, requisitosTecnicos });
+      setGuardadoOk(true);
 
     } catch (error) {
       console.error(error);
-      alert('Hubo un error al guardar los cambios.');
+      setErrorGuardado(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Hubo un error al guardar los cambios.'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -535,6 +577,22 @@ export default function EditarVacantePage() {
                 </div>
               </div>
 
+              {guardadoOk && (
+                <ActionNotice
+                  state="success"
+                  message="Vacante actualizada correctamente"
+                  description="Los cambios ya están publicados en tu vacante."
+                />
+              )}
+
+              {errorGuardado && (
+                <ActionNotice
+                  state="error"
+                  message={errorGuardado}
+                  onRetry={handleGuardar}
+                />
+              )}
+
               <div
                 className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4"
                 style={{
@@ -565,7 +623,7 @@ export default function EditarVacantePage() {
 
                 <button
                   onClick={handleGuardar}
-                  disabled={isSaving}
+                  disabled={isSaving || !hayCambios}
                   className="min-h-11 w-full justify-center sm:w-auto md:min-h-0"
                   style={{
                     padding: '0.6rem 1.5rem',
@@ -574,11 +632,11 @@ export default function EditarVacantePage() {
                     color: '#fff',
                     borderRadius: '0.5rem',
                     fontWeight: 'bold',
-                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    cursor: isSaving || !hayCambios ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
-                    opacity: isSaving ? 0.7 : 1
+                    opacity: isSaving || !hayCambios ? 0.7 : 1
                   }}
                 >
                   <Save size={16} />

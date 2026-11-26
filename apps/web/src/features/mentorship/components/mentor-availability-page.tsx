@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '@/shared/components/confirm-modal';
 import { PrimaryButton, SecondaryButton } from './mentor-button';
-import { MentorOnboardingProgress } from './mentor-onboarding-progress';
+import { MentorSetupSteps, type MentorSetupStep } from './mentor-setup-steps';
 import {
   getMentorAvailability,
   MentorAvailabilityError,
@@ -25,12 +25,7 @@ import {
 } from '../services/mentor-availability-api';
 import { getMentorSchedule, MentorScheduleError, saveMentorSchedule } from '../services/mentor-schedule-api';
 import { isScheduleDirty, type ScheduleSlot } from '../model/mentor-schedule';
-import { getMentorProgressSteps } from '../model/mentor-onboarding-progress';
 import { getMentorOnboarding, type MentorOnboardingState } from '../services/mentor-onboarding-api';
-import {
-  getMentorProfileInformation,
-  type MentorProfileInformationState,
-} from '../services/mentor-profile-info-api';
 import { MentorWeeklySchedule } from './mentor-weekly-schedule';
 
 const options: {
@@ -97,7 +92,6 @@ export function MentorAvailabilityPage() {
   const [savedSchedule, setSavedSchedule] = useState<ScheduleSlot[]>([]);
   const [draftSchedule, setDraftSchedule] = useState<ScheduleSlot[]>([]);
   const [onboarding, setOnboarding] = useState<MentorOnboardingState | null>(null);
-  const [profileInformation, setProfileInformation] = useState<MentorProfileInformationState | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
   const [progressError, setProgressError] = useState('');
   const [progressAttempt, setProgressAttempt] = useState(0);
@@ -140,14 +134,10 @@ export function MentorAvailabilityPage() {
     const controller = new AbortController();
     setProgressLoading(true);
     setProgressError('');
-    Promise.all([
-      getMentorOnboarding(controller.signal),
-      getMentorProfileInformation(controller.signal),
-    ])
-      .then(([state, information]) => {
+    getMentorOnboarding(controller.signal)
+      .then((state) => {
         if (controller.signal.aborted) return;
         setOnboarding(state);
-        setProfileInformation(information);
       })
       .catch(reason => {
         if (!controller.signal.aborted) {
@@ -195,7 +185,7 @@ export function MentorAvailabilityPage() {
     if (!dirty) return;
     const handleStepClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.onboarding-progress-steps a') : null;
+      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.mentor-setup-steps .mentor-setup-step-link') : null;
       if (!link) return;
       event.preventDefault();
       event.stopPropagation();
@@ -278,17 +268,10 @@ export function MentorAvailabilityPage() {
     </div>;
   }
 
-  const progressState = onboarding ? {
-    areas: onboarding.areas,
-    interests: onboarding.interests,
-    availability: {
-      availabilityStatus: savedStatus,
-      schedules: savedSchedule,
-    },
-  } : null;
-  const progressSteps = progressState
-    ? getMentorProgressSteps(progressState, profileInformation)
-    : null;
+  const completedSteps: MentorSetupStep[] = [];
+  if (onboarding?.areas.selectedIds.length) completedSteps.push(1);
+  if (onboarding?.interests.selectedIds.length) completedSteps.push(2);
+  if (savedStatus && savedSchedule.length) completedSteps.push(3);
 
   return <>
     <section className="mentor-availability-card" aria-labelledby="mentor-availability-heading">
@@ -345,8 +328,8 @@ export function MentorAvailabilityPage() {
 
       {!loading && !loadFailed && <MentorWeeklySchedule schedule={draftSchedule} onChange={setDraftSchedule} disabled={saving} firstIncomplete={Boolean(savedStatus) && !savedSchedule.length} />}
 
-      {progressSteps ? (
-        <MentorOnboardingProgress currentStep={3} steps={progressSteps} />
+      {onboarding ? (
+        <MentorSetupSteps currentStep={3} completedSteps={completedSteps} focusFirstIncomplete />
       ) : progressLoading ? (
         <p role="status" className="onboarding-loading">Cargando el avance de tu perfil…</p>
       ) : (

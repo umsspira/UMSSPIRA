@@ -30,11 +30,11 @@ function database(existing = new Map<string, Record<string, unknown>>()) {
 }
 
 describe('Seed de áreas — N28 y N30', () => {
-  it('crea diez áreas con los nombres y padres de la copia, sin actualizar existentes', async () => {
+  it('crea trece áreas con los nombres y padres del catálogo, sin actualizar existentes', async () => {
     const db = database();
     await seedAreas(db.prisma);
     expect(db.transaction).toHaveBeenCalledTimes(1);
-    expect(db.rows.size).toBe(10);
+    expect(db.rows.size).toBe(13);
     for (const [call] of db.upsert.mock.calls) {
       expect(call.update).toEqual({});
       expect(call.create.esta_activo).toBe(true);

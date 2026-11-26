@@ -27,6 +27,7 @@ function filtersState(cohort = '', semester = '') {
     filters: { cohort, semester },
     setCohort: jest.fn(),
     setSemester: jest.fn(),
+    setCareer: jest.fn(),
     clearFilters: jest.fn(),
     isSemesterActive: semester !== '',
     hasActiveFilters: cohort !== '' || semester !== '',
@@ -80,5 +81,66 @@ describe('Tablero de acreditación (T1.3)', () => {
     expect(await screen.findByRole('option', { name: '2/2026' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: '1/2026' })).toBeInTheDocument();
     expect(load).toHaveBeenCalledWith(expect.anything(), { cohort: '2019', semester: '1/2026' });
+  });
+
+  it('con varias carreras muestra el filtro «Carrera» y pide solo la carrera elegida (bug 2 del QA de la HU-002)', async () => {
+    const load = jest.fn().mockResolvedValue(data);
+    const careers = [
+      { id: '10000000-0000-4000-8000-000000000001', name: 'Ingeniería de Sistemas' },
+      { id: '10000000-0000-4000-8000-000000000002', name: 'Ingeniería en Informática' },
+    ];
+    render(
+      <ConnectedAccreditationIndicators
+        careerName="Ingeniería en Informática"
+        load={load}
+        filtersState={filtersState()}
+        careers={careers}
+        career={careers[1].id}
+      />,
+    );
+
+    expect(await screen.findByLabelText('Carrera')).toHaveValue(careers[1].id);
+    expect(screen.getByText('Carrera: Ingeniería en Informática')).toBeInTheDocument();
+    expect(load).toHaveBeenCalledWith(expect.anything(), {
+      cohort: '',
+      semester: '',
+      career: careers[1].id,
+    });
+  });
+
+  it('con una sola carrera no muestra el filtro «Carrera»', async () => {
+    render(
+      <ConnectedAccreditationIndicators
+        careerName="Ingeniería de Sistemas"
+        load={() => Promise.resolve(data)}
+        filtersState={filtersState()}
+        careers={[{ id: '10000000-0000-4000-8000-000000000001', name: 'Ingeniería de Sistemas' }]}
+      />,
+    );
+
+    expect(await screen.findByLabelText('Cohorte')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument();
+  });
+
+  it('el administrador de varias carreras puede verlas juntas con «Todas las carreras»', async () => {
+    const load = jest.fn().mockResolvedValue(data);
+    render(
+      <ConnectedAccreditationIndicators
+        careerName="Ingeniería de Sistemas e Ingeniería en Informática"
+        load={load}
+        filtersState={filtersState()}
+        careers={[
+          { id: '10000000-0000-4000-8000-000000000001', name: 'Ingeniería de Sistemas' },
+          { id: '10000000-0000-4000-8000-000000000002', name: 'Ingeniería en Informática' },
+        ]}
+      />,
+    );
+
+    expect(await screen.findByLabelText('Carrera')).toHaveValue('');
+    expect(screen.getByRole('option', { name: 'Todas las carreras' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Carrera: Ingeniería de Sistemas e Ingeniería en Informática'),
+    ).toBeInTheDocument();
+    expect(load).toHaveBeenCalledWith(expect.anything(), { cohort: '', semester: '' });
   });
 });

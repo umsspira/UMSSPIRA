@@ -166,4 +166,42 @@ describe('filtros al navegar entre secciones', () => {
     await act(async () => {});
     expect(window.sessionStorage.length).toBe(0);
   });
+
+describe('filtro «Carrera» (bug 2 del QA de la HU-002)', () => {
+  const INF = '10000000-0000-4000-8000-000000000002';
+
+  beforeEach(() => {
+    mockGetCurrentUser.mockReturnValue(new Promise(() => {}));
+  });
+
+  test('lee la carrera de la URL e ignora valores que no son un id', () => {
+    expect(readFiltersFromParams(new URLSearchParams(`carrera=${INF}&cohorte=2023`))).toEqual({
+      cohort: '2023',
+      semester: '',
+      career: INF,
+    });
+    expect(readFiltersFromParams(new URLSearchParams('carrera=sistemas'))).toEqual({
+      cohort: '',
+      semester: '',
+    });
+  });
+
+  test('al cambiar de carrera reinicia cohorte y semestre', () => {
+    mockQuery = 'cohorte=2023&semestre=1-2026';
+    const { result } = renderHook(() => useAccreditationFilters());
+    act(() => result.current.setCareer(INF));
+    expect(mockReplace).toHaveBeenCalledWith(`/reports/acreditacion?carrera=${INF}`, {
+      scroll: false,
+    });
+  });
+
+  test('«Limpiar filtros» conserva la carrera elegida', () => {
+    mockQuery = `carrera=${INF}&cohorte=2023&semestre=1-2026`;
+    const { result } = renderHook(() => useAccreditationFilters());
+    act(() => result.current.clearFilters());
+    expect(mockReplace).toHaveBeenCalledWith(`/reports/acreditacion?carrera=${INF}`, {
+      scroll: false,
+    });
+  });
+});
 });

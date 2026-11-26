@@ -18,6 +18,8 @@ export function useCompetencyHeatmap(load: HeatmapLoader) {
   const [data, setData] = useState<HeatmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // CA-07 (mock-up): «Actualizado» muestra la fecha y hora en que se consultó el mapa.
+  const [checkedAt, setCheckedAt] = useState<string | null>(null);
 
   useEffect(() => { loadRef.current = load; }, [load]);
 
@@ -30,7 +32,10 @@ export function useCompetencyHeatmap(load: HeatmapLoader) {
 
     try {
       const latest = await loadRef.current(controller.signal);
-      if (mounted.current && !controller.signal.aborted) setData(latest);
+      if (mounted.current && !controller.signal.aborted) {
+        setData(latest);
+        setCheckedAt(new Date().toISOString());
+      }
     } catch (reason) {
       if (controller.signal.aborted || !mounted.current) return;
       if (isSessionExpiredError(reason)) {
@@ -52,5 +57,5 @@ export function useCompetencyHeatmap(load: HeatmapLoader) {
     };
   }, [refresh]);
 
-  return { data, loading, error, refresh };
+  return { data, loading, error, refresh, checkedAt };
 }
