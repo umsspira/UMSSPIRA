@@ -103,6 +103,16 @@ describe('HU-EP09-06 / T2.3: estados, tooltip y actualización', () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
+  it('CA-07 (mock-up): con la hora de consulta, «Actualizado» muestra cuándo se actualizó el mapa', () => {
+    setup({ checkedAt: '2026-11-25T21:13:00-04:00' });
+    expect(screen.getByText('Actualizado: 25/11/2026 21:13')).toBeInTheDocument();
+  });
+
+  it('sin cálculos mantiene «Actualizado: —» aunque se haya consultado', () => {
+    setup({ data: { updatedAt: null, cohorts: [] }, checkedAt: '2026-11-25T21:13:00-04:00' });
+    expect(screen.getByText('Actualizado: —')).toBeInTheDocument();
+  });
+
   it('bloquea refrescos duplicados cuando loading y anuncia un fallo de red', () => {
     const onRefresh = jest.fn();
     setup({ onRefresh, loading: true, error: 'Error de conexión.' });
