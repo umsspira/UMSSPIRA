@@ -79,14 +79,21 @@ it("distinguishes a completed reading with insufficient data from a processing f
     <OcrPanel applicationId="application" documentUrl="/document" canRetry />,
   );
   await tick();
-  expect(
-    screen.getByText("Lectura completada: requiere revisión manual"),
-  ).toBeInTheDocument();
-  expect(screen.getByText("Sin dato comprobable")).toBeInTheDocument();
+  expect(screen.getByText("Revisar hallazgos")).toBeInTheDocument();
+  expect(screen.getByText("Sin lectura")).toBeInTheDocument();
   expect(screen.queryByText("Falló el procesamiento")).not.toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "Reintentar análisis" }),
   ).not.toBeInTheDocument();
+
+  const field = screen.getByRole("button", { name: "CI" });
+  expect(screen.queryByText("El documento no contiene el dato.")).not.toBeInTheDocument();
+  fireEvent.click(field);
+  expect(screen.getByRole("region", { name: "Detalle de CI" })).toHaveTextContent(
+    "El documento no contiene el dato.",
+  );
+  fireEvent.click(field);
+  expect(screen.queryByRole("region", { name: "Detalle de CI" })).not.toBeInTheDocument();
 });
 
 it("shows the date of an old failure and requeues it only when requested", async () => {
@@ -135,7 +142,7 @@ it("treats a failed query as a connection problem and allows immediate refresh",
   expect(screen.queryByText("Falló el procesamiento")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Volver a consultar" }));
   await tick();
-  expect(screen.getByText("Lectura completada")).toBeInTheDocument();
+  expect(screen.getByText("Revisar hallazgos")).toBeInTheDocument();
   expect(screen.queryByText("Consulta no disponible")).not.toBeInTheDocument();
 });
 
@@ -146,7 +153,7 @@ it("keeps a saved result visible if refreshing its status fails", async () => {
   await tick();
   act(() => window.dispatchEvent(new Event("umsspira:ocr-updated")));
   await tick();
-  expect(screen.getByText("Lectura completada")).toBeInTheDocument();
+  expect(screen.getByText("Revisar hallazgos")).toBeInTheDocument();
   expect(screen.getByRole("table")).toBeInTheDocument();
   expect(
     screen.getByText("Se conserva el último estado consultado."),
