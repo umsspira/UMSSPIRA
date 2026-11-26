@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import StatusPage from "@/app/(public)/status/page";
 import { StatusQueryForm } from "./status-query-form";
 import {
   requestApplicationStatus,
@@ -19,6 +20,23 @@ const mockedRequestApplicationStatus =
 describe("StatusQueryForm", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it("muestra la etiqueta, el texto aclaratorio, la nota de seguridad y el ícono del campo según el mockup", () => {
+    const { container } = render(<StatusPage />);
+
+    expect(screen.getByText("CONSULTA DE SOLICITUD")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Usaremos este correo únicamente para enviar la notificación de estado. No mostraremos el resultado en esta pantalla.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Por seguridad, el portal no confirma si el correo tiene una solicitud. La información se envía solo a la dirección verificada.",
+      ),
+    ).toBeInTheDocument();
+    expect(container.querySelectorAll("svg").length).toBeGreaterThanOrEqual(3);
   });
 
   it("valida que el correo sea obligatorio y tenga un formato válido", () => {
