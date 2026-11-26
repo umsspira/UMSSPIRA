@@ -20,18 +20,18 @@ pnpm --filter api db:seed:informatica
 
 Este comando exige `APP_ENV=epic`, `dev` o `test` y la cuenta administradora de demostración ya creada. No modifica cuentas, contraseñas ni asignaciones existentes. En bases nuevas, `db:seed:demo` ya incluye esta carga después de crear las cuentas. `db:seed` incorpora la carrera al catálogo sin crear ni asignar usuarios.
 
-| Parte        | Datos iniciales                                                                                                               |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Parte        | Datos iniciales                                                                                                                              |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | Catálogos    | Roles, permisos, Ingeniería de Sistemas e Ingeniería Informática, PDF/JPG/PNG, modalidades de trabajo, áreas profesionales y tipo de reporte |
-| Acceso       | Titulado, administrador y empresa con sus perfiles relacionados                                                               |
-| Épica 1      | Cuatro solicitudes: pendiente, aprobada, observada y rechazada; detalles, PDF descargables, dictámenes y auditoría de ejemplo |
-| Épica 2      | Formación, experiencia laboral vigente y certificación del titulado                                                           |
-| Épica 3      | Descripción profesional, palabras clave, alias, pesos, término no mapeado y radar de demostración                             |
-| Épicas 4 y 5 | Empresa con teléfono, dirección y sector; requerimiento con habilidad; vacante vinculada al requerimiento                     |
-| Épica 6      | El titulado participa como mentor activo, con especialidad, interés y disponibilidad                                          |
-| Épica 7      | Un evento publicado, un borrador del administrador y una inscripción del titulado                                             |
-| Épica 8      | Reutiliza la identidad y catálogos compartidos; los dispositivos push los registra cada navegador                             |
-| Épica 9      | Encuesta publicada; indicadores y listados con las solicitudes y el mentor ya cargados                                      |
+| Acceso       | Titulado, administrador y empresa con sus perfiles relacionados                                                                              |
+| Épica 1      | Cuatro solicitudes: pendiente, aprobada, observada y rechazada; detalles, PDF descargables, dictámenes y auditoría de ejemplo                |
+| Épica 2      | Formación, experiencia laboral vigente y certificación del titulado                                                                          |
+| Épica 3      | Descripción profesional, palabras clave, alias, pesos, término no mapeado y radar de demostración                                            |
+| Épicas 4 y 5 | Empresa con teléfono, dirección y sector; requerimiento con habilidad; vacante vinculada al requerimiento                                    |
+| Épica 6      | El titulado participa como mentor activo, con especialidad, interés y disponibilidad                                                         |
+| Épica 7      | Un evento publicado, un borrador del administrador y una inscripción del titulado                                                            |
+| Épica 8      | Reutiliza la identidad y catálogos compartidos; los dispositivos push los registra cada navegador                                            |
+| Épica 9      | Encuesta publicada; indicadores y listados con las solicitudes y el mentor ya cargados                                                       |
 
 La etapa de QA agrega un administrador exclusivo de Ingeniería Informática, 20 titulados y 20 respuestas, además de cálculos de radar para sus cohortes.
 
@@ -48,6 +48,14 @@ La seed de la épica 9 agrega 39 perfiles de titulado ficticios sin cuentas de a
 | `titulado@umss.edu.bo` | `titulado1234` | titulado      |
 | `admin@umss.edu.bo`    | `admin1234`    | administrador |
 | `empresa@umss.edu.bo`  | `empresa1234`  | empresa       |
+
+Cuentas de titulado para probar el perfil (Épica 2), con tres estados del perfil. Se cargan en la etapa «épica 2 · cuentas de titulado» y se definen en `profile-accounts.ts`:
+
+| Correo                  | Contraseña        | Perfil                                                                       |
+| ----------------------- | ----------------- | ---------------------------------------------------------------------------- |
+| `titulado2@umss.edu.bo` | `pruebaTitulado2` | Vacío: sin registros                                                         |
+| `titulado3@umss.edu.bo` | `pruebaTitulado3` | Completo: formación, experiencia, certificación (sin respaldo) y 3 proyectos |
+| `titulado4@umss.edu.bo` | `pruebaTitulado4` | Parcial: solo una formación académica                                        |
 
 El mentor utiliza la cuenta de titulado; no es un rol de acceso independiente. Las solicitudes pendiente, observada y rechazada tienen contactos ficticios `example.com` y no crean cuentas adicionales.
 La cuenta QA de Informática usa `admin.informatica@umss.edu.bo` con contraseña `admininformatica1234`.
