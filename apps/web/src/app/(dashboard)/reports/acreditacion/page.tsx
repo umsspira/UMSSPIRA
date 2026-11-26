@@ -8,29 +8,57 @@ import { authenticatedFetch, SessionError } from '@/shared/services/auth-session
 import { notifySessionExpired } from '@/modules/auth/frontend/services/session-expired';
 import { ConnectedAccreditationIndicators } from '@/modules/reports/components/connected-accreditation-indicators';
 import { loadAccreditationIndicators } from '@/modules/reports/services/accreditation-indicators.adapter';
-import { SemesterHeatmapNote } from '@/modules/reports/accreditation/components/accreditation-filters';
+import {
+  SemesterHeatmapNote,
+  type CareerOption,
+} from '@/modules/reports/accreditation/components/accreditation-filters';
 import { useAccreditationFilters } from '@/modules/reports/accreditation/hooks/use-accreditation-filters';
 
 /**
  * Indicadores, filtros (HU-003) y mapa de calor del tablero. Va dentro de <Suspense>
  * porque los filtros leen la URL con useSearchParams.
  */
-function AccreditationDashboard({ careerName }: { careerName: string }) {
+function AccreditationDashboard({ careers }: { careers: CareerOption[] }) {
   const filtersState = useAccreditationFilters();
-  const { cohort } = filtersState.filters;
-  const loadHeatmap = useMemo(() => loadCompetencyHeatmapForCohort(cohort), [cohort]);
+  const { cohort, career: chosenCareer } = filtersState.filters;
+  // Con varias carreras, el filtro «Carrera» permite verlas juntas («Todas las carreras») o una por una
+  // (bug 2 del QA de la HU-002). El administrador de una sola carrera ve siempre la suya.
+  const multiple = careers.length > 1;
+  const selected = multiple ? careers.find((item) => item.id === chosenCareer) : careers[0];
+  const career = multiple && selected ? selected.id : '';
+  const careerName = selected ? selected.name : joinCareerNames(careers.map((item) => item.name));
+  const loadHeatmap = useMemo(() => loadCompetencyHeatmapForCohort(cohort, career), [cohort, career]);
   return (
     <div className="min-w-0 space-y-6">
       <ConnectedAccreditationIndicators
         careerName={careerName}
         load={loadAccreditationIndicators}
         filtersState={filtersState}
+        careers={careers}
+        career={career}
       />
       <SemesterHeatmapNote visible={filtersState.isSemesterActive} />
-      {/* key: al cambiar la cohorte el mapa se vuelve a pedir con una sola fila (HU-003 CA-03). */}
-      <ConnectedCompetencyHeatmap key={cohort || 'todas'} careerName={careerName} load={loadHeatmap} />
+      {/* key: al cambiar la cohorte o la carrera el mapa se vuelve a pedir (HU-003 CA-03). */}
+      <ConnectedCompetencyHeatmap
+        key={`${career || 'sesion'}-${cohort || 'todas'}`}
+        careerName={careerName}
+        load={loadHeatmap}
+      />
     </div>
   );
+}
+
+/** «A», «A y B», «A, B y C»; «e» antes de un nombre que suena «i» (Ingeniería, Informática). */
+function joinCareerNames(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  const last = names[names.length - 1];
+  const connector = /^h?[ií](?![aeou])/i.test(last) ? ' e ' : ' y ';
+  return names.slice(0, -1).join(', ') + connector + last;
+}
+
+/** «Lic. en Ingeniería de Sistemas» -> «Ingeniería de Sistemas», como en el mock-up. */
+function displayCareerName(name: string): string {
+  return name.replace(/^lic(enciatura)?\.?\s+en\s+/i, '').trim();
 }
 
 const REPORTS_ACTIVE_TAB_KEY = 'umsspira:reports-active-tab';
@@ -55,7 +83,7 @@ type CareerResponse = {
  * El backend delimita las carreras autorizadas; no enviamos IDs elegidos por el cliente.
  */
 export default function AccreditationHeatmapPage() {
-  const [careerName, setCareerName] = useState<string | null>(null);
+  const [careers, setCareers] = useState<CareerOption[] | null>(null);
   const [loadingCareer, setLoadingCareer] = useState(true);
   const [identityError, setIdentityError] = useState<string | null>(null);
 
@@ -81,9 +109,7 @@ export default function AccreditationHeatmapPage() {
         const careerIds = rawIds as string[];
 
         // El catálogo únicamente aporta nombres. El scope de seguridad lo impone T2.1.
-        let displayName = careerIds.length === 1
-          ? 'Carrera asignada (nombre no disponible)'
-          : 'Carreras asignadas (nombres no disponibles)';
+        const names = new Map<string, string>();
         try {
           const careersResponse = await authenticatedFetch('/api/v1/registrations/careers', {
             cache: 'no-store',
@@ -91,13 +117,12 @@ export default function AccreditationHeatmapPage() {
           });
           if (careersResponse.ok) {
             const catalog = (await careersResponse.json()) as CareerResponse;
-            const assigned = Array.isArray(catalog.data)
-              ? catalog.data.filter((career) =>
-                  typeof career.id === 'string' && careerIds.includes(career.id) &&
-                  typeof career.nombre === 'string' && career.nombre.trim().length > 0,
-                ).map((career) => career.nombre as string)
-              : [];
-            if (assigned.length === careerIds.length) displayName = assigned.join(', ');
+            for (const career of Array.isArray(catalog.data) ? catalog.data : []) {
+              if (typeof career.id === 'string' && careerIds.includes(career.id) &&
+                  typeof career.nombre === 'string' && career.nombre.trim().length > 0) {
+                names.set(career.id, displayCareerName(career.nombre));
+              }
+            }
           }
         } catch (reason) {
           if (controller.signal.aborted) return;
@@ -105,7 +130,10 @@ export default function AccreditationHeatmapPage() {
           // Un fallo del catálogo no debe impedir consultar el mapa autorizado.
         }
 
-        if (active && !controller.signal.aborted) setCareerName(displayName);
+        const options = careerIds
+          .map((id) => ({ id, name: names.get(id) ?? 'Carrera asignada (nombre no disponible)' }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        if (active && !controller.signal.aborted) setCareers(options);
       } catch (reason) {
         if (!active || controller.signal.aborted) return;
         if (reason instanceof SessionError && reason.status === 401) {
@@ -145,9 +173,9 @@ export default function AccreditationHeatmapPage() {
           <p role="status" className="text-sm text-gray-600">Verificando carrera del administrador…</p>
         ) : identityError ? (
           <p role="alert" className="text-sm text-red-700">{identityError}</p>
-        ) : careerName ? (
+        ) : careers && careers.length > 0 ? (
           <Suspense fallback={<p role="status" className="text-sm text-gray-600">Cargando tablero…</p>}>
-            <AccreditationDashboard careerName={careerName} />
+            <AccreditationDashboard careers={careers} />
           </Suspense>
         ) : null}
       </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getCurrentUser } from '@/modules/auth/frontend/services/auth.service';
+import { isCareerId } from '../services/accreditation-export.service';
 
 /** Valor de «Todas» / «Todos» en los filtros: sin filtro aplicado. */
 export const ALL = '' as const;
@@ -12,11 +13,14 @@ export interface AccreditationFilters {
   cohort: string;
   /** Semestre en formato «2/2026». Vacío = «Todos». */
   semester: string;
+  /** Carrera elegida (id) cuando el administrador tiene varias. Sin valor = sin elegir. */
+  career?: string;
 }
 
 /** Nombres de los parámetros en la URL (CA-06). */
 export const COHORT_PARAM = 'cohorte';
 export const SEMESTER_PARAM = 'semestre';
+export const CAREER_PARAM = 'carrera';
 
 const COHORT_PATTERN = /^\d{4}$/;
 const SEMESTER_PATTERN = /^[12]\/\d{4}$/;
@@ -32,6 +36,10 @@ export function semesterFromUrl(value: string | null): string {
   return match ? `${match[1]}/${match[2]}` : ALL;
 }
 
+export function careerFromUrl(value: string | null): string {
+  return value && isCareerId(value) ? value.toLowerCase() : ALL;
+}
+
 export function cohortFromUrl(value: string | null): string {
   return value && COHORT_PATTERN.test(value) ? value : ALL;
 }
@@ -40,10 +48,12 @@ export function cohortFromUrl(value: string | null): string {
 export function readFiltersFromParams(
   params: Pick<URLSearchParams, 'get'>,
 ): AccreditationFilters {
-  return {
+  const filters: AccreditationFilters = {
     cohort: cohortFromUrl(params.get(COHORT_PARAM)),
     semester: semesterFromUrl(params.get(SEMESTER_PARAM)),
   };
+  const career = careerFromUrl(params.get(CAREER_PARAM));
+  return career ? { ...filters, career } : filters;
 }
 
 /** Construye la query string de la URL con los filtros activos. */
@@ -52,6 +62,11 @@ export function buildFiltersQuery(
   filters: AccreditationFilters,
 ): string {
   const params = new URLSearchParams(current);
+  if (isCareerId(filters.career)) {
+    params.set(CAREER_PARAM, filters.career);
+  } else {
+    params.delete(CAREER_PARAM);
+  }
   if (COHORT_PATTERN.test(filters.cohort)) {
     params.set(COHORT_PARAM, filters.cohort);
   } else {
@@ -148,9 +163,9 @@ export function useAccreditationFilters() {
   useEffect(() => {
     if (!userId || restored.current) return;
     restored.current = true;
-    if (hasActiveFilters(filters)) return;
+    if (hasActiveFilters(filters) || filters.career) return;
     const saved = readFiltersFromParams(new URLSearchParams(readSavedQuery(userId)));
-    if (hasActiveFilters(saved)) replaceFilters(saved);
+    if (hasActiveFilters(saved) || saved.career) replaceFilters(saved);
     // Solo una vez, cuando se conoce el usuario.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -170,15 +185,23 @@ export function useAccreditationFilters() {
     [filters, replaceFilters],
   );
 
-  const clearFilters = useCallback(
-    () => replaceFilters({ cohort: ALL, semester: ALL }),
+  // Al cambiar de carrera se reinician cohorte y semestre: cada carrera tiene sus propias opciones.
+  const setCareer = useCallback(
+    (career: string) => replaceFilters({ cohort: ALL, semester: ALL, career }),
     [replaceFilters],
+  );
+
+  // «Limpiar filtros» vuelve a «Todas» y «Todos» sin cambiar la carrera elegida (CA-07).
+  const clearFilters = useCallback(
+    () => replaceFilters({ cohort: ALL, semester: ALL, career: filters.career }),
+    [filters.career, replaceFilters],
   );
 
   return {
     filters,
     setCohort,
     setSemester,
+    setCareer,
     clearFilters,
     isSemesterActive: filters.semester !== ALL,
     hasActiveFilters: hasActiveFilters(filters),

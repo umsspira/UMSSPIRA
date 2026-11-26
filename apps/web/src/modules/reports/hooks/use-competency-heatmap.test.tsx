@@ -16,6 +16,21 @@ describe('HU-EP09-06 CA-07: actualización y sesión', () => {
     expect(loader).toHaveBeenCalledTimes(2);
   });
 
+  it('CA-07 (mock-up): guarda la hora de cada consulta, aunque los cálculos no cambien', async () => {
+    jest.useFakeTimers({ now: new Date('2026-11-25T21:13:00-04:00'), doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+    try {
+      const loader = jest.fn().mockResolvedValue(heatmapMockupFixture());
+      const { result } = renderHook(() => useCompetencyHeatmap(loader));
+      // La pantalla muestra hasta el minuto (dd/mm/aaaa hh:mm).
+      await waitFor(() => expect(result.current.checkedAt).toMatch(/^2026-11-26T01:13/));
+      jest.setSystemTime(new Date('2026-11-25T21:20:00-04:00'));
+      await act(async () => { await result.current.refresh(); });
+      expect(result.current.checkedAt).toMatch(/^2026-11-26T01:20/);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('muestra error en fallos de red sin publicar datos de ejemplo', async () => {
     const loader = jest.fn().mockRejectedValue(new Error('offline'));
     const { result } = renderHook(() => useCompetencyHeatmap(loader));

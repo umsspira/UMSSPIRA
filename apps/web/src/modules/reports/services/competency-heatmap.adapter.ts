@@ -5,6 +5,7 @@ import type {
   HeatmapData,
 } from '../components/competency-heatmap/heatmap.types';
 import { createHeatmapHttpLoader } from './competency-heatmap.service';
+import { isCareerId } from '../accreditation/services/accreditation-export.service';
 
 /**
  * Adaptador de la respuesta HTTP de T2.1.
@@ -139,10 +140,15 @@ export const loadCompetencyHeatmap = createHeatmapHttpLoader({
 });
 
 /** Mapa de calor de una cohorte (HU-003 CA-03); el semestre no aplica al mapa (CA-05). */
-export function loadCompetencyHeatmapForCohort(cohort: string) {
-  return /^\d{4}$/.test(cohort)
+export function loadCompetencyHeatmapForCohort(cohort: string, career = '') {
+  // Con varias carreras, el mapa es solo de la carrera elegida (HU-002 CA-09, bug 2 del QA).
+  const params = new URLSearchParams();
+  if (isCareerId(career)) params.set('careerId', career);
+  if (/^\d{4}$/.test(cohort)) params.set('cohorte', cohort);
+  const query = params.toString();
+  return query
     ? createHeatmapHttpLoader({
-        endpoint: `/api/v1/reports/accreditation/heatmap?cohorte=${cohort}`,
+        endpoint: `/api/v1/reports/accreditation/heatmap?${query}`,
         adapt: adaptCompetencyHeatmap,
       })
     : loadCompetencyHeatmap;
