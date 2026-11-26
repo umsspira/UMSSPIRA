@@ -55,6 +55,11 @@ export interface SurveyRepositoryPort {
   }>;
   listManaged(actorId: string, careerIds: readonly string[]): Promise<SurveyAdminRecord[]>;
   createManaged(actorId: string, careerIds: readonly string[], input: SurveyAdminInput): Promise<SurveyAdminRecord>;
+  createManagedForAllCareers(
+    actorId: string,
+    careerIds: readonly string[],
+    input: SurveyAdminInput,
+  ): Promise<SurveyAdminRecord[]>;
   updateManaged(actorId: string, careerIds: readonly string[], id: string, input: SurveyAdminPatch): Promise<SurveyAdminRecord>;
   publishManaged(actorId: string, careerIds: readonly string[], id: string): Promise<SurveyAdminRecord>;
   unpublishManaged(actorId: string, careerIds: readonly string[], id: string): Promise<SurveyAdminRecord>;

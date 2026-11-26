@@ -20,6 +20,7 @@ export function ConnectedCompetencyHeatmap({ careerName, load }: Props) {
       error={state.error}
       loading={state.loading}
       onRefresh={state.refresh}
+      checkedAt={state.checkedAt}
     />
   );
 }

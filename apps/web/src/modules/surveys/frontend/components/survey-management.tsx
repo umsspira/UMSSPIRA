@@ -6,19 +6,22 @@ import { notifySessionExpired } from '@/modules/auth/frontend/services/session-e
 import {
   createSurvey,
   formatDate,
-  loadCareerName,
+  joinCareerNames,
+  loadAdminCareers,
   loadManagedSurveys,
   publishSurvey,
   toInputDate,
   unpublishSurvey,
   updateSurvey,
 } from '../services/survey-admin.adapter';
-import type { ManagedSurvey, SurveyFormValues } from '../types/survey-admin.types';
+import type { AdminCareer, ManagedSurvey, SurveyFormValues } from '../types/survey-admin.types';
 import { SurveyAdminForm } from './survey-admin-form';
 
 type FormMode = { type: 'new' } | { type: 'edit'; survey: ManagedSurvey } | null;
 
 const GRID = 'md:grid-cols-[minmax(0,2fr)_7rem_7rem_7rem_13rem]';
+// Con varias carreras se agrega la columna «Carrera» para saber a quién se muestra cada encuesta.
+const GRID_WITH_CAREER = 'md:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_7rem_7rem_7rem_13rem]';
 const GENERIC_ERROR = 'No se pudo completar la acción. Inténtalo de nuevo.';
 
 function statusLabel(status: string | null): string {
@@ -36,13 +39,17 @@ export function SurveyManagement() {
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [careerName, setCareerName] = useState<string | null>(null);
+  const [careers, setCareers] = useState<AdminCareer[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
-    loadCareerName(controller.signal).then(setCareerName);
+    loadAdminCareers(controller.signal).then(setCareers);
     return () => controller.abort();
   }, []);
+
+  const showCareer = careers.length > 1;
+  const grid = showCareer ? GRID_WITH_CAREER : GRID;
+  const careerName = (id: string | null) => careers.find((career) => career.id === id)?.name ?? '—';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,7 +126,8 @@ export function SurveyManagement() {
             Gestión de encuestas
           </h2>
           <p className="mt-1 text-sm text-abyssal-blue/70">
-            Encuestas de empleabilidad de {careerName ?? 'tu carrera'}
+            Encuestas de empleabilidad de{' '}
+            {careers.length > 0 ? joinCareerNames(careers.map((career) => career.name)) : 'tu carrera'}
           </p>
         </div>
         {!form && (
@@ -143,6 +151,7 @@ export function SurveyManagement() {
         <SurveyAdminForm
           key={form.type === 'edit' ? form.survey.id : 'new'}
           heading={form.type === 'edit' ? 'Editar encuesta' : 'Nueva encuesta'}
+          careers={form.type === 'new' ? careers : undefined}
           initial={
             form.type === 'edit'
               ? {
@@ -189,9 +198,10 @@ export function SurveyManagement() {
         <ul className="mt-4">
           <li
             aria-hidden="true"
-            className={`hidden gap-3 bg-palladian px-4 py-2 text-xs font-semibold text-abyssal-blue/70 md:grid ${GRID}`}
+            className={`hidden gap-3 bg-palladian px-4 py-2 text-xs font-semibold text-abyssal-blue/70 md:grid ${grid}`}
           >
             <span>Título</span>
+            {showCareer && <span>Carrera</span>}
             <span>Inicio</span>
             <span>Fin</span>
             <span>Estado</span>
@@ -203,11 +213,17 @@ export function SurveyManagement() {
             return (
               <li
                 key={survey.id}
-                className={`mb-3 grid min-w-0 gap-2 rounded-lg border border-oatmeal p-4 md:mb-0 md:items-center md:gap-3 md:rounded-none md:border-0 md:border-b md:px-4 md:py-3 ${GRID}`}
+                className={`mb-3 grid min-w-0 gap-2 rounded-lg border border-oatmeal p-4 md:mb-0 md:items-center md:gap-3 md:rounded-none md:border-0 md:border-b md:px-4 md:py-3 ${grid}`}
               >
                 <p className="min-w-0 break-words font-semibold text-abyssal-blue">
                   {survey.title ?? 'Sin título'}
                 </p>
+                {showCareer && (
+                  <p className="min-w-0 break-words text-sm text-abyssal-blue">
+                    <span className="md:hidden">Carrera: </span>
+                    {careerName(survey.careerId)}
+                  </p>
+                )}
                 <p className="text-sm text-abyssal-blue">
                   <span className="md:hidden">Inicio: </span>
                   {formatDate(survey.startDate)}

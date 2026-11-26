@@ -1,28 +1,44 @@
 import { authenticatedFetch } from '@/shared/services/auth-session';
-import { loadCareerName } from './survey-admin.adapter';
+import { loadAdminCareers } from './survey-admin.adapter';
 
 jest.mock('@/shared/services/auth-session', () => ({ authenticatedFetch: jest.fn() }));
 
 const mockedFetch = authenticatedFetch as jest.Mock;
 const ok = (data: unknown) => ({ ok: true, json: async () => ({ data }) });
 
-describe('loadCareerName (subtítulo del mock-up 15)', () => {
+describe('loadAdminCareers (subtítulo del mock-up 15 y campo «Carrera»)', () => {
   beforeEach(() => mockedFetch.mockReset());
 
-  it('devuelve el nombre de la carrera del administrador', async () => {
+  it('devuelve solo las carreras del administrador, sin «Lic. en»', async () => {
     mockedFetch
       .mockResolvedValueOnce(ok({ scopes: { careerIds: ['c1'] } }))
       .mockResolvedValueOnce(
         ok([
-          { id: 'c1', nombre: 'Ingeniería de Sistemas' },
-          { id: 'c2', nombre: 'Ingeniería Informática' },
+          { id: 'c1', nombre: 'Lic. en Ingeniería de Sistemas' },
+          { id: 'c2', nombre: 'Lic. en Ingeniería en Informática' },
         ]),
       );
-    await expect(loadCareerName()).resolves.toBe('Ingeniería de Sistemas');
+    await expect(loadAdminCareers()).resolves.toEqual([{ id: 'c1', name: 'Ingeniería de Sistemas' }]);
   });
 
-  it('devuelve null si no se pudo consultar', async () => {
+  it('devuelve las dos carreras de un administrador de dos carreras', async () => {
+    mockedFetch
+      .mockResolvedValueOnce(ok({ scopes: { careerIds: ['c1', 'c2'] } }))
+      .mockResolvedValueOnce(
+        ok([
+          { id: 'c1', nombre: 'Lic. en Ingeniería de Sistemas' },
+          { id: 'c2', nombre: 'Lic. en Ingeniería en Informática' },
+          { id: 'c3', nombre: 'Lic. en Biología' },
+        ]),
+      );
+    await expect(loadAdminCareers()).resolves.toEqual([
+      { id: 'c1', name: 'Ingeniería de Sistemas' },
+      { id: 'c2', name: 'Ingeniería en Informática' },
+    ]);
+  });
+
+  it('devuelve una lista vacía si no se pudo consultar', async () => {
     mockedFetch.mockRejectedValueOnce(new Error('offline'));
-    await expect(loadCareerName()).resolves.toBeNull();
+    await expect(loadAdminCareers()).resolves.toEqual([]);
   });
 });

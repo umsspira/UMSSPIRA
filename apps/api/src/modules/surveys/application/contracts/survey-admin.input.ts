@@ -3,6 +3,8 @@ export interface SurveyAdminInput {
   startDate: Date;
   endDate: Date;
   format?: string;
+  /** Carrera de la encuesta; obligatoria si el administrador tiene más de una. */
+  careerId?: string;
 }
 
 export interface SurveyAdminPatch {

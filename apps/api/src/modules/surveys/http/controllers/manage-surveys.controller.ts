@@ -36,12 +36,24 @@ export class ManageSurveysController {
   ) {
     // Integración T5.3: crear siempre inicia en BORRADOR; la publicación se
     // realiza mediante el endpoint separado para evitar estados ambiguos.
+    if (body.allCareers) {
+      // Una encuesta por carrera del administrador («Todas las carreras»).
+      return {
+        data: await this.repository.createManagedForAllCareers(actor.id, actor.scopes.careerIds, {
+          title: body.title,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          format: body.format,
+        }),
+      };
+    }
     return {
       data: await this.repository.createManaged(actor.id, actor.scopes.careerIds, {
         title: body.title,
         startDate: body.startDate,
         endDate: body.endDate,
         format: body.format,
+        ...(body.careerId ? { careerId: body.careerId } : {}),
       }),
     };
   }

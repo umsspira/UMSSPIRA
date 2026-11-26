@@ -1,7 +1,7 @@
 import { authenticatedFetch, SessionError } from '@/shared/services/auth-session';
 import { assertHeatmapData, createHeatmapHttpLoader } from './competency-heatmap.service';
 import { heatmapMockupFixture } from '../components/competency-heatmap/__fixtures__/competency-heatmap.fixture';
-import { adaptCompetencyHeatmap } from './competency-heatmap.adapter';
+import { adaptCompetencyHeatmap, loadCompetencyHeatmapForCohort } from './competency-heatmap.adapter';
 
 jest.mock('@/shared/services/auth-session', () => {
   const actual = jest.requireActual('@/shared/services/auth-session');
@@ -75,5 +75,16 @@ describe('Integración futura de T2.1: servicio aislado', () => {
     http.mockResolvedValue({ status: 401, ok: false } as Response);
     const load = createHeatmapHttpLoader({ endpoint: path, adapt: adapter });
     await expect(load(new AbortController().signal)).rejects.toBeInstanceOf(SessionError);
+  });
+
+  it('pide el mapa solo de la carrera elegida y de la cohorte (bug 2 del QA de la HU-002)', async () => {
+    const career = '10000000-0000-4000-8000-000000000002';
+    http.mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: { updatedAt: null, areas: [], cohorts: [], cells: [] } }) } as Response);
+    const signal = new AbortController().signal;
+    await loadCompetencyHeatmapForCohort('2023', career)(signal);
+    expect(http).toHaveBeenCalledWith(
+      `/api/v1/reports/accreditation/heatmap?careerId=${career}&cohorte=2023`,
+      { method: 'GET', cache: 'no-store', signal },
+    );
   });
 });
