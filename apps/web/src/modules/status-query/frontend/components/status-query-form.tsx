@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Mail, ShieldCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import {
   requestApplicationStatus,
@@ -99,22 +100,38 @@ export function StatusQueryForm() {
           <span className="text-truffle-trouble"> *</span>
         </label>
 
-        <input
-          id="status-query-email"
-          type="email"
-          autoComplete="email"
-          maxLength={254}
-          placeholder="alumni.sistemas@umss.edu.bo"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          aria-invalid={Boolean(emailError)}
-          aria-describedby={emailError ? "status-query-email-error" : undefined}
-          className={`w-full rounded-lg border bg-palladian px-3.5 py-3 text-sm text-abyssal-blue outline-none transition focus:border-burning-flame focus:bg-white focus:ring-2 focus:ring-burning-flame/30 ${
-            emailError
-              ? "border-truffle-trouble ring-2 ring-truffle-trouble"
-              : "border-oatmeal"
-          }`}
-        />
+        <div className="relative">
+          <Mail
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-abyssal-blue/55"
+          />
+          <input
+            id="status-query-email"
+            type="email"
+            autoComplete="email"
+            maxLength={254}
+            placeholder="alumni.sistemas@umss.edu.bo"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            aria-invalid={Boolean(emailError)}
+            aria-describedby={
+              emailError ? "status-query-email-error" : "status-query-email-help"
+            }
+            className={`w-full rounded-lg border bg-palladian py-3 pl-10 pr-3.5 text-sm text-abyssal-blue outline-none transition focus:border-burning-flame focus:bg-white focus:ring-2 focus:ring-burning-flame/30 ${
+              emailError
+                ? "border-truffle-trouble ring-2 ring-truffle-trouble"
+                : "border-oatmeal"
+            }`}
+          />
+        </div>
+
+        <p
+          id="status-query-email-help"
+          className="text-xs leading-relaxed text-abyssal-blue/65"
+        >
+          Usaremos este correo únicamente para enviar la notificación de estado.
+          No mostraremos el resultado en esta pantalla.
+        </p>
 
         {emailError && (
           <p
@@ -143,6 +160,17 @@ export function StatusQueryForm() {
       >
         {state === "sending" ? "Solicitando..." : "Solicitar estado"}
       </button>
+
+      <div className="flex items-start gap-2.5 rounded-lg border border-oatmeal bg-palladian px-3.5 py-3 text-xs leading-relaxed text-abyssal-blue/75">
+        <ShieldCheck
+          aria-hidden="true"
+          className="mt-0.5 h-4 w-4 shrink-0 text-abyssal-blue/60"
+        />
+        <p>
+          Por seguridad, el portal no confirma si el correo tiene una solicitud.
+          La información se envía solo a la dirección verificada.
+        </p>
+      </div>
 
       <p className="text-center text-xs">
         <Link

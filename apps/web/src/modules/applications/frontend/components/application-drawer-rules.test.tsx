@@ -18,6 +18,34 @@ describe('T-11.3 acciones del administrador', () => {
     jest.clearAllMocks();
     (fetchDocumentUrl as jest.Mock).mockResolvedValue({ ok: true, data: { url: 'https://example.com/file.pdf' } });
   });
+  it('alinea el dictamen con la barra y mantiene el fondo a pantalla completa', async () => {
+    (fetchApplicationDetail as jest.Mock).mockResolvedValue({ ok: true, data: {
+      id: 'id', status: 'PENDIENTE',
+    } });
+    const screenWithDrawer = (open: boolean) => (
+      <div className="dashboard-container">
+        <header>Barra de navegación</header>
+        <main><ApplicationDrawer open={open} applicationId="id" onClose={jest.fn()} /></main>
+      </div>
+    );
+    const { rerender } = render(screenWithDrawer(false));
+    const navbar = screen.getByRole('banner');
+    let bottom = 35;
+    jest.spyOn(navbar, 'getBoundingClientRect').mockImplementation(() => ({ bottom } as DOMRect));
+
+    rerender(screenWithDrawer(true));
+    const drawer = screen.getByRole('dialog');
+    const backdrop = drawer.previousElementSibling as HTMLElement;
+    expect(drawer).toHaveStyle({ top: '35px' });
+    expect(backdrop).toHaveClass('fixed', 'inset-0');
+    expect(backdrop.style.top).toBe('');
+    bottom = 71;
+    fireEvent(window, new Event('resize'));
+    expect(drawer).toHaveStyle({ top: '71px' });
+    expect(backdrop.style.top).toBe('');
+    await screen.findByRole('button', { name: 'Aprobar' });
+  });
+
   it.each([0, 1, 2, 3])('aplica el límite con %i observaciones', async (observations) => {
     (fetchApplicationDetail as jest.Mock).mockResolvedValue({ ok: true, data: {
       id: 'id', status: 'PENDIENTE', firstName: 'Ana', lastName: 'Perez',

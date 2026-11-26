@@ -20,6 +20,7 @@ describe('PrismaObservedApplicationRepository', () => {
     email: 'carlos@example.com',
     telefono: '77777777',
     id_carrera: 'career-1',
+    carrera: { nombre: 'Ingeniería de Sistemas' },
     anio_egreso: 2024,
     desea_mentor: true,
     fecha_titulacion: new Date('2024-05-10T00:00:00Z'),
@@ -237,6 +238,8 @@ describe('PrismaObservedApplicationRepository', () => {
       expect(result.id).toBe(applicationId);
       expect(result.version).toBe(2);
       expect(result.nombres).toBe('Carlos');
+      expect(result.carreraId).toBe('career-1');
+      expect(result.carreraNombre).toBe('Ingeniería de Sistemas');
       expect(result.observacion.categoria).toBe('documento_ilegible');
       expect(result.documento?.nombre).toBe('diploma.pdf');
       expect((result.documento as unknown as Record<string, unknown>).ruta_storage).toBeUndefined();

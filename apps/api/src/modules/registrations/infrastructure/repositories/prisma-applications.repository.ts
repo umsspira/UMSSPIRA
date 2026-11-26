@@ -32,12 +32,29 @@ import {
   resolveApplicationPeriod,
   todayRange,
   urgentCutoff,
+  type DateRange,
 } from '../../domain/policies/application-period.policy';
 
 export function scopedApplication(actor: ActorContext, id?: string): Prisma.SolicitudWhereInput {
   return {
     ...(id ? { id } : {}),
     detalle_solicitud: { is: { id_carrera: { in: actor.scopes.careerIds } } },
+  };
+}
+
+function submittedWithin(range: DateRange): Prisma.SolicitudWhereInput {
+  const resend = { accion: 'REENVIO' };
+  return {
+    OR: [
+      { fecha_creacion: { ...range, not: null }, historial_eventos: { none: resend } },
+      {
+        historial_eventos: {
+          some: { ...resend, creado_en: range },
+          // Un reenvío posterior al rango invalida cualquier coincidencia anterior.
+          ...(range.lt ? { none: { ...resend, creado_en: { gte: range.lt } } } : {}),
+        },
+      },
+    ],
   };
 }
 
@@ -141,14 +158,15 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
 
       matchingIds = matchingRows.map(({ id }) => id);
     }
+    const now = new Date();
     const overdue: Prisma.SolicitudWhereInput = {
       estado: 'PENDIENTE',
-      fecha_creacion: { lt: new Date(Date.now() - 48 * 3600000) },
+      ...submittedWithin({ lt: urgentCutoff(now) }),
     };
     const period = query.period
       ? resolveApplicationPeriod(
           { period: query.period, year: query.year, from: query.from, to: query.to },
-          new Date(),
+          now,
         )
       : undefined;
 
@@ -163,38 +181,52 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
           : query.age === 'within48'
             ? [{ NOT: overdue }]
             : []),
-        ...(period ? [{ fecha_creacion: period }] : []),
+        ...(period ? [submittedWithin(period)] : []),
       ],
     };
-    // Primero pendientes antiguos; luego expedientes dictaminados recientes.
-    const [total, pending] = await this.prisma.$transaction([
-      this.prisma.solicitud.count({ where }),
-      this.prisma.solicitud.count({ where: { AND: [where, { estado: 'PENDIENTE' }] } }),
-    ]);
-    const offset = (query.page - 1) * query.pageSize;
-    const pendingRows =
-      offset < pending
-        ? await this.prisma.solicitud.findMany({
-            where: { AND: [where, { estado: 'PENDIENTE' }] },
+    const urgentWhere = { AND: [where, overdue] };
+    const pendingWhere = { AND: [where, { estado: 'PENDIENTE' }] };
+    const { total, rows } = await this.prisma.$transaction(async (tx) => {
+      const [total, pending, urgent] = await Promise.all([
+        tx.solicitud.count({ where }),
+        tx.solicitud.count({ where: pendingWhere }),
+        tx.solicitud.count({ where: urgentWhere }),
+      ]);
+      const groups: { where: Prisma.SolicitudWhereInput; count: number; order: Prisma.SortOrder }[] = [
+        { where: urgentWhere, count: urgent, order: 'asc' },
+        {
+          where: { AND: [pendingWhere, { NOT: overdue }] },
+          count: pending - urgent,
+          order: 'asc',
+        },
+        {
+          where: { AND: [where, { estado: { not: 'PENDIENTE' } }] },
+          count: total - pending,
+          order: 'desc',
+        },
+      ];
+      let offset = (query.page - 1) * query.pageSize;
+      let remaining = query.pageSize;
+      const rows = [];
+      for (const group of groups) {
+        const take = Math.min(remaining, group.count - offset);
+        if (take > 0) {
+          const groupRows = await tx.solicitud.findMany({
+            where: group.where,
             include: applicationInclude,
-            orderBy: [{ fecha_creacion: 'asc' }, { id: 'asc' }],
+            orderBy: [{ fecha_creacion: group.order }, { id: 'asc' }],
             skip: offset,
-            take: query.pageSize,
-          })
-        : [];
-    const remaining = query.pageSize - pendingRows.length;
-    const otherRows =
-      remaining > 0
-        ? await this.prisma.solicitud.findMany({
-            where: { AND: [where, { estado: { not: 'PENDIENTE' } }] },
-            include: applicationInclude,
-            orderBy: [{ fecha_creacion: 'desc' }, { id: 'asc' }],
-            skip: Math.max(0, offset - pending),
-            take: remaining,
-          })
-        : [];
+            take,
+          });
+          rows.push(...groupRows);
+          remaining -= take;
+        }
+        offset = Math.max(0, offset - group.count);
+      }
+      return { total, rows };
+    }, { isolationLevel: 'RepeatableRead' });
     return {
-      items: [...pendingRows, ...otherRows].map(toApplication),
+      items: rows.map(toApplication),
       total,
       page: query.page,
       pageSize: query.pageSize,
@@ -206,10 +238,10 @@ export class PrismaApplicationsRepository implements ApplicationsRepository {
     const scope = scopedApplication(actor);
     const today = todayRange(now);
     const [receivedToday, pending, urgent, resolved] = await this.prisma.$transaction([
-      this.prisma.solicitud.count({ where: { AND: [scope, { fecha_creacion: today }] } }),
+      this.prisma.solicitud.count({ where: { AND: [scope, submittedWithin(today)] } }),
       this.prisma.solicitud.count({ where: { AND: [scope, { estado: 'PENDIENTE' }] } }),
       this.prisma.solicitud.count({
-        where: { AND: [scope, { estado: 'PENDIENTE', fecha_creacion: { lt: urgentCutoff(now) } }] },
+        where: { AND: [scope, { estado: 'PENDIENTE', ...submittedWithin({ lt: urgentCutoff(now) }) }] },
       }),
       // Una solicitud con varios dictámenes el mismo día se cuenta una sola vez.
       this.prisma.dictamen.findMany({

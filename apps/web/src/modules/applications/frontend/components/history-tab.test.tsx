@@ -176,12 +176,15 @@ describe('HistoryTab integrado en el expediente', () => {
     documentName: 'titulo.pdf', documentUrl: '/document.pdf', checklist: [],
   };
 
-  it('mantiene el panel OCR original con fecha, comparación, sugerencia, motivo y versión', async () => {
+  it('muestra la comparación OCR y conserva la sugerencia, el motivo, la fecha y la versión en los detalles', async () => {
     fetchHistory.mockResolvedValue({ ok: true, data: populated() });
     jest.mocked(ocrRequest).mockResolvedValue([completed]);
     render(<ApplicationDetail application={application} history={<HistoryTab applicationId="app-1" />} />);
-    expect(await screen.findByText('Sugerencia: observar')).toBeVisible();
+    expect(await screen.findByText('Revisar hallazgos')).toBeVisible();
     const panel = screen.getByText('Análisis automático del respaldo (OCR)').closest('details')!;
+    expect(within(panel).getByText('Sugerencia: observar')).not.toBeVisible();
+    fireEvent.click(within(panel).getByText('Detalles del análisis'));
+    expect(within(panel).getByText('Sugerencia: observar')).toBeVisible();
     expect(within(panel).getByText('Diferencias en el documento')).toBeVisible();
     expect(within(panel).getByText(/Versión 1/)).toHaveTextContent(new Date(at).toLocaleString('es-BO', { timeZone: 'America/La_Paz' }));
     expect(within(panel).getByRole('table')).toHaveTextContent('123456');

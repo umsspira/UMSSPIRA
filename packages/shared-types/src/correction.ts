@@ -39,6 +39,7 @@ export interface ObservedApplicationDetail {
   correo: string;
   telefono: string;
   carreraId: string;
+  carreraNombre?: string | null;
   anioEgreso: number;
   deseaMentor: boolean;
   fechaTitulacion?: string | null;

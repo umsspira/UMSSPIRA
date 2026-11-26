@@ -11,6 +11,8 @@ import {
 } from '@/modules/registration/frontend/components/review-summary-section';
 import { EXPEDITION_LABELS } from '@/modules/registration/frontend/validation/personal-data.schema';
 import type { CorrectionResult, CorrectionValues } from '../hooks/use-observed-correction';
+import { PreviousDocumentPreview } from './previous-document-preview';
+import { CorrectionDocumentPreview } from './correction-document-preview';
 import {
   resubmitObservedApplication,
   type ResubmitProgress,
@@ -20,7 +22,9 @@ type Props = {
   token: string;
   version: number;
   result: CorrectionResult;
+  careerName: string | null;
   currentDocument: { name: string };
+  hasPreviousDocument: boolean;
   onBack: () => void;
 };
 
@@ -41,7 +45,9 @@ const BLOCKED_MESSAGES = {
 const alertClass =
   'mt-5 rounded-lg border border-truffle-trouble/40 bg-truffle-trouble/10 p-3 text-sm font-medium text-truffle-trouble';
 
-export function ObservedReviewSubmit({ token, version, result, currentDocument, onBack }: Props) {
+export function ObservedReviewSubmit({
+  token, version, result, careerName, currentDocument, hasPreviousDocument, onBack,
+}: Props) {
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
   useEffect(() => { setDeclarationAccepted(false); }, [result]);
@@ -158,7 +164,7 @@ export function ObservedReviewSubmit({ token, version, result, currentDocument, 
             <ReviewField label="Correo electrónico">{mark('email', values.email)}</ReviewField>
             <ReviewField label="Teléfono / WhatsApp">{mark('phone', values.phone)}</ReviewField>
             <ReviewField label="Carrera / Programa académico">
-              {mark('career', values.career)}
+              {mark('career', careerName || 'Nombre de carrera no disponible')}
             </ReviewField>
             <ReviewField label="Año de egreso / conclusión">
               {mark('graduationYear', values.graduationYear)}
@@ -181,7 +187,7 @@ export function ObservedReviewSubmit({ token, version, result, currentDocument, 
               {mark('documentType', values.documentType)}
             </ReviewField>
             <ReviewField label="Nombre del archivo">
-              {file ? file.name : currentDocument.name}
+              {file?.name ?? (hasPreviousDocument ? currentDocument.name : '—')}
               {file && (
                 <span className="ml-2 rounded bg-burning-flame/30 px-1.5 py-0.5 text-[10px] font-bold">
                   Reemplazado
@@ -189,6 +195,9 @@ export function ObservedReviewSubmit({ token, version, result, currentDocument, 
               )}
             </ReviewField>
           </dl>
+          {file
+            ? <CorrectionDocumentPreview file={file} />
+            : <PreviousDocumentPreview token={token} available={hasPreviousDocument} />}
         </ReviewSection>
 
         <ReviewDeclaration checked={declarationAccepted} onChange={setDeclarationAccepted} disabled={sending} />

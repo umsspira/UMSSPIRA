@@ -37,4 +37,10 @@ export function toRegistrationFile(row: ArchivoRegistro): RegistrationFile {
 export const applicationInclude = {
   detalle_solicitud: { include: { carrera: true } },
   registro: { include: { archivo: { select: { id: true, nombre: true, mime: true } } } },
+  historial_eventos: {
+    where: { accion: 'REENVIO' },
+    orderBy: { creado_en: 'desc' },
+    take: 1,
+    select: { creado_en: true },
+  },
 } satisfies Prisma.SolicitudInclude;

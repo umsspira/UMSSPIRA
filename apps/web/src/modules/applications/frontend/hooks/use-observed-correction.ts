@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   DOCUMENT_ERROR_MESSAGES,
   validateDocumentFile,
@@ -58,6 +58,8 @@ function validateField(name: keyof CorrectionValues, value: string): string | nu
 export function useObservedCorrection(initial: CorrectionValues) {
   const [values, setValues] = useState<CorrectionValues>(initial);
   const [file, setFileState] = useState<File | null>(null);
+  const [validatingFile, setValidatingFile] = useState(false);
+  const fileSelection = useRef(0);
   const [errors, setErrors] = useState<CorrectionErrors>({});
 
   const changedFields = useMemo(
@@ -82,14 +84,17 @@ export function useObservedCorrection(initial: CorrectionValues) {
   }, []);
 
   const setFile = useCallback(async (next: File | null) => {
+    const selection = ++fileSelection.current;
+    setFileState(null);
+    setValidatingFile(Boolean(next));
     if (!next) {
       // No limpiar el error: el dropzone llama a onFileSelect(null) justo después de rechazar un archivo.
-      setFileState(null);
       return;
     }
-    const kind = await validateDocumentFile(next);
+    const kind = await validateDocumentFile(next).catch(() => null);
+    if (selection !== fileSelection.current) return;
+    setValidatingFile(false);
     if (!kind) {
-      setFileState(null);
       setErrors((prev) => ({ ...prev, file: DOCUMENT_ERROR_MESSAGES.invalidFile }));
       return;
     }
@@ -111,6 +116,7 @@ export function useObservedCorrection(initial: CorrectionValues) {
   return {
     values,
     file,
+    validatingFile,
     errors,
     hasChanges,
     emailChanged,
