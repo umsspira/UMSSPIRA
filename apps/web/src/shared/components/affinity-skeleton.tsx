@@ -17,7 +17,7 @@ export const AffinitySkeleton: React.FC = () => {
       aria-live="polite"
       aria-label="Cargando tu radar de afinidad"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-7 bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-oatmeal">
           <div className="flex items-center justify-between border-b border-palladian pb-4 mb-4">
             <div className="h-4 w-40 rounded bg-palladian animate-pulse" />

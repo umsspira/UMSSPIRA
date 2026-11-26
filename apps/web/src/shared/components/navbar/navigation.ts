@@ -16,14 +16,6 @@ const signedIn = ['titulado', 'empresa', 'administrador'] as const;
 
 /** Agregar destinos aquí mantiene iguales los menús de escritorio y móvil. */
 export const NAVBAR_SECTIONS: NavbarSection[] = [
-  { id: 'community', label: 'Comunidad', items: [
-    { id: 'inst-comunidad', label: 'Comunidad institucional', href: '/portal/institucional?tab=comunidad', guestOnly: true },
-    { id: 'inst-carreras', label: 'Carreras', href: '/portal/institucional?tab=carreras', guestOnly: true },
-    { id: 'institutional', label: 'Sobre nosotros', href: '/portal/institucional?tab=nosotros', guestOnly: true },
-    { id: 'portal', label: 'Portal de egresados', href: '/portal', roles: signedIn },
-    { id: 'community', label: 'Comunidad de egresados', href: '/portal/comunidad', roles: signedIn },
-    { id: 'benefits', label: 'Beneficios y convenios', href: '/portal/beneficios', roles: signedIn },
-  ] },
   { id: 'directory', label: 'Directorio', items: [
     { id: 'graduate-directory', label: 'Directorio de egresados', href: '/portal/institucional?tab=directorio', roles: signedIn, hidden: true },
     { id: 'profile', label: 'Mi perfil profesional', href: '/profile', roles: members },
@@ -111,7 +103,7 @@ export function isCurrentDestination(href: string, currentPath: string) {
 }
 
 /**
- * La coincidencia más específica evita activar Comunidad por todos sus /portal/*.
+ * La coincidencia más específica evita activar una sección por todos sus /portal/*.
  * Los enlaces con query (?tab=...) solo coinciden si la query actual también los incluye,
  * y ganan sobre los enlaces sin query de la misma ruta.
  */
@@ -130,13 +122,39 @@ export function activeSection(path: string, search = ''): string | null {
 }
 
 /**
- * Con sesión iniciada, Comunidad, Eventos y Bolsa de trabajo (titulado) no despliegan opciones:
+ * Con sesión iniciada, Eventos y Bolsa de trabajo (titulado) no despliegan opciones:
  * el botón lleva directo a su panel.
  */
 export function directHref(sectionId: string, role: NavbarRole | null): string | null {
   if (role === null) return null;
-  if (sectionId === 'community') return '/portal/comunidad';
   if (sectionId === 'events' && role === 'titulado') return '/portal/eventos';
   if (sectionId === 'jobs' && role === 'titulado') return '/job-postings';
   return null;
+}
+
+/** Una opción del menú principal: la misma para la barra de escritorio y para el menú móvil (HU15 CA-01/CA-03). */
+export interface PrimaryNavItem {
+  id: string;
+  label: string;
+  /** Si existe, la opción es un enlace directo; si no, despliega `items`. */
+  href?: string;
+  items: NavbarLink[];
+}
+
+/**
+ * Única fuente de las opciones de navegación: Inicio + secciones según el rol.
+ * La barra de escritorio y el menú móvil solo cambian la presentación, nunca la lista (HU15).
+ */
+export function primaryNavigation(role: NavbarRole | null, home: string, activeMentor = false): PrimaryNavItem[] {
+  // Empresa y administrador trabajan desde sus propios paneles: "Inicio" (portal de titulados) no aplica.
+  const showHome = role !== 'empresa' && role !== 'administrador';
+  return [
+    ...(showHome ? [{ id: 'home', label: 'Inicio', href: home, items: [] as NavbarLink[] }] : []),
+    ...navigationFor(role, activeMentor).map(section => ({
+      id: section.id,
+      label: section.label,
+      href: directHref(section.id, role) ?? undefined,
+      items: section.items,
+    })),
+  ];
 }

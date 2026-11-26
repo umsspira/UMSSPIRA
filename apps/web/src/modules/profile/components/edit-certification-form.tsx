@@ -120,7 +120,7 @@ function EditCertificationFields({ certification }: { certification: Certificati
   function handleDocumentChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    // El accept del input se puede saltar: mismas reglas que el backend (PDF o JPG, máximo 5 MB)
+    // El accept del input se puede saltar: mismas reglas que el backend (PDF o JPG, máximo 4 MB)
     const error = validateBackupFile(file);
     setDocumentError(error);
     if (error) return;
@@ -248,7 +248,6 @@ function EditCertificationFields({ certification }: { certification: Certificati
       <BackupField
         documentName={documentName}
         documentUrl={documentUrl}
-        isVerified={Boolean(documentName) && !isNewDocument && Boolean(certification.backupVerified)}
         onDocumentChange={handleDocumentChange}
         onDocumentRemove={pendingDocument ? handleDocumentRemove : undefined}
         // Un archivo recién elegido aún no está en la API: se sigue abriendo con su enlace local

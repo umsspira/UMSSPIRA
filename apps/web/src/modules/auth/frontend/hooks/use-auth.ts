@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { clearPendingLogout } from "@/features/event-passes/offline/offline-session";
 import { useRouter } from "next/navigation";
 import { authStore, useAuthStore } from "../store";
 import { clearAccessToken, setAccessToken } from "@/shared/services/auth-session";
@@ -21,6 +22,7 @@ export function useAuth() {
       authStore.setState({ status: "loading", error: null });
       try {
         const { role, accessToken } = await login({ ...credentials, remember });
+        clearPendingLogout();
         authStore.setState({ status: "authenticated", role, accessToken });
         saveSession(accessToken, role, remember);
         setAccessToken(accessToken);

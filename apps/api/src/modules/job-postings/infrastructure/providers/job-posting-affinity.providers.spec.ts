@@ -63,7 +63,7 @@ describe('HU10: composición real de lectores, NLP y cálculo', () => {
     return module.get(CalculateJobPostingAffinity).execute({ profile: profiles[0], vacancies });
   }
 
-  it('resuelve dependencias y calcula con perfil real y una sola extracción, sin BD', async () => {
+  it('resuelve dependencias y calcula con perfil real extraído una sola vez, sin BD', async () => {
     const extract = jest.spyOn(module.get(KeywordExtractorService), 'extract');
     const results = await calculate();
     expect(results.map((item) => item.result.percentage)).toEqual([50, 100, 0, null]);
@@ -73,7 +73,9 @@ describe('HU10: composición real de lectores, NLP y cálculo', () => {
       matchedSkill: 'javascript',
       result: 'exact',
     });
-    expect(extract).toHaveBeenCalledTimes(1);
+    // HU-11: el perfil se procesa una vez por campo (no por vacante) y cada requisito pasa por el NLP
+    expect(extract.mock.calls.filter(([text]) => text === 'machine\nlearning')).toHaveLength(1);
+    expect(extract.mock.calls.filter(([text]) => text === 'Machine Learning')).toHaveLength(1);
     expect(database.titulado.findMany).toHaveBeenCalledTimes(1);
     expect(database.vacante.findMany).toHaveBeenCalledTimes(1);
     expect(dictionary.load).toHaveBeenCalledTimes(1);

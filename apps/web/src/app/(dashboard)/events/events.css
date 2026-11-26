@@ -448,6 +448,24 @@
 .events-create-button,
 .events-inactive-button { width: 168px; }
 .events-inactive-button { white-space: nowrap; }
+.event-reminder-global-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 24px;
+  margin-top: 16px;
+  border: 1px solid #d5ccbd;
+  border-radius: 12px;
+  background: #fff;
+  padding: 16px;
+}
+.event-reminder-global-panel h2 { margin: 0; color: #1b2632; font-size: 16px; }
+.event-reminder-global-panel p { margin: 5px 0 0; color: #536171; font-size: 13px; }
+.event-reminder-global-panel form { display: flex; align-items: end; gap: 8px; }
+.event-reminder-global-panel label { display: grid; gap: 4px; color: #2c3b4d; font-size: 12px; font-weight: 600; }
+.event-reminder-global-panel input { width: 116px; min-height: 40px; border: 1px solid #c9c1b1; border-radius: 8px; padding: 8px; }
+.event-reminder-global-panel .event-reminder-global-help { grid-column: 1 / -1; margin: 0; }
+.event-reminder-global-panel [role="alert"] { color: #a35139; }
+.event-reminder-global-panel [role="status"] { grid-column: 1 / -1; }
 
 .event-admin-tabs {
   display: none;
@@ -901,6 +919,11 @@
   .events-title-row p,
   .event-create-heading p { margin-top: 4px; overflow-wrap: anywhere; font-size: 14px; line-height: 19px; font-weight: 400; }
   .events-title-actions { display: none; }
+  .events-management .events-title-actions { display: flex; flex-wrap: wrap; margin-top: 12px; }
+  .events-management .events-title-actions > * { flex: 1 1 130px; width: auto; }
+  .event-reminder-global-panel { grid-template-columns: 1fr; }
+  .event-reminder-global-panel form { align-items: end; flex-wrap: wrap; }
+  .event-reminder-global-panel .event-reminder-global-help { grid-column: auto; }
   .event-admin-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
   .event-admin-tabs a { display: flex; min-width: 0; min-height: 44px; align-items: center; justify-content: center; border: 1px solid #c9c1b1; border-radius: 10px; background: #fff; padding: 4px; color: #2c3b4d; font-size: clamp(10px, 3.2vw, 12px); font-weight: 600; text-align: center; text-decoration: none; }
   .event-admin-tabs a.is-active { border-color: #2c3b4d; background: #2c3b4d; color: #fff; }
@@ -2491,6 +2514,11 @@
   font-weight: 600;
   white-space: nowrap;
   text-decoration: none;
+}
+
+.hu2-catalog-tabs a.is-active {
+  border-color: #ffb162;
+  background: #ffb162;
 }
 
 .hu9-filter-bar {

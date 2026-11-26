@@ -2,28 +2,72 @@
 
 import { useEffect, useState } from 'react';
 import { registerServiceWorker } from './register-sw';
+import { ActionNotice } from '@/shared/components/action-notice';
+
+type UpdatePhase = 'idle' | 'loading' | 'error';
 
 export default function ServiceWorkerRegister() {
   const [apply, setApply] = useState<(() => void) | null>(null);
+  const [phase, setPhase] = useState<UpdatePhase>('idle');
+  const [postponed, setPostponed] = useState(false);
 
   useEffect(() => {
     registerServiceWorker((applyUpdate) => setApply(() => applyUpdate));
   }, []);
 
-  if (!apply) return null;
+  // HU10: si la nueva versión no se activa a tiempo se avisa con «Reintentar».
+  useEffect(() => {
+    if (phase !== 'loading') return;
+    const timeoutId = setTimeout(() => setPhase('error'), 10000);
+    return () => clearTimeout(timeoutId);
+  }, [phase]);
+
+  // HU06 CA-03/04: «Más tarde» oculta el aviso; la versión sigue en espera y vuelve a avisar en la próxima visita.
+  if (!apply || postponed) return null;
+
+  const handleApply = () => {
+    if (phase === 'loading') return;
+    setPhase('loading');
+    apply();
+  };
 
   return (
-    <div
-      role="status"
-      className="fixed bottom-20 lg:bottom-4 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-3 rounded-xl bg-slate-900 p-4 text-white shadow-lg"
-    >
-      <span className="text-sm">Hay una versión nueva disponible.</span>
-      <button
-        onClick={apply}
-        className="min-h-[44px] rounded-lg bg-amber-500 px-4 text-sm font-semibold text-slate-900"
-      >
-        Actualizar
-      </button>
+    <div className="fixed bottom-20 lg:bottom-4 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 shadow-lg">
+      {phase === 'idle' && (
+        <div
+          role="status"
+          className="flex items-center justify-between gap-3 rounded-xl bg-slate-900 p-4 text-white"
+        >
+          <span className="text-sm">Hay una versión nueva disponible.</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => setPostponed(true)}
+              className="min-h-[44px] rounded-lg border border-slate-500 px-3 text-sm font-semibold text-white"
+            >
+              Más tarde
+            </button>
+            <button
+              onClick={handleApply}
+              className="min-h-[44px] rounded-lg bg-amber-500 px-4 text-sm font-semibold text-slate-900"
+            >
+              Actualizar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {phase === 'loading' && (
+        <ActionNotice state="loading" message="Actualizando la aplicación…" />
+      )}
+
+      {phase === 'error' && (
+        <ActionNotice
+          state="error"
+          message="No se pudo actualizar la aplicación"
+          description="Inténtalo nuevamente."
+          onRetry={handleApply}
+        />
+      )}
     </div>
   );
 }

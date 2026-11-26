@@ -12,6 +12,8 @@ import { seedEpic6 } from './epic-6';
 import { seedEpic7 } from './epic-7';
 import { seedEpic8 } from './epic-8';
 import { seedEpic9 } from './epic-9';
+import { seedHu19 } from './hu19-demo';
+import { seedProfileTestAccounts } from './profile-accounts';
 import { seedQaSecondCareer } from './qa-second-career';
 
 async function seedDemo(): Promise<void> {
@@ -24,6 +26,10 @@ async function seedDemo(): Promise<void> {
     { name: 'base compartida', run: seedBase },
     { name: 'épica 1', run: seedEpic1 },
     { name: 'épica 2', run: seedEpic2 },
+    {
+      name: 'épica 2 · cuentas de titulado con perfil vacío, parcial y completo',
+      run: seedProfileTestAccounts,
+    },
     { name: 'épica 6', run: seedEpic6 },
     { name: 'épica 3', run: seedEpic3 },
     { name: 'épica 4', run: seedEpic4 },
@@ -31,6 +37,7 @@ async function seedDemo(): Promise<void> {
     { name: 'épica 7', run: seedEpic7 },
     { name: 'épica 8', run: seedEpic8 },
     { name: 'épica 9', run: seedEpic9 },
+    { name: 'épica 5 · HU-19 (vacantes con requisitos, perfiles y postulaciones)', run: seedHu19 },
     { name: 'QA segunda carrera y radar', run: seedQaSecondCareer },
   ];
 
@@ -40,12 +47,22 @@ async function seedDemo(): Promise<void> {
       await step.run(prisma);
     }
     console.info('Demostración preparada. Los registros existentes conservaron sus datos.');
+  } catch (error: unknown) {
+    // --- INICIO DE LA MODIFICACIÓN PARA VER EL ERROR REAL ---
+    console.error('\n❌ ==========================================');
+    console.error('❌ ERROR REAL CAPTURADO EN EL SEED');
+    console.error('❌ ==========================================');
+    console.dir(error, { depth: null }); // Esto imprimirá TODO el objeto de error
+    console.error('==========================================\n');
+    throw error;
+    // --- FIN DE LA MODIFICACIÓN ---
   } finally {
     await prisma.$disconnect();
   }
 }
 
 void seedDemo().catch((error: unknown) => {
+  // Dejamos el catch original por si acaso, pero el error real ya se imprimió arriba
   const message =
     error instanceof Error && error.message.startsWith('El seed de demostración')
       ? error.message

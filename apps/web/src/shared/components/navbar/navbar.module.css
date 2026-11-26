@@ -132,3 +132,97 @@
 .public .active, .public .topLink:hover, .public .trigger:hover { color:#ffb162; }
 .root.public .login { color:#eee9df; border-color:#4b5b6e; }
 .root.public .login:hover { background:#2c3b4d; }
+
+/* ===== HU13: centro de notificaciones y ventanas de avisos push ===== */
+.activityPanel .noticeHeader { padding:16px 16px 12px; border-bottom:1px solid #c9c1b1; }
+.activityPanel .noticeHeader h2 { padding:0; border:0; font-size:16px; }
+.noticeHeader p { margin:4px 0 0; font-size:11px; color:#5b6878; }
+.activityPanel .noticeList { display:grid; gap:10px; padding:12px 14px; max-height:50dvh; overflow:auto; }
+.activityPanel .noticeList li+li { border-top:0; }
+.noticeCard { display:flex; flex-direction:column; padding:12px; border:1px solid #c9c1b1; border-left:3px solid #ffb162; border-radius:8px; background:#f3efe7; }
+.noticeCard strong { display:block; font-size:12px; }
+.noticeCard small { display:block; margin-top:5px; font-size:11px; line-height:1.6; color:#2c3b4d; }
+.noticeCard time { display:block; margin-top:6px; color:#727b81; font-size:10px; }
+.root .noticeAction { align-self:flex-end; margin-top:8px; padding:6px 14px; border-radius:6px; background:#ffb162; color:#1b2632; font-size:11px; font-weight:700; text-decoration:none; }
+.root button.noticeAction { border:0; cursor:pointer; }
+.root .noticeAction:hover { background:#e99541; }
+.noticeStatus { margin:0; padding:12px 16px; border-top:1px solid #c9c1b1; font-size:11px; color:#5b6878; }
+.noticeActions { display:flex; gap:8px; padding:0 14px 14px; }
+.notificationControl { position:relative; display:flex; align-items:center; z-index:60; }
+.notificationIconButton { position:relative; display:inline-flex; align-items:center; justify-content:center; width:36px; height:44px; padding:0; border:0; border-radius:5px; background:transparent; color:#fff; cursor:pointer; }
+.notificationIconButton:hover { color:#ffb162; }
+.notificationControl .notificationPopover { top:calc(100% + 10px); right:0; }
+.notificationControl .noticeAction { align-self:flex-end; margin-top:8px; padding:6px 14px; border:0; border-radius:6px; background:#ffb162; color:#1b2632; font-size:11px; font-weight:700; text-decoration:none; cursor:pointer; }
+.notificationControl .noticeAction:hover { background:#e99541; }
+.notificationControl .noticePrimary, .notificationControl .noticeSecondary { flex:1; min-height:38px; padding:8px 10px; border-radius:6px; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer; }
+.notificationControl .noticePrimary { border:1px solid #ffb162; background:#ffb162; color:#1b2632; }
+.notificationControl .noticePrimary:hover:not(:disabled) { background:#e99541; }
+.notificationControl .noticeSecondary { border:1px solid #c9c1b1; background:transparent; color:#2c3b4d; }
+.notificationControl .noticeSecondary:hover:not(:disabled) { background:#e7e1d7; }
+.notificationControl .noticePrimary:disabled, .notificationControl .noticeSecondary:disabled { opacity:.6; cursor:not-allowed; }
+.notificationControl .noticeFull { width:100%; flex:none; }
+.notificationToast { position:fixed; right:24px; bottom:24px; z-index:1000; display:flex; align-items:flex-start; gap:14px; width:min(390px,calc(100vw - 32px)); padding:16px; border:1px solid #344352; border-left:4px solid #ffb162; border-radius:10px; background:#1b2632; color:#eee9df; box-shadow:0 12px 32px #00000035; }
+.notificationToastCopy { min-width:0; flex:1; }
+.notificationToastCopy strong { display:block; font-size:13px; }
+.notificationToastCopy p { margin:6px 0 0; font-size:12px; line-height:1.5; }
+.notificationToastCopy a { display:inline-block; margin-top:9px; color:#ffb162; font-size:12px; font-weight:700; }
+.notificationToast>button { display:flex; align-items:center; justify-content:center; flex:0 0 30px; width:30px; height:30px; border:1px solid #687786; border-radius:50%; background:#2c3b4d; color:#fff; cursor:pointer; }
+.notificationToast>button:hover { border-color:#ffb162; background:#3a4b5b; color:#ffb162; }
+
+.noticeView { padding:16px; color:#2c3b4d; }
+.noticeEyebrow { margin:0 0 6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.activityPanel .noticeTitle { margin:0 0 10px; padding:0; border:0; font-size:18px; font-weight:700; line-height:1.3; }
+.noticeChip, .noticeChipOn { display:inline-block; margin-bottom:4px; padding:4px 11px; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.noticeChip { background:#d9d2c3; }
+.noticeChipOn { background:#ffb162; color:#1b2632; }
+.noticeDivider { margin:12px 0; border:0; border-top:1px solid #c9c1b1; }
+.noticeText { margin:0 0 8px; font-size:12px; line-height:1.6; }
+.noticeHint { margin:10px 0; font-size:11px; line-height:1.6; color:#5b6878; }
+.noticeRow { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; font-size:13px; }
+.noticeBadgeOff, .noticeBadgeOn { font-size:10px; font-weight:700; letter-spacing:.04em; }
+.noticeBadgeOff { color:#94503c; }
+.noticeBadgeOn { color:#237044; }
+.noticeError { margin:8px 0; font-size:12px; font-weight:600; color:#8b0000; }
+.noticeWarn { margin:10px 0; padding:10px; border-radius:6px; background:#f3e3d3; font-size:12px; line-height:1.6; color:#805026; }
+.noticeButtons { display:flex; gap:8px; }
+
+.root .noticePrimary, .root .noticeSecondary { flex:1; min-height:38px; padding:8px 10px; border-radius:6px; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer; }
+.root .noticePrimary { border:1px solid #ffb162; background:#ffb162; color:#1b2632; }
+.root .noticePrimary:hover:not(:disabled) { background:#e99541; }
+.root .noticeSecondary { border:1px solid #c9c1b1; background:transparent; color:#2c3b4d; }
+.root .noticeSecondary:hover:not(:disabled) { background:#e7e1d7; }
+.root .noticePrimary:disabled, .root .noticeSecondary:disabled { opacity:.6; cursor:not-allowed; }
+.root .noticeFull { width:100%; flex:none; }
+/* HU15 · navegación unificada. Bloque aislado: áreas táctiles de 44 px (CA-06), opción activa visible en el menú móvil (CA-02)
+   y sin desbordes desde 360 px (CA-04). Se puede quitar sin afectar el resto. */
+/* Áreas táctiles de 44 px en todos los anchos (equipos con pantalla táctil incluidos). */
+.root .iconButton, .root .mobileToggle { width:44px; min-width:44px; height:44px; }
+.root .login, .root .register { min-height:44px; }
+.actions { gap:4px; }
+@media(max-width:1260px) {
+  .root .accountTrigger { min-width:44px; min-height:44px; justify-content:center; }
+  .root .mobileSearch { display:none; }
+  .root .mobileActive { color:var(--navbar-accent); font-weight:650; box-shadow:inset 3px 0 0 var(--navbar-accent); padding-left:12px; }
+}
+@media(max-width:600px) {
+  .bar { padding:0 8px 0 14px; }
+  .root .logo { flex:0 1 112px; width:112px; min-width:0; }
+  .logo img { width:112px; height:40px; }
+  .actions { gap:0; padding-left:0; }
+  .root .login { min-height:44px; padding:0 10px; }
+}
+@media(max-width:420px) {
+  .root .searchButton { display:none; }
+  .root .mobileSearch { display:flex; }
+}
+
+
+/* Menú móvil como panel lateral derecho */
+@keyframes mobileDrawerIn { from { transform:translateX(100%); } to { transform:translateX(0); } }
+@media(max-width:1260px) {
+  .mobileNavigation { position:fixed; top:76px; right:0; left:auto; bottom:0; width:min(340px,86vw); height:calc(100dvh - 76px); max-height:none; overflow-y:auto; overscroll-behavior:contain; border-top:0; border-left:1px solid #83909b36; box-shadow:-10px 0 28px rgba(0,0,0,.35); animation:mobileDrawerIn .22s ease-out; z-index:60; }
+}
+@media(max-width:600px) {
+  .mobileNavigation { top:70px; height:calc(100dvh - 70px); max-height:none; }
+}
+@media(prefers-reduced-motion:reduce) { .mobileNavigation { animation:none; } }

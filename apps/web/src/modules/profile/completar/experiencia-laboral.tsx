@@ -18,7 +18,10 @@ export type Experiencia = {
   fechaFin?: string;
 };
 type FormularioExperienciaProps = {
+  // Trabajos ya registrados: se listan y cuentan para el máximo de 2 trabajos actuales (HU-21 CA-09)
   experiencias:Experiencia[];
+  // En Agregar registros no se listan (ya están en Mis registros), pero sí cuentan para el máximo (HU-13)
+  mostrarRegistradas?: boolean;
   // Si la promesa falla con ApiError (400...), se muestra su mensaje y no se limpia el formulario
   onAgregar: (experiencia: Experiencia) => void | Promise<void>;
   // Avisa cuántos errores hay a la vista, para el contador del encabezado de la sección (HU-02, AC 6)
@@ -56,6 +59,7 @@ function mostrarFecha(fecha: string) {
 
 export function FormularioExperiencia({
   experiencias,
+  mostrarRegistradas = true,
   onAgregar,
   onErroresChange,
   textoBoton = 'Agregar experiencia',
@@ -128,7 +132,7 @@ export function FormularioExperiencia({
   }
   return (
     <div className="flex flex-col gap-5">
-        {experiencias.length > 0 && (
+        {mostrarRegistradas && experiencias.length > 0 && (
         <ul className="flex flex-col gap-2">
           {ordenadas.map((experiencia, indice) => (
             <li

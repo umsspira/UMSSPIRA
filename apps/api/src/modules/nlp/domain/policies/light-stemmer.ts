@@ -6,8 +6,9 @@
  *   bases / base -> bas, redes / red -> red, automatizadas / automatizado -> automatizad,
  *   aplicaciones / aplicacion -> aplicacion, tests / testing / tested -> test.
  *
- * Es conservador a propósito: no toca tokens cortos (sql, aws, java) ni tokens con
- * símbolos (c++, c#, node.js), para no juntar tecnologías distintas.
+ * Es conservador a propósito: no toca tokens de menos de 4 letras (sql, aws) ni tokens con
+ * símbolos (c++, c#, node.js), para no juntar tecnologías distintas. «java» queda «jav»,
+ * que sigue siendo distinta de «javascript».
  */
 const ONLY_LETTERS = /^[a-z]+$/;
 const MIN_LENGTH_TO_STEM = 4;

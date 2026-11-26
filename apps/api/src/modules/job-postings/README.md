@@ -30,8 +30,13 @@ La completitud conserva provisionalmente la regla de postulación: un registro d
 cada sección y descripción no vacía. Su flexibilización queda pendiente del PO.
 La ausencia de habilidades reconocidas en un perfil completo produce 0 %.
 
-La política base compara términos exactos normalizados, cuenta cada requisito
-único una vez y redondea `cumplidos / total * 100` al entero más próximo.
+La política cuenta cada requisito único una vez y, desde la HU-11, compara con la
+similitud de `domain/policies/requirement-similarity.ts`: los requisitos pasan por el
+mismo NLP que el perfil (diccionario, alias y raíces). Una coincidencia exacta suma
+el 100 % del requisito y una parcial el 50 % (`MATCH_WEIGHTS`); el porcentaje se
+redondea al entero más próximo. El perfil se procesa una vez por campo para todas
+sus vacantes (`buildProfileIndex`). Detalle y ejemplos en
+`apps/api/docs/endpoints/epic5/HU11-similitud-avanzada.md`.
 `ready` incluye porcentaje, fecha ISO del servidor y comparación; `profile-incomplete`
 y `no-requirements` tienen porcentaje y fecha nulos y comparación vacía.
 Sin requisitos se devuelve `no-requirements` antes de evaluar el perfil o cargar NLP.
@@ -42,9 +47,12 @@ Los contratos públicos y el límite de lote de 50 están en `packages/shared-ty
 Su validación HTTP, permisos por modo y errores individuales corresponden al futuro
 endpoint de T10.5; persistir porcentaje/fecha corresponde a T10.4.
 
-HU-11 puede sustituir la política de comparación. La base no equipara Java con
-JavaScript; frente al cálculo web anterior algunos porcentajes pueden bajar.
-Ese cambio debe explicarse al PO y al equipo de HU-11 antes de conectar las pantallas.
+La HU-11 ya está conectada: `JOB_POSTING_AFFINITY_EXTRACTOR` entrega el extractor
+del NLP cargado (`loadExtractor`) y `calculateJobPostingAffinity` delega en
+`compareRequirementsWithProfile`. Java y JavaScript siguen siendo distintos; frente
+al cálculo web anterior algunos porcentajes pueden bajar (ver
+`docs/endpoints/epic5/nota-hu11-po-equivalencias.md`). Cambiar reglas o pesos obliga
+a subir `ALGORITHM_VERSION`; guardarla junto al porcentaje queda para la HU-12.
 
 ## Endpoint de afinidad por lote — T10.5
 
@@ -135,4 +143,13 @@ pnpm --filter web exec jest src/shared/services/job-posting-affinity.test.ts src
 # Prueba de integración con PostgreSQL real (opt-in; requiere TEST_DATABASE_URL)
 TEST_DATABASE_URL=postgresql://usuario:clave@localhost:5432/postgres pnpm --filter api exec jest test/job-posting-affinity.integration.spec.ts
 ```
+
+## Recálculo persistente HU-12
+
+`RefreshJobPostingAffinity` reutiliza el caso de uso de HU-10 y persiste
+únicamente postulaciones cuyo hash SHA-256 difiere de las entradas actuales.
+Las consultas autorizadas de postulaciones y candidatos activan el recálculo
+lazy; el batch HTTP de HU-10 sigue siendo de solo lectura. La arquitectura,
+concurrencia, migración y límites están en
+`apps/api/docs/endpoints/epic5/HU12-recalculo-automatico.md`.
 

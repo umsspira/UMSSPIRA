@@ -1,416 +1,311 @@
-// apps/web/src/app/portal/page.tsx
-'use client';
+﻿'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
+import { useKnownRole } from '@/shared/hooks/use-known-role';
 import Image from 'next/image';
-import {
-  Search,
-  Calendar,
-  Briefcase,
-  Star,
-  Users,
-  ChevronRight,
-  Bookmark,
-  MapPin,
-  Clock3,
-  Settings,
-  WifiOff,
-  Wifi,
-  AlertTriangle,
-  CheckCircle2,
-  Info,
-} from 'lucide-react';
-
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { Briefcase, Calendar, ChevronRight, QrCode, Search, Users, WifiOff } from 'lucide-react';
+import { EVENT_STATUS, type EventItem } from '@umsspira/shared-types';
 import umssBg from '@/shared/assets/images/14sept.webp';
+import { useRealConnection } from '@/shared/hooks/use-real-connection';
+import { CONNECTION_MODE_LABEL, useConnectionMode } from '@/shared/hooks/use-connection-mode';
 import { getEventCatalog } from '@/shared/services/events-service';
-import { formatEventCardSchedule } from '@/shared/utils/event-date-time';
-import type { EventItem } from '@umsspira/shared-types';
+import { SectionUnavailable } from '@/shared/components/section-boundary';
+import { logSectionFailure } from '@/shared/services/section-failure-log';
+import { SectionTimeoutError, withTimeout } from '@/shared/utils/with-timeout';
 
-const EVENT_TIME_ZONE = 'America/La_Paz';
+const ACCESOS_RAPIDOS = [
+  {
+    href: '/portal/eventos',
+    titulo: 'Eventos',
+    Icon: Calendar,
+    iconStyle: 'bg-amber-50 text-amber-600',
+    descripcion: 'Participa en los próximos eventos de la comunidad UMSS.',
+  },
+  {
+    href: '/portal/empleos',
+    titulo: 'Empleos',
+    Icon: Briefcase,
+    iconStyle: 'bg-blue-50 text-blue-600',
+    descripcion: 'Encuentra ofertas laborales y oportunidades.',
+  },
+  {
+    href: '/portal/mentorias',
+    titulo: 'Mentorías',
+    Icon: Users,
+    iconStyle: 'bg-slate-100 text-slate-700',
+    descripcion: 'Conecta con profesionales que pueden guiarte.',
+  },
+];
 
-function getEventDateBadge(startDate: string) {
-  const date = new Date(startDate);
-  if (Number.isNaN(date.getTime())) return { day: '--', month: '---' };
+const normalizar = (texto: string) =>
+  texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-  const parts = new Intl.DateTimeFormat('es-BO', {
-    day: '2-digit',
-    month: 'short',
-    timeZone: EVENT_TIME_ZONE,
-  }).formatToParts(date);
+const ZONA_HORARIA = 'America/La_Paz';
 
-  return {
-    day: parts.find((part) => part.type === 'day')?.value ?? '--',
-    month: (parts.find((part) => part.type === 'month')?.value ?? '---')
-      .replace('.', '')
-      .toLocaleUpperCase('es'),
-  };
+function formatearFecha(iso: string): string {
+  return new Intl.DateTimeFormat('es-BO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: ZONA_HORARIA,
+  }).format(new Date(iso));
 }
 
-function getEventTimeRange(startDate: string, endDate: string) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return 'Horario no disponible';
-  }
-
-  const formatter = new Intl.DateTimeFormat('es-BO', {
+function formatearHora(iso: string): string {
+  return new Intl.DateTimeFormat('es-BO', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-    timeZone: EVENT_TIME_ZONE,
-  });
-
-  return `${formatter.format(start)} - ${formatter.format(end)}`;
+    timeZone: ZONA_HORARIA,
+  }).format(new Date(iso));
 }
 
-function EventCover({ event }: { event: EventItem }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const { day, month } = getEventDateBadge(event.startDate);
+function useEstaEnLinea(): boolean {
+  return useRealConnection();
+}
+
+function ImagenEvento({ evento }: { evento: EventItem }) {
+  if (!evento.imageUrl) {
+    return (
+      <div
+        role="img"
+        aria-label={`Imagen no disponible para ${evento.title}`}
+        className="flex h-40 w-full items-center justify-center bg-gradient-to-br from-[#0F172A] to-[#2C3B4D] text-amber-400"
+      >
+        <Calendar className="h-12 w-12" aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
-    <div className="relative h-40 bg-[#2C3B4D]">
-      {event.imageUrl && !imageFailed ? (
-        <Image
-          src={event.imageUrl}
-          alt={`Imagen del evento ${event.title}`}
-          fill
-          unoptimized
-          sizes="(min-width: 768px) 33vw, 100vw"
-          className="object-cover"
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <div
-          role="img"
-          aria-label={`Imagen no disponible para ${event.title}`}
-          className="flex h-full items-center justify-center bg-gradient-to-br from-[#0F172A] to-[#2C3B4D] text-amber-400"
-        >
-          <Calendar className="h-12 w-12" aria-hidden="true" />
-        </div>
-      )}
-
-      <div
-        aria-label={`Fecha: ${day} ${month}`}
-        className="absolute bottom-0 left-5 z-10 min-w-14 translate-y-1/2 rounded-xl bg-[#B44735] px-3 py-2 text-center text-white shadow-md"
-      >
-        <span className="block text-xl font-bold leading-5">{day}</span>
-        <span className="mt-1 block text-xs font-semibold leading-3">{month}</span>
-      </div>
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={evento.imageUrl}
+      alt={`Imagen del evento ${evento.title}`}
+      className="h-40 w-full object-cover"
+    />
   );
 }
 
-const quickLinks = [
-  { href: '/portal/eventos', title: 'Eventos', text: 'Participa en los próximos eventos y actividades.', Icon: Calendar, iconStyle: 'bg-amber-50 text-amber-600' },
-  { href: '/portal/empleos', title: 'Bolsa de trabajo', text: 'Encuentra nuevas oportunidades laborales.', Icon: Briefcase, iconStyle: 'bg-blue-50 text-blue-600' },
-  { href: '/portal/beneficios', title: 'Beneficios', text: 'Accede a descuentos y convenios exclusivos.', Icon: Star, iconStyle: 'bg-amber-50 text-amber-600' },
-  { href: '/portal/comunidad', title: 'Comunidad', text: 'Conecta con otros egresados.', Icon: Users, iconStyle: 'bg-slate-100 text-slate-700' },
-];
-
-const normalize = (text: string) =>
-  text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
 export default function Home() {
-  const [query, setQuery] = useState('');
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-  const [eventsError, setEventsError] = useState(false);
-
-  const [isOnline, setIsOnline] = useState(true);
-  const [showReconnectedToast, setShowReconnectedToast] = useState(false);
-  const [showTemporaryConnected, setShowTemporaryConnected] = useState(false);
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const handleOnline = () => {
-      setIsOnline(true);
-      setShowReconnectedToast(true);
-      setShowTemporaryConnected(true);
-
-      const toastTimer = setTimeout(() => {
-        setShowReconnectedToast(false);
-      }, 3000);
-
-      const cardTimer = setTimeout(() => {
-        setShowTemporaryConnected(false);
-      }, 3000);
-
-      return () => {
-        clearTimeout(toastTimer);
-        clearTimeout(cardTimer);
-      };
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-      setShowReconnectedToast(false);
-      setShowTemporaryConnected(false);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  const esTitulado = [null, 'titulado'].includes(useKnownRole());
+  const enLinea = useEstaEnLinea();
+  const modoConexion = useConnectionMode();
+  const [eventos, setEventos] = useState<EventItem[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [consulta, setConsulta] = useState('');
+  // HU18: si la sección de eventos falla o tarda más de 8 s, solo ella muestra «Reintentar».
+  const [eventosFallo, setEventosFallo] = useState<'no' | 'error' | 'tiempo'>('no');
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
-    let isActive = true;
+    let activo = true;
+    setCargando(true);
+    setEventosFallo('no');
 
-    void getEventCatalog()
-      .then((catalog) => {
-        if (isActive) {
-          setEvents(catalog);
-          setEventsError(false);
+    withTimeout(() => getEventCatalog())
+      .then((catalogo) => {
+        if (!activo) return;
+        const publicados = catalogo
+          .filter((evento) => evento.status === EVENT_STATUS.PUBLICADO)
+          .sort((a, b) => a.startDate.localeCompare(b.startDate))
+          .slice(0, 3);
+        setEventos(publicados);
+      })
+      .catch((error: unknown) => {
+        if (!activo) return;
+        setEventos([]);
+        logSectionFailure('home-events', error instanceof SectionTimeoutError ? 'timeout' : 'error', error);
+        // Sin conexión el aviso general del inicio ya lo explica: no se duplica.
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          setEventosFallo(error instanceof SectionTimeoutError ? 'tiempo' : 'error');
         }
       })
-      .catch(() => {
-        if (isActive) setEventsError(true);
-      })
       .finally(() => {
-        if (isActive) setIsLoadingEvents(false);
+        if (activo) setCargando(false);
       });
 
     return () => {
-      isActive = false;
+      activo = false;
     };
-  }, []);
+  }, [intento]);
 
-  const filteredQuickLinks = useMemo(() => {
-    const q = normalize(query.trim());
-    if (!q) return quickLinks;
-    return quickLinks.filter(({ title, text }) =>
-      normalize(`${title} ${text}`).includes(q)
-    );
-  }, [query]);
-
-  const filteredEvents = useMemo(() => {
-    const q = normalize(query.trim());
-    if (!q) return events;
-    return events.filter((ev) =>
-      normalize(`${ev.title} ${ev.description ?? ''} ${ev.location ?? ''} ${formatEventCardSchedule(ev.startDate, ev.endDate)}`).includes(q)
-    );
-  }, [query, events]);
-
-  const term = query.trim();
-  const shouldShowStatusCard = !isOnline || (isOnline && showTemporaryConnected);
+  const termino = normalizar(consulta.trim());
+  const accesos = useMemo(
+    () => (termino ? ACCESOS_RAPIDOS.filter((a) => normalizar(`${a.titulo} ${a.descripcion}`).includes(termino)) : ACCESOS_RAPIDOS),
+    [termino],
+  );
+  const eventosFiltrados = useMemo(
+    () => (termino ? eventos.filter((e) => normalizar(`${e.title} ${e.location ?? ''}`).includes(termino)) : eventos),
+    [termino, eventos],
+  );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 w-full space-y-8 font-sans text-slate-900">
-      
-      {!isOnline && (
-        <div className="bg-[#B44735] text-white p-4 rounded-xl flex items-center gap-3 shadow-md animate-in slide-in-from-top-2 fade-in duration-300">
-          <AlertTriangle className="w-5 h-5 shrink-0" />
-          <p className="text-sm font-medium">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
+      {!enLinea && (
+        <>
+          <p
+            role="status"
+            data-testid="home-offline-notice"
+            className="mb-4 rounded-2xl bg-[#B44735] px-5 py-4 text-sm font-medium text-white shadow-sm"
+          >
             Estás navegando sin conexión. Algunos contenidos pueden no estar actualizados.
           </p>
-        </div>
+          {esTitulado && (
+<Link
+            href="/mis-pases"
+            data-testid="home-offline-qr-access"
+            className="mb-5 flex items-center gap-3 rounded-2xl bg-[#1B2632] px-5 py-4 text-[#EEE9DF] shadow-md transition-colors hover:bg-[#2C3B4D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB162]"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-bold">Mis códigos QR</span>
+              <span className="block text-xs opacity-85">Tus pases guardados están disponibles sin conexión.</span>
+            </span>
+            <span aria-hidden="true" className="text-xl text-[#FFB162]">›</span>
+          </Link>
+)}
+        </>
       )}
 
-      {/* Banner principal */}
-      {/* Añadimos relative al section para posicionar la etiqueta */}
-      <section className="relative w-full rounded-2xl overflow-hidden bg-[#111827] text-white p-6 sm:p-8 md:p-12 shadow-lg">
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <Image
-            src={umssBg}
-            alt="Fondo Institucional UMSS"
-            fill
-            sizes="100vw"
-            className="object-cover object-center"
-            priority
-          />
-          <div className="absolute inset-0 bg-[#0F172A]/60"></div>
+      <section className="relative overflow-hidden rounded-3xl bg-[#1B2632] px-6 py-8 text-white md:px-12 md:py-12">
+        <div className="absolute inset-0 z-0" aria-hidden="true">
+          <Image src={umssBg} alt="" fill sizes="100vw" className="object-cover object-center" priority />
+          <div className="absolute inset-0 bg-[#0F172A]/60" />
         </div>
-
-        {/* 👇 ETIQUETA MOVIDA A LA ESQUINA SUPERIOR DERECHA 👇 */}
-        <div className={`absolute top-6 right-6 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm backdrop-blur-md ${
-          isOnline ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
-        }`}>
-          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
-          {isOnline ? 'En línea' : 'Sin conexión'}
-        </div>
-
-        <div className="relative z-10 max-w-2xl space-y-4 pt-8 sm:pt-0">
-          <h3 className="text-sm font-medium text-slate-300">Estado de conexión</h3>
-          <h1 className="text-3xl md:text-5xl font-serif font-bold text-white tracking-tight">
-            UMSS<span className="text-amber-500">PIRA</span>
+        <span
+          data-testid="home-connection-status"
+          data-estado={enLinea ? 'en-linea' : 'sin-conexion'}
+          className={`absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider backdrop-blur-md ${
+            enLinea
+              ? 'border-green-500/30 bg-green-500/20 text-green-300'
+              : 'border-red-400/40 bg-red-500/20 text-red-200'
+          }`}
+        >
+          <span aria-hidden="true" className={`h-2 w-2 rounded-full ${enLinea ? 'bg-green-400' : 'bg-red-400'}`} />
+          {CONNECTION_MODE_LABEL[modoConexion]}
+        </span>
+        <div className="relative z-10 max-w-2xl space-y-3 pt-6 sm:pt-0">
+          <h1 className="font-serif text-4xl font-bold tracking-wide md:text-5xl">
+            UMSS<span className="text-[#FFB162]">PIRA</span>
           </h1>
-          <p className="text-slate-300 text-sm md:text-base">Tu comunidad, siempre conectada.</p>
-
-          <div className="pt-2">
-            <form role="search" onSubmit={(e) => e.preventDefault()} className="relative max-w-xl">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                <Search className="w-4 h-4" />
-              </span>
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Buscar eventos, beneficios y empleos"
-                placeholder="Busque eventos, beneficios, empleos..."
-                disabled={!isOnline}
-                className={`w-full min-h-[44px] pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm placeholder:text-slate-400 ${!isOnline && 'opacity-50 cursor-not-allowed'}`}
-              />
-            </form>
-          </div>
+          <p className="text-sm text-slate-200 md:text-base">
+            El portal de la comunidad de titulados de la UMSS.
+          </p>
+          <form role="search" onSubmit={(e) => e.preventDefault()} className="relative max-w-xl pt-2">
+            <Search className="pointer-events-none absolute left-4 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            <input
+              type="search"
+              value={consulta}
+              onChange={(e) => setConsulta(e.target.value)}
+              disabled={!enLinea}
+              aria-label="Buscar eventos y empleos"
+              placeholder="Busque eventos, empleos..."
+              className="min-h-[44px] w-full rounded-xl bg-white py-3 pl-11 pr-4 text-base text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </form>
         </div>
       </section>
 
-      {/* 👇 TARJETA DE ESTADO AGRANDADA 👇 */}
-      {shouldShowStatusCard && (
-        <section className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 text-center flex flex-col items-center justify-center min-h-[380px] animate-in fade-in zoom-in duration-300">
-          {isOnline ? (
-            <>
-              {/* Icono más grande */}
-              <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6 text-green-600">
-                <Wifi className="w-12 h-12" />
-              </div>
-              {/* Textos más grandes */}
-              <h2 className="text-3xl font-bold text-slate-900 mb-3">Conectado a Internet</h2>
-              <p className="text-slate-500 text-base">Todas las funcionalidades están disponibles.</p>
-              
-              {/* Cuadro azul más ancho y grande */}
-              <div className="mt-10 w-full max-w-3xl bg-blue-50/50 border border-blue-100 rounded-xl p-5 flex items-start gap-4 text-left">
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
-                  <Info className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-slate-800">Información</h4>
-                  <p className="text-sm text-slate-600">Tu conexión se mantiene estable.</p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center mb-6 text-red-600">
-                <WifiOff className="w-12 h-12" />
-              </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-3">Sin conexión a Internet</h2>
-              <p className="text-slate-500 text-base max-w-md">
-                Puedes seguir navegando por las secciones guardadas. La barra se oculta sola cuando vuelva la red.
-              </p>
-            </>
-          )}
-        </section>
-      )}
-
-      {term && filteredQuickLinks.length === 0 && filteredEvents.length === 0 && (
-        <p role="status" className="text-center text-sm text-slate-500">
-          No se encontraron resultados para &ldquo;{term}&rdquo;.
-        </p>
-      )}
-
-      {filteredQuickLinks.length > 0 && (
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-          {filteredQuickLinks.map(({ href, title, text, Icon, iconStyle }) => (
-            <Link
-              key={href}
-              href={href}
-              className="h-full min-h-[44px] bg-[#F5F2EA] p-5 rounded-2xl border border-[#C9C1B1] shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
-            >
-              <div className="flex items-start justify-between">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconStyle}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-400" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">{title}</h3>
-                <p className="text-xs text-slate-500 mt-1">{text}</p>
-              </div>
-            </Link>
-          ))}
-        </section>
-      )}
-
-      <section className="space-y-4 pt-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-serif font-bold text-slate-900">Próximos eventos</h2>
+      <section
+        data-testid="home-primary-actions"
+        aria-label="Accesos rápidos"
+        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        {accesos.map(({ href, titulo, descripcion, Icon, iconStyle }) => (
           <Link
-            href="/portal/eventos"
-            className="min-h-[44px] px-2 text-xs font-semibold text-amber-600 hover:underline flex items-center space-x-1"
+            key={href}
+            href={href}
+            className="flex min-h-[44px] flex-col justify-between gap-4 rounded-2xl border border-[#C9C1B1] bg-[#F5F2EA] p-5 shadow-sm transition-shadow hover:shadow-md"
           >
-            <span>Ver todos</span>
-            <ChevronRight className="w-4 h-4" />
+            <span className="flex items-start justify-between">
+              <span aria-hidden="true" className={`flex h-10 w-10 items-center justify-center rounded-xl ${iconStyle}`}>
+                <Icon className="h-5 w-5" />
+              </span>
+              <ChevronRight className="h-5 w-5 text-slate-400" aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block font-bold text-[#1B2632]">{titulo}</span>
+              <span className="mt-1 block text-sm text-slate-500">{descripcion}</span>
+            </span>
           </Link>
-        </div>
+        ))}
 
-        {isLoadingEvents ? (
-          <p role="status" className="text-sm text-slate-500">Cargando eventos publicados…</p>
-        ) : eventsError ? (
-          <p role="alert" className="text-sm text-red-700">
-            No se pudieron cargar los eventos. Intenta nuevamente desde el catálogo.
-          </p>
-        ) : filteredEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {filteredEvents.slice(0, 3).map((event) => (
-              <article
-                key={event.id}
-                className="overflow-hidden rounded-2xl border border-[#C9C1B1] bg-white shadow-sm transition-shadow hover:shadow-md"
-              >
-                <div className="relative">
-                  <EventCover event={event} />
-                  <span
-                    aria-hidden="true"
-                    className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow"
-                  >
-                    <Bookmark size={19} />
-                  </span>
-                </div>
-                <Link
-                  href={`/portal/eventos/${encodeURIComponent(event.id)}`}
-                  className="block space-y-2 p-5 pt-8 text-slate-700 transition-colors hover:bg-[#FCFAF5]"
-                >
-                  <h3 className="font-bold text-slate-900">{event.title}</h3>
-                  <p className="flex items-center gap-2 text-sm">
-                    <MapPin size={16} className="shrink-0 text-rose-500" aria-hidden="true" />
-                    <span>{event.location || 'Ubicación por definir'}</span>
-                  </p>
-                  <p className="flex items-center gap-2 text-sm">
-                    <Clock3 size={16} className="shrink-0 text-amber-600" aria-hidden="true" />
-                    <span>{getEventTimeRange(event.startDate, event.endDate)}</span>
-                  </p>
-                </Link>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p role="status" className="text-sm text-slate-500">
-            {query.trim()
-              ? 'No hay eventos que coincidan con la búsqueda.'
-              : 'Todavía no hay eventos publicados próximos.'}
-          </p>
+        {enLinea && !termino && esTitulado && (
+<Link
+            href="/mis-pases"
+            data-testid="home-online-qr-access"
+            className="flex min-h-[44px] flex-col justify-between gap-4 rounded-2xl border border-[#C9C1B1] bg-[#F5F2EA] p-5 shadow-sm transition-shadow hover:shadow-md"
+          >
+            <span className="flex items-start justify-between">
+              <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1B2632] text-[#FFB162]">
+                <QrCode className="h-5 w-5" />
+              </span>
+              <ChevronRight className="h-5 w-5 text-slate-400" aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block font-bold text-[#1B2632]">Mis códigos QR</span>
+              <span className="mt-1 block text-sm text-slate-500">Accede a tus pases de entrada.</span>
+            </span>
+          </Link>
         )}
       </section>
 
-      <Link
-        href="/portal/configuracion"
-        className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-[#1B2632] text-white rounded-full shadow-lg hover:bg-slate-800 transition-colors z-50 font-medium"
-        title="Configuración de la PWA"
-      >
-        <Settings className="w-5 h-5" />
-        <span>Configuración</span>
-      </Link>
+      <section className="mt-8">
+        <h2 className="font-serif text-2xl font-bold text-[#1B2632]">Próximos eventos</h2>
 
-      {showReconnectedToast && (
-        <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-[#E6F4EA] border border-[#B7E1CD] text-[#137333] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5" />
-            <div>
-              <h4 className="font-bold text-sm">Conexión restablecida</h4>
-              <p className="text-xs opacity-90">Este aviso desaparece en unos segundos.</p>
-            </div>
+        {cargando && <p className="mt-4 text-sm text-slate-500">Cargando eventos…</p>}
+
+        {!cargando && enLinea && eventosFallo !== 'no' && (
+          <div className="mt-4" data-testid="home-events-unavailable">
+            <SectionUnavailable
+              title="Próximos eventos"
+              timedOut={eventosFallo === 'tiempo'}
+              onRetry={() => setIntento((valor) => valor + 1)}
+            />
           </div>
-        </div>
-      )}
+        )}
 
+        {!cargando && !enLinea && eventosFiltrados.length === 0 && (
+          <div
+            data-testid="home-offline-card"
+            className="mt-4 flex flex-col items-center rounded-2xl bg-white px-6 py-12 text-center shadow-sm"
+          >
+            <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <WifiOff className="h-8 w-8" />
+            </span>
+            <h3 className="mt-5 text-2xl font-bold text-[#1B2632]">Sin conexión a Internet</h3>
+            <p className="mt-2 max-w-md text-sm text-slate-500">
+              Puedes seguir navegando por las secciones guardadas. La barra se oculta sola cuando vuelva la red.
+            </p>
+          </div>
+        )}
+
+        {!cargando && enLinea && eventosFallo === 'no' && eventosFiltrados.length === 0 && (
+          <p className="mt-4 text-sm text-slate-500">No hay eventos próximos por ahora.</p>
+        )}
+
+        <ul className="mt-4 grid gap-5 md:grid-cols-3">
+          {eventosFiltrados.map((evento) => (
+            <li
+              key={evento.id}
+              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+            >
+              <Link href={`/portal/eventos/${evento.id}`} className="block">
+                <ImagenEvento evento={evento} />
+                <div className="p-4">
+                  <h3 className="font-semibold text-[#1B2632]">{evento.title}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{formatearFecha(evento.startDate)}</p>
+                  <p className="text-sm text-slate-500">
+                    {formatearHora(evento.startDate)} - {formatearHora(evento.endDate)}
+                  </p>
+                  <p className="text-sm text-slate-500">{evento.location}</p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

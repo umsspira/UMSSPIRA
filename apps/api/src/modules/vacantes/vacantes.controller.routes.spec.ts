@@ -201,4 +201,63 @@ describe('VacantesController · rutas de postulación (HU-03/HU-06)', () => {
       Reflect.getMetadata(REQUIRED_PERMISSIONS, VacantesController.prototype.actualizar),
     ).toEqual(['empresas:self:write']);
   });
+
+  it('entrega el estado canónico al servicio cuando el PATCH recibe un alias (HU-14)', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}`)
+      .send({ estado: 'PAUSADA' })
+      .expect(200);
+
+    expect(service.actualizarVacante).toHaveBeenCalledWith(ID_VACANTE, actor.id, {
+      estado: 'PAUSADO',
+    });
+  });
+
+  it('rechaza con 400 un estado inventado en el PATCH (HU-14)', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}`)
+      .send({ estado: 'INVENTADO' })
+      .expect(400);
+
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(service.actualizarVacante).not.toHaveBeenCalled();
+  });
+
+  it('exige permiso empresas:self:write para cerrar la vacante (HU-14)', () => {
+    expect(
+      Reflect.getMetadata(REQUIRED_PERMISSIONS, VacantesController.prototype.cerrar),
+    ).toEqual(['empresas:self:write']);
+  });
+
+  it('exige permiso empresas:self:write para eliminar la vacante (HU-14)', () => {
+    expect(
+      Reflect.getMetadata(REQUIRED_PERMISSIONS, VacantesController.prototype.eliminar),
+    ).toEqual(['empresas:self:write']);
+  });
+
+  it('PATCH /vacantes/:id/cerrar cierra usando el actor autenticado (HU-14)', async () => {
+    service.cerrarVacante.mockResolvedValueOnce({ id: ID_VACANTE, estado: 'CERRADO' });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}/cerrar`)
+      .expect(200, { id: ID_VACANTE, estado: 'CERRADO' });
+
+    expect(service.cerrarVacante).toHaveBeenCalledWith(ID_VACANTE, actor.id);
+  });
+
+  it('PATCH /vacantes/:id/cerrar responde 404 si la vacante es de otra empresa (HU-14)', async () => {
+    service.cerrarVacante.mockRejectedValueOnce(new NotFoundException('Vacante no encontrada'));
+
+    const res = await request(app.getHttpServer())
+      .patch(`/api/v1/vacantes/${ID_VACANTE}/cerrar`)
+      .expect(404);
+
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('PATCH /vacantes/:id/cerrar responde 400 si el id no es un UUID (HU-14)', async () => {
+    await request(app.getHttpServer()).patch('/api/v1/vacantes/no-es-uuid/cerrar').expect(400);
+
+    expect(service.cerrarVacante).not.toHaveBeenCalled();
+  });
 });

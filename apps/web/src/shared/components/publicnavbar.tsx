@@ -13,7 +13,6 @@ const BASE = '/portal/institucional';
 // tab = null es la portada (Inicio).
 const navItems: { name: string; tab: string | null }[] = [
   { name: 'Inicio', tab: null },
-  { name: 'Comunidad', tab: 'comunidad' },
   { name: 'Directorio', tab: 'directorio' },
   { name: 'Carreras', tab: 'carreras' },
   { name: 'Eventos', tab: 'eventos' },

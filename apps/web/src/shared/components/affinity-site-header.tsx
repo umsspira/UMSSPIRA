@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, Bell, Briefcase, Calendar, Users, Award, Home, GraduationCap } from 'lucide-react';
+import { Search, Bell, Briefcase, Calendar, Home, GraduationCap } from 'lucide-react';
 
 interface AffinitySiteHeaderProps {
   className?: string;
@@ -30,16 +30,8 @@ export const AffinitySiteHeader: React.FC<AffinitySiteHeaderProps> = ({
             <span>Inicio</span>
           </a>
           <a href="#" className="hover:text-white transition-colors flex items-center space-x-1">
-            <Users className="w-3.5 h-3.5" />
-            <span>Comunidad</span>
-          </a>
-          <a href="#" className="hover:text-white transition-colors flex items-center space-x-1">
             <Briefcase className="w-3.5 h-3.5" />
             <span>Bolsa de trabajo</span>
-          </a>
-          <a href="#" className="hover:text-white transition-colors flex items-center space-x-1">
-            <Award className="w-3.5 h-3.5" />
-            <span>Beneficios</span>
           </a>
           <a href="#" className="hover:text-white transition-colors flex items-center space-x-1">
             <Calendar className="w-3.5 h-3.5" />
