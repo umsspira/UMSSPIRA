@@ -1210,7 +1210,6 @@
 
   .events-management .event-row-actions.is-draft {
     gap: 11.12px;
-    transform: translateX(-44.5px);
   }
 
   .events-management .event-row-actions .event-button {
@@ -1320,10 +1319,6 @@
   .events-management .event-list-title small {
     line-height: 1.5;
     white-space: normal;
-  }
-
-  .events-management .event-row-actions {
-    transform: none;
   }
 }
 
@@ -3543,10 +3538,12 @@
   align-items: center;
   justify-content: center;
   width: fit-content;
+  max-width: 100%;
   padding: 7px 14px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
+  text-align: center;
 }
 
 .hu15-status-programmed {
@@ -3649,11 +3646,6 @@
   font-family: Georgia, serif;
 }
 
-.events-management .event-metrics > *,
-.events-management .events-list-panel {
-  background-color: #ede8dd;
-}
-
 @media (max-width: 900px) {
   .events-management .event-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3676,11 +3668,6 @@
 }
 
 /* HU15: formulario y vista previa */
-.event-create-page .event-form-card,
-.event-create-page .event-preview-card {
-  background-color: #ede8dd;
-}
-
 .event-create-page .event-form-heading,
 .event-create-page .event-preview-card h2,
 .event-create-page .event-preview-card h3 {
@@ -3895,6 +3882,7 @@
 @media (min-width: 1024px) {
   .events-management .events-table-head,
   .events-management .events-table-row {
+    min-width: 980px;
     grid-template-columns:
       minmax(180px, 2fr)
       minmax(150px, 1.2fr)
@@ -3905,6 +3893,8 @@
   }
 
   .events-management .event-row-actions {
+    min-width: 0;
+    flex-wrap: wrap;
     gap: 8px;
   }
 

@@ -7,6 +7,16 @@ import { apiClient } from './api-client';
 
 const PUSH_SUBSCRIPTIONS_PATH = '/api/v1/push-subscriptions';
 
+export function pushSubscriptionErrorMessage(cause: unknown, fallback: string): string {
+  if (cause instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(cause.message)) {
+    return 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo nuevamente.';
+  }
+  if (typeof DOMException !== 'undefined' && cause instanceof DOMException) {
+    return 'El navegador no pudo procesar los avisos. Revisa sus permisos e inténtalo nuevamente.';
+  }
+  return cause instanceof Error && cause.message ? cause.message : fallback;
+}
+
 /** Convierte una clave VAPID base64url en el Uint8Array que exige subscribe(). */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

@@ -1,5 +1,5 @@
 import {
-  CalendarDays, ClipboardList, Compass, Inbox, Layers, Send, Sparkles, UserRound,
+  CalendarDays, ClipboardList, Compass, FileText, Inbox, Layers, Send, Sparkles, UserRound,
 } from 'lucide-react';
 import type { NavbarLink, NavbarRole, NavbarSection } from './types';
 
@@ -45,6 +45,7 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
   { id: 'events', label: 'Eventos', items: [
     { id: 'inst-events', label: 'Eventos institucionales', href: '/portal/institucional?tab=eventos', guestOnly: true },
     { id: 'catalog', label: 'Catálogo de eventos', href: '/portal/eventos', roles: graduates },
+    { id: 'my-certificates', label: 'Mis certificados', href: '/mis-certificados', roles: graduates, icon: FileText },
     { id: 'manage-events', label: 'Gestión de eventos', href: '/events', roles: admins },
     { id: 'create-event', label: 'Crear evento', href: '/events/create', roles: admins },
     { id: 'draft-events', label: 'Borradores', href: '/events/drafts', roles: admins },
@@ -53,6 +54,7 @@ export const NAVBAR_SECTIONS: NavbarSection[] = [
 
 export const NAVBAR_ACCOUNT_LINKS: NavbarLink[] = [
   { id: 'my-profile', label: 'Mi perfil profesional', href: '/profile', roles: members },
+  { id: 'my-certificates', label: 'Mis certificados', href: '/mis-certificados', roles: graduates },
   { id: 'my-applications', label: 'Mis postulaciones', href: '/my-applications', roles: graduates },
   { id: 'my-company', label: 'Perfil de Empresa', href: '/companies', roles: employers },
   { id: 'account-publish-job', label: 'Publicar Vacante', href: '/empresa/vacantes/publicar', roles: employers },

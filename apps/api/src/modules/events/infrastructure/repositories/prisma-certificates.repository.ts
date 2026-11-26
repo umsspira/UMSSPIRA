@@ -74,7 +74,7 @@ export class PrismaCertificatesRepository {
   // Resumen real para la página de emisión (HU18)
   async getEmissionSummary(eventId: string) {
     const inscripciones = await this.prisma.inscripcionEvento.findMany({
-      where: { id_evento: eventId },
+      where: { id_evento: eventId, estado: 'CONFIRMADA' },
       include: {
         asistencia: true,
         usuario: {

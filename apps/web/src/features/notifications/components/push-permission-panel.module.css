@@ -1,0 +1,137 @@
+.panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #e6dfd4;
+  border-radius: 16px;
+  background: #fffaf4;
+  box-shadow: 0 8px 20px rgb(22 46 78 / 7%);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #96603b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.chip {
+  justify-self: start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ffead4;
+  color: #8c4a17;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.title {
+  margin: 0;
+  color: #17365b;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.text,
+.hint {
+  margin: 0;
+  color: #40556c;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.hint {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.primary,
+.secondary {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primary {
+  background: #ffad5c;
+  color: #122c48;
+}
+
+.primary:hover:not(:disabled) {
+  background: #ff9a37;
+}
+
+.secondary {
+  justify-self: start;
+  border-color: #b8c5d2;
+  background: #fff;
+  color: #17365b;
+}
+
+.secondary:hover:not(:disabled) {
+  background: #f2f6fa;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 3px solid #3476b5;
+  outline-offset: 2px;
+}
+
+.primary:disabled,
+.secondary:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #40556c;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.status svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.status p {
+  margin: 0;
+}
+
+.ok {
+  color: #236449;
+}
+
+.warn {
+  color: #835112;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #efc3b9;
+  border-radius: 10px;
+  background: #fff2ef;
+  color: #9c3426;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}

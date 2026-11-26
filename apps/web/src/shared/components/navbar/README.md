@@ -113,7 +113,7 @@ declare por sí sola un rol.
 | Sesión | Apariencia | Accesos específicos |
 | --- | --- | --- |
 | Visitante | Blanca; Iniciar sesión y Registro. | Comunidad, beneficios, información institucional, oportunidades, sobre las mentorías y catálogo de eventos. |
-| Titulado | Azul; identidad, cuenta y Cerrar sesión. | Área personal; perfil, registros, completar perfil y afinidad; información, áreas, intereses y disponibilidad del mentor. |
+| Titulado | Azul; identidad, cuenta y Cerrar sesión. | Área personal; perfil, registros, completar perfil y afinidad; Mis certificados; información, áreas, intereses y disponibilidad del mentor. |
 | Empresa | Azul; identidad, cuenta y Cerrar sesión. | Perfil de empresa y publicación de vacantes. No muestra configuración personal de mentor ni gestión administrativa. |
 | Administrador | Azul; identidad, cuenta y Cerrar sesión. | Accesos de titulado y empresa; gestión, creación y borradores de eventos; solicitudes, reportes y panel administrativo en el menú de cuenta. |
 

@@ -87,6 +87,12 @@ it('carga los avisos persistentes para la campanita después de validar la sesi�
   } as Response);
   mockApiClient.mockResolvedValueOnce({
     data: [{
+      id: 'reminder-1',
+      title: 'Recordatorio de evento',
+      description: 'El evento empieza pronto.',
+      isReminder: true,
+      unread: true,
+    }, {
       id: 'notification-1',
       title: 'Evento actualizado',
       description: 'Se cambió el horario.',
@@ -103,6 +109,7 @@ it('carga los avisos persistentes para la campanita después de validar la sesi�
     { authenticated: true },
   ));
   expect(await screen.findByText('Evento actualizado: Se cambió el horario.')).toBeInTheDocument();
+  expect(screen.queryByText('Recordatorio de evento: El evento empieza pronto.')).not.toBeInTheDocument();
 });
 
 it('conserva la sesión visual ante error de red y reintenta al volver online', async () => {

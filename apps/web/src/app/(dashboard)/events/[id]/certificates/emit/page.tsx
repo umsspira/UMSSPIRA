@@ -215,7 +215,7 @@ export default function EmitCertificatesPage() {
           </div>
           <span
             className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase ${
-              !tienePlantilla || !eventoHabilitado
+              !tienePlantilla || !eventoHabilitado || summary.asistencias === 0
                 ? 'bg-[#C7BFAE] text-[#1E293B]'
                 : 'bg-[#F5A65B] text-[#1E293B]'
             }`}
@@ -228,7 +228,9 @@ export default function EmitCertificatesPage() {
                   ? 'GENERANDO'
                   : completado
                     ? 'COMPLETADO'
-                    : 'LISTO PARA EMITIR'}
+                    : summary.asistencias === 0
+                      ? 'PENDIENTE DE ASISTENCIA'
+                      : 'LISTO PARA EMITIR'}
           </span>
         </div>
 

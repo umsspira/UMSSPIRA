@@ -196,6 +196,43 @@ describe("Observación 2: el perfil exige sesión", () => {
     respond(200, "titulado");
   });
 
+  describe("HU19: Mis certificados exige sesión y rol titulado", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      respond(200, "titulado");
+    });
+
+    it("ejecuta el middleware en el listado y los detalles", () => {
+      expect(config.matcher).toEqual(expect.arrayContaining([
+        "/mis-certificados",
+        "/mis-certificados/:path*",
+      ]));
+    });
+
+    it.each(["/mis-certificados", "/mis-certificados/certificate-1"])(
+      "sin sesión %s va al login",
+      async (path) => {
+        const result = observed(await middleware(request(path)));
+
+        expect(result.destination).toBe("http://localhost:3001/login");
+        expect(global.fetch).not.toHaveBeenCalled();
+      },
+    );
+
+    it("titulado autenticado puede abrir Mis certificados", async () => {
+      const result = observed(await middleware(request("/mis-certificados", "token-titulado")));
+
+      expect(result.kind).toBe("next");
+    });
+
+    it("rechaza otros roles y los devuelve a su inicio", async () => {
+      respond(200, "empresa");
+      const result = observed(await middleware(request("/mis-certificados", "token-empresa")));
+
+      expect(result.destination).toBe("http://localhost:3001/companies");
+    });
+  });
+
   it("el middleware se ejecuta en /profile y en todas sus subrutas", () => {
     expect(config.matcher).toEqual(expect.arrayContaining(["/profile", "/profile/:path*"]));
   });

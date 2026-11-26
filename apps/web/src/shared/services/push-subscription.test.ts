@@ -2,9 +2,17 @@ import {
   toSubscriptionInput,
   urlBase64ToUint8Array,
   getVapidPublicKey,
+  pushSubscriptionErrorMessage,
 } from './push-subscription';
 
 describe('servicio de suscripciones Push (HU13 - T8)', () => {
+  it('muestra en español los errores de conexión del navegador', () => {
+    expect(pushSubscriptionErrorMessage(new TypeError('Failed to fetch'), 'Error')).toBe(
+      'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo nuevamente.',
+    );
+    expect(pushSubscriptionErrorMessage(new Error('Sesión expirada'), 'Error')).toBe('Sesión expirada');
+  });
+
   it('convierte una clave VAPID base64url en bytes', () => {
     const bytes = urlBase64ToUint8Array('AQAB');
     expect(Array.from(bytes)).toEqual([1, 0, 1]);

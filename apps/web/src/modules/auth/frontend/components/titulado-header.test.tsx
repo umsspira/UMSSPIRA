@@ -104,6 +104,7 @@ describe("TituladoHeader", () => {
           title: "Recordatorio: Encuentro de titulados",
           description: "El evento empieza pronto.",
           href: "/portal/eventos/event-1?fromReminder=1",
+          isReminder: true,
           unread: true,
           createdAt: "2026-11-17T22:00:00.000Z",
         }],
@@ -115,6 +116,10 @@ describe("TituladoHeader", () => {
 
     expect(await screen.findByText("Recordatorio: Encuentro de titulados")).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Hay elementos sin leer")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Notificaciones" }));
+    expect(screen.getByText("No tienes notificaciones nuevas.")).toBeInTheDocument();
+    expect(screen.getAllByText("Recordatorio: Encuentro de titulados")).toHaveLength(1);
   });
 
   it("sin foto guardada no agrega ningún avatar", () => {

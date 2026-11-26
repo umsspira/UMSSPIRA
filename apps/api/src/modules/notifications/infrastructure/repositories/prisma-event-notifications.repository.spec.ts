@@ -37,30 +37,81 @@ describe('PrismaEventNotificationsRepository', () => {
     });
   });
 
-  it('lists only the user’s newest notifications and maps database fields', async () => {
+  it('separates reminders from other notifications, including older reminders without an id', async () => {
     const createdAt = new Date('2026-11-17T22:00:00.000Z');
-    const findMany = jest.fn().mockResolvedValue([{
-      id: 'notification-1',
-      titulo: 'Evento actualizado',
-      cuerpo: 'Se cambió el horario.',
-      url: '/portal/eventos/event-1',
-      leida_en: null,
-      fecha_creacion: createdAt,
-    }]);
+    const findMany = jest.fn()
+      .mockResolvedValueOnce([{
+        id: 'notification-1',
+        titulo: 'Evento actualizado',
+        cuerpo: 'Se cambió el horario.',
+        url: '/portal/eventos/event-1',
+        id_recordatorio: null,
+        leida_en: null,
+        fecha_creacion: createdAt,
+      }])
+      .mockResolvedValueOnce([{
+        id: 'reminder-1',
+        titulo: 'Recordatorio',
+        cuerpo: 'El evento empieza pronto.',
+        url: '/portal/eventos/event-1?fromReminder=1',
+        id_recordatorio: null,
+        leida_en: null,
+        fecha_creacion: new Date('2026-11-18T22:00:00.000Z'),
+      }, {
+        id: 'reminder-2',
+        titulo: 'Recordatorio nuevo',
+        cuerpo: 'El evento empieza pronto.',
+        url: null,
+        id_recordatorio: 'reminder-id',
+        leida_en: null,
+        fecha_creacion: new Date('2026-11-17T23:00:00.000Z'),
+      }]);
     const repository = new PrismaEventNotificationsRepository({
       notificacionEvento: { findMany },
     } as unknown as PrismaService);
 
     await expect(repository.listByUser('user-1')).resolves.toEqual([{
+      id: 'reminder-1',
+      title: 'Recordatorio',
+      body: 'El evento empieza pronto.',
+      url: '/portal/eventos/event-1?fromReminder=1',
+      isReminder: true,
+      readAt: null,
+      createdAt: new Date('2026-11-18T22:00:00.000Z'),
+    }, {
+      id: 'reminder-2',
+      title: 'Recordatorio nuevo',
+      body: 'El evento empieza pronto.',
+      url: null,
+      isReminder: true,
+      readAt: null,
+      createdAt: new Date('2026-11-17T23:00:00.000Z'),
+    }, {
       id: 'notification-1',
       title: 'Evento actualizado',
       body: 'Se cambió el horario.',
       url: '/portal/eventos/event-1',
+      isReminder: false,
       readAt: null,
       createdAt,
     }]);
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id_usuario: 'user-1' },
+    expect(findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: {
+        id_usuario: 'user-1',
+        id_recordatorio: null,
+        OR: [{ url: null }, { url: { not: { contains: '?fromReminder=1' } } }],
+      },
+      take: 30,
+      orderBy: { fecha_creacion: 'desc' },
+    }));
+    expect(findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: {
+        id_usuario: 'user-1',
+        OR: [
+          { id_recordatorio: { not: null } },
+          { url: { contains: '?fromReminder=1' } },
+        ],
+      },
       take: 30,
       orderBy: { fecha_creacion: 'desc' },
     }));

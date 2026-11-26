@@ -21,7 +21,7 @@ export function useEventNotifications(enabled: boolean) {
       }
       notifications.forEach((item) => seenIds.current.add(item.id));
       hasLoaded.current = true;
-      setItems(notifications);
+      setItems(notifications.filter((item) => !item.isReminder));
       setError(null);
     } catch {
       setError('No se pudieron cargar las notificaciones.');

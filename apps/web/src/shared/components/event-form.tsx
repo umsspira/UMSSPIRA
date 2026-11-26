@@ -38,6 +38,7 @@ interface EventFormState {
 
 interface EventFormErrors {
   title?: string;
+  description?: string;
   startDate?: string;
   startTime?: string;
   endDate?: string;
@@ -65,6 +66,7 @@ export interface EventFormProps {
   showDraftSaveButton?: boolean;
   submitLabel?: string;
   capacityMinimum?: number;
+  validateRepeatedText?: boolean;
 }
 
 const initialState: EventFormState = {
@@ -81,9 +83,12 @@ const initialState: EventFormState = {
 };
 
 const EVENT_TITLE_HAS_LETTER_PATTERN = new RegExp('\\p{L}', 'u');
+const REPEATED_TEXT_SEPARATOR_PATTERN = /[.,;:!?|]+/;
+const REPEATED_TEXT_MESSAGE = 'Evita repetir la misma secuencia en todo el campo.';
 const END_AFTER_START_MESSAGE = 'Debe ser posterior al inicio.';
 const VALIDATED_FIELDS: EventFormValidatedField[] = [
   'title',
+  'description',
   'startDate',
   'startTime',
   'endDate',
@@ -103,6 +108,7 @@ export default function EventForm({
   showDraftSaveButton = true,
   submitLabel = 'Publicar evento',
   capacityMinimum = 0,
+  validateRepeatedText = false,
 }: EventFormProps) {
   const [form, setForm] = useState<EventFormState>(() =>
     createInitialState(initialEvent),
@@ -117,13 +123,13 @@ export default function EventForm({
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const validationErrors = useMemo(() => {
-    const result = validateEventForm(form);
+    const result = validateEventForm(form, validateRepeatedText);
     const capacity = Number(form.maxCapacity);
     if (capacityMinimum > 0 && Number.isFinite(capacity) && capacity < capacityMinimum) {
       result.maxCapacity = `El cupo no puede ser menor a ${capacityMinimum} inscripciones confirmadas.`;
     }
     return result;
-  }, [capacityMinimum, form]);
+  }, [capacityMinimum, form, validateRepeatedText]);
   const errors = useMemo(
     () => getVisibleErrors(validationErrors, touchedFields, showAllErrors),
     [showAllErrors, touchedFields, validationErrors],
@@ -163,7 +169,7 @@ export default function EventForm({
     const nextForm = { ...form, [field]: value };
     setForm(nextForm);
 
-    if (field !== 'description') {
+    if (field !== 'description' || validateRepeatedText) {
       setTouchedFields((current) => markFieldAsTouched(current, field, nextForm));
     }
   };
@@ -267,10 +273,11 @@ export default function EventForm({
               />
             </FormField>
 
-            <FormField label="Descripción" optional full>
+            <FormField label="Descripción" optional error={errors.description} full>
               <textarea
                 value={form.description}
                 onChange={(event) => updateField('description', event.target.value)}
+                onBlur={() => touchField('description')}
                 placeholder="Describe brevemente el evento"
               />
             </FormField>
@@ -477,6 +484,7 @@ function FormField({
 
 function countValidationControls(errors: EventFormErrors) {
   return Number(Boolean(errors.title))
+    + Number(Boolean(errors.description))
     + Number(Boolean(errors.startDate))
     + Number(Boolean(errors.startTime))
     + Number(Boolean(errors.endDate))
@@ -485,7 +493,10 @@ function countValidationControls(errors: EventFormErrors) {
     + Number(Boolean(errors.location));
 }
 
-function validateEventForm(form: EventFormState): EventFormErrors {
+function validateEventForm(
+  form: EventFormState,
+  validateRepeatedText = false,
+): EventFormErrors {
   const nextErrors: EventFormErrors = {};
   const title = form.title.trim();
 
@@ -495,6 +506,18 @@ function validateEventForm(form: EventFormState): EventFormErrors {
     nextErrors.title = `El título no puede superar los ${EVENT_TITLE_MAX_LENGTH} caracteres.`;
   } else if (!EVENT_TITLE_HAS_LETTER_PATTERN.test(title)) {
     nextErrors.title = 'El título debe contener al menos una letra.';
+  }
+
+  if (validateRepeatedText) {
+    if (isRepeatedTextSequence(title)) {
+      nextErrors.title = REPEATED_TEXT_MESSAGE;
+    }
+    if (isRepeatedTextSequence(form.description)) {
+      nextErrors.description = REPEATED_TEXT_MESSAGE;
+    }
+    if (isRepeatedTextSequence(form.location)) {
+      nextErrors.location = REPEATED_TEXT_MESSAGE;
+    }
   }
 
   if (!form.startDate) {
@@ -542,6 +565,17 @@ function validateEventForm(form: EventFormState): EventFormErrors {
   }
 
   return nextErrors;
+}
+
+function isRepeatedTextSequence(value: string): boolean {
+  const segments = value
+    .trim()
+    .split(REPEATED_TEXT_SEPARATOR_PATTERN)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  return segments.length >= 3
+    && segments.every((segment) => segment.length >= 2 && segment === segments[0]);
 }
 
 function getVisibleErrors(

@@ -34,28 +34,51 @@ export class PrismaEventNotificationsRepository implements EventNotificationsRep
   }
 
   async listByUser(userId: string): Promise<EventNotificationRecord[]> {
-    const records = await this.prisma.notificacionEvento.findMany({
-      where: { id_usuario: userId },
-      orderBy: { fecha_creacion: 'desc' },
-      take: 30,
-      select: {
-        id: true,
-        titulo: true,
-        cuerpo: true,
-        url: true,
-        leida_en: true,
-        fecha_creacion: true,
-      },
-    });
+    const select = {
+      id: true,
+      titulo: true,
+      cuerpo: true,
+      url: true,
+      id_recordatorio: true,
+      leida_en: true,
+      fecha_creacion: true,
+    } as const;
+    const [notifications, reminders] = await Promise.all([
+      this.prisma.notificacionEvento.findMany({
+        where: {
+          id_usuario: userId,
+          id_recordatorio: null,
+          OR: [{ url: null }, { url: { not: { contains: '?fromReminder=1' } } }],
+        },
+        orderBy: { fecha_creacion: 'desc' },
+        take: 30,
+        select,
+      }),
+      this.prisma.notificacionEvento.findMany({
+        where: {
+          id_usuario: userId,
+          OR: [
+            { id_recordatorio: { not: null } },
+            { url: { contains: '?fromReminder=1' } },
+          ],
+        },
+        orderBy: { fecha_creacion: 'desc' },
+        take: 30,
+        select,
+      }),
+    ]);
 
-    return records.map((record) => ({
-      id: record.id,
-      title: record.titulo,
-      body: record.cuerpo,
-      url: record.url,
-      createdAt: record.fecha_creacion,
-      readAt: record.leida_en,
-    }));
+    return [...notifications, ...reminders]
+      .sort((a, b) => b.fecha_creacion.getTime() - a.fecha_creacion.getTime())
+      .map((record) => ({
+        id: record.id,
+        title: record.titulo,
+        body: record.cuerpo,
+        url: record.url,
+        isReminder: record.id_recordatorio !== null || (record.url?.includes('?fromReminder=1') ?? false),
+        createdAt: record.fecha_creacion,
+        readAt: record.leida_en,
+      }));
   }
 
   async markRead(userId: string, notificationId: string): Promise<void> {

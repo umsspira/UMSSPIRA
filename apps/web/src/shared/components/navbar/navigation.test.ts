@@ -44,6 +44,21 @@ it('no muestra el catálogo en el menú de eventos y reserva la gestión para ad
   expect(destinations(null)).not.toContain('/empresa/vacantes/publicar');
 });
 
+it('incluye Mis certificados para titulados en Eventos y en el menú de cuenta', () => {
+  const eventsItems = navigationFor('titulado').find(section => section.id === 'events')?.items ?? [];
+  const accountItems = visibleLinks(NAVBAR_ACCOUNT_LINKS, 'titulado');
+
+  expect(eventsItems).toEqual(expect.arrayContaining([
+    expect.objectContaining({ label: 'Mis certificados', href: '/mis-certificados' }),
+  ]));
+  expect(accountItems).toEqual(expect.arrayContaining([
+    expect.objectContaining({ label: 'Mis certificados', href: '/mis-certificados' }),
+  ]));
+  expect(destinations('empresa')).not.toContain('/mis-certificados');
+  expect(destinations('administrador')).not.toContain('/mis-certificados');
+  expect(destinations(null)).not.toContain('/mis-certificados');
+});
+
 it('separa los accesos personales del titulado y los empresariales', () => {
   expect(destinations('titulado')).toContain('/mentorship/requests');
   expect(destinations('titulado')).toContain('/my-applications');

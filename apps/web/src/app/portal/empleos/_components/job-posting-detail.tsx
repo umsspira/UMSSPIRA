@@ -12,6 +12,42 @@ import { ComoSeCalculaModal } from '@/modules/ayuda/como-se-calcula-modal';
 import { getAvailableJobPosting } from '@/shared/services/available-job-postings';
 import { calculateVacancyAffinity, type JobPostingAffinityResult } from '@/shared/services/job-posting-affinity';
 import { descriptionWithoutRequirements } from '@/shared/utils/job-posting-requirements';
+import { apiFetch } from '@/shared/services/api-client';
+
+type AffinityProfile = {
+  titulado?: { id?: string };
+  descripcionProfesional?: string;
+  formacionAcademica?: { registros?: Array<{ titulo?: string; institucion?: string }> };
+  experienciaLaboral?: { registros?: Array<{ cargo?: string; empresa?: string }> };
+  certificaciones?: { registros?: Array<{ nombre?: string; entidadEmisora?: string }> };
+  proyectos?: { registros?: Array<{ nombre?: string; descripcion?: string; tecnologias?: string }> };
+};
+
+const normalizeText = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
+const normalizeRequirement = (value: string) => value.normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+/** Refleja las entradas del hash de afinidad del backend, sin depender del objeto recibido. */
+function affinityInputKey(posting: AvailableJobPostingDetail, profile: AffinityProfile | null): string {
+  const texts = profile ? [
+    profile.descripcionProfesional,
+    ...(profile.formacionAcademica?.registros ?? []).flatMap((r) => [r.titulo, r.institucion]),
+    ...(profile.experienciaLaboral?.registros ?? []).flatMap((r) => [r.cargo, r.empresa]),
+    ...(profile.certificaciones?.registros ?? []).flatMap((r) => [r.nombre, r.entidadEmisora]),
+    ...(profile.proyectos?.registros ?? []).flatMap((r) => [r.nombre, r.descripcion, r.tecnologias]),
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map(normalizeText).sort() : [];
+  return JSON.stringify([
+    posting.id,
+    Array.from(new Set(posting.requisitos.map((r) => normalizeRequirement(r.nombre)).filter(Boolean))).sort(),
+    Boolean(profile?.descripcionProfesional?.trim()),
+    Boolean(profile?.formacionAcademica?.registros?.length),
+    Boolean(profile?.experienciaLaboral?.registros?.length),
+    Boolean(profile?.certificaciones?.registros?.length),
+    Boolean(profile?.proyectos?.registros?.length),
+    texts,
+  ]);
+}
 
 type DetailState =
   | { status: 'loading' }
@@ -38,8 +74,11 @@ export function JobPostingDetail({
   const [retryCount, setRetryCount] = useState(0);
   const [affinityState, setAffinityState] = useState<AffinityState>({ status: 'loading' });
   const [affinityRetryCount, setAffinityRetryCount] = useState(0);
+  const [affinityKey, setAffinityKey] = useState<{ vacancyId: string; value: string } | null>(null);
+  const [resultKey, setResultKey] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
   const [mostrarCalculo, setMostrarCalculo] = useState(false);
+  const affinityRequestsRef = useRef(new Map<string, Promise<JobPostingAffinityResult>>());
   // HU-20 CA-11: mientras «¿Cómo se calcula?» está abierta no se recalcula solo; si no, se cierra cada 30 s.
   const calculoAbierto = useRef(false);
   useEffect(() => {
@@ -66,11 +105,35 @@ export function JobPostingDetail({
 
   useEffect(() => {
     let active = true;
+    const profileController = new AbortController();
+    const profileTimeout = setTimeout(() => profileController.abort(), 10_000);
     setState((previous) => previous.status === 'loaded' ? previous : { status: 'loading' });
+
+    // El detalle no debe esperar al perfil. El perfil solo determina la firma usada para invalidar afinidad.
+    const profilePromise = apiFetch<AffinityProfile>('/api/v1/perfil', { signal: profileController.signal }).catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 401) throw error;
+        return null;
+      }).finally(() => clearTimeout(profileTimeout));
 
     getAvailableJobPosting(id).then(
       (posting) => {
-        if (active) setState({ status: 'loaded', posting });
+        if (!active) return;
+        setState({ status: 'loaded', posting });
+        profilePromise.then(
+          (profile) => {
+            if (!active) return;
+            setAffinityKey((previous) => {
+              if (!profile && previous?.vacancyId === id) return previous;
+              const value = affinityInputKey(posting, profile);
+              return previous?.vacancyId === id && previous.value === value
+                ? previous
+                : { vacancyId: id, value };
+            });
+          },
+          () => {
+            if (active) setState({ status: 'error' });
+          },
+        );
       },
       (error: unknown) => {
         if (!active) return;
@@ -84,38 +147,74 @@ export function JobPostingDetail({
 
     return () => {
       active = false;
+      profileController.abort();
+      clearTimeout(profileTimeout);
     };
   }, [id, retryCount]);
 
-  const loadedPosting = state.status === 'loaded' ? state.posting : null;
+  const loadedPosting = state.status === 'loaded' && state.posting.id === id ? state.posting : null;
   const technicalRequirements = useMemo(
     () => loadedPosting?.requisitos ?? [],
     [loadedPosting],
   );
 
   useEffect(() => {
-    if (!loadedPosting) return;
+    if (!affinityKey || affinityKey.vacancyId !== id) return;
     let active = true;
+    let settled = false;
+    const currentKey = JSON.stringify([id, affinityKey.value]);
+    setResultKey(null);
     // HU-20 T20.1: al recalcular, la ventana «¿Cómo se calcula?» se cierra.
     // Va antes de setAffinityState para no quedar pegado a la llamada que cambia la HU-10.
     setMostrarCalculo(false);
     setAffinityState({ status: 'loading' });
     setShowComparison(false);
-    calculateVacancyAffinity(id).then(
-      (result) => active && setAffinityState(result),
+    let request = affinityRequestsRef.current.get(currentKey);
+    if (!request) {
+      request = calculateVacancyAffinity(id);
+      affinityRequestsRef.current.set(currentKey, request);
+    }
+    const timeout = setTimeout(() => {
+      if (!active || settled) return;
+      settled = true;
+      if (affinityRequestsRef.current.get(currentKey) === request) {
+        affinityRequestsRef.current.delete(currentKey);
+      }
+      setResultKey(currentKey);
+      setAffinityState({ status: 'error', message: 'El cálculo tardó demasiado', retryable: true });
+    }, 60_000);
+    request.then(
+      (result) => {
+        if (!active || settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        setResultKey(currentKey);
+        setAffinityState(result);
+      },
       (error: unknown) => {
-        if (!active) return;
+        if (!active || settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        setResultKey(currentKey);
         const message = error instanceof Error ? error.message : 'No se pudo calcular la afinidad';
         const retryable = (error as Record<string, unknown>)?.status === 503 || (error as Record<string, unknown>)?.retryable !== false;
         setAffinityState({ status: 'error', message, retryable });
       },
-    );
+    ).finally(() => {
+      if (affinityRequestsRef.current.get(currentKey) === request) {
+        affinityRequestsRef.current.delete(currentKey);
+      }
+    });
     return () => {
       active = false;
+      clearTimeout(timeout);
     };
-  }, [id, loadedPosting, affinityRetryCount]);
+  }, [id, affinityKey, affinityRetryCount]);
 
-  if (state.status === 'loading') {
+  const displayedAffinity: AffinityState = loadedPosting && resultKey === JSON.stringify([id, affinityKey?.value])
+    ? affinityState : { status: 'loading' };
+
+  if (state.status === 'loading' || (state.status === 'loaded' && !loadedPosting)) {
     return (
       <main className={presentation === 'hu002' ? 'min-h-screen bg-[#F5F2EA] px-4 py-16' : 'mx-auto max-w-5xl px-4 py-16'}>
         <Spinner size="lg" text="Cargando oferta. Espera un momento..." />
@@ -282,18 +381,18 @@ export function JobPostingDetail({
                   <h2 id="job-affinity-heading" className="text-xl font-bold leading-7">
                     Tu afinidad con esta oferta
                   </h2>
-                  {affinityState.status === 'ready' && (
+                  {displayedAffinity.status === 'ready' && (
                     <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
                       Vigente
                     </span>
                   )}
                 </div>
-                {affinityState.status === 'loading' && (
+                {displayedAffinity.status === 'loading' && (
                   <div role="status" className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] px-4 py-6 text-center">
                     <p className="font-semibold text-slate-800">Calculando afinidad…</p>
                   </div>
                 )}
-                {affinityState.status === 'profile-incomplete' && (
+                {displayedAffinity.status === 'profile-incomplete' && (
                   <div className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] p-5 text-center">
                     <p className="font-semibold text-slate-800">Completa tu perfil para conocer tu afinidad</p>
                     <Link href="/profile/completar" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
@@ -301,13 +400,13 @@ export function JobPostingDetail({
                     </Link>
                   </div>
                 )}
-                {(affinityState.status === 'no-requirements' || (affinityState as { status: string }).status === 'insufficient-requirements') && (
+                {(displayedAffinity.status === 'no-requirements' || (displayedAffinity as { status: string }).status === 'insufficient-requirements') && (
                   <div role="status" className="mt-6 rounded-xl border border-[#D8CEBF] bg-[#FAF8F3] px-4 py-6 text-center">
                     <p className="font-semibold text-slate-800">Afinidad no calculada</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">La oferta no contiene requisitos técnicos identificables para comparar.</p>
                   </div>
                 )}
-                {affinityState.status === 'error' && (
+                {displayedAffinity.status === 'error' && (
                   <div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-center">
                     <p className="font-semibold text-red-800">Afinidad no disponible por ahora</p>
                     <button type="button" onClick={() => setAffinityRetryCount((count) => count + 1)} className="mt-4 min-h-10 rounded-lg bg-[#172238] px-4 font-semibold text-white hover:bg-slate-700">
@@ -315,10 +414,10 @@ export function JobPostingDetail({
                     </button>
                   </div>
                 )}
-                {affinityState.status === 'ready' && (
+                {displayedAffinity.status === 'ready' && (
                   <>
                     <div className="mt-6 flex items-center justify-between gap-3">
-                      <p className="text-5xl font-bold tracking-tight text-[#A64D35]">{affinityState.percentage}%</p>
+                      <p className="text-5xl font-bold tracking-tight text-[#A64D35]">{displayedAffinity.percentage}%</p>
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-sm text-slate-500">Afinidad</span>
                         <button
@@ -335,24 +434,24 @@ export function JobPostingDetail({
                       aria-label="Porcentaje de afinidad"
                       aria-valuemin={0}
                       aria-valuemax={100}
-                      aria-valuenow={affinityState.percentage}
+                      aria-valuenow={displayedAffinity.percentage}
                       className="mt-4 h-2 overflow-hidden rounded-full bg-[#EEE9DF]"
                     >
-                      <div className="h-full rounded-full bg-[#F7A95B]" style={{ width: `${affinityState.percentage}%` }} />
+                      <div className="h-full rounded-full bg-[#F7A95B]" style={{ width: `${displayedAffinity.percentage}%` }} />
                     </div>
                     <p className="mt-4 text-sm leading-6 text-slate-600">Estimación orientativa basada en los requisitos identificados. No garantiza la contratación.</p>
-                    <p className="mt-3 text-sm text-slate-500">Actualizado: {new Date(affinityState.calculatedAt).toLocaleString('es-BO')}</p>
+                    <p className="mt-3 text-sm text-slate-500">Actualizado: {new Date(displayedAffinity.calculatedAt).toLocaleString('es-BO')}</p>
                     <ComoSeCalculaModal
                       open={mostrarCalculo}
                       onClose={() => setMostrarCalculo(false)}
-                      percentage={affinityState.percentage}
-                      comparison={affinityState.comparison}
+                      percentage={displayedAffinity.percentage}
+                      comparison={displayedAffinity.comparison}
                     />
                     <button type="button" aria-expanded={showComparison} aria-controls={comparisonId} onClick={() => setShowComparison((visible) => !visible)} className="mt-5 min-h-12 w-full rounded-lg border border-[#D8CEBF] px-4 font-semibold text-[#172238] hover:bg-slate-50">
                       {showComparison ? 'Ocultar comparación' : 'Ver comparación'}
                     </button>
                       <ul id={comparisonId} hidden={!showComparison} className="mt-4 space-y-3 border-t border-[#E8E1D6] pt-4">
-                        {affinityState.comparison.map((item, index) => (
+                        {displayedAffinity.comparison.map((item, index) => (
                           <li key={`${item.requirement}-${index}`} className="rounded-lg bg-[#FAF8F3] p-3 text-sm">
                             <p className="font-semibold text-slate-800">{item.requirement}</p>
                             <p className="mt-1 text-slate-600">Habilidad: {item.matchedSkill ?? 'No encontrada'}</p>
