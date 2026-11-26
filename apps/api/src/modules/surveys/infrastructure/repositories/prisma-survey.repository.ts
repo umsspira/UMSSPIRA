@@ -200,7 +200,7 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
   }
 
   async createManaged(actorId: string, careerIds: readonly string[], input: SurveyAdminInput): Promise<SurveyAdminRecord> {
-    const assignment = await this.assignment(actorId, careerIds);
+    const assignment = await this.creationAssignment(actorId, careerIds, input.careerId);
     this.validateDates(input.startDate, input.endDate);
     const survey = await this.prisma.encuesta.create({
       data: {
@@ -305,6 +305,37 @@ export class PrismaSurveyRepository implements SurveyRepositoryPort {
     });
     if (!assignment?.id_carrera) {
       throw new BusinessRuleError('forbidden', 'SURVEY_CAREER_FORBIDDEN', 'No tienes una carrera asignada');
+    }
+    return assignment;
+  }
+
+  /**
+   * HU-005: carrera de una encuesta nueva. Antes se tomaba la primera asignación que devolvía la base,
+   * y un administrador de dos carreras creaba todas sus encuestas en la misma.
+   */
+  private async creationAssignment(actorId: string, careerIds: readonly string[], careerId?: string) {
+    if (!careerIds.length) {
+      throw new BusinessRuleError('forbidden', 'SURVEY_CAREER_FORBIDDEN', 'No tienes una carrera asignada');
+    }
+    if (careerId !== undefined && !careerIds.includes(careerId)) {
+      throw new BusinessRuleError('forbidden', 'SURVEY_CAREER_FORBIDDEN', 'No administras esa carrera');
+    }
+    const assignments = await this.prisma.administradorDeCarrera.findMany({
+      where: {
+        id_usuario: actorId,
+        estado: 'ACTIVO',
+        id_carrera: { in: careerId !== undefined ? [careerId] : [...careerIds] },
+      },
+      select: { id: true, id_carrera: true },
+      orderBy: [{ id_carrera: 'asc' }, { id: 'asc' }],
+      distinct: ['id_carrera'],
+    });
+    const [assignment] = assignments;
+    if (!assignment?.id_carrera) {
+      throw new BusinessRuleError('forbidden', 'SURVEY_CAREER_FORBIDDEN', 'No tienes una carrera asignada');
+    }
+    if (assignments.length > 1) {
+      throw new BusinessRuleError('invalid', 'SURVEY_CAREER_REQUIRED', 'Seleccione la carrera de la encuesta');
     }
     return assignment;
   }

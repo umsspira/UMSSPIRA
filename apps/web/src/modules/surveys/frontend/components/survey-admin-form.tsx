@@ -1,16 +1,20 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import type { SurveyFormValues } from '../types/survey-admin.types';
+import type { AdminCareer, SurveyFormValues } from '../types/survey-admin.types';
 
 const REQUIRED = 'Este campo es obligatorio';
 const END_BEFORE_START = 'La fecha de fin no puede ser anterior a la de inicio';
 
 type Errors = Partial<Record<keyof SurveyFormValues, string>>;
 
-/** CA-03 y CA-04. Las fechas YYYY-MM-DD se pueden comparar como texto. */
-export function validateSurveyForm(values: SurveyFormValues): Errors {
+/**
+ * CA-03 y CA-04. Las fechas YYYY-MM-DD se pueden comparar como texto.
+ * Con `requireCareer` (administrador de varias carreras, al crear) la carrera también es obligatoria.
+ */
+export function validateSurveyForm(values: SurveyFormValues, requireCareer = false): Errors {
   const errors: Errors = {};
+  if (requireCareer && !values.careerId) errors.careerId = REQUIRED;
   if (!values.title.trim()) errors.title = REQUIRED;
   if (!values.startDate) errors.startDate = REQUIRED;
   if (!values.endDate) errors.endDate = REQUIRED;
@@ -21,6 +25,8 @@ export function validateSurveyForm(values: SurveyFormValues): Errors {
 interface Props {
   heading: string;
   initial?: SurveyFormValues;
+  /** Carreras para elegir; el campo se muestra solo si hay más de una. */
+  careers?: readonly AdminCareer[];
   submitting: boolean;
   serverError: string | null;
   onSubmit: (values: SurveyFormValues) => void;
@@ -39,7 +45,16 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-export function SurveyAdminForm({ heading, initial, submitting, serverError, onSubmit, onCancel }: Props) {
+export function SurveyAdminForm({
+  heading,
+  initial,
+  careers = [],
+  submitting,
+  serverError,
+  onSubmit,
+  onCancel,
+}: Props) {
+  const showCareer = careers.length > 1;
   const [values, setValues] = useState<SurveyFormValues>(
     initial ?? { title: '', startDate: '', endDate: '' },
   );
@@ -47,7 +62,7 @@ export function SurveyAdminForm({ heading, initial, submitting, serverError, onS
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const found = validateSurveyForm(values);
+    const found = validateSurveyForm(values, showCareer);
     setErrors(found);
     if (Object.keys(found).length === 0) onSubmit(values);
   }
@@ -65,6 +80,30 @@ export function SurveyAdminForm({ heading, initial, submitting, serverError, onS
         <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {serverError}
         </p>
+      )}
+
+      {showCareer && (
+        <div className="mt-4">
+          <label htmlFor="survey-career" className="text-sm font-semibold text-abyssal-blue">
+            Carrera *
+          </label>
+          <select
+            id="survey-career"
+            value={values.careerId ?? ''}
+            aria-invalid={Boolean(errors.careerId)}
+            aria-describedby={errors.careerId ? 'survey-career-error' : undefined}
+            onChange={(e) => setValues({ ...values, careerId: e.target.value || undefined })}
+            className={inputClass}
+          >
+            <option value="">Seleccione una carrera</option>
+            {careers.map((career) => (
+              <option key={career.id} value={career.id}>
+                {career.name}
+              </option>
+            ))}
+          </select>
+          <FieldError id="survey-career-error" message={errors.careerId} />
+        </div>
       )}
 
       <div className="mt-4">

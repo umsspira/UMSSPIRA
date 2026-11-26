@@ -7,7 +7,17 @@ const surveyDates = {
   format: z.string().trim().min(1).max(30).optional(),
 };
 
-export const createSurveyAdminSchema = z.object(surveyDates).strict();
+// HU-005: un administrador con varias carreras indica para cuál es la encuesta.
+// El backend valida que sea una de sus carreras; con una sola carrera puede omitirse.
+export const createSurveyAdminSchema = z
+  .object({
+    ...surveyDates,
+    careerId: z
+      .uuid()
+      .transform((value) => value.toLowerCase())
+      .optional(),
+  })
+  .strict();
 export const updateSurveyAdminSchema = z.object(surveyDates).partial().strict();
 export const surveyIdSchema = z.string().uuid();
 

@@ -19,6 +19,28 @@ describe('survey-admin.schemas', () => {
       expect(result.format).toBeUndefined();
     });
 
+    it('acepta la carrera de la encuesta y la normaliza en minúsculas', () => {
+      const result = createSurveyAdminSchema.parse({
+        title: 'Encuesta 2026',
+        startDate: '2026-11-01',
+        endDate: '2026-11-30',
+        careerId: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA',
+      });
+
+      expect(result.careerId).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    });
+
+    it('rechaza una carrera que no es un UUID', () => {
+      expect(
+        createSurveyAdminSchema.safeParse({
+          title: 'Encuesta 2026',
+          startDate: '2026-11-01',
+          endDate: '2026-11-30',
+          careerId: 'sistemas',
+        }).success,
+      ).toBe(false);
+    });
+
     it('rechaza un título vacío', () => {
       expect(
         createSurveyAdminSchema.safeParse({
