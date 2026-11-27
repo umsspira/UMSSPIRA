@@ -331,9 +331,6 @@ function mensajeDeRespuesta(texto: string, porDefecto: string): string {
   }
 }
 
-// HU-18: mensaje claro cuando el archivo no llega a la API por su tamaño (413)
-export const MENSAJE_RESPALDO_MUY_GRANDE = 'El archivo es demasiado grande para subirlo. Prueba con uno más liviano.';
-
 // POST /api/v1/perfil/certificaciones/:id/respaldo (multipart, campo "archivo").
 // Usa XMLHttpRequest porque fetch no informa el avance de la subida; onProgreso recibe 0 a 100.
 export async function subirRespaldo(
@@ -360,9 +357,6 @@ export async function subirRespaldo(
         resolve();
       } else if (xhr.status === 401) {
         reject(new ApiError(401, 'Tu sesion expiro. Inicia sesion nuevamente'));
-      } else if (xhr.status === 413) {
-        // El servidor web (Vercel) corta antes de la API los envíos de más de 4,5 MB y responde sin JSON
-        reject(new ApiError(413, MENSAJE_RESPALDO_MUY_GRANDE));
       } else {
         reject(new ApiError(xhr.status, mensajeDeRespuesta(xhr.responseText, 'No se pudo subir el respaldo')));
       }

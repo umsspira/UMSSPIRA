@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import {
+  BackupField,
   EditRecordLayout,
   FormField,
   INPUT_CLASS,
   RecordNotFound,
 } from '@/modules/profile/components/edit-record-layout';
+import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
 import { recordsHref, updatedRecordHref } from '@/modules/profile/data/profile-records-data';
 import { actualizarFormacion } from '@/modules/profile/services/perfil-api';
 import { useProfileStore } from '@/modules/profile/state/profile-store';
@@ -51,6 +53,9 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
     graduationYear: education.graduationYear,
     degree: education.degree,
   });
+  const [documentName, setDocumentName] = useState(education.backupFile ?? '');
+  const [documentUrl, setDocumentUrl] = useState(education.backupUrl);
+  const [isNewDocument, setIsNewDocument] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   // Mismas reglas que al crear; el error del año se recalcula mientras se corrige
   const [yearError, setYearError] = useState<string>();
@@ -65,6 +70,24 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
     setIsSaved(false);
     setSaveError(undefined);
     if (name === 'graduationYear' && yearError) setYearError(validarAnioEgreso(value));
+  }
+
+  function handleDocumentChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (file) {
+      setDocumentName(file.name);
+      setDocumentUrl(urlDeArchivo(file));
+      setIsNewDocument(true);
+      setIsSaved(false);
+    }
+  }
+
+  // Deshace la foto elegida que aún no se guardó y vuelve al respaldo que ya tenía el registro
+  function handleDocumentRemove() {
+    setDocumentName(education.backupFile ?? '');
+    setDocumentUrl(education.backupUrl);
+    setIsNewDocument(false);
+    setIsSaved(false);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -91,8 +114,12 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
     setIsSaving(true);
     try {
       const actualizada = await actualizarFormacion(education.id, formacion);
-      // HU-18: la formación no tiene respaldo en la API, por eso aquí no se ofrece subirlo
-      updateRecord('education', actualizada);
+      // El respaldo de la formación no se guarda en la API: se conserva el del estado
+      updateRecord('education', {
+        ...actualizada,
+        backupFile: documentName || undefined,
+        backupUrl: documentName ? documentUrl : undefined,
+      });
       setIsSaved(true);
       // Vuelve a la pestaña de formación con el aviso «Registro actualizado» (HU-11)
       router.push(updatedRecordHref('education'));
@@ -168,6 +195,17 @@ function EditEducationFields({ education }: { education: EducationRecord }) {
           </select>
         </FormField>
       </div>
+
+      {/* Un respaldo ya cargado se considera validado; uno nuevo queda en revisión */}
+      <BackupField
+        documentName={documentName}
+        documentUrl={documentUrl}
+        isVerified={Boolean(documentName) && !isNewDocument}
+        onDocumentChange={handleDocumentChange}
+        onDocumentRemove={
+          isNewDocument && documentName !== (education.backupFile ?? '') ? handleDocumentRemove : undefined
+        }
+      />
 
       <MensajeError id="error-education-save" mensaje={saveError} />
     </EditRecordLayout>

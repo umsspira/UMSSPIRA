@@ -16,7 +16,7 @@ describe('validateCvFile (HU-16)', () => {
       .toThrow(CV_TYPE_MESSAGE);
   });
 
-  it('rechaza archivos mayores a 4 MB', () => {
+  it('rechaza archivos mayores a 5 MB', () => {
     const large = new Uint8Array(MAX_CV_BYTES + 1);
     large.set(pdf);
     expect(() => validateCvFile('curriculum.pdf', large)).toThrow(CV_SIZE_MESSAGE);

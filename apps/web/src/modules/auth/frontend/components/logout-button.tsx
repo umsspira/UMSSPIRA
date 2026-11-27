@@ -4,7 +4,6 @@
 import { useState } from "react";
 
 import { clearAllSurveyDrafts } from "@/modules/surveys/frontend/hooks/use-survey-draft";
-import { clearAllProfileDrafts } from "@/modules/profile/utils/drafts-storage";
 import { clearPrivateOfflineData, markPendingLogout } from "@/features/event-passes/offline/offline-session";
 import { revokeCurrentSession } from "@/shared/services/auth-session";
 
@@ -46,7 +45,6 @@ export function LogoutButton() {
     }
 
     clearAllSurveyDrafts();
-    clearAllProfileDrafts();
     clearSession();
     authStore.reset();
     hardRedirect("/login");

@@ -49,7 +49,7 @@ const TITULADO_STEPS: HelpStep[] = [
   },
   {
     title: 'Subir el CV',
-    description: 'En tu perfil, busca «Currículum (CV)» y selecciona «Subir CV». El archivo debe ser PDF y pesar hasta 4 MB.',
+    description: 'En tu perfil, busca «Currículum (CV)» y selecciona «Subir CV». El archivo debe ser PDF y pesar hasta 5 MB.',
     image: '/ayuda/titulado-subir-cv.png',
     imageAlt: 'Perfil del titulado con la sección «Currículum (CV)» y el botón «Subir CV».',
     href: '/profile',

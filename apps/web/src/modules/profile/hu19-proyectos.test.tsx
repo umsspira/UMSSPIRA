@@ -140,9 +140,9 @@ describe('HU-19 · Proyectos y portafolio', () => {
 
     render(<ProfileRecordsTable section="project" records={[]} onDelete={onDelete} />);
     expect(screen.getByText('Aún no tienes proyectos registrados')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Agregar registros' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Agregar proyecto' })).toHaveAttribute(
       'href',
-      '/profile/registros/agregar#seccion-4',
+      '/profile/completar?seccion=proyectos&returnTo=%2Fprofile',
     );
   });
 

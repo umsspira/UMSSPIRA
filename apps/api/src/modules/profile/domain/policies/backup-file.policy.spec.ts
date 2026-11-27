@@ -18,7 +18,7 @@ describe('validateBackupFile (HU-18)', () => {
     );
   });
 
-  it('rechaza un archivo de más de 4 MB', () => {
+  it('rechaza un archivo de más de 5 MB', () => {
     const grande = new Uint8Array(MAX_BACKUP_BYTES + 1);
     grande.set(pdf);
     expect(() => validateBackupFile('grande.pdf', grande)).toThrow(BACKUP_FILE_MESSAGE);

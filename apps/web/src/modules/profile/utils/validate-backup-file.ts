@@ -1,11 +1,11 @@
-// Respaldo de un registro (HU-18): foto JPG o documento PDF de hasta 4 MB.
+// Respaldo de un registro (HU-18): foto JPG o documento PDF de hasta 5 MB.
 // Mismas reglas que validateBackupFile del backend (apps/api/src/modules/profile/domain/policies/backup-file.policy.ts)
-export const BACKUP_FILE_MESSAGE = 'Solo se aceptan archivos PDF o JPG de hasta 4 MB';
-export const MAX_BACKUP_BYTES = 4 * 1024 * 1024;
+export const BACKUP_FILE_MESSAGE = 'Solo se aceptan archivos PDF o JPG de hasta 5 MB';
+export const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 // Valor del atributo accept de los campos de respaldo
 export const BACKUP_ACCEPT = 'application/pdf,image/jpeg';
 // Texto de ayuda bajo los botones de respaldo
-export const BACKUP_HINT = 'PDF o JPG, máximo 4 MB';
+export const BACKUP_HINT = 'PDF o JPG, máximo 5 MB';
 
 export type BackupType = 'pdf' | 'image';
 

@@ -19,7 +19,7 @@ export class UploadCertificationBackupUseCase {
         'Adjunta el respaldo PDF o JPG de la certificación',
       );
     }
-    // HU-18: PDF o JPG de hasta 4 MB; si ya había respaldo, el repositorio lo reemplaza en el mismo registro
+    // HU-18: PDF o JPG de hasta 5 MB; si ya había respaldo, el repositorio lo reemplaza en el mismo registro
     const mime = validateBackupFile(file.originalname, file.buffer);
     return this.repository.saveBackup(scope, id, {
       id: randomUUID(),

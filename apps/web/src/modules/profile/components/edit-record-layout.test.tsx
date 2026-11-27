@@ -9,7 +9,7 @@ function jpg(nombre: string, bytes = 1024) {
 
 function renderBackup(onDocumentChange = jest.fn()) {
   const { container } = render(
-    <BackupField documentName="" onDocumentChange={onDocumentChange} />,
+    <BackupField documentName="" isVerified={false} onDocumentChange={onDocumentChange} />,
   );
   const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]'));
   return { inputs, onDocumentChange };
@@ -25,10 +25,10 @@ describe('BackupField · validación del respaldo al editar', () => {
     expect(onDocumentChange).not.toHaveBeenCalled();
   });
 
-  it('rechaza un JPG de más de 4 MB y no lo adjunta', () => {
+  it('rechaza un JPG de más de 5 MB y no lo adjunta', () => {
     const { inputs, onDocumentChange } = renderBackup();
 
-    fireEvent.change(inputs[0], { target: { files: [jpg('grande.jpg', 4 * 1024 * 1024 + 1)] } });
+    fireEvent.change(inputs[0], { target: { files: [jpg('grande.jpg', 5 * 1024 * 1024 + 1)] } });
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(onDocumentChange).not.toHaveBeenCalled();
@@ -46,9 +46,9 @@ describe('BackupField · validación del respaldo al editar', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('acepta un PDF de hasta 4 MB en ambos botones (HU-18)', () => {
+  it('acepta un PDF de hasta 5 MB en ambos botones (HU-18)', () => {
     const { inputs, onDocumentChange } = renderBackup();
-    const pdf = new File([new Uint8Array(4 * 1024 * 1024)], 'titulo.pdf', { type: 'application/pdf' });
+    const pdf = new File([new Uint8Array(5 * 1024 * 1024)], 'titulo.pdf', { type: 'application/pdf' });
 
     for (const input of inputs) {
       expect(input).toHaveAttribute('accept', 'application/pdf,image/jpeg');
@@ -57,24 +57,16 @@ describe('BackupField · validación del respaldo al editar', () => {
 
     expect(onDocumentChange).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByText('PDF o JPG, máximo 4 MB')).toBeInTheDocument();
+    expect(screen.getByText('PDF o JPG, máximo 5 MB')).toBeInTheDocument();
   });
 
-  it('rechaza un PDF de más de 4 MB (HU-18)', () => {
+  it('rechaza un PDF de más de 5 MB (HU-18)', () => {
     const { inputs, onDocumentChange } = renderBackup();
-    const pdf = new File([new Uint8Array(4 * 1024 * 1024 + 1)], 'grande.pdf', { type: 'application/pdf' });
+    const pdf = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'grande.pdf', { type: 'application/pdf' });
 
     fireEvent.change(inputs[1], { target: { files: [pdf] } });
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Solo se aceptan archivos PDF o JPG de hasta 4 MB');
+    expect(screen.getByRole('alert')).toHaveTextContent('Solo se aceptan archivos PDF o JPG de hasta 5 MB');
     expect(onDocumentChange).not.toHaveBeenCalled();
-  });
-});
-
-describe('BackupField sin etiquetas de validación (HU-21)', () => {
-  it('con un respaldo cargado no muestra «Respaldo verificado» ni «Respaldo en revisión»', () => {
-    render(<BackupField documentName="titulo.pdf" documentUrl="blob:titulo" onDocumentChange={jest.fn()} />);
-    expect(screen.getByRole('link', { name: 'titulo.pdf' })).toBeInTheDocument();
-    expect(screen.queryByText(/Respaldo verificado|Respaldo en revisión/)).not.toBeInTheDocument();
   });
 });

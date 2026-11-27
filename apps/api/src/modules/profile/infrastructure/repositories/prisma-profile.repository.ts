@@ -20,7 +20,6 @@ import type {
 } from '../../application/contracts/profile-inputs';
 import type { ProfileSection, ProfileSnapshot } from '../../domain/entities/profile-record';
 import { assertUniqueEducation } from '../../domain/policies/education.policy';
-import { assertCurrentJobsLimit } from '../../domain/policies/current-jobs.policy';
 import { backupKind } from '../../domain/policies/backup-file.policy';
 import {
   toBackup,
@@ -127,11 +126,6 @@ export class PrismaProfileRepository implements ProfileRepository {
     return this.prisma.$transaction(
       async (tx) => {
         await lockGraduate(tx, scope);
-        // HU-21 CA-09: con el titulado bloqueado, se cuentan sus trabajos actuales antes de crear otro
-        assertCurrentJobsLimit(
-          !input.fechaFin,
-          await tx.experienciaLaboral.count({ where: { id_titulado: scope.graduateId, fecha_fin: null } }),
-        );
         return toExperience(
           await tx.experienciaLaboral.create({
             data: {
@@ -271,13 +265,6 @@ export class PrismaProfileRepository implements ProfileRepository {
             if (!(await tx.experienciaLaboral.findFirst({ where, select: { id: true } }))) {
               await rejectProfileRecord(tx.experienciaLaboral.findUnique({ where: { id } }));
             }
-            // HU-21 CA-09: no cuenta el registro que se edita
-            assertCurrentJobsLimit(
-              !change.data.fechaFin,
-              await tx.experienciaLaboral.count({
-                where: { id_titulado: scope.graduateId, fecha_fin: null, NOT: { id } },
-              }),
-            );
             return toExperience(
               await tx.experienciaLaboral.update({
                 where,

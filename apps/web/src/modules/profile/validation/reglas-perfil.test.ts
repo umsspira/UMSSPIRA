@@ -98,16 +98,16 @@ describe('validarRangoFechas', () => {
  
 describe('validarRespaldo', () => {
   it('usa los textos del criterio', () => {
-    expect(MENSAJE_RESPALDO_FORMATO).toBe('Solo se aceptan archivos PDF o JPG de hasta 4 MB');
-    expect(MENSAJE_RESPALDO_TAMANIO).toBe('Solo se aceptan archivos PDF o JPG de hasta 4 MB');
+    expect(MENSAJE_RESPALDO_FORMATO).toBe('Solo se aceptan archivos PDF o JPG de hasta 5 MB');
+    expect(MENSAJE_RESPALDO_TAMANIO).toBe('Solo se aceptan archivos PDF o JPG de hasta 5 MB');
   });
  
-  it('acepta un JPG de hasta 4 MB', () => {
+  it('acepta un JPG de hasta 5 MB', () => {
     expect(validarRespaldo(archivo('certificado.jpg', 'image/jpeg'))).toBeUndefined();
     expect(validarRespaldo(archivo('certificado.JPEG', 'image/jpeg', TAMANIO_MAXIMO_RESPALDO))).toBeUndefined();
   });
  
-  it('rechaza PNG por formato, aunque supere 4 MB (HU-18)', () => {
+  it('rechaza PNG por formato, aunque supere 5 MB (HU-18)', () => {
     expect(validarRespaldo(archivo('certificado.png', 'image/png', 6 * 1024 * 1024))).toBe(MENSAJE_RESPALDO_FORMATO);
     expect(validarRespaldo(archivo('certificado.png', 'image/png'))).toBe(MENSAJE_RESPALDO_FORMATO);
   });
@@ -117,7 +117,7 @@ describe('validarRespaldo', () => {
     expect(validarRespaldo(archivo('certificado.pdf', 'image/jpeg'))).toBe(MENSAJE_RESPALDO_FORMATO);
   });
  
-  it('rechaza un JPG de más de 4 MB', () => {
+  it('rechaza un JPG de más de 5 MB', () => {
     expect(validarRespaldo(archivo('certificado.jpg', 'image/jpeg', 6 * 1024 * 1024))).toBe(MENSAJE_RESPALDO_TAMANIO);
   });
 });

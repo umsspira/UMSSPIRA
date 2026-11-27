@@ -7,12 +7,12 @@ function file(name: string, type: string, size = 10) {
 }
 
 describe('validateBackupFile (HU-18)', () => {
-  it('acepta PDF y JPG de hasta 4 MB', () => {
+  it('acepta PDF y JPG de hasta 5 MB', () => {
     expect(validateBackupFile(file('titulo.pdf', 'application/pdf', MAX_BACKUP_BYTES))).toBeUndefined();
     expect(validateBackupFile(file('foto.jpg', 'image/jpeg'))).toBeUndefined();
   });
 
-  it('rechaza otro formato o más de 4 MB con el mismo mensaje', () => {
+  it('rechaza otro formato o más de 5 MB con el mismo mensaje', () => {
     expect(validateBackupFile(file('foto.png', 'image/png'))).toBe(BACKUP_FILE_MESSAGE);
     expect(validateBackupFile(file('titulo.pdf', 'application/pdf', MAX_BACKUP_BYTES + 1))).toBe(BACKUP_FILE_MESSAGE);
   });

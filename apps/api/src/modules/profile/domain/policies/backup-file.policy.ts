@@ -1,8 +1,8 @@
 import { BusinessRuleError } from '../../../../shared/errors/business-rule-error';
 
-// Respaldo de certificación (HU-18): foto JPG o documento PDF de hasta 4 MB
-export const MAX_BACKUP_BYTES = 4 * 1024 * 1024;
-export const BACKUP_FILE_MESSAGE = 'Solo se aceptan archivos PDF o JPG de hasta 4 MB';
+// Respaldo de certificación (HU-18): foto JPG o documento PDF de hasta 5 MB
+export const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+export const BACKUP_FILE_MESSAGE = 'Solo se aceptan archivos PDF o JPG de hasta 5 MB';
 
 export type BackupMime = 'image/jpeg' | 'application/pdf';
 

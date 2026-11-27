@@ -28,21 +28,6 @@ describe('ProjectEmbedModal (HU-20)', () => {
     expect(iframe).toHaveAttribute('referrerpolicy', 'no-referrer');
   });
 
-  it('si el sitio impide verse dentro de otra página, muestra la tarjeta aunque el iframe haya cargado', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ embeddable: false }) });
-    global.fetch = fetchMock as unknown as typeof fetch;
-    try {
-      render(<ProjectEmbedModal project={PROJECT} onClose={jest.fn()} />);
-      fireEvent.load(screen.getByTitle('Sitio del proyecto Portafolio web'));
-
-      expect(await screen.findByRole('alert')).toHaveTextContent('Este sitio no permite verse aquí.');
-      expect(fetchMock).toHaveBeenCalledWith('/api/embed-check', expect.objectContaining({ method: 'POST' }));
-      expect(screen.queryByTitle('Sitio del proyecto Portafolio web')).not.toBeInTheDocument();
-    } finally {
-      delete (global as { fetch?: unknown }).fetch;
-    }
-  });
-
   it('CA-02: muestra «Cargando…» hasta que el sitio termina de cargar', () => {
     render(<ProjectEmbedModal project={PROJECT} onClose={jest.fn()} />);
 

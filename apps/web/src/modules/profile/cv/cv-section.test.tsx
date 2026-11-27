@@ -37,7 +37,7 @@ describe('CvSection', () => {
   it('muestra «Subir CV», el formato y el aviso de privacidad (CA-01, CA-02)', async () => {
     render(<CvSection />);
     expect(await screen.findByRole('button', { name: 'Subir CV' })).toBeTruthy();
-    expect(screen.getByText('Formato PDF, hasta 4 MB')).toBeTruthy();
+    expect(screen.getByText('Formato PDF, hasta 5 MB')).toBeTruthy();
     expect(screen.getByText('Tu CV solo lo verán las empresas de las vacantes a las que postules')).toBeTruthy();
   });
 
@@ -48,12 +48,12 @@ describe('CvSection', () => {
     expect(mockedUpload).not.toHaveBeenCalled();
   });
 
-  it('rechaza un PDF de más de 4 MB y no lo sube (CA-04)', async () => {
+  it('rechaza un PDF de más de 5 MB y no lo sube (CA-04)', async () => {
     render(<CvSection />);
     const big = pdf();
     Object.defineProperty(big, 'size', { value: 6 * 1024 * 1024 });
     pick(big);
-    expect(await screen.findByText('El archivo supera el tamaño máximo de 4 MB')).toBeTruthy();
+    expect(await screen.findByText('El archivo supera el tamaño máximo de 5 MB')).toBeTruthy();
     expect(mockedUpload).not.toHaveBeenCalled();
   });
 
@@ -61,7 +61,7 @@ describe('CvSection', () => {
     mockedUpload.mockRejectedValueOnce(new CvUploadError(413, 'PAYLOAD_TOO_LARGE'));
     render(<CvSection />);
     pick(pdf());
-    expect(await screen.findByText('El archivo supera el tamaño máximo de 4 MB')).toBeTruthy();
+    expect(await screen.findByText('El archivo supera el tamaño máximo de 5 MB')).toBeTruthy();
   });
 
   it('muestra el texto del CA-03 si la API rechaza el contenido con INVALID_CV_TYPE', async () => {
@@ -75,7 +75,7 @@ describe('CvSection', () => {
     mockedUpload.mockRejectedValueOnce(new CvUploadError(400, 'CV_TOO_LARGE'));
     render(<CvSection />);
     pick(pdf());
-    expect(await screen.findByText('El archivo supera el tamaño máximo de 4 MB')).toBeTruthy();
+    expect(await screen.findByText('El archivo supera el tamaño máximo de 5 MB')).toBeTruthy();
   });
 
   it('muestra un mensaje genérico ante otros errores de la API', async () => {

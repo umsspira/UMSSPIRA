@@ -14,7 +14,6 @@ import type {
 } from '@/modules/profile/types/profile-record';
 import { urlDeArchivo } from '@/modules/profile/utils/backup-url';
 import { crearIdOperacion } from '@/modules/profile/utils/certification-operation';
-import { backupTypeOf } from '@/modules/profile/utils/validate-backup-file';
 
 export type SavedDraft =
   | { section: 'education'; record: EducationRecord }
@@ -54,8 +53,6 @@ export async function persistDraft(
           backupFile: draft.data.respaldo?.name,
           backupUrl: urlDeArchivo(draft.data.respaldo),
           backupVerified: false,
-          // HU-18: PDF o foto, para que el visor y la lista lo muestren sin recargar (igual que Completar perfil)
-          backupType: draft.data.respaldo ? backupTypeOf(draft.data.respaldo) : undefined,
         },
       };
     }
